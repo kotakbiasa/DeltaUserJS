@@ -1,0 +1,20 @@
+{
+  "name": "delta-ubot-js",
+  "version": "1.0.0",
+  "description": "Multi-userbot manager using grammY for Master Bot and GramJS for userbots",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@grammyjs/conversations": "^2.1.1",
+    "@grammyjs/runner": "^2.0.3",
+    "dotenv": "^17.4.2",
+    "grammy": "^1.43.0",
+    "jimp": "^1.6.1",
+    "mongoose": "^9.6.3",
+    "qrcode": "^1.5.4",
+    "telegram": "^2.26.22"
+  }
+}
