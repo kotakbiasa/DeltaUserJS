@@ -1,3 +1,4 @@
+import './config.js';
 import bot from './bot/index.js';
 import userbotManager from './userbot/manager.js';
 import { getAllRegisteredUsers, updateUserbotStatus } from './database/db.js';
