@@ -107,6 +107,11 @@ async function waitForInput(conversation, ctx) {
     throw new Error('USER_CANCELLED');
   }
 
+  // Berikan reaksi 👍 pada pesan yang dikirim pengguna sebagai indikasi bot memprosesnya
+  try {
+    await result.react('👍');
+  } catch (e) {}
+
   return result.message.text.trim();
 }
 
