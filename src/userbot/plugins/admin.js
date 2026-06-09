@@ -15,13 +15,19 @@ export default {
     if (['.kick', '.ban', '.mute', '.unmute'].includes(cmd)) {
       const replied = await message.getReplyMessage();
       if (!replied) {
-        await message.edit({ text: `❌ <b>Balas (reply) pesan pengguna untuk melakukan ${cmd}!</b>`, parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Balas (reply) pesan pengguna untuk melakukan ${cmd}!</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         return;
       }
-      
+
       const targetId = replied.senderId;
       if (!targetId) {
-         await message.edit({ text: '❌ Tidak dapat menemukan user ID dari pesan ini.', parseMode: 'html' });
+         await message.edit({ 
+           text: `<blockquote>❌ Tidak dapat menemukan user ID dari pesan ini.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+           parseMode: 'html' 
+         });
          return;
       }
       
@@ -48,25 +54,42 @@ export default {
         if (cmd === '.kick') {
           const banRights = new Api.ChatBannedRights({ untilDate: 0, viewMessages: true });
           const unbanRights = new Api.ChatBannedRights({ untilDate: 0, viewMessages: false, sendMessages: false });
-          try {
-             await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights: banRights }));
-             await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights: unbanRights }));
-          } catch(e) {
-             await client.invoke(new Api.messages.DeleteChatUser({ chatId: message.chatId, userId: targetId }));
-          }
-          await message.edit({ text: `👢 <b>Berhasil mengeluarkan (kick)</b> pengguna tersebut.`, parseMode: 'html' });
-        } else {
-          try {
-             await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights }));
-          } catch(e) {
-             throw e;
-          }
-          const textMsg = cmd === '.ban' ? '🔨 <b>Berhasil memblokir (ban)</b>' : (cmd === '.mute' ? '🤐 <b>Berhasil membisukan (mute)</b>' : '🔊 <b>Berhasil membuka bisu (unmute)</b>');
-          await message.edit({ text: `${textMsg} pengguna tersebut.`, parseMode: 'html' });
+
+          await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights: banRights }));
+          await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights: unbanRights }));
+
+          await message.edit({ 
+            text: `<blockquote>👢 <b>Berhasil mengeluarkan (kick) user:</b> <code>${targetId}</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            parseMode: 'html' 
+          });
+
+        } else if (cmd === '.ban') {
+          await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights }));
+          await message.edit({ 
+            text: `<blockquote>🔨 <b>Berhasil memblokir (ban) user:</b> <code>${targetId}</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            parseMode: 'html' 
+          });
+
+        } else if (cmd === '.mute') {
+          await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights }));
+          await message.edit({ 
+            text: `<blockquote>🔇 <b>Berhasil membisukan (mute) user:</b> <code>${targetId}</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            parseMode: 'html' 
+          });
+
+        } else if (cmd === '.unmute') {
+          await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights }));
+          await message.edit({ 
+            text: `<blockquote>🔊 <b>Bisu telah dicabut (unmute) untuk user:</b> <code>${targetId}</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            parseMode: 'html' 
+          });
         }
       } catch (err) {
-        console.error('Error in admin tools:', err);
-        await message.edit({ text: `❌ <b>Gagal:</b> Anda bukan admin atau bot tidak memiliki izin yang cukup.\n<code>${err.message}</code>`, parseMode: 'html' });
+        console.error(`Error in admin plugin (${cmd}):`, err.message);
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Gagal melakukan ${cmd}:</b>\n<i>${err.message}</i>\n\n(Pastikan Anda adalah Admin dengan hak yang cukup)</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
       }
     }
   }

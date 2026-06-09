@@ -14,6 +14,8 @@ const config = {
   ownerId: process.env.OWNER_ID ? parseInt(process.env.OWNER_ID) : 0,
   logGroupId: process.env.LOG_GROUP_ID ? parseInt(process.env.LOG_GROUP_ID) : 0,
   logTopicId: process.env.LOG_TOPIC_ID ? parseInt(process.env.LOG_TOPIC_ID) : 0,
+  mongoUri: process.env.MONGO_URI,
+  dbName: 'DeltaUbotJS',
 };
 
 // Check if credentials are set

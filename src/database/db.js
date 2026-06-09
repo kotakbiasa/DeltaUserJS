@@ -11,8 +11,11 @@ const dbPath = path.resolve(__dirname, '../../database.json');
  */
 const dbCache = new Map();
 
+import config from '../config.js';
+
 // --- MongoDB Config ---
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = config.mongoUri || process.env.MONGO_URI;
+const DB_NAME = config.dbName || process.env.DB_NAME || 'DeltaUbotJS';
 let isMongo = false;
 
 // Define Mongoose Schema
@@ -26,7 +29,12 @@ const UserbotSchema = new mongoose.Schema({
   anti_pm: { type: Number, default: 0 },
   afk_reason: { type: String, default: 'Saya sedang AFK/Sibuk. Harap tunggu sebentar.' },
   expired_at: { type: String, required: true },
-  created_at: { type: String, required: true }
+  created_at: { type: String, required: true },
+  inline_bot_token: { type: String, default: null },
+  inline_bot_username: { type: String, default: null },
+  custom_name: { type: String, default: 'DeltaUbotJS' },
+  approved_users: { type: [Number], default: [] },
+  broadcast_blacklist: { type: [String], default: [] }
 });
 
 const UserbotModel = mongoose.models.Userbot || mongoose.model('Userbot', UserbotSchema);
@@ -66,6 +74,7 @@ async function initDatabaseAndCache() {
       console.log(`🔌 Connecting to MongoDB Cluster...`);
       // Connection timeout set to 5000ms so it doesn't hang indefinitely if connection fails
       await mongoose.connect(MONGO_URI, {
+        dbName: DB_NAME,
         serverSelectionTimeoutMS: 5000
       });
       isMongo = true;
@@ -84,7 +93,12 @@ async function initDatabaseAndCache() {
           anti_pm: bot.anti_pm,
           afk_reason: bot.afk_reason,
           expired_at: bot.expired_at,
-          created_at: bot.created_at
+          created_at: bot.created_at,
+          inline_bot_token: bot.inline_bot_token,
+          inline_bot_username: bot.inline_bot_username,
+          custom_name: bot.custom_name,
+          approved_users: Array.from(bot.approved_users || []),
+          broadcast_blacklist: Array.from(bot.broadcast_blacklist || [])
         });
       }
       console.log(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`);
@@ -112,7 +126,12 @@ async function initDatabaseAndCache() {
       anti_pm: bot.anti_pm !== undefined ? bot.anti_pm : 0,
       afk_reason: bot.afk_reason || 'Saya sedang AFK/Sibuk. Harap tunggu sebentar.',
       expired_at: bot.expired_at || defaultExp.toISOString(),
-      created_at: createdAt
+      created_at: createdAt,
+      inline_bot_token: bot.inline_bot_token || null,
+      inline_bot_username: bot.inline_bot_username || null,
+      custom_name: bot.custom_name || 'DeltaUbotJS',
+      approved_users: bot.approved_users || [],
+      broadcast_blacklist: bot.broadcast_blacklist || []
     };
     dbCache.set(Number(id), botData);
   }
@@ -147,7 +166,10 @@ export function saveUserbotSession(telegramId, phone, sessionString) {
     anti_pm: existing.anti_pm !== undefined ? existing.anti_pm : 0,
     afk_reason: existing.afk_reason || 'Saya sedang AFK/Sibuk. Harap tunggu sebentar.',
     expired_at: existing.expired_at || expDate.toISOString(),
-    created_at: existing.created_at || new Date().toISOString()
+    created_at: existing.created_at || new Date().toISOString(),
+    inline_bot_token: existing.inline_bot_token || null,
+    inline_bot_username: existing.inline_bot_username || null,
+    custom_name: existing.custom_name || 'DeltaUbotJS'
   };
 
   // 1. Update Cache
@@ -281,4 +303,134 @@ export function deleteUserbot(telegramId) {
     }
     return false;
   }
+}
+
+// --- Approved Users Helpers ---
+export async function addApprovedUser(telegramId, targetUserId) {
+  const session = dbCache.get(Number(telegramId));
+  if (!session) return false;
+
+  if (!session.approved_users) {
+    session.approved_users = [];
+  }
+
+  if (!session.approved_users.includes(targetUserId)) {
+    session.approved_users.push(targetUserId);
+    dbCache.set(Number(telegramId), session);
+
+    if (isMongo) {
+      try {
+        await UserbotModel.updateOne({ telegram_id: telegramId }, { $push: { approved_users: targetUserId } });
+      } catch (e) {
+        console.error('Error adding approved user to Mongo:', e.message);
+      }
+    } else {
+      const data = readDbFromFile();
+      if (data.userbots[telegramId]) {
+        data.userbots[telegramId].approved_users = session.approved_users;
+        writeDbToFile(data);
+      }
+    }
+  }
+  return true;
+}
+
+export async function removeApprovedUser(telegramId, targetUserId) {
+  const session = dbCache.get(Number(telegramId));
+  if (!session) return false;
+
+  if (!session.approved_users) return true;
+
+  const index = session.approved_users.indexOf(targetUserId);
+  if (index > -1) {
+    session.approved_users.splice(index, 1);
+    dbCache.set(Number(telegramId), session);
+
+    if (isMongo) {
+      try {
+        await UserbotModel.updateOne({ telegram_id: telegramId }, { $pull: { approved_users: targetUserId } });
+      } catch (e) {
+        console.error('Error removing approved user from Mongo:', e.message);
+      }
+    } else {
+      const data = readDbFromFile();
+      if (data.userbots[telegramId]) {
+        data.userbots[telegramId].approved_users = session.approved_users;
+        writeDbToFile(data);
+      }
+    }
+  }
+  return true;
+}
+
+export function getApprovedUsers(telegramId) {
+  const session = dbCache.get(Number(telegramId));
+  if (!session) return [];
+  return session.approved_users || [];
+}
+
+// --- Broadcast Blacklist Helpers ---
+export async function addBroadcastBlacklist(telegramId, chatId) {
+  const session = dbCache.get(Number(telegramId));
+  if (!session) return false;
+
+  if (!session.broadcast_blacklist) {
+    session.broadcast_blacklist = [];
+  }
+
+  const chatStr = String(chatId);
+  if (!session.broadcast_blacklist.includes(chatStr)) {
+    session.broadcast_blacklist.push(chatStr);
+    dbCache.set(Number(telegramId), session);
+
+    if (isMongo) {
+      try {
+        await UserbotModel.updateOne({ telegram_id: telegramId }, { $push: { broadcast_blacklist: chatStr } });
+      } catch (e) {
+        console.error('Error adding to broadcast_blacklist in Mongo:', e.message);
+      }
+    } else {
+      const data = readDbFromFile();
+      if (data.userbots[telegramId]) {
+        data.userbots[telegramId].broadcast_blacklist = session.broadcast_blacklist;
+        writeDbToFile(data);
+      }
+    }
+  }
+  return true;
+}
+
+export async function removeBroadcastBlacklist(telegramId, chatId) {
+  const session = dbCache.get(Number(telegramId));
+  if (!session) return false;
+
+  if (!session.broadcast_blacklist) return true;
+
+  const chatStr = String(chatId);
+  const index = session.broadcast_blacklist.indexOf(chatStr);
+  if (index > -1) {
+    session.broadcast_blacklist.splice(index, 1);
+    dbCache.set(Number(telegramId), session);
+
+    if (isMongo) {
+      try {
+        await UserbotModel.updateOne({ telegram_id: telegramId }, { $pull: { broadcast_blacklist: chatStr } });
+      } catch (e) {
+        console.error('Error removing from broadcast_blacklist in Mongo:', e.message);
+      }
+    } else {
+      const data = readDbFromFile();
+      if (data.userbots[telegramId]) {
+        data.userbots[telegramId].broadcast_blacklist = session.broadcast_blacklist;
+        writeDbToFile(data);
+      }
+    }
+  }
+  return true;
+}
+
+export function getBroadcastBlacklist(telegramId) {
+  const session = dbCache.get(Number(telegramId));
+  if (!session) return [];
+  return session.broadcast_blacklist || [];
 }

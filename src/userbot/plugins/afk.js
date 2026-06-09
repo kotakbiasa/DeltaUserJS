@@ -133,7 +133,7 @@ export default {
 
             // Balas dengan me-reply pesan pengirim asli
             await client.sendMessage(message.peerId, {
-              message: `<b>💤 Userbot — Auto Reply</b>\n\n` +
+              message: `<b>💤 ${settings.custom_name || 'DeltaUbotJS'} — Auto Reply</b>\n\n` +
                        `Halo! Saya sedang <b>AFK (Away From Keyboard)</b> saat ini.\n\n` +
                        `📝 <b>Alasan</b>: <i>${settings.afk_reason}</i>\n` +
                        `🕒 <b>Sejak</b>: <i>${timeText}</i>\n\n` +

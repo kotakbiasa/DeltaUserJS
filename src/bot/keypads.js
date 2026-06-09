@@ -101,10 +101,10 @@ export const registrationMethodsKeyboard = new InlineKeyboard()
  */
 export const activeUserbotKeyboard = new InlineKeyboard()
   .text('🔌 Matikan Userbot', 'stop_bot')
-  .text('⚙️ Kelola Fitur', 'manage_features')
+  .text('⚙️ Settings', 'manage_features')
   .row()
-  .text('❌ Hapus Sesi', 'delete_session')
   .text('🔄 Cek Status', 'ubot_control_panel')
+  .text('❌ Hapus Sesi', 'delete_session')
   .row()
   .text('🔙 Kembali ke Menu Utama', 'back_to_main');
 
@@ -113,10 +113,10 @@ export const activeUserbotKeyboard = new InlineKeyboard()
  */
 export const inactiveUserbotKeyboard = new InlineKeyboard()
   .text('⚡ Hidupkan Userbot', 'start_bot')
-  .text('⚙️ Kelola Fitur', 'manage_features')
+  .text('⚙️ Settings', 'manage_features')
   .row()
-  .text('❌ Hapus Sesi', 'delete_session')
   .text('🔄 Cek Status', 'ubot_control_panel')
+  .text('❌ Hapus Sesi', 'delete_session')
   .row()
   .text('🔙 Kembali ke Menu Utama', 'back_to_main');
 
@@ -124,17 +124,15 @@ export const inactiveUserbotKeyboard = new InlineKeyboard()
  * Dynamic keyboard for managing userbot features (Auto-Read, Auto-Reply, etc.)
  */
 export function createFeaturesKeyboard(isAutoReadOn, isAutoReplyOn, isAntiPmOn) {
-  const afkLabel = isAutoReplyOn ? '💤 Mode AFK: 🟢 ON' : '💤 Mode AFK: 🔴 OFF';
   const antiPmLabel = isAntiPmOn ? '🚫 Anti-PM: 🟢 ON' : '🚫 Anti-PM: 🔴 OFF';
   
   return new InlineKeyboard()
-    .text(afkLabel, 'toggle_reply')
-    .row()
     .text(antiPmLabel, 'toggle_anti_pm')
+    .text('🏷️ Set Nama Ubot', 'set_custom_name')
     .row()
-    .text('📝 Setel Alasan AFK', 'set_afk_reason')
+    .text('🤖 Set Token Bot', 'set_custom_inline_bot')
     .row()
-    .text('🔙 Kembali ke Panel Kontrol', 'ubot_control_panel');
+    .text('🔙 Kembali', 'ubot_control_panel');
 }
 
 /**

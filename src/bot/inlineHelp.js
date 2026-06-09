@@ -1,5 +1,6 @@
-import { InlineKeyboard } from 'grammy';
+import { Menu } from '@grammyjs/menu';
 import { helpRegistry } from '../userbot/pluginRegistry.js';
+import { getUserbotSession } from '../database/db.js';
 
 /**
  * Format nama modul agar rapi (kapitalisasi otomatis)
@@ -13,17 +14,18 @@ function formatModuleName(name) {
 /**
  * Teks menu utama help dengan info sistem
  */
-function buildHelpMenuText() {
+export function buildHelpMenuText(session) {
   const plugins = Object.keys(helpRegistry);
-  const pluginCount = plugins.length;
-  const memoryMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
-  const uptimeMin = Math.round(process.uptime() / 60);
+  const botName = session?.custom_name || 'DeltaUbotJS';
+  const headerName = botName.toUpperCase().split('').join(' ');
 
-  let text = `D E L T A   U B O T   J S\n` +
+  let text = `🔺 <b>${headerName}</b> 🔺\n` +
     `───────────────────────\n` +
-    `MENU BANTUAN USERBOT\n\n` +
-    `───────────────────────\n` +
-    `💡 <i>Pilih salah satu tombol modul di bawah ini untuk melihat detail penggunaannya.</i>`;
+    `📖 <b>MENU BANTUAN USERBOT</b>\n\n` +
+    `<blockquote>` +
+    `💡 <i>Pilih salah satu tombol modul di bawah ini untuk melihat detail penggunaannya.</i>` +
+    `</blockquote>\n\n` +
+    `⚡ <i>${session?.custom_name || 'DeltaUbotJS'}</i>`;
 
   return text;
 }
@@ -33,7 +35,15 @@ function buildHelpMenuText() {
  */
 function markdownToHtml(text) {
   if (!text) return text;
-  return text
+  
+  // Escape HTML entities first to prevent Telegram parsing errors
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+    
+  // Convert basic markdown to HTML tags
+  return escaped
     .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
     .replace(/__(.*?)__/g, '<i>$1</i>')
     .replace(/\*(.*?)\*/g, '<i>$1</i>')
@@ -44,86 +54,138 @@ function markdownToHtml(text) {
 /**
  * Teks detail modul
  */
-function buildModuleDetailText(moduleName) {
+function buildModuleDetailText(moduleName, session) {
   const mod = helpRegistry[moduleName];
   if (!mod) return null;
 
+  const botName = session?.custom_name || 'DeltaUbotJS';
+  const headerName = botName.toUpperCase().split('').join(' ');
+
   return (
-    `D E L T A   U B O T   J S\n` +
+    `🔺 <b>${headerName}</b> 🔺\n` +
     `───────────────────────\n` +
-    `<b>${mod.title}</b>\n\n` +
-    `Deskripsi: ${markdownToHtml(mod.description)}\n` +
-    `Penggunaan: ${markdownToHtml(mod.usage)}\n\n` +
-    `Detail Fitur:\n${markdownToHtml(mod.detail)}\n` +
-    `───────────────────────`
+    `📦 <b>MODUL: ${mod.title}</b>\n\n` +
+    `<blockquote>` +
+    `📄 <b>Deskripsi</b>:\n${markdownToHtml(mod.description)}\n\n` +
+    `⚙️ <b>Penggunaan</b>:\n${markdownToHtml(mod.usage)}\n\n` +
+    `📋 <b>Detail Fitur</b>:\n${markdownToHtml(mod.detail)}` +
+    `</blockquote>\n\n` +
+    `⚡ <i>${session?.custom_name || 'DeltaUbotJS'}</i>`
   );
 }
 
-/**
- * Buat InlineKeyboard untuk menu utama help dengan pagination
- */
-function createHelpMenuMarkup(page = 1) {
-  const plugins = Object.keys(helpRegistry);
-  const itemsPerPage = 4;
-  const totalPages = Math.ceil(plugins.length / itemsPerPage) || 1;
-  
-  // Pastikan page valid
-  if (page < 1) page = 1;
-  if (page > totalPages) page = totalPages;
+export const inlineHelpMenu = new Menu('inline-help-menu')
+  .dynamic((ctx, range) => {
+    const isViewingModule = ctx.session?.viewingHelpModule;
+    
+    if (isViewingModule) {
+      // Sub-menu: Tampilkan tombol kembali dan tutup
+      range.text('🔙 Kembali ke Daftar Modul', async (ctx) => {
+        ctx.session.viewingHelpModule = null;
+        const dbSession = getUserbotSession(ctx.from.id);
+        await ctx.editMessageText(buildHelpMenuText(dbSession), { parse_mode: 'HTML' });
+        ctx.menu.update();
+      }).row();
+      
+      const isInline = !ctx.callbackQuery?.message;
+      
+      if (isInline) {
+        range.text('❌ Tutup Bantuan', async (ctx) => {
+          await ctx.editMessageText('❌ <i>Menu bantuan telah ditutup.</i>', { parse_mode: 'HTML', reply_markup: { inline_keyboard: [] } });
+        });
+      } else {
+        range.text('🔙 Kembali ke Beranda', async (ctx) => {
+          ctx.session.viewingHelpModule = null;
+          ctx.session.helpPage = 1;
+          const { getWelcomeText } = await import('./menus.js');
+          await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML' });
+          ctx.menu.nav('master-main-menu');
+        });
+      }
+    } else {
+      // Main menu: Daftar Modul dengan pagination
+      const plugins = Object.keys(helpRegistry);
+      const itemsPerPage = 4;
+      const totalPages = Math.ceil(plugins.length / itemsPerPage) || 1;
+      let page = ctx.session?.helpPage || 1;
+      if (page > totalPages) page = totalPages;
+      if (page < 1) page = 1;
 
-  const startIndex = (page - 1) * itemsPerPage;
-  const pagePlugins = plugins.slice(startIndex, startIndex + itemsPerPage);
+      const startIndex = (page - 1) * itemsPerPage;
+      const pagePlugins = plugins.slice(startIndex, startIndex + itemsPerPage);
 
-  const keyboard = new InlineKeyboard();
+      // Render 2x2 grid
+      for (let i = 0; i < pagePlugins.length; i += 2) {
+        const row = pagePlugins.slice(i, i + 2);
+        for (const p of row) {
+          range.text(formatModuleName(p), async (ctx) => {
+            ctx.session.viewingHelpModule = p;
+            const dbSession = getUserbotSession(ctx.from.id);
+            await ctx.editMessageText(buildModuleDetailText(p, dbSession), { parse_mode: 'HTML' });
+            ctx.menu.update();
+          });
+        }
+        range.row();
+      }
 
-  // Buat baris tombol, 2 tombol per baris (2x2 grid style)
-  for (let i = 0; i < pagePlugins.length; i += 2) {
-    const row = pagePlugins.slice(i, i + 2).map(p => {
-      return { text: formatModuleName(p), callback_data: `help:${p}` };
-    });
-    keyboard.row(...row);
-  }
-  
-  // Tombol navigasi (Next / Prev)
-  const navRow = [];
-  if (page > 1) {
-    navRow.push({ text: '⬅️ Prev', callback_data: `help_page:${page - 1}` });
-  }
-  if (page < totalPages) {
-    navRow.push({ text: 'Next ➡️', callback_data: `help_page:${page + 1}` });
-  }
-  
-  if (navRow.length > 0) {
-    keyboard.row(...navRow);
-  }
+      // Pagination controls
+      if (totalPages > 1) {
+        if (page > 1) {
+          range.text('⬅️ Prev', (ctx) => { ctx.session.helpPage = page - 1; ctx.menu.update(); });
+        }
+        range.text(`Hal ${page}/${totalPages}`, (ctx) => ctx.answerCallbackQuery(`Halaman ${page}`));
+        if (page < totalPages) {
+          range.text('Next ➡️', (ctx) => { ctx.session.helpPage = page + 1; ctx.menu.update(); });
+        }
+        range.row();
+      }
 
-  // Tambahkan tombol Close di paling bawah
-  keyboard.row().text('❌ Tutup Bantuan', 'help:close');
-
-  return keyboard;
-}
-
-/**
- * Buat InlineKeyboard untuk tombol kembali
- */
-function createBackMarkup() {
-  return new InlineKeyboard()
-    .text('Kembali ke Daftar Modul', 'help_page:1')
-    .row()
-    .text('❌ Tutup Bantuan', 'help:close');
-}
+      const isInline = !ctx.callbackQuery?.message;
+      if (isInline) {
+        range.text('❌ Tutup Bantuan', async (ctx) => {
+          await ctx.editMessageText('❌ <i>Menu bantuan telah ditutup.</i>', { parse_mode: 'HTML', reply_markup: { inline_keyboard: [] } });
+        });
+      } else {
+        range.text('🔙 Kembali ke Beranda', async (ctx) => {
+          ctx.session.viewingHelpModule = null;
+          ctx.session.helpPage = 1;
+          const { getWelcomeText } = await import('./menus.js');
+          await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML' });
+          ctx.menu.nav('master-main-menu');
+        });
+      }
+    }
+  });
 
 /**
  * Register handlers to the master bot
  */
 export function registerInlineHelpHandlers(bot) {
+  // Setup Session Variables
+  bot.use((ctx, next) => {
+    if (ctx.session) {
+      ctx.session.viewingHelpModule = ctx.session.viewingHelpModule || null;
+      ctx.session.helpPage = ctx.session.helpPage || 1;
+    }
+    return next();
+  });
+
+  // Daftarkan Menu
+  bot.use(inlineHelpMenu);
+
   // Handle inline queries
-  bot.on('inline_query', async (ctx) => {
+  bot.on('inline_query', async (ctx, next) => {
     const query = ctx.inlineQuery.query.trim();
 
     if (query === 'help') {
-      const text = buildHelpMenuText();
-      const markup = createHelpMenuMarkup(1);
+      const dbSession = getUserbotSession(ctx.from.id);
+      const text = buildHelpMenuText(dbSession);
+
+      // Reset state when opening help
+      if (ctx.session) {
+        ctx.session.viewingHelpModule = null;
+        ctx.session.helpPage = 1;
+      }
 
       await ctx.answerInlineQuery([{
         type: 'article',
@@ -134,60 +196,10 @@ export function registerInlineHelpHandlers(bot) {
           message_text: text,
           parse_mode: 'HTML'
         },
-        reply_markup: markup
+        reply_markup: inlineHelpMenu
       }], {
         cache_time: 0
       });
-    }
-  });
-
-  // Handle callback queries
-  bot.on('callback_query:data', async (ctx, next) => {
-    const data = ctx.callbackQuery.data;
-
-    // Handler untuk navigasi halaman
-    if (data.startsWith('help_page:')) {
-      const page = parseInt(data.split(':')[1]) || 1;
-      try {
-        await ctx.editMessageText(buildHelpMenuText(), {
-          parse_mode: 'HTML',
-          reply_markup: createHelpMenuMarkup(page)
-        });
-        await ctx.answerCallbackQuery();
-      } catch (err) {
-        console.error('Error in help_page callback:', err);
-        await ctx.answerCallbackQuery({ text: 'Gagal memuat halaman!', show_alert: true });
-      }
-      return;
-    }
-
-    if (data.startsWith('help:')) {
-      const action = data.split(':')[1];
-
-      try {
-        if (action === 'back') {
-          await ctx.editMessageText(buildHelpMenuText(), {
-            parse_mode: 'HTML',
-            reply_markup: createHelpMenuMarkup(1)
-          });
-        } else if (action === 'close') {
-          // Master bot tidak bisa menghapus pesan inline secara fisik, 
-          // jadi kita ubah teksnya dan hilangkan tombol
-          await ctx.editMessageText('❌ <i>Menu bantuan telah ditutup.</i>', {
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: [] }
-          });
-        } else if (helpRegistry[action]) {
-          await ctx.editMessageText(buildModuleDetailText(action), {
-            parse_mode: 'HTML',
-            reply_markup: createBackMarkup()
-          });
-        }
-        await ctx.answerCallbackQuery();
-      } catch (err) {
-        console.error('Error in inline help callback:', err);
-        await ctx.answerCallbackQuery({ text: 'Terjadi kesalahan!', show_alert: true });
-      }
     } else {
       return next();
     }

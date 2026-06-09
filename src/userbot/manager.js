@@ -1,5 +1,6 @@
 import { UserbotClient } from './client.js';
-import { getAllActiveUserbots } from '../database/db.js';
+import { getAllActiveUserbots, getUserbotSession } from '../database/db.js';
+import inlineBotManager from './inlineBotManager.js';
 
 class UserbotManager {
   constructor() {
@@ -23,6 +24,13 @@ class UserbotManager {
 
     try {
       await userbot.start();
+
+      // Mulai inline bot kustom jika user memiliki token
+      const dbSession = getUserbotSession(telegramId);
+      if (dbSession && dbSession.inline_bot_token) {
+        await inlineBotManager.startInlineBot(telegramId, dbSession.inline_bot_token);
+      }
+
       return true;
     } catch (error) {
       this.clients.delete(telegramId);
@@ -39,6 +47,10 @@ class UserbotManager {
     if (userbot) {
       await userbot.stop();
       this.clients.delete(telegramId);
+      
+      // Matikan juga inline bot kustomnya
+      await inlineBotManager.stopInlineBot(telegramId);
+      
       return true;
     }
     return false;

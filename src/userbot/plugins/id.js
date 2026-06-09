@@ -14,17 +14,23 @@ export default {
         if (replied) {
           const sender = await replied.getSender();
           await message.edit({
-            text: `🌐 <b>Info Chat & User</b>\n` +
+            text: `🌐 <b>Info Chat & User</b>\n\n` +
+                  `<blockquote>` +
                   `• <b>ID Chat</b>: <code>${message.chatId}</code>\n` +
                   `• <b>ID Target</b>: <code>${replied.senderId}</code>\n` +
-                  `• <b>Nama Target</b>: <code>${sender ? (sender.firstName + (sender.lastName ? ' ' + sender.lastName : '')) : 'Tidak Dikenal'}</code>`,
+                  `• <b>Nama Target</b>: <code>${sender ? (sender.firstName + (sender.lastName ? ' ' + sender.lastName : '')) : 'Tidak Dikenal'}</code>` +
+                  `</blockquote>\n\n` +
+                  `⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`,
             parseMode: 'html'
           });
         } else {
           await message.edit({
-            text: `🌐 <b>Info Chat</b>\n` +
+            text: `🌐 <b>Info Chat</b>\n\n` +
+                  `<blockquote>` +
                   `• <b>ID Chat</b>: <code>${message.chatId}</code>\n` +
-                  `• <b>ID Anda</b>: <code>${telegramId}</code>`,
+                  `• <b>ID Anda</b>: <code>${telegramId}</code>` +
+                  `</blockquote>\n\n` +
+                  `⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`,
             parseMode: 'html'
           });
         }

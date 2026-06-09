@@ -14,10 +14,10 @@ export default {
           text: '<b>🏓 PONG!</b>\n<blockquote>⏱️ Mengukur latensi...</blockquote>',
           parseMode: 'html'
         });
-        
+
         // Menghitung One-Way Latency
         const rawLatency = Date.now() - startMs;
-        
+
         const uptimeTotal = process.uptime();
         const hours = Math.floor(uptimeTotal / 3600);
         const minutes = Math.floor((uptimeTotal % 3600) / 60);
@@ -27,14 +27,13 @@ export default {
         if (minutes > 0) uptimeStr += `${minutes}m `;
         uptimeStr += `${seconds}d`;
 
-        const newDesign = `🏓 <b>ＰＯＮＧ！</b>\n` +
-                          `──────────────────\n` +
-                          `🚀 <b>Speed</b> : <code>${rawLatency} ms</code>\n` +
-                          `⏱️ <b>Uptime</b> : <code>${uptimeStr}</code>\n` +
-                          `🛡️ <b>Status</b> : <code>Online</code>\n` +
-                          `──────────────────\n` +
-                          `⚡ <i>Userbot</i>`;
-        
+        const newDesign = `🏓 <b>PING！</b>\n` +
+          `<blockquote>` +
+          `🚀 <b>Speed</b> : <code>${rawLatency} ms</code>\n` +
+          `⏱️ <b>Uptime</b> : <code>${uptimeStr}</code>\n` +
+          `🛡️ <b>Status</b> : <code>Online</code>\n` +
+          `⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`;
+
         await message.edit({
           text: newDesign,
           parseMode: 'html'

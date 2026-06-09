@@ -40,38 +40,59 @@ export default {
       }
       
       if (!noteContent) {
-        await message.edit({ text: '❌ <b>Format salah.</b>\nGunakan: <code>.save nama teks</code> atau reply teks dengan <code>.save nama</code>', parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Format salah.</b>\nGunakan: <code>.save nama teks</code> atau reply teks dengan <code>.save nama</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         return;
       }
       
       notesDb[telegramId][noteName] = noteContent;
       saveNotes();
       
-      await message.edit({ text: `✅ <b>Note disimpan!</b>\nGunakan <code>.get ${noteName}</code> untuk mengambilnya.`, parseMode: 'html' });
+      await message.edit({ 
+        text: `<blockquote>✅ <b>Note disimpan!</b>\nGunakan <code>.get ${noteName}</code> untuk mengambilnya.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        parseMode: 'html' 
+      });
     }
     else if (cmd === '.get' && noteName) {
       const content = notesDb[telegramId][noteName];
       if (content) {
         await message.edit({ text: content });
       } else {
-        await message.edit({ text: `❌ Note <code>${noteName}</code> tidak ditemukan.`, parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>❌ Note <code>${noteName}</code> tidak ditemukan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
       }
     }
     else if (cmd === '.notes') {
       const myNotes = Object.keys(notesDb[telegramId]);
       if (myNotes.length === 0) {
-        await message.edit({ text: '📝 <b>Anda belum menyimpan note apapun.</b>', parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>📝 <b>Anda belum menyimpan note apapun.</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
       } else {
-        await message.edit({ text: `📝 <b>Daftar Notes Anda:</b>\n\n` + myNotes.map(n => `• <code>${n}</code>`).join('\n'), parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>📝 <b>Daftar Notes Anda:</b>\n\n` + myNotes.map(n => `• <code>${n}</code>`).join('\n') + `</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
       }
     }
     else if (cmd === '.delnote' && noteName) {
       if (notesDb[telegramId][noteName]) {
         delete notesDb[telegramId][noteName];
         saveNotes();
-        await message.edit({ text: `🗑 <b>Note dihapus!</b>\nNote <code>${noteName}</code> telah dihapus secara permanen.`, parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>🗑 <b>Note dihapus!</b>\nNote <code>${noteName}</code> telah dihapus secara permanen.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
       } else {
-        await message.edit({ text: `❌ Note <code>${noteName}</code> tidak ditemukan.`, parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>❌ Note <code>${noteName}</code> tidak ditemukan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
       }
     }
   }

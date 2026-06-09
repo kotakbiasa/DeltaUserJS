@@ -2,13 +2,16 @@
 // Struktur: telegramId (Akun Ubot) -> Set dari senderId (Orang yang PM)
 const warnedMap = new Map();
 
+import { getUserbotSession } from '../../database/db.js';
+import { Api } from 'telegram';
+
 export default {
   name: 'antipm',
   help: {
     title: 'Anti-Spam Inbox',
-    description: 'Melindungi inbox Anda dari spam chat pribadi orang tidak dikenal secara otomatis.',
-    usage: 'Aktifkan melalui tombol di Master Bot.',
-    detail: '• **Pesan PM Pertama**: Userbot otomatis membaca dan membalas dengan pesan peringatan keamanan kustom DeltaUbotJS.\n• **Pesan Selanjutnya**: Seluruh pesan PM berikutnya dari orang tersebut akan **otomatis dihapus secara permanen secara instan** agar inbox Anda bersih.'
+    description: 'Melindungi inbox Anda dari spam chat pribadi. Tersedia juga sistem Trust/Approve.',
+    usage: '• Aktifkan Anti-PM via Master Bot.\n• `.approve` (Balas pesan target)\n• `.disapprove` (Balas pesan target)\n• `.approved` (Melihat daftar diizinkan)',
+    detail: '• **Pesan Pertama**: Otomatis dibalas dengan peringatan keamanan.\n• **Pesan Selanjutnya**: Otomatis dihapus permanen jika target belum di-approve.\n• **Bypass**: Pengguna di kontak Anda atau yang telah di-approve tidak akan diblokir.'
   },
   async execute(client, message, settings, telegramId) {
     const isPrivate = message.isPrivate;
@@ -29,6 +32,13 @@ export default {
       const sender = await message.getSender();
       if (sender?.bot || senderId === 777000) return;
 
+      // BYPASS: Jika pengirim ada di daftar kontak Telegram kita
+      if (sender?.contact) return;
+
+      // BYPASS: Jika pengirim ada di daftar Approved (Whitelist)
+      const session = getUserbotSession(telegramId);
+      if (session?.approved_users?.includes(senderId)) return;
+
       // Inisialisasi/Ambil Set peringatan untuk akun userbot ini
       if (!warnedMap.has(telegramId)) {
         warnedMap.set(telegramId, new Set());
@@ -46,12 +56,38 @@ export default {
         } catch (e) {}
 
         try {
+          if (session?.inline_bot_username) {
+            // Coba menggunakan Custom Inline Bot agar pesan memiliki Inline Button
+            try {
+              const botEntity = await client.getEntity(session.inline_bot_username);
+              const results = await client.invoke(new Api.messages.GetInlineBotResults({
+                bot: botEntity,
+                peer: message.peerId,
+                query: `antipm_${senderId}`,
+                offset: ''
+              }));
+
+              if (results && results.results && results.results.length > 0) {
+                await client.invoke(new Api.messages.SendInlineBotResult({
+                  peer: message.peerId,
+                  queryId: results.queryId,
+                  id: results.results[0].id
+                }));
+                return; // Sukses mengirim via inline bot
+              }
+            } catch (inlineErr) {
+              console.error(`Gagal mengirim Anti-PM via inline bot, fallback ke pesan biasa.`, inlineErr.message);
+            }
+          }
+
+          // Fallback ke pesan teks biasa jika tidak ada inline bot atau gagal
           await client.sendMessage(message.peerId, {
-            message: `🚫 <b>Keamanan Anti-PM</b> 🚫\n` +
-                     `────────────────────────\n` +
+            message: `🚫 <b>Keamanan Anti-PM</b> 🚫\n\n` +
+                     `<blockquote>` +
                      `Halo! Maaf, pemilik akun ini sedang mengaktifkan fitur <b>Anti-PM</b>.\n\n` +
-                     `Harap <b>tidak</b> mengirimkan pesan pribadi lagi sebelum mode ini dinonaktifkan, atau pesan Anda selanjutnya akan otomatis terhapus secara permanen.\n` +
-                     `────────────────────────`,
+                     `Harap <b>tidak</b> mengirimkan pesan pribadi lagi sebelum mode ini dinonaktifkan, atau pesan Anda selanjutnya akan <b>otomatis terhapus secara permanen</b>.` +
+                     `</blockquote>\n\n` +
+                     `⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`,
             parseMode: 'html'
           });
         } catch (err) {

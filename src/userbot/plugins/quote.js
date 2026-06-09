@@ -12,12 +12,18 @@ export default {
     if (cmd === '.q' || cmd === '.quote') {
       const replied = await message.getReplyMessage();
       if (!replied) {
-        await message.edit({ text: '❌ <b>Gagal:</b> Balas sebuah pesan teks untuk membuat quote!', parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Gagal:</b> Balas sebuah pesan teks untuk membuat quote!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         return;
       }
       
       try {
-        await message.edit({ text: '⏳ <b>Membuat quote...</b>', parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>⏳ <b>Membuat quote...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         
         const botUsername = '@QuotLyBot';
         
@@ -48,15 +54,21 @@ export default {
             file: quoteMsg.media,
             replyTo: message.replyToMsgId
           });
-          // Hapus command .q
-          await message.delete({ revoke: true });
+          // Hapus pesan "membuat quote..."
+          try { await message.delete(); } catch (e) {}
         } else {
-          await message.edit({ text: '❌ <b>Gagal:</b> @QuotLyBot lambat merespons. Coba lagi nanti.', parseMode: 'html' });
+          await message.edit({ 
+            text: `<blockquote>❌ <b>Gagal:</b> Tidak ada balasan dari @QuotLyBot. Coba lagi nanti.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            parseMode: 'html' 
+          });
         }
 
       } catch (err) {
         console.error('Error in quote plugin:', err);
-        await message.edit({ text: `❌ <b>Gagal membuat quote:</b> <code>${err.message}</code>`, parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Gagal membuat quote:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
       }
     }
   }

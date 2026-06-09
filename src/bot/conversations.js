@@ -683,3 +683,116 @@ export async function broadcastConversation(conversation, ctx) {
     }
   }
 }
+
+/**
+ * Conversation to set custom inline bot
+ */
+export async function setInlineBotConversation(conversation, ctx) {
+  const telegramId = ctx.from.id;
+  
+  try {
+    await ctx.reply('🤖 <b>Set Custom Inline Bot</b>\n\n<blockquote>Silakan kirimkan <b>Bot Token</b> Anda yang didapat dari @BotFather.\nContoh: <code>123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>\n\nAtau ketik <b>hapus</b> untuk menonaktifkan fitur ini.</blockquote>', {
+      parse_mode: 'HTML',
+      reply_markup: cancelKeyboard,
+    });
+
+    let inputToken;
+    try {
+      inputToken = await waitForInput(conversation, ctx);
+    } catch (err) {
+      if (err.message === 'USER_CANCELLED') return;
+      throw err;
+    }
+
+    if (inputToken.toLowerCase() === 'hapus') {
+      const { updateUserbotFeature } = await import('../database/db.js');
+      updateUserbotFeature(telegramId, 'inline_bot_token', null);
+      updateUserbotFeature(telegramId, 'inline_bot_username', null);
+      
+      const inlineBotManager = (await import('../userbot/inlineBotManager.js')).default;
+      await inlineBotManager.stopInlineBot(telegramId);
+      
+      await ctx.reply('✅ Custom Inline Bot berhasil dinonaktifkan.');
+      return;
+    }
+
+    await ctx.reply('⏳ Memvalidasi Bot Token...');
+
+    // Validate token via external call
+    const botData = await conversation.external(async () => {
+      try {
+        const response = await fetch(`https://api.telegram.org/bot${inputToken}/getMe`);
+        const data = await response.json();
+        return data;
+      } catch (e) {
+        return { ok: false, description: e.message };
+      }
+    });
+
+    if (!botData.ok) {
+      await ctx.reply(`❌ <b>Token tidak valid!</b>\n<blockquote>${botData.description || 'Gagal terhubung ke Telegram API'}</blockquote>\nSilakan coba lagi melalui /menu.`, { parse_mode: 'HTML' });
+      return;
+    }
+
+    const botUsername = botData.result.username;
+
+    // Save to DB
+    const { updateUserbotFeature } = await import('../database/db.js');
+    updateUserbotFeature(telegramId, 'inline_bot_token', inputToken);
+    updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
+
+    // Start the inline bot
+    const inlineBotManager = (await import('../userbot/inlineBotManager.js')).default;
+    await inlineBotManager.stopInlineBot(telegramId);
+    await inlineBotManager.startInlineBot(telegramId, inputToken);
+
+    await ctx.reply(`✅ <b>Custom Inline Bot Berhasil Diatur!</b>\n\n<blockquote>Bot kustom Anda: <b>@${botUsername}</b> siap digunakan untuk fitur inline (seperti .help).</blockquote>\n\n⚠️ Pastikan Anda sudah mengaktifkan <b>Inline Mode</b> untuk bot tersebut di @BotFather (/setinline).`, { parse_mode: 'HTML' });
+    
+  } catch (error) {
+    if (error.message !== 'USER_CANCELLED') {
+      console.error('Error in set inline bot conversation:', error);
+      await ctx.reply('❌ Terjadi kesalahan sistem. Gagal mengatur inline bot.');
+    }
+  }
+}
+
+/**
+ * Conversation to set custom userbot name
+ */
+export async function customNameConversation(conversation, ctx) {
+  const telegramId = ctx.from.id;
+  
+  try {
+    await ctx.reply('📝 <b>Set Custom Nama Ubot</b>\n\n<blockquote>Kirimkan nama/signature baru untuk userbot Anda (Maksimal 30 karakter).\nContoh: <code>Ubot Sultan</code></blockquote>\n\nKetik /cancel untuk membatalkan.', {
+      parse_mode: 'HTML',
+      reply_markup: cancelKeyboard,
+    });
+
+    let newName;
+    try {
+      newName = await waitForInput(conversation, ctx);
+    } catch (err) {
+      if (err.message === 'USER_CANCELLED') return;
+      throw err;
+    }
+
+    if (newName.length > 30) {
+      await ctx.reply('❌ Nama terlalu panjang! Maksimal 30 karakter. Pengaturan dibatalkan.');
+      return;
+    }
+
+    // Save to DB
+    const { updateUserbotFeature } = await import('../database/db.js');
+    updateUserbotFeature(telegramId, 'custom_name', newName);
+
+    await ctx.reply(`✅ <b>Nama Ubot berhasil diperbarui menjadi:</b>\n<blockquote>"${newName}"</blockquote>`, { parse_mode: 'HTML' });
+    
+    await ctx.reply('Gunakan `/menu` untuk kembali ke Panel Kontrol Utama.');
+
+  } catch (error) {
+    if (error.message !== 'USER_CANCELLED') {
+      console.error('Error in custom name conversation:', error);
+      await ctx.reply('❌ Terjadi kesalahan sistem. Gagal mengubah nama ubot.');
+    }
+  }
+}

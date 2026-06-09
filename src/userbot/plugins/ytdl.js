@@ -28,12 +28,18 @@ export default {
       }
       
       if (!url) {
-        await message.edit({ text: '❌ <b>Format salah!</b>\nGunakan: <code>.ytdl [url]</code> atau <code>.ytdl audio [url]</code>', parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Format salah!</b>\nGunakan: <code>.ytdl [url]</code> atau <code>.ytdl audio [url]</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         return;
       }
       
       try {
-        await message.edit({ text: '⏳ <b>Sedang memproses dan mendownload media...</b>\nMohon tunggu...', parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>⏳ <b>Sedang memproses dan mendownload media...</b>\nMohon tunggu...</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         
         const timestamp = Date.now();
         const tmpPath = path.join(process.cwd(), `ytdl_${timestamp}.%(ext)s`);
@@ -58,12 +64,16 @@ export default {
         
         const finalPath = path.join(process.cwd(), downloadedFile);
         
-        await message.edit({ text: '📤 <b>Sedang mengunggah file...</b>', parseMode: 'html' });
+        await message.edit({ 
+          text: `<blockquote>📤 <b>Media berhasil diunduh. Sedang mengirim ke chat...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         
         await client.sendFile(message.chatId, {
           file: finalPath,
-          caption: `✅ **Berhasil Diunduh:**\n${url}`,
-          replyTo: message.replyToMsgId
+          caption: `<blockquote>✅ <b>Unduhan Selesai</b>\n🔗 ${url}</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`,
+          replyTo: message.replyToMsgId,
+          parseMode: 'html'
         });
         
         // Hapus pesan progress setelah berhasil terkirim
@@ -77,7 +87,7 @@ export default {
       } catch (err) {
         console.error('Error in ytdl plugin:', err);
         await message.edit({ 
-          text: `❌ <b>Gagal!</b>\n<code>${err.message.substring(0, 500)}</code>`, 
+          text: `<blockquote>❌ <b>Gagal mendownload media:</b>\n<i>${err.message.slice(0, 500)}...</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
           parseMode: 'html' 
         });
       }

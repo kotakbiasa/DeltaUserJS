@@ -28,7 +28,10 @@ export default {
       
       const replyMsg = await message.getReplyMessage();
       if (!replyMsg || !replyMsg.media || (!replyMsg.media.document && !replyMsg.media.photo)) {
-        await message.edit({ text: '❌ Balas ke sebuah sticker atau foto untuk melakukan kang!' });
+        await message.edit({ 
+          text: `<blockquote>❌ Balas ke sebuah sticker atau foto untuk melakukan kang!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         return;
       }
       
@@ -37,7 +40,10 @@ export default {
         
         // Cek jika ini adalah bagian dari media group (album)
         if (replyMsg.groupedId) {
-          await message.edit({ text: '<code>Menganalisis album foto...</code>', parseMode: 'html' });
+          await message.edit({ 
+            text: `<blockquote>⏳ <b>Menganalisis album foto...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`,
+            parseMode: 'html' 
+          });
           const history = await client.getMessages(message.chatId, { limit: 20, offsetId: replyMsg.id + 10 });
           mediaMessages = history.filter(m => m.groupedId && m.groupedId.toString() === replyMsg.groupedId.toString());
           mediaMessages.sort((a, b) => a.id - b.id); // Urutkan dari terlama
@@ -54,21 +60,22 @@ export default {
             continue;
           }
 
-          await message.edit({ text: `<code>[${i+1}/${total}] Meng-kang stiker target...</code>`, parseMode: 'html' });
+          await message.edit({ 
+            text: `<blockquote>📥 <b>Mencuri (kang) media...</b> [${i + 1}/${total}]</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            parseMode: 'html' 
+          });
           
           // Download media
           const buffer = await client.downloadMedia(currentMsg.media, { workers: 1 });
           if (!buffer) continue;
 
           let tmpPath = path.join(process.cwd(), `kang_${Date.now()}`);
-          let isWebp = false;
           let sentMsgId = null;
           
           try {
             if (currentMsg.media.document && currentMsg.media.document.mimeType === 'image/webp') {
               tmpPath += '.webp';
               fs.writeFileSync(tmpPath, buffer);
-              isWebp = true;
             } else {
               tmpPath += '.png';
               fs.writeFileSync(tmpPath, buffer);
@@ -80,8 +87,6 @@ export default {
                 console.log('Jimp error:', e.message);
               }
             }
-
-            await message.edit({ text: `<code>[${i+1}/${total}] Sedang memproses media...</code>`, parseMode: 'html' });
             
             // Upload ke Saved Messages ("me") untuk mendapatkan InputDocument
             const sentMsg = await client.sendFile('me', { file: tmpPath, forceDocument: true });
@@ -126,8 +131,6 @@ export default {
               emoji: emoji
             });
 
-            await message.edit({ text: `<code>[${i+1}/${total}] Menyimpan ke pack pribadi...</code>`, parseMode: 'html' });
-
             if (createNew) {
               await client.invoke(
                 new Api.stickers.CreateStickerSet({
@@ -167,23 +170,23 @@ export default {
         }
         
         if (successCount > 0) {
+          const packUrl = `https://t.me/addstickers/${lastShortName}`;
           await message.edit({ 
-            text: `✅ <b>Berhasil meng-kang ${successCount} stiker!</b>\n\n<a href="https://t.me/addstickers/${lastShortName}">Lihat Pack Anda</a>`,
-            parseMode: 'html',
-            linkPreview: true
+            text: `<blockquote>✅ <b>Berhasil!</b>\nBerhasil mencuri (kang) ${successCount} stiker.\n\n👉 <a href="${packUrl}">Lihat Pack Stiker Anda</a></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            parseMode: 'html' 
           });
         } else {
           await message.edit({ 
-            text: `❌ <b>Gagal! Tidak ada media yang berhasil di-kang.</b>`,
-            parseMode: 'html'
+            text: `<blockquote>❌ <b>Gagal!</b>\nTidak ada stiker yang berhasil dicuri.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            parseMode: 'html' 
           });
         }
         
       } catch (err) {
         console.error('Error in kang plugin:', err);
         await message.edit({ 
-          text: `❌ <b>Gagal Kang!</b>\n<code>${err.message}</code>`,
-          parseMode: 'html'
+          text: `<blockquote>❌ <b>Terjadi kesalahan saat memproses kang:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
         });
       }
     }

@@ -1,5 +1,6 @@
 import { Bot, session, InlineKeyboard } from 'grammy';
 import { conversations, createConversation } from '@grammyjs/conversations';
+import { limit } from '@grammyjs/ratelimiter';
 import config from '../config.js';
 import { 
   createMainMenuKeyboard,
@@ -19,9 +20,13 @@ import {
   qrRegistrationConversation,
   afkReasonConversation,
   broadcastConversation,
-  activeRegClients
+  activeRegClients,
+  setInlineBotConversation,
+  customNameConversation
 } from './conversations.js';
+import { masterMainMenu, getWelcomeText } from './menus.js';
 import { registerInlineHelpHandlers } from './inlineHelp.js';
+import { registerInlineAntiPmHandlers } from './inlineAntiPm.js';
 import { 
   getUserbotSession, 
   updateUserbotStatus, 
@@ -30,6 +35,7 @@ import {
   getAllRegisteredUsers
 } from '../database/db.js';
 import userbotManager from '../userbot/manager.js';
+import { setupSettingsHandlers } from './settingsHandler.js';
 
 /**
  * 🔧 Helper: Render Admin User Detail Panel Text (HTML)
@@ -79,6 +85,22 @@ bot.use(
   })
 );
 
+// Configure Rate Limiter (Anti DDoS)
+bot.use(
+  limit({
+    timeFrame: 2000,
+    limit: 3,
+    onLimitExceeded: async (ctx) => {
+      try {
+        await ctx.reply("⚠️ <b>Spam Terdeteksi!</b>\nHarap tunggu beberapa detik sebelum mengirim perintah lagi.", { parse_mode: 'HTML' });
+      } catch (e) {}
+    },
+    keyGenerator: (ctx) => {
+      return ctx.from?.id.toString();
+    },
+  })
+);
+
 // Configure Conversations
 bot.use(conversations());
 
@@ -87,9 +109,18 @@ bot.use(createConversation(otpRegistrationConversation, 'otp-reg'));
 bot.use(createConversation(qrRegistrationConversation, 'qr-reg'));
 bot.use(createConversation(afkReasonConversation, 'afk-reason-conv'));
 bot.use(createConversation(broadcastConversation, 'admin-broadcast-conv'));
+bot.use(createConversation(setInlineBotConversation, 'inline-bot-conv'));
+bot.use(createConversation(customNameConversation, 'custom-name-conv'));
+
+// Register @grammyjs/menu
+bot.use(masterMainMenu);
 
 // Register Inline Handlers
 registerInlineHelpHandlers(bot);
+registerInlineAntiPmHandlers(bot);
+
+// Register Settings Handlers
+setupSettingsHandlers(bot);
 
 // ==========================================
 // 🚀 GUEST MODE MIDDLEWARE (Telegram Bot API 10.0)
@@ -245,36 +276,14 @@ bot.use(async (ctx, next) => {
  * 🔺 UNIFIED MAIN MENU / SAPAAN AWAL
  */
 async function sendMainMenu(ctx, editMessage = false) {
-  const telegramId = ctx.from.id;
-  const dbSession = getUserbotSession(telegramId);
-
-  // Hitung status layanan untuk ditampilkan di teks
-  let statusLayanan = '🔴 <b>Belum Terdaftar</b>';
-  if (dbSession) {
-    statusLayanan = userbotManager.isRunning(telegramId)
-      ? '🟢 <b>Terdaftar &amp; Aktif</b>'
-      : '🟡 <b>Terdaftar (Nonaktif)</b>';
-  }
-
-  const welcomeText = 
-    `🔺 <b>D E L T A   U B O T   J S</b> 🔺\n` +
-    `───────────────────────\n` +
-    `Halo, <b>${ctx.from.first_name}</b>! 👋\n\n` +
-    `Selamat datang di <b>DeltaUbotJS</b>, layanan penyedia Multi-Userbot asinkronus tercepat, teraman, dan teringan berbasis Node.js.\n\n` +
-    `<blockquote>` +
-    `• <b>ID Anda</b>: <code>${telegramId}</code>\n` +
-    `• <b>Status Layanan</b>: ${statusLayanan}` +
-    `</blockquote>\n` +
-    `───────────────────────\n` +
-    `Silakan pilih menu di bawah ini untuk menjelajahi fitur:`;
-
-  const keyboard = createMainMenuKeyboard(telegramId);
+  // Use the text generator from menus.js
+  const welcomeText = getWelcomeText(ctx);
 
   if (editMessage) {
     try {
       await ctx.editMessageText(welcomeText, {
         parse_mode: 'HTML',
-        reply_markup: keyboard,
+        reply_markup: masterMainMenu,
       });
       return;
     } catch (e) {}
@@ -282,7 +291,7 @@ async function sendMainMenu(ctx, editMessage = false) {
 
   await ctx.reply(welcomeText, {
     parse_mode: 'HTML',
-    reply_markup: keyboard,
+    reply_markup: masterMainMenu,
   });
 }
 
@@ -316,30 +325,28 @@ async function sendUserbotControlPanel(ctx, editMessage = true) {
     ? `📅 <b>Masa Aktif</b>: <code>${expDate.toLocaleDateString()}</code> (${diffDays} Hari Lagi)`
     : `📅 <b>Masa Aktif</b>: <code>${expDate.toLocaleDateString()}</code> 🔴 <b>(KADALUWARSA)</b>`;
 
-  const panelText = 
-    `🔺 <b>D E L T A   U B O T   J S</b> 🔺\n` +
-    `───────────────────────\n` +
-    `👤 <b>PANEL KONTROL USERBOT ANDA</b>\n` +
-    `───────────────────────\n` +
-    `<blockquote>` +
-    `🌐 <b>Status Sistem</b>: ${statusText}\n` +
-    phoneText +
-    `💤 <b>Mode AFK</b>: ${afkModeText}\n` +
-    `🚫 <b>Anti-PM</b>: ${antiPmText}\n` +
-    `💬 <b>Alasan AFK</b>: <code>"${dbSession.afk_reason}"</code>\n` +
-    expText + `\n` +
-    `📅 <b>Terdaftar</b>: <code>${new Date(dbSession.created_at).toLocaleDateString()}</code>` +
-    `</blockquote>\n` +
-    `───────────────────────\n` +
-    `Silakan kelola akun dan fitur Anda menggunakan tombol di bawah:`;
+  const botName = dbSession?.custom_name || 'DeltaUbotJS';
+  const headerName = botName.toUpperCase().split('').join(' ');
 
-  const keyboard = isRunning ? activeUserbotKeyboard : inactiveUserbotKeyboard;
+  const panelText = 
+    `🔺 <b>${headerName}</b> 🔺\n` +
+    `───────────────────────\n` +
+    `🎛️ <b>DASHBOARD CONTROL USERBOT</b>\n\n` +
+    `Pantau status sesi operasional dan tingkat perlindungan akun Anda:\n\n` +
+    `<blockquote>` +
+    `🌐 <b>Koneksi</b>: ${statusText}\n` +
+    phoneText +
+    `🛡️ <b>Anti-PM</b>: ${antiPmText}\n` +
+    `📅 <b>Terdaftar</b>: <code>${new Date(dbSession.created_at).toLocaleDateString()}</code>\n` +
+    expText +
+    `</blockquote>\n` +
+    `💡 <i>Gunakan menu di bawah untuk mengontrol mesin Anda secara penuh.</i>`;
 
   if (editMessage) {
     try {
       await ctx.editMessageText(panelText, {
         parse_mode: 'HTML',
-        reply_markup: keyboard,
+        reply_markup: ubotMainMenu,
       });
       return;
     } catch (e) {}
@@ -347,56 +354,11 @@ async function sendUserbotControlPanel(ctx, editMessage = true) {
 
   await ctx.reply(panelText, {
     parse_mode: 'HTML',
-    reply_markup: keyboard,
+    reply_markup: ubotMainMenu,
   });
 }
 
-/**
- * ⚙️ FEATURES SETTINGS SUB-MENU
- */
-async function sendFeaturesMenu(ctx, editMessage = true) {
-  const telegramId = ctx.from.id;
-  const dbSession = getUserbotSession(telegramId);
 
-  if (!dbSession) {
-    await ctx.answerCallbackQuery('Sesi tidak ditemukan.');
-    await sendMainMenu(ctx, editMessage);
-    return;
-  }
-
-  const autoReadVal = dbSession.auto_read === 1;
-  const autoReplyVal = dbSession.auto_reply === 1;
-  const antiPmVal = dbSession.anti_pm === 1;
-
-  const text = 
-    `🔺 <b>D E L T A   U B O T   J S</b> 🔺\n` +
-    `───────────────────────\n` +
-    `⚙️ <b>PENGATURAN FITUR USERBOT</b>\n\n` +
-    `Aktifkan/nonaktifkan fitur otomatis userbot Anda secara instan:\n\n` +
-    `<blockquote>` +
-    `• <b>Mode AFK</b>: Jika diaktifkan, userbot otomatis membaca chat PM masuk DAN membalasnya dengan alasan AFK kustom Anda secara bersamaan.\n\n` +
-    `• <b>Anti-PM</b>: Jika aktif, userbot akan otomatis memberi pesan peringatan di PM pertama orang yang menghubungi Anda, dan secara <b>otomatis menghapus secara permanen</b> seluruh chat pribadi berikutnya agar inbox Anda bersih.` +
-    `</blockquote>\n` +
-    `───────────────────────\n` +
-    `Alasan AFK Aktif:\n<code>"${dbSession.afk_reason}"</code>`;
-
-  const keyboard = createFeaturesKeyboard(autoReadVal, autoReplyVal, antiPmVal);
-
-  if (editMessage) {
-    try {
-      await ctx.editMessageText(text, {
-        parse_mode: 'HTML',
-        reply_markup: keyboard,
-      });
-      return;
-    } catch (e) {}
-  }
-
-  await ctx.reply(text, {
-    parse_mode: 'HTML',
-    reply_markup: keyboard,
-  });
-}
 
 // Commands (Main Gateway)
 bot.command(['start', 'menu'], async (ctx) => {
@@ -674,53 +636,7 @@ bot.callbackQuery('confirm_delete', async (ctx) => {
   await sendMainMenu(ctx, false);
 });
 
-// Manage features sub-menu
-bot.callbackQuery('manage_features', async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await sendFeaturesMenu(ctx, true);
-});
 
-// Toggle AFK Mode
-bot.callbackQuery('toggle_reply', async (ctx) => {
-  const telegramId = ctx.from.id;
-  const dbSession = getUserbotSession(telegramId);
-
-  if (!dbSession) {
-    await ctx.answerCallbackQuery('Sesi tidak ditemukan.');
-    return;
-  }
-
-  const currentVal = dbSession.auto_reply;
-  const newVal = currentVal === 1 ? 0 : 1;
-
-  updateUserbotFeature(telegramId, 'auto_reply', newVal);
-  await ctx.answerCallbackQuery(newVal === 1 ? 'Mode AFK diaktifkan (Read & Reply)' : 'Mode AFK dinonaktifkan');
-  await sendFeaturesMenu(ctx, true);
-});
-
-// Toggle Anti-PM Mode
-bot.callbackQuery('toggle_anti_pm', async (ctx) => {
-  const telegramId = ctx.from.id;
-  const dbSession = getUserbotSession(telegramId);
-
-  if (!dbSession) {
-    await ctx.answerCallbackQuery('Sesi tidak ditemukan.');
-    return;
-  }
-
-  const currentVal = dbSession.anti_pm;
-  const newVal = currentVal === 1 ? 0 : 1;
-
-  updateUserbotFeature(telegramId, 'anti_pm', newVal);
-  await ctx.answerCallbackQuery(newVal === 1 ? 'Anti-PM diaktifkan (Warning & Delete)' : 'Anti-PM dinonaktifkan');
-  await sendFeaturesMenu(ctx, true);
-});
-
-// Set AFK reason conversation trigger
-bot.callbackQuery('set_afk_reason', async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.conversation.enter('afk-reason-conv');
-});
 
 // Callback: Show Modules & Plugins
 bot.callbackQuery('show_modules', async (ctx) => {
