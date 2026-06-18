@@ -1,3 +1,4 @@
+import { Api } from 'teleproto';
 import config from '../config.js';
 import { updateUserbotStatus, getUserbotSession, getAllRegisteredUsers, getDisabledPlugins, disablePlugin, enablePlugin, deleteUserbot, updateUserbotFeature } from '../database/db.js';
 import { helpRegistry, loadedPlugins } from '../userbot/pluginRegistry.js';
@@ -246,7 +247,7 @@ export function registerRichHandlers(bot) {
       try {
         const ubot = userbotManager.clients.get(telegramId);
         if (ubot && ubot.client) {
-          await ubot.client.call({ _: 'auth.logOut' });
+          await ubot.client.invoke(new Api.auth.LogOut());
         }
       } catch (e) {
         console.log(`Failed to logout remotely for ${telegramId}:`, e.message);

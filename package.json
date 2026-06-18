@@ -11,13 +11,11 @@
     "@grammyjs/conversations": "^2.1.1",
     "@grammyjs/menu": "^1.3.1",
     "@grammyjs/ratelimiter": "^1.2.1",
-    "@mtcute/convert": "^0.30.1",
-    "@mtcute/dispatcher": "^0.30.1",
-    "@mtcute/node": "^0.30.1",
     "dotenv": "^17.4.2",
     "grammy": "^1.44.0",
     "jimp": "^1.6.1",
     "mongoose": "^9.6.3",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "teleproto": "^1.227.0"
   }
 }
