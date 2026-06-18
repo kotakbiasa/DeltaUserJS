@@ -73,6 +73,7 @@ export class UserbotClient {
 
     try {
       await this.client.connect(); // mtcute's connect() just establishes connection if authorized
+      this.client.startUpdatesLoop(); // Start processing incoming/outgoing messages
       this.isActive = true;
       this.registerHandlers();
       await this.runPluginStartHooks();
@@ -142,6 +143,8 @@ export class UserbotClient {
   async handleMessage(msg) {
     const settings = this.currentSettings();
     if (!settings) return;
+
+    console.log(`[DEBUG] handleMessage triggered: text="${msg.text}", isOutgoing=${msg.isOutgoing}, chat=${msg.chat?.id}`);
 
     const disabled = disabledSet(settings);
     for (const plugin of loadedPlugins) {
