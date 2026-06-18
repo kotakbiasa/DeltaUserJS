@@ -91,7 +91,7 @@ export default {
           // --- .help → Coba panggil Master Bot via Inline Query ---
           try {
             // Cek apakah user memiliki custom inline bot
-            const botUsername = settings.inline_bot_username || 'DeltaUbot_bot';
+            const botUsername = settings.inline_bot_username || global.MASTER_BOT_USERNAME || 'DeltaUbot_bot';
 
             const results = await client.inlineQuery(botUsername, 'help');
             
