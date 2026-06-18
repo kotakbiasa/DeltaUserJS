@@ -249,7 +249,7 @@ bot.command('setup_topic', async (ctx) => {
 
 bot.command('restart', async (ctx) => {
   if (Number(ctx.from.id) !== Number(config.ownerId)) return;
-  await ctx.reply('🔄 <b>Restarting DeltaUbotJS...</b>\n\nSistem sedang dimuat ulang. Harap tunggu beberapa saat hingga bot menyala kembali.', { parse_mode: 'HTML' });
+  await ctx.replyWithRichMessage({ html: `<h1>🔄 Restarting DeltaUbotJS</h1><blockquote>Sistem sedang dimuat ulang. Harap tunggu beberapa saat hingga bot menyala kembali.</blockquote>` });
   console.log('🔄 Restart command received from owner. Exiting process...');
   setTimeout(() => {
     process.exit(1);

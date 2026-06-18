@@ -3,6 +3,7 @@ import { TelegramClient, Api } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
 import qrcode from 'qrcode';
 import config from '../config.js';
+import { hero } from './richUi.js';
 import { saveUserbotSession } from '../database/db.js';
 import userbotManager from '../userbot/manager.js';
 
@@ -129,10 +130,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
 
   try {
-    await ctx.reply('📱 <b>Pendaftaran via OTP dimulai.</b>\n\n<blockquote>Silakan kirimkan nomor HP Anda dalam format internasional (contoh: <code>+628123456789</code>).</blockquote>', {
-      parse_mode: 'HTML',
-      reply_markup: cancelKeyboard,
-    });
+    await ctx.replyWithRichMessage({ html: `<h1>📱 Pendaftaran via OTP dimulai.</h1><blockquote>Silakan kirimkan nomor HP Anda dalam format internasional (contoh: <code>+628123456789</code>).</blockquote>` }, { reply_markup: cancelKeyboard, });
 
     // Step 1: Wait for phone number
     let phoneNumber;
@@ -151,7 +149,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
     // Validate phone number format (must start with +)
     if (!phoneNumber.startsWith('+')) {
-      await ctx.reply('❌ <b>Format nomor HP salah!</b>\n\n<blockquote>Harus diawali dengan kode negara (contoh: <code>+628xxx</code>). Silakan ulangi proses <code>/daftar</code>.</blockquote>', { parse_mode: 'HTML' });
+      await ctx.replyWithRichMessage({ html: `<h1>❌ Format nomor HP salah!</h1><blockquote>Harus diawali dengan kode negara (contoh: <code>+628xxx</code>). Silakan ulangi proses <code>/daftar</code>.</blockquote>` }, {  });
       return;
     }
 
@@ -327,7 +325,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       } else if (signInResult.status === 'code_expired') {
         // ♻️ Kode expired — kirim kode baru otomatis
         if (attemptCount < MAX_ATTEMPTS) {
-            await ctx.reply(`⚠️ <b>Kode OTP kadaluarsa!</b>\n\n<blockquote>Mengirim kode baru... (Percobaan ${attemptCount}/${MAX_ATTEMPTS})</blockquote>`, { parse_mode: 'HTML' });
+            await ctx.replyWithRichMessage({ html: `<h1>⚠️ Kode OTP kadaluarsa!</h1><blockquote>Mengirim kode baru... (Percobaan ${attemptCount}/${MAX_ATTEMPTS})</blockquote>` }, {  });
             try {
               const resendResult = await conversation.external(async () => {
                 const activeClient = activeRegClients.get(telegramId);
@@ -354,10 +352,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
       } else if (signInResult.status === '2fa_needed') {
         // 🔒 2FA Password needed
-        await ctx.reply('🔒 <b>Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</b>\n\n<blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>', {
-            parse_mode: 'HTML',
-            reply_markup: cancelKeyboard,
-          });
+        await ctx.replyWithRichMessage({ html: `<h1>🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>` }, { reply_markup: cancelKeyboard, });
           let password;
           try {
             password = await waitForInput(conversation, ctx);
@@ -389,10 +384,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       } else if (signInResult.status === 'code_invalid') {
         // ❌ Kode salah — minta input ulang (hash masih valid)
         if (attemptCount < MAX_ATTEMPTS) {
-            await ctx.reply(`❌ <b>Kode OTP salah!</b>\n\n<blockquote>Pastikan kode yang dimasukkan benar dan belum kadaluarsa.\n<i>Percobaan ${attemptCount}/${MAX_ATTEMPTS}. Silakan coba lagi.</i></blockquote>`, {
-              parse_mode: 'HTML',
-              reply_markup: buildOtpKeyboard(false),
-            });
+            await ctx.replyWithRichMessage({ html: `<h1>❌ Kode OTP salah!</h1><blockquote>Pastikan kode yang dimasukkan benar dan belum kadaluarsa.\n<i>Percobaan ${attemptCount}/${MAX_ATTEMPTS}. Silakan coba lagi.</i></blockquote>` }, { reply_markup: buildOtpKeyboard(false), });
           } else {
             await ctx.reply(`❌ <b>Kode OTP salah ${MAX_ATTEMPTS}x.</b>\n\nPendaftaran dibatalkan. Silakan ulangi <code>/daftar</code>.`, { parse_mode: 'HTML' });
             return;
@@ -414,14 +406,14 @@ export async function otpRegistrationConversation(conversation, ctx) {
     // Session string sudah didapat dari dalam external() di atas
     saveUserbotSession(telegramId, phoneNumber, sessionString);
 
-    await ctx.reply('✨ <b>Selamat! Pendaftaran Userbot Berhasil!</b>\n\n<blockquote>Sedang mengaktifkan userbot Anda...</blockquote>', { parse_mode: 'HTML' });
+    await ctx.replyWithRichMessage({ html: `<h1>✨ Selamat! Pendaftaran Userbot Berhasil!</h1><blockquote>Sedang mengaktifkan userbot Anda...</blockquote>` }, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
       await userbotManager.startUserbot(telegramId, sessionString);
     });
 
-    await ctx.reply('🟢 <b>Userbot Anda sekarang AKTIF!</b>\n\n<blockquote>Coba kirimkan pesan <code>.ping</code> di chat mana pun menggunakan akun Telegram Anda, userbot akan otomatis membalasnya dengan <b>Pong</b>.</blockquote>', { parse_mode: 'HTML' });
+    await ctx.replyWithRichMessage({ html: `<h1>🟢 Userbot Anda sekarang AKTIF!</h1><blockquote>Coba kirimkan pesan <code>.ping</code> di chat mana pun menggunakan akun Telegram Anda, userbot akan otomatis membalasnya dengan <b>Pong</b>.</blockquote>` }, {  });
 
   } catch (error) {
     const isCancelled = error.message === 'USER_CANCELLED' || 
@@ -452,10 +444,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
   const chatId = ctx.chat.id;
 
   try {
-    await ctx.reply('🔍 <b>Pendaftaran via Scan QR Code dimulai.</b>\n\n<blockquote>Menghubungkan ke server Telegram untuk membuat QR Code...\n\n⏱️ QR Code akan muncul dalam beberapa detik. Anda punya waktu <b>2 menit</b> untuk memindai.</blockquote>', {
-      parse_mode: 'HTML',
-      reply_markup: cancelKeyboard,
-    });
+    await ctx.replyWithRichMessage({ html: `<h1>🔍 Pendaftaran via Scan QR Code dimulai.</h1><blockquote>Menghubungkan ke server Telegram untuk membuat QR Code...\n\n⏱️ QR Code akan muncul dalam beberapa detik. Anda punya waktu <b>2 menit</b> untuk memindai.</blockquote>` }, { reply_markup: cancelKeyboard, });
 
     // Seluruh proses QR login dilakukan dalam satu external() call
     // karena signInUserWithQrCode adalah operasi blocking yang harus selesai sebelum kita bisa lanjut
@@ -566,10 +555,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
 
     // --- Handle 2FA jika diperlukan ---
     if (qrResult.status === '2fa_needed') {
-      await ctx.reply('🔒 <b>Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</b>\n\n<blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>', {
-        parse_mode: 'HTML',
-        reply_markup: cancelKeyboard,
-      });
+      await ctx.replyWithRichMessage({ html: `<h1>🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>` }, { reply_markup: cancelKeyboard, });
 
       const pwdResult = await conversation.waitFor('message:text');
       if (pwdResult.message?.text?.trim() === '/cancel') {
@@ -607,14 +593,14 @@ export async function qrRegistrationConversation(conversation, ctx) {
     // Save to Database
     saveUserbotSession(telegramId, null, qrResult.sessionString);
 
-    await ctx.reply('✨ <b>Selamat! Pendaftaran via QR Code Berhasil!</b>\n\n<blockquote>Sedang mengaktifkan userbot Anda...</blockquote>', { parse_mode: 'HTML' });
+    await ctx.replyWithRichMessage({ html: `<h1>✨ Selamat! Pendaftaran via QR Code Berhasil!</h1><blockquote>Sedang mengaktifkan userbot Anda...</blockquote>` }, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
       await userbotManager.startUserbot(telegramId, qrResult.sessionString);
     });
 
-    await ctx.reply('🟢 <b>Userbot Anda sekarang AKTIF!</b>\n\n<blockquote>Coba kirimkan pesan <code>.ping</code> di chat mana pun menggunakan akun Telegram Anda, userbot akan otomatis membalasnya dengan <b>Pong</b>.</blockquote>', { parse_mode: 'HTML' });
+    await ctx.replyWithRichMessage({ html: `<h1>🟢 Userbot Anda sekarang AKTIF!</h1><blockquote>Coba kirimkan pesan <code>.ping</code> di chat mana pun menggunakan akun Telegram Anda, userbot akan otomatis membalasnya dengan <b>Pong</b>.</blockquote>` }, {  });
 
   } catch (error) {
     const isCancelled = error.message === 'USER_CANCELLED' || 
@@ -643,10 +629,7 @@ export async function afkReasonConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
   
   try {
-    await ctx.reply('📝 <b>Setel Alasan AFK Baru</b>\n\n<blockquote>Silakan kirimkan teks alasan AFK Anda yang baru. Contoh:\n<code>Sedang tidur, jangan spam ya!</code></blockquote>', {
-      parse_mode: 'HTML',
-      reply_markup: cancelKeyboard,
-    });
+    await ctx.replyWithRichMessage({ html: `<h1>📝 Setel Alasan AFK Baru</h1><blockquote>Silakan kirimkan teks alasan AFK Anda yang baru. Contoh:\n<code>Sedang tidur, jangan spam ya!</code></blockquote>` }, { reply_markup: cancelKeyboard, });
 
     let newReason;
     try {
@@ -690,10 +673,7 @@ export async function broadcastConversation(conversation, ctx) {
   }
 
   try {
-    await ctx.reply('📢 <b>Panel Broadcast DeltaUbotJS</b>\n\n<blockquote>Silakan kirimkan pesan broadcast yang ingin Anda sebarluaskan ke seluruh pengguna terdaftar.</blockquote>', {
-      parse_mode: 'HTML',
-      reply_markup: cancelKeyboard,
-    });
+    await ctx.replyWithRichMessage({ html: `<h1>📢 Panel Broadcast DeltaUbotJS</h1><blockquote>Silakan kirimkan pesan broadcast yang ingin Anda sebarluaskan ke seluruh pengguna terdaftar.</blockquote>` }, { reply_markup: cancelKeyboard, });
 
     let broadcastMsg;
     try {
@@ -750,10 +730,7 @@ export async function setInlineBotConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
   
   try {
-    await ctx.reply('🤖 <b>Set Custom Inline Bot</b>\n\n<blockquote>Silakan kirimkan <b>Bot Token</b> Anda yang didapat dari @BotFather.\nContoh: <code>123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>\n\nAtau ketik <b>hapus</b> untuk menonaktifkan fitur ini.</blockquote>', {
-      parse_mode: 'HTML',
-      reply_markup: cancelKeyboard,
-    });
+    await ctx.replyWithRichMessage({ html: `<h1>🤖 Set Custom Inline Bot</h1><blockquote>Silakan kirimkan <b>Bot Token</b> Anda yang didapat dari @BotFather.\nContoh: <code>123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>\n\nAtau ketik <b>hapus</b> untuk menonaktifkan fitur ini.</blockquote>` }, { reply_markup: cancelKeyboard, });
 
     let inputToken;
     try {
@@ -805,7 +782,7 @@ export async function setInlineBotConversation(conversation, ctx) {
     await inlineBotManager.stopInlineBot(telegramId);
     await inlineBotManager.startInlineBot(telegramId, inputToken);
 
-    await ctx.reply(`✅ <b>Custom Inline Bot Berhasil Diatur!</b>\n\n<blockquote>Bot kustom Anda: <b>@${botUsername}</b> siap digunakan untuk fitur inline (seperti .help).</blockquote>\n\n⚠️ Pastikan Anda sudah mengaktifkan <b>Inline Mode</b> untuk bot tersebut di @BotFather (/setinline).`, { parse_mode: 'HTML' });
+    await ctx.replyWithRichMessage({ html: `<h1>✅ Custom Inline Bot Berhasil Diatur!</h1><blockquote>Bot kustom Anda: <b>@${botUsername}</b> siap digunakan untuk fitur inline (seperti .help).</blockquote>\n\n⚠️ Pastikan Anda sudah mengaktifkan <b>Inline Mode</b> untuk bot tersebut di @BotFather (/setinline).` }, {  });
     
   } catch (error) {
     if (error.message !== 'USER_CANCELLED') {
@@ -822,10 +799,7 @@ export async function customNameConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
   
   try {
-    await ctx.reply('📝 <b>Set Custom Nama Ubot</b>\n\n<blockquote>Kirimkan nama/signature baru untuk userbot Anda (Maksimal 30 karakter).\nContoh: <code>Ubot Sultan</code></blockquote>\n\nKetik /cancel untuk membatalkan.', {
-      parse_mode: 'HTML',
-      reply_markup: cancelKeyboard,
-    });
+    await ctx.replyWithRichMessage({ html: `<h1>📝 Set Custom Nama Ubot</h1><blockquote>Kirimkan nama/signature baru untuk userbot Anda (Maksimal 30 karakter).\nContoh: <code>Ubot Sultan</code></blockquote>\n\nKetik /cancel untuk membatalkan.` }, { reply_markup: cancelKeyboard, });
 
     let newName;
     try {

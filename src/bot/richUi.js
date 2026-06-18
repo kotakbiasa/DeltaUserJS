@@ -62,12 +62,12 @@ function escapeMarkdown(value) {
     .replace(/\]/g, '\\]');
 }
 
-function hero(icon, title, subtitle) {
+export function hero(icon, title, subtitle) {
   return `<h1>${icon} ${escapeHtml(title)}</h1>` +
     `<blockquote>${escapeHtml(subtitle)}</blockquote>`;
 }
 
-function kpi(caption, items) {
+export function kpi(caption, items) {
   return `<table bordered><caption>${escapeHtml(caption)}</caption><tr>` +
     items.map(([label, value]) =>
       `<td align="center"><b>${escapeHtml(label)}</b><br>${escapeHtml(stripHtml(value))}</td>`
@@ -75,7 +75,7 @@ function kpi(caption, items) {
     `</tr></table>`;
 }
 
-function table(caption, rows, firstHeader = 'Area', secondHeader = 'Detail') {
+export function table(caption, rows, firstHeader = 'Area', secondHeader = 'Detail') {
   return `<table bordered striped><caption>${escapeHtml(caption)}</caption>` +
     `<tr><th align="center">${escapeHtml(firstHeader)}</th><th align="center">${escapeHtml(secondHeader)}</th></tr>` +
     rows.map(([key, value]) =>
@@ -84,7 +84,7 @@ function table(caption, rows, firstHeader = 'Area', secondHeader = 'Detail') {
     `</table>`;
 }
 
-function note(text, title = 'Catatan') {
+export function note(text, title = 'Catatan') {
   return `<details><summary>${escapeHtml(title)}</summary><p>${escapeHtml(text)}</p></details>`;
 }
 function pluginStatusTable(caption, plugins, disabledSet) {
