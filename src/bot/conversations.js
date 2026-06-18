@@ -57,7 +57,7 @@ async function cleanupClient(telegramId) {
   pendingOtpState.delete(telegramId);
   if (client) {
     try {
-      await client.close();
+      await client.destroy();
     } catch (e) {}
   }
 }
@@ -497,7 +497,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
 
         // Disconnect client setelah session disimpan
         try {
-          await client.close();
+          await client.destroy();
         } catch (e) {}
         activeRegClients.delete(telegramId);
 

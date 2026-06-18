@@ -92,7 +92,7 @@ export class UserbotClient {
     this.isActive = false;
     if (!this.client) return;
     try {
-      await this.client.close(); // mtcute uses close() instead of disconnect()
+      await this.client.destroy(); // mtcute uses destroy() instead of close()
       console.log(`🔌 DeltaUserJS userbot [${this.telegramId}] disconnected.`);
     } catch (err) {
       console.error(`Error while disconnecting userbot [${this.telegramId}]:`, err.message || err);
