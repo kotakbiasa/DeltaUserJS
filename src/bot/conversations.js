@@ -515,9 +515,6 @@ export async function qrRegistrationConversation(conversation, ctx) {
               if (!isScanned) {
                 console.error('QR Sign-in Error:', err);
               }
-            },
-            password: async () => {
-              throw new Error('SESSION_PASSWORD_NEEDED');
             }
           }
         );
@@ -532,7 +529,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
           isScanned = true;
           result = { status: 'success' };
         } catch (e) {
-          if (e.message?.includes('SESSION_PASSWORD_NEEDED')) {
+          if (e.message?.includes('Account has 2FA enabled') || e.message === 'SESSION_PASSWORD_NEEDED') {
             isScanned = true;
             result = { status: '2fa_needed' };
           } else {
