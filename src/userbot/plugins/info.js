@@ -1,4 +1,4 @@
-import { Api } from 'telegram';
+import { Api } from 'teleproto';
 import fs from 'fs';
 import path from 'path';
 

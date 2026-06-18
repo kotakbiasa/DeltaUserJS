@@ -3,7 +3,7 @@
 const warnedMap = new Map();
 
 import { getUserbotSession } from '../../database/db.js';
-import { Api } from 'telegram';
+import { Api } from 'teleproto';
 
 export default {
   name: 'antipm',

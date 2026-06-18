@@ -1,4 +1,4 @@
-import { Api } from 'telegram';
+import { Api } from 'teleproto';
 import { getBroadcastBlacklist } from '../../database/db.js';
 
 export default {
