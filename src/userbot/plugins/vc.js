@@ -40,7 +40,7 @@ export default {
           joinAs,
           muted: true,
           videoStopped: true,
-          params: { _: 'dataJSON', data: JSON.stringify({ ssrc: Math.floor(Math.random() * 4294967295) } }) });
+          params: { _: 'dataJSON', data: JSON.stringify({ ssrc: Math.floor(Math.random() * 4294967295) }) } });
 
         await message.edit({ text: block('Voice Chat', '✅ Berhasil bergabung ke Voice Chat (Status: Muted).') + footer(settings), parseMode: 'html' });
       } catch (err) {
