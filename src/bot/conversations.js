@@ -5,7 +5,8 @@ import qrcode from 'qrcode';
 import config from '../config.js';
 import { saveUserbotSession } from '../database/db.js';
 import userbotManager from '../userbot/manager.js';
-import { cancelKeyboard } from './keypads.js';
+
+export const cancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel');
 
 // ==========================================
 // 🔧 Custom Prototype Extension for GramJS
