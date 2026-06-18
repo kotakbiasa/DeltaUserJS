@@ -64,6 +64,13 @@ export class UserbotClient {
   }
 
   /**
+   * Returns true if the client is currently active
+   */
+  isConnected() {
+    return this.isActive;
+  }
+
+  /**
    * Stop the userbot instance
    */
   async stop() {
