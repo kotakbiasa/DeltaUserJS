@@ -1,6 +1,7 @@
 import { TelegramClient, MemoryStorage } from '@mtcute/node';
 import { Dispatcher, filters } from '@mtcute/dispatcher';
 import { convertFromGramjsSession } from '@mtcute/convert';
+import { html } from '@mtcute/html-parser';
 
 import config from '../config.js';
 import { disablePlugin, getUserbotSession } from '../database/db.js';
@@ -144,6 +145,31 @@ export class UserbotClient {
   async handleMessage(msg) {
     const settings = this.currentSettings();
     if (!settings) return;
+
+    // Polyfill msg.edit and msg.replyText for parseMode HTML
+    const originalEdit = msg.edit.bind(msg);
+    msg.edit = async (params) => {
+      if (typeof params === 'object' && params !== null && params.text && String(params.parseMode).toLowerCase() === 'html') {
+        const parsed = html([params.text]);
+        params.text = parsed.text;
+        params.entities = parsed.entities;
+        delete params.parseMode;
+      }
+      return originalEdit(params);
+    };
+
+    if (typeof msg.replyText === 'function') {
+      const originalReply = msg.replyText.bind(msg);
+      msg.replyText = async (params) => {
+        if (typeof params === 'object' && params !== null && params.text && String(params.parseMode).toLowerCase() === 'html') {
+          const parsed = html([params.text]);
+          params.text = parsed.text;
+          params.entities = parsed.entities;
+          delete params.parseMode;
+        }
+        return originalReply(params);
+      };
+    }
 
     const disabled = disabledSet(settings);
     for (const plugin of loadedPlugins) {
