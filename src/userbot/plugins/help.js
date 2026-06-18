@@ -93,7 +93,10 @@ export default {
             // Cek apakah user memiliki custom inline bot
             const botUsername = settings.inline_bot_username || global.MASTER_BOT_USERNAME || 'DeltaUbot_bot';
 
-            const results = await client.inlineQuery(botUsername, 'help');
+            const results = await Promise.race([
+              client.inlineQuery(botUsername, 'help'),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout (3s): Inline bot tidak merespon. Pastikan Inline Mode aktif di @BotFather.")), 3000))
+            ]);
             
             if (results && results.length > 0) {
               // Kirim hasil inline query menggunakan method .click()
