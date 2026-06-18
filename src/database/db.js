@@ -207,7 +207,7 @@ export function saveUserbotSession(telegramId, phone, sessionString) {
     UserbotModel.findOneAndUpdate(
       { telegram_id: idNum },
       botData,
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     ).catch(err => console.error('❌ MongoDB save error:', err));
     return true;
   } else {

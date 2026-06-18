@@ -471,8 +471,10 @@ export async function qrRegistrationConversation(conversation, ctx) {
             });
             resolve({ status: 'success', user });
           } catch (e) {
-            if (!isScanned) console.error('QR Sign-in Error:', e);
-            if (e.message?.includes('SESSION_PASSWORD_NEEDED') || e.name === 'SessionPasswordNeededError') {
+            const is2FA = e.message?.includes('SESSION_PASSWORD_NEEDED') || e.name === 'SessionPasswordNeededError';
+            if (!isScanned && !is2FA) console.error('QR Sign-in Error:', e);
+            
+            if (is2FA) {
               resolve({ status: '2fa_needed' });
             } else {
               reject(e);
