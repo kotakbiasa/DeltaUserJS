@@ -151,8 +151,7 @@ export class UserbotClient {
     msg.edit = async (params) => {
       if (typeof params === 'object' && params !== null && params.text && String(params.parseMode).toLowerCase() === 'html') {
         const parsed = html([params.text]);
-        params.text = parsed.text;
-        params.entities = parsed.entities;
+        params.text = parsed; // MTcute expects InputText (string | TextWithEntities)
         delete params.parseMode;
       }
       return originalEdit(params);
@@ -163,8 +162,7 @@ export class UserbotClient {
       msg.replyText = async (params) => {
         if (typeof params === 'object' && params !== null && params.text && String(params.parseMode).toLowerCase() === 'html') {
           const parsed = html([params.text]);
-          params.text = parsed.text;
-          params.entities = parsed.entities;
+          params.text = parsed; // MTcute expects InputText (string | TextWithEntities)
           delete params.parseMode;
         }
         return originalReply(params);
