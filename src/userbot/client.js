@@ -127,7 +127,7 @@ export class UserbotClient {
   registerHandlers() {
     if (!this.dispatcher) return;
 
-    this.dispatcher.onNewMessage(filters.and(filters.outgoing, filters.text('ㅤ')), async (msg) => {
+    this.dispatcher.onNewMessage(filters.and(filters.outgoing, filters.equals('ㅤ')), async (msg) => {
       try { await msg.delete(); } catch (_) {}
     });
 
