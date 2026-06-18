@@ -49,6 +49,7 @@ export class UserbotClient {
       });
 
       await this.client.connect();
+      this.client.setParseMode('html');
       this.isActive = true;
       console.log(`🤖 DeltaUbotJS [${this.telegramId}] connected successfully.`);
 
