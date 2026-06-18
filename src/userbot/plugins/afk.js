@@ -1,84 +1,151 @@
 import { updateUserbotFeature } from '../../database/db.js';
-import { block, escapeHtml, footer } from '../ui.js';
 
-const afkSince = new Map();
-const lastReply = new Map();
-const COOLDOWN_MS = 30_000;
+// Map in-memory untuk menyimpan waktu kapan pengguna mulai AFK (per akun userbot)
+// Struktur: telegramId -> timestamp (angka)
+const afkTimestamps = new Map();
 
-function durationText(start) {
-  const mins = Math.round((Date.now() - start) / 60000);
-  if (mins <= 0) return 'kurang dari 1 menit';
-  if (mins < 60) return `${mins} menit`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${h} jam${m ? ` ${m} menit` : ''}`;
-}
+// Map untuk menyimpan waktu balasan terakhir per pengguna untuk menghindari spam
+// Struktur: telegramId-senderId -> timestamp (angka)
+const lastReplied = new Map();
+const COOLDOWN_MS = 30000; // 30 detik cooldown
 
 export default {
   name: 'afk',
   help: {
-    title: 'AFK Auto Reply',
-    description: 'Membalas PM/mention otomatis saat Anda sedang AFK.',
-    usage: '`.afk [alasan]` lalu kirim pesan apa pun untuk menonaktifkan.',
-    detail: 'Saat aktif, PM akan dibaca otomatis dan dibalas dengan alasan AFK. Ada cooldown agar tidak spam.'
+    title: 'Auto-Read & Auto-Reply',
+    description: 'Mengotomatiskan penanganan pesan pribadi masuk saat Anda sedang sibuk.',
+    usage: 'Aktifkan melalui tombol di Master Bot, lalu ketik `.afk [alasan]` di chat mana pun.',
+    detail: '• **Auto-Read**: Langsung menandai semua pesan pribadi masuk sebagai telah dibaca (centang biru).\n• **Auto-Reply**: Membalas pesan PM masuk dari orang lain secara otomatis menggunakan alasan kustom yang Anda setel di Master Bot.\n• Ketik `.afk [alasan]` untuk mengaktifkan.\n• Kirim pesan apa pun untuk menonaktifkan otomatis.'
   },
   async execute(client, message, settings, telegramId) {
-    const text = String(message.text || '').trim();
+    const isPrivate = message.isPrivate;
+    const msgText = message.message ? message.message.trim() : '';
 
-    if (message.isOutgoing) {
-      if (text.toLowerCase() === '.afk' || text.toLowerCase().startsWith('.afk ')) {
-        const reason = text.split(' ').slice(1).join(' ').trim() || 'Saya sedang AFK. Harap tunggu sebentar.';
+    // ==========================================
+    // 1. LOGIKA OUTGOING (Pesan keluar dari kita sendiri)
+    // ==========================================
+    if (message.out) {
+      
+      // A. PERINTAH AKTIVASI: .afk [alasan]
+      if (msgText.toLowerCase() === '.afk' || msgText.toLowerCase().startsWith('.afk ')) {
+        const parts = msgText.split(' ');
+        parts.shift(); // Hapus ".afk"
+        const reason = parts.join(' ').trim() || 'Saya sedang AFK/Sibuk. Harap tunggu sebentar.';
+
+        // Nyalakan status AFK di Database (auto_reply === 1)
         updateUserbotFeature(telegramId, 'auto_reply', 1);
         updateUserbotFeature(telegramId, 'afk_reason', reason);
-        afkSince.set(telegramId, Date.now());
-        await message.edit({
-          text: block('AFK aktif', `<pre>Alasan      ${escapeHtml(reason)}</pre>`) + footer(settings),
-          parseMode: 'html',
-        });
-        return;
+
+        // Catat waktu mulai AFK di memori
+        afkTimestamps.set(telegramId, Date.now());
+
+        try {
+          await message.edit({
+            text: `💤 <b>Saya Sekarang AFK!</b>\n\n📝 <b>Alasan</b>: <i>"${reason}"</i>\n\n<i>Userbot akan membalas pesan masuk secara otomatis dan menandai obrolan pribadi Anda sebagai dibaca.</i>`,
+            parseMode: 'html'
+          });
+        } catch (e) {
+          console.error('Gagal mengedit pesan .afk:', e.message);
+        }
+        return; // Hentikan agar tidak mentrigger deteksi aktif kembali
       }
 
+      // B. DEAKTIVASI OTOMATIS: Pengguna mengirim chat apa pun saat AFK
       if (settings.auto_reply === 1) {
+        // Matikan status AFK di database
         updateUserbotFeature(telegramId, 'auto_reply', 0);
-        const since = afkSince.get(telegramId) || Date.now();
-        afkSince.delete(telegramId);
-        await message.reply({
-          message: block('AFK nonaktif', `Anda kembali online setelah ${escapeHtml(durationText(since))}.`) + footer(settings),
-          parseMode: 'html',
-        });
+        
+        // Hitung berapa lama kita AFK tadi
+        const startTime = afkTimestamps.get(telegramId) || Date.now();
+        const durationMins = Math.round((Date.now() - startTime) / 60000);
+        const durationText = durationMins > 0 ? `${durationMins} menit` : 'kurang dari 1 menit';
+
+        afkTimestamps.delete(telegramId); // Hapus timestamp cache
+
+        try {
+          // Kirim pesan pemberitahuan bahwa kita sudah kembali online
+          await client.sendMessage(message.peerId, {
+            message: `☀️ <b>Saya telah kembali online!</b>\n\n<i>Mode AFK otomatis dinonaktifkan. Anda tadi AFK selama ${durationText}.</i>`,
+            parseMode: 'html'
+          });
+        } catch (e) {
+          console.error('Gagal mengirim pesan kembali online:', e.message);
+        }
       }
-      return;
     }
 
-    if (settings.auto_reply !== 1) return;
+    // ==========================================
+    // 2. LOGIKA INCOMING (Pesan masuk dari orang lain)
+    // ==========================================
+    if (!message.out && settings.auto_reply === 1) {
+      const senderId = Number(message.senderId);
+      const sender = await message.getSender();
+      if (sender?.bot || senderId === 777000) return; // Abaikan bot dan Telegram resmi
 
-    const senderId = Number(message.sender.id);
-    const sender = await message.getSender();
-    if (sender?.bot || senderId === 777000) return;
+      // Pemicu Balasan AFK:
+      // - Pesan masuk di Chat Pribadi (PM/Private)
+      // - ATAU Anda di-mention/ditag di obrolan grup
+      const isMentioned = message.mentioned;
 
-    const shouldReply = message.isPrivate || message.mentioned;
-    if (!shouldReply) return;
+      if (isPrivate || isMentioned) {
+        const cooldownKey = `${telegramId}-${senderId}`;
+        const now = Date.now();
+        const lastReplyTime = lastReplied.get(cooldownKey) || 0;
 
-    const key = `${telegramId}:${senderId}`;
-    const now = Date.now();
-    if (now - (lastReply.get(key) || 0) < COOLDOWN_MS) {
-      if (message.isPrivate) {
-        try { await client.markAsRead(message.chat.id); } catch (_) {}
+        // Jika dalam masa cooldown, lewati auto-reply
+        if (now - lastReplyTime < COOLDOWN_MS) {
+          // Tetap tandai sebagai dibaca di PM jika diaktifkan
+          if (isPrivate) {
+            try {
+              await client.markAsRead(message.peerId);
+            } catch (e) {}
+          }
+          return;
+        }
+
+        // Catat waktu reply sekarang
+        if (lastReplied.size > 1000) lastReplied.clear(); // Mencegah memory leak
+        lastReplied.set(cooldownKey, now);
+        
+        // ⚡ Aksi A: Auto-Read (Hanya jika chat pribadi agar centang biru)
+        if (isPrivate) {
+          try {
+            await client.markAsRead(message.peerId);
+          } catch (e) {}
+        }
+
+        // ⚡ Aksi B: Auto-Reply dengan penghitungan durasi waktu AFK
+        try {
+          if (message.message) {
+            const startTime = afkTimestamps.get(telegramId) || Date.now();
+            const elapsedMins = Math.round((Date.now() - startTime) / 60000);
+            
+            let timeText = 'baru saja';
+            if (elapsedMins > 0) {
+              if (elapsedMins >= 60) {
+                const hours = Math.floor(elapsedMins / 60);
+                const mins = elapsedMins % 60;
+                timeText = `${hours} jam ${mins} menit yang lalu`;
+              } else {
+                timeText = `${elapsedMins} menit yang lalu`;
+              }
+            }
+
+            // Balas dengan me-reply pesan pengirim asli
+            await client.sendMessage(message.peerId, {
+              message: `<b>💤 ${settings.custom_name || 'DeltaUbotJS'} — Auto Reply</b>\n\n` +
+                       `Halo! Saya sedang <b>AFK (Away From Keyboard)</b> saat ini.\n\n` +
+                       `📝 <b>Alasan</b>: <i>${settings.afk_reason}</i>\n` +
+                       `🕒 <b>Sejak</b>: <i>${timeText}</i>\n\n` +
+                       `<i>Pesan Anda telah dibaca otomatis. Harap tunggu sampai saya online kembali.</i>`,
+              replyTo: message.id,
+              parseMode: 'html'
+            });
+          }
+        } catch (err) {
+          console.error(`❌ Error in AFK auto-reply for [${telegramId}]:`, err.message);
+        }
       }
-      return;
     }
-
-    if (lastReply.size > 1000) lastReply.clear();
-    lastReply.set(key, now);
-
-    if (message.isPrivate) {
-      try { await client.markAsRead(message.chat.id); } catch (_) {}
-    }
-
-    const since = afkSince.get(telegramId) || Date.now();
-    await message.reply({
-      message: block(`Auto Reply`, `<pre>Status      AFK\nSejak       ${escapeHtml(durationText(since))}\nAlasan      ${escapeHtml(settings.afk_reason || 'Sedang AFK')}</pre>`) + '\nPesan Anda sudah dibaca otomatis.',
-      parseMode: 'html',
-    });
-  },
+  }
 };

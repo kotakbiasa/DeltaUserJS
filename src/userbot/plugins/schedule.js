@@ -1,162 +1,123 @@
-import { deleteSchedule, getSchedules, saveSchedule, getChatSettings } from '../../database/db.js';
-import { block, code, escapeHtml, footer } from '../ui.js';
-
-const timers = new Map();
-
-function userStore(id) {
-  if (!timers.has(id)) timers.set(id, new Map());
-  return timers.get(id);
-}
-
-function chatKey(message) {
-  return String(message.chat.id || message.chat.id || message.chat.id?.userId || '');
-}
-
-function clearTimer(telegramId, key, type) {
-  const store = userStore(telegramId);
-  const timerKey = `${type}:${key}`;
-  const timer = store.get(timerKey);
-  if (!timer) return;
-  clearInterval(timer);
-  clearTimeout(timer);
-  store.delete(timerKey);
-}
-
-async function sendScheduled(client, key, text) {
-  await client.sendText(Number(key), text);
-}
-
-function startLoop(client, telegramId, key, minutes, text) {
-  clearTimer(telegramId, key, 'loop');
-  sendScheduled(client, key, text).catch(err => console.error('Loop schedule error:', err.message));
-  const interval = setInterval(() => sendScheduled(client, key, text).catch(err => console.error('Loop schedule error:', err.message)), minutes * 60 * 1000);
-  userStore(telegramId).set(`loop:${key}`, interval);
-}
-
-function msUntil(hhmm) {
-  const [hh, mm] = hhmm.split(':').map(Number);
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(hh, mm, 0, 0);
-  if (target <= now) target.setDate(target.getDate() + 1);
-  return target - now;
-}
-
-function startDaily(client, telegramId, key, hhmm, text) {
-  clearTimer(telegramId, key, 'daily');
-  const timeout = setTimeout(async () => {
-    await sendScheduled(client, key, text).catch(err => console.error('Daily schedule error:', err.message));
-    const interval = setInterval(() => sendScheduled(client, key, text).catch(err => console.error('Daily schedule error:', err.message)), 24 * 60 * 60 * 1000);
-    userStore(telegramId).set(`daily:${key}`, interval);
-  }, msUntil(hhmm));
-  userStore(telegramId).set(`daily:${key}`, timeout);
-}
-
-function clearAll(telegramId) {
-  const store = userStore(telegramId);
-  for (const timer of store.values()) {
-    clearTimeout(timer);
-    clearInterval(timer);
-  }
-  store.clear();
-}
-
-function render(items) {
-  if (!items.length) return 'Tidak ada schedule aktif.';
-  return items.map((item, index) => {
-    const label = item.type === 'daily' ? `daily ${item.value}` : `loop ${item.value}m`;
-    const msg = item.message.length > 40 ? `${item.message.slice(0, 40)}...` : item.message;
-    return `${index + 1}. ${item.chatKey} · ${label}\n   ${escapeHtml(msg)}`;
-  }).join('\n');
-}
+// Map untuk menyimpan status loop per akun telegram
+// Struktur: telegramId -> Map<chatId, { intervalId, message, minutes, startedAt }>
+const loopStore = new Map();
 
 export default {
   name: 'schedule',
   help: {
     title: 'Schedule / Auto Post',
-    description: 'Mengirim pesan otomatis berulang dan restore setelah restart.',
-    usage: '• `.loop <menit> <pesan>`\n• `.every <menit> <pesan>`\n• `.schedule HH:MM <pesan>`\n• `.rmloop`\n• `.rmschedule`\n• `.schedules`',
-    detail: 'Loop dan daily schedule disimpan di database lalu dipulihkan saat userbot start.'
-  },
-  async onStart(client, telegramId) {
-    clearAll(telegramId);
-    const items = getSchedules(telegramId);
-    for (const item of items) {
-      if (item.type === 'loop') startLoop(client, telegramId, item.chatKey, Number(item.value), item.message);
-      if (item.type === 'daily') startDaily(client, telegramId, item.chatKey, item.value, item.message);
-    }
-    if (items.length) console.log(`Restored ${items.length} schedule(s) for [${telegramId}].`);
+    description: 'Mengirimkan pesan secara otomatis dan berulang di sebuah obrolan (Loop). Sangat berguna untuk broadcast promosi atau keperluan roleplay.',
+    usage: '• `.loop <menit> <pesan>` (Mulai loop)\n• `.rmloop` (Hentikan loop di chat ini)\n• `.listloop` (Lihat semua loop berjalan)',
+    detail: 'Pesan akan terhapus otomatis dari jadwal ketika bot direstart (`npm start`) untuk mencegah spam abadi yang tidak disengaja.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.isOutgoing || !message.text) return;
+    if (!message.out || !message.message) return;
     
-    const key = chatKey(message);
-    const chatConfig = getChatSettings(telegramId, key);
-    const prefix = chatConfig.prefix || '.';
+    const text = message.message.trim();
+    const args = text.split(/\s+/);
+    const cmd = args[0].toLowerCase();
     
-    const text = message.text.trim();
-    if (!text.startsWith(prefix)) return;
+    if (!['.loop', '.rmloop', '.listloop'].includes(cmd)) return;
 
-    const rawArgs = text.slice(prefix.length).split(/\s+/);
-    const cmd = rawArgs[0].toLowerCase();
-    if (!['loop', 'every', 'rmloop', 'listloop', 'schedules', 'schedule', 'rmschedule'].includes(cmd)) return;
+    // Pastikan penyimpanan untuk akun ini ada
+    if (!loopStore.has(telegramId)) {
+      loopStore.set(telegramId, new Map());
+    }
+    const myLoops = loopStore.get(telegramId);
+    
+    const chatId = message.peerId.userId || message.peerId.channelId || message.peerId.chatId;
+    const chatKey = String(chatId);
 
-    // Use original text splitting to preserve spacing in payload
-    // Extract everything after the command
-    const prefixCmd = prefix + cmd;
-
-    if (cmd === 'loop' || cmd === 'every') {
-      const minutes = Number(rawArgs[1]);
-      const payload = text.slice(prefixCmd.length + String(rawArgs[1] || '').length + 2).trim();
-      if (!minutes || minutes < 1 || !payload) {
-        await message.edit({ text: block('Tidak Valid', `Gunakan ${code(`${prefixCmd} <menit> <pesan>`)}`) + footer(settings), parseMode: 'html' });
+    if (cmd === '.loop') {
+      if (args.length < 3) {
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Format Salah:</b>\nPenggunaan: <code>.loop &lt;menit&gt; &lt;pesan&gt;</code>\nContoh: <code>.loop 10 Halo semua!</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         return;
       }
-      startLoop(client, telegramId, key, minutes, payload);
-      await saveSchedule(telegramId, key, 'loop', minutes, payload);
-      await message.edit({ text: block('Loop Aktif', `<pre>Interval    ${minutes} menit\nChat        ${escapeHtml(key)}</pre>`) + footer(settings), parseMode: 'html' });
-      return;
-    }
 
-    if (cmd === 'schedule') {
-      const time = rawArgs[1];
-      const payload = text.slice(prefixCmd.length + String(time || '').length + 2).trim();
-      if (!/^\d{1,2}:\d{2}$/.test(time || '') || !payload) {
-        await message.edit({ text: block('Tidak Valid', `Gunakan ${code(`${prefixCmd} HH:MM pesan`)}`) + footer(settings), parseMode: 'html' });
+      const minutes = parseInt(args[1]);
+      if (isNaN(minutes) || minutes < 1) {
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Menit Tidak Valid:</b> Harap masukkan angka menit minimal 1.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         return;
       }
-      const [hh, mm] = time.split(':').map(Number);
-      if (hh > 23 || mm > 59) {
-        await message.edit({ text: block('Jam tidak valid', 'Format 00:00 sampai 23:59.') + footer(settings), parseMode: 'html' });
+
+      const loopMessage = text.substring(cmd.length + args[1].length + 2).trim();
+      
+      // Hentikan loop lama jika ada di chat ini
+      if (myLoops.has(chatKey)) {
+        clearInterval(myLoops.get(chatKey).intervalId);
+      }
+
+      // Mulai loop baru
+      const ms = minutes * 60 * 1000;
+      const intervalId = setInterval(async () => {
+        try {
+          await client.sendMessage(message.peerId, {
+            message: loopMessage
+          });
+        } catch (err) {
+          console.error(`Loop Error [${chatKey}]:`, err.message);
+        }
+      }, ms);
+
+      myLoops.set(chatKey, {
+        intervalId,
+        message: loopMessage,
+        minutes: minutes,
+        startedAt: new Date()
+      });
+
+      await message.edit({ 
+        text: `<blockquote>🔁 <b>Loop Aktif!</b>\n\nBot akan otomatis mengirimkan pesan setiap <b>${minutes} menit</b> di obrolan ini.\n\nKetik <code>.rmloop</code> untuk menghentikan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        parseMode: 'html' 
+      });
+    }
+    
+    else if (cmd === '.rmloop') {
+      if (myLoops.has(chatKey)) {
+        clearInterval(myLoops.get(chatKey).intervalId);
+        myLoops.delete(chatKey);
+        await message.edit({ 
+          text: `<blockquote>⏹️ <b>Loop Dihentikan!</b>\nPesan otomatis di obrolan ini telah dimatikan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
+      } else {
+        await message.edit({ 
+          text: `<blockquote>ℹ️ <b>Info:</b> Tidak ada loop yang berjalan di obrolan ini.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
+      }
+    }
+    
+    else if (cmd === '.listloop') {
+      if (myLoops.size === 0) {
+        await message.edit({ 
+          text: `<blockquote>ℹ️ <b>Info:</b> Anda tidak memiliki loop yang sedang berjalan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
         return;
       }
-      const hhmm = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-      startDaily(client, telegramId, key, hhmm, payload);
-      await saveSchedule(telegramId, key, 'daily', hhmm, payload);
-      await message.edit({ text: block('Daily schedule aktif', `<pre>Jam         ${hhmm}\nChat        ${escapeHtml(key)}</pre>`) + footer(settings), parseMode: 'html' });
-      return;
-    }
 
-    if (cmd === 'rmloop') {
-      const store = userStore(telegramId);
-      const hasLoop = store.has(`loop:${key}`);
-      if (!hasLoop) {
-        await message.edit({ text: block('Tidak ada loop', `Tidak ada loop aktif di chat ini.`) + footer(settings), parseMode: 'html' });
-        return;
+      let listText = `<blockquote>🔁 <b>Daftar Loop Aktif Anda:</b>\n\n`;
+      let i = 1;
+      for (const [id, data] of myLoops.entries()) {
+        const shortMsg = data.message.length > 20 ? data.message.substring(0, 20) + '...' : data.message;
+        listText += `<b>${i}. Chat ID:</b> <code>${id}</code>\n`;
+        listText += `├ Interval: ${data.minutes} menit\n`;
+        listText += `└ Pesan: <i>"${shortMsg}"</i>\n\n`;
+        i++;
       }
-      clearTimer(telegramId, key, 'loop');
-      await deleteSchedule(telegramId, key, 'loop');
-      await message.edit({ text: block('Loop Dihentikan', `Chat: ${code(key)}`) + footer(settings), parseMode: 'html' });
-      return;
-    }
+      listText += `</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`;
 
-    if (cmd === 'rmschedule') {
-      clearTimer(telegramId, key, 'daily');
-      await deleteSchedule(telegramId, key, 'daily');
-      await message.edit({ text: block('Daily schedule dihentikan', `Chat: ${code(key)}`) + footer(settings), parseMode: 'html' });
-      return;
+      await message.edit({ 
+        text: listText, 
+        parseMode: 'html' 
+      });
     }
-
-    await message.edit({ text: block('Daftar Loop Aktif', `<pre>${render(getSchedules(telegramId))}</pre>`) + footer(settings), parseMode: 'html' });
-  },
+  }
 };

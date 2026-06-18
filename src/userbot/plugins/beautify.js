@@ -1,73 +1,111 @@
 import fs from 'fs';
 import crypto from 'crypto';
-import { block, escapeHtml, footer } from '../ui.js';
 
-const COLORS = ['White', 'Black', 'Gray', 'Blue', 'Green', 'Red', '#1F1F1F', '#2E3440', '#0f172a'];
-
-async function carbonImage(code, backgroundColor) {
-  const response = await fetch('https://carbonara.solopov.dev/api/cook', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, backgroundColor }),
-  });
-  if (!response.ok) throw new Error(`Carbonara HTTP ${response.status}`);
-  return Buffer.from(await response.arrayBuffer());
-}
+const COLOR_LIST = [
+  "White", "Black", "Gray", "Blue", "Green", "Red", "#1F1F1F", "#2E3440", "#0f172a"
+];
 
 export default {
   name: 'beautify',
   help: {
     title: 'Code to Image (Carbon)',
-    description: 'Mengubah teks/kode menjadi gambar Carbon.',
-    usage: '• `.carbon [kode]`\n• `.rcarbon [kode]`\n• `.ccarbon [warna] [kode]`\n• Bisa reply pesan.',
-    detail: 'Menggunakan API Carbonara publik tanpa browser.'
+    description: 'Mengubah teks atau kode sumber menjadi gambar screenshot (Carbon) yang sangat elegan.',
+    usage: '• `.carbon [kode]` (Gambar warna gelap elegan)\n• `.rcarbon [kode]` (Gambar dengan warna random)\n• `.ccarbon [warna] [kode]` (Contoh: `.ccarbon #FF0000 halo`)\n• Anda juga bisa me-reply sebuah pesan.',
+    detail: 'Modul ini menggunakan API Carbonara publik secara langsung tanpa membuka browser virtual, menjadikannya sangat ringan dan cepat.'
   },
-  async execute(client, message, settings) {
-    if (!message.isOutgoing || !message.text) return;
-
-    const text = message.text.trim();
+  async execute(client, message, settings, telegramId) {
+    if (!message.out || !message.message) return;
+    
+    const text = message.message.trim();
     const args = text.split(/\s+/);
     const cmd = args[0].toLowerCase();
+    
     if (!['.carbon', '.rcarbon', '.ccarbon'].includes(cmd)) return;
 
-    await message.edit({ text: block('Carbon', 'Membuat gambar kode...') + footer(settings), parseMode: 'html' });
+    await message.edit({ 
+      text: `<blockquote>🎨 <b>Processing Carbon...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+      parseMode: 'html' 
+    });
 
-    let color = '#2E3440';
-    let code = '';
-    const replied = message.replyToMessage;
-
-    if (cmd === '.rcarbon') color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    if (cmd === '.ccarbon') color = args[1] || color;
-
-    if (replied?.message) {
-      code = replied.message;
-    } else if (cmd === '.ccarbon') {
-      const match = text.match(/^\.ccarbon\s+\S+\s+([\s\S]+)$/i);
-      code = match ? match[1].trimEnd() : '';
-    } else {
-      const match = text.match(/^\.[rc]?carbon\s+([\s\S]+)$/i);
-      code = match ? match[1].trimEnd() : '';
-    }
-
-    if (!code) {
-      await message.edit({ text: block('Carbon kosong', 'Berikan teks/kode atau reply pesan berisi teks.') + footer(settings), parseMode: 'html' });
-      return;
-    }
-
-    const tmpPath = `/tmp/carbon_${crypto.randomBytes(5).toString('hex')}.png`;
     try {
-      fs.writeFileSync(tmpPath, await carbonImage(code, color));
-      await client.sendText(message.chat.id, {
-        message: block('Carbonised', `<pre>Theme       ${escapeHtml(color)}</pre>`) + footer(settings),
+      let code = '';
+      let color = '#2E3440'; // Default dark theme background
+
+      const replied = await message.getReplyMessage();
+      
+      if (cmd === '.carbon' || cmd === '.rcarbon') {
+        if (cmd === '.rcarbon') {
+          color = COLOR_LIST[Math.floor(Math.random() * COLOR_LIST.length)];
+        }
+
+        if (replied && replied.message) {
+          code = replied.message;
+        } else {
+          code = text.substring(cmd.length).trim();
+        }
+      } else if (cmd === '.ccarbon') {
+        if (replied && replied.message) {
+          color = args[1] || '#2E3440';
+          code = replied.message;
+        } else {
+          color = args[1] || '#2E3440';
+          // Potong nama perintah dan argument warna
+          code = text.substring(cmd.length + color.length + 1).trim();
+        }
+      }
+
+      if (!code) {
+        await message.edit({ 
+          text: `<blockquote>❌ <b>Gagal:</b> Harap berikan teks kode atau balas (reply) ke pesan yang berisi teks!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          parseMode: 'html' 
+        });
+        return;
+      }
+
+      // Memanggil API Carbonara
+      const payload = {
+        code: code,
+        backgroundColor: color
+      };
+
+      const response = await fetch("https://carbonara.solopov.dev/api/cook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: HTTP ${response.status}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const imageBuffer = Buffer.from(buffer);
+      
+      const tmpPath = `/tmp/carbon_${crypto.randomBytes(4).toString('hex')}.png`;
+      fs.writeFileSync(tmpPath, imageBuffer);
+
+      const captionText = `<blockquote>🎨 <b>Carbonised</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`;
+
+      await client.sendMessage(message.peerId, {
+        message: captionText,
         file: tmpPath,
         parseMode: 'html',
-        replyTo: message.replyTo?.replyToTopId || message.replyToMsgId || message.id,
+        replyTo: message.replyToMsgId
       });
+      
       await message.delete();
+      
+      // Hapus file setelah sukses dikirim
+      if (fs.existsSync(tmpPath)) {
+        fs.unlinkSync(tmpPath);
+      }
+
     } catch (err) {
-      await message.edit({ text: block('Carbon gagal', escapeHtml(err.message)) + footer(settings), parseMode: 'html' });
-    } finally {
-      try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch (_) {}
+      console.error('Carbon Error:', err);
+      await message.edit({ 
+        text: `<blockquote>❌ <b>Carbon Failed:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        parseMode: 'html' 
+      });
     }
-  },
+  }
 };

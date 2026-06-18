@@ -1,100 +1,151 @@
 import { helpRegistry } from '../pluginRegistry.js';
 
+/**
+ * Format nama modul agar rapi
+ */
 function formatModuleName(name) {
   if (name.toLowerCase() === 'antipm') return 'AntiPM';
   if (name.length <= 3) return name.toUpperCase();
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-function escapeHtml(text = '') {
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+/**
+ * Helper: Teks menu utama help (Fallback jika inline bot gagal)
+ */
+function buildHelpMenuText(settings) {
+  const plugins = Object.keys(helpRegistry);
+  const botName = settings?.custom_name || 'DeltaUbotJS';
+  const headerName = botName.toUpperCase().split('').join(' ');
+  
+  let text = `🔺 <b>${headerName}</b> 🔺\n` +
+    `───────────────────────\n` +
+    `📖 <b>MENU BANTUAN USERBOT</b>\n\n` +
+    `<blockquote>` +
+    `<b>Daftar Modul:</b>\n`;
+    
+  const formattedPlugins = plugins.map(p => formatModuleName(p));
+  text += `<code>` + formattedPlugins.join('</code>, <code>') + `</code>\n` +
+    `</blockquote>\n` +
+    `Ketik <code>.help &lt;nama_modul&gt;</code> untuk melihat detail modul.\n\n` +
+    `⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`;
+
+  return text;
 }
 
-function markdownToHtml(text = '') {
-  return escapeHtml(text)
+/**
+ * Konversi Markdown sederhana ke HTML
+ */
+function markdownToHtml(text) {
+  if (!text) return text;
+  return text
     .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
     .replace(/__(.*?)__/g, '<i>$1</i>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
     .replace(/\*(.*?)\*/g, '<i>$1</i>')
-    .replace(/_(.*?)_/g, '<i>$1</i>');
+    .replace(/_(.*?)_/g, '<i>$1</i>')
+    .replace(/`(.*?)`/g, '<code>$1</code>');
 }
 
-function helpMenuText(settings) {
-  const customName = escapeHtml(settings?.custom_name || 'DeltaUbotJS');
-  const modules = Object.keys(helpRegistry).sort();
-  const rows = modules.map(name => `· <b>${formatModuleName(name)}</b> <code>(${name})</code>`).join('\n') || 'Belum ada modul.';
-  
-  return `<b>📖 Module Library</b>\n` +
-         `<blockquote>${customName}\nLibrary command userbot Anda.</blockquote>\n\n` +
-         `${rows}\n\n` +
-         `<b>Total Modul:</b> <code>${modules.length}</code>\n` +
-         `<b>Panduan:</b> <code>.help nama_modul</code>`;
-}
-
-function moduleDetail(moduleName, settings) {
-  const customName = escapeHtml(settings?.custom_name || 'DeltaUbotJS');
+/**
+ * Helper: Teks detail modul
+ */
+function buildModuleDetailText(moduleName, settings) {
   const mod = helpRegistry[moduleName];
-  if (!mod) return `<b>📦 Modul Tidak Ditemukan</b>\n<blockquote>Modul <code>${escapeHtml(moduleName)}</code> tidak ada di dalam sistem.</blockquote>`;
-  
-  return `<b>📦 ${escapeHtml(mod.title || formatModuleName(moduleName))}</b>\n` +
-         `<blockquote>${customName} · Detail Modul</blockquote>\n\n` +
-         `<b>Deskripsi</b>\n${markdownToHtml(mod.description)}\n\n` +
-         `<b>Penggunaan</b>\n${markdownToHtml(mod.usage)}\n\n` +
-         `<b>Detail Tambahan</b>\n${markdownToHtml(mod.detail)}\n\n` +
-         `<b>Kembali:</b> <code>.help</code>`;
+  if (!mod) return null;
+
+  const botName = settings?.custom_name || 'DeltaUbotJS';
+  const headerName = botName.toUpperCase().split('').join(' ');
+
+  return (
+    `🔺 <b>${headerName}</b> 🔺\n` +
+    `───────────────────────\n` +
+    `📦 <b>MODUL: ${mod.title}</b>\n\n` +
+    `<blockquote>` +
+    `📄 <b>Deskripsi</b>:\n${markdownToHtml(mod.description)}\n\n` +
+    `⚙️ <b>Penggunaan</b>:\n${markdownToHtml(mod.usage)}\n\n` +
+    `📋 <b>Detail Fitur</b>:\n${markdownToHtml(mod.detail)}` +
+    `</blockquote>\n` +
+    `Ketik <code>.help</code> untuk kembali ke daftar modul.\n\n` +
+    `⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`
+  );
 }
 
-
-async function sendInlineHelp(client, message, settings, query = 'help') {
-  const botUsername = settings.inline_bot_username;
-  if (!botUsername) throw new Error('custom inline bot belum diset');
-  const results = await client.inlineQuery(botUsername, query);
-  if (!results?.length) throw new Error('inline result kosong');
-
-  const replyId = message.replyTo?.replyToTopId || message.replyToMsgId;
-  await results[0].click(message.chat.id, replyId);
-  try { await message.delete(); } catch (_) {}
+/**
+ * Helper: Dapatkan replyTo untuk forum topic
+ */
+function getReplyToForTopic(message) {
+  if (message.replyTo) {
+    return message.replyTo.replyToTopId || message.replyTo.replyToMsgId || message.id;
+  }
+  return message.id;
 }
 
 export default {
   name: 'help',
   help: {
     title: 'Help Menu',
-    description: 'Menampilkan library modul dan detail penggunaan command.',
-    usage: '• `.help`\n• `.help <nama_modul>`',
-    detail: 'Jika custom inline bot tersedia, `.help` memakai inline rich library; jika tidak, memakai fallback HTML modern.'
+    description: 'Menampilkan panduan penggunaan dan daftar modul yang tersedia di userbot Anda.',
+    usage: 'Ketik `.help` untuk menu utama atau `.help <nama_modul>` untuk detail spesifik.',
+    detail: '• `.help` akan memunculkan menu inline jika Anda sudah mengatur Custom Inline Bot.\n• Jika belum, menu text biasa akan dimunculkan.'
   },
-  async execute(client, message, settings) {
-    if (!message.isOutgoing || !String(message.text || '').toLowerCase().startsWith('.help')) return;
 
-const parts = message.text.trim().split(/\s+/);
-    if (parts.length === 1) {
-      
+  /**
+   * Handler untuk pesan .help dan .help <modul>
+   */
+  async execute(client, message, settings, telegramId) {
+    if (message.out && message.message && message.message.toLowerCase().startsWith('.help')) {
       try {
-        await sendInlineHelp(client, message, settings, 'help');
-        return;
+        const parts = message.message.trim().split(' ');
+        const replyToMsgId = getReplyToForTopic(message);
+        
+        if (parts.length === 1) {
+          // --- .help → Coba panggil Master Bot via Inline Query ---
+          try {
+            // Cek apakah user memiliki custom inline bot
+            const botUsername = settings.inline_bot_username;
+            if (!botUsername) throw new Error("Custom inline bot username not set. Falling back to text mode.");
+
+            const results = await client.inlineQuery(botUsername, 'help');
+            
+            if (results && results.length > 0) {
+              // Kirim hasil inline query menggunakan method .click()
+              await results[0].click(message.peerId, replyToMsgId);
+              // Hapus pesan .help asli agar rapi
+              try { await message.delete(); } catch (e) {}
+              return;
+            } else {
+              throw new Error("No inline result from bot (Inline mode mungkin belum diaktifkan di @BotFather)");
+            }
+          } catch (inlineErr) {
+            console.log("Inline help fallback:", inlineErr.message);
+            // Fallback: Tampilkan menu teks biasa jika inline gagal
+            const text = buildHelpMenuText(settings);
+            await message.edit({ text, parseMode: 'html' });
+          }
+
+        } else {
+          // --- .help <nama_modul> → Tampilkan detail modul ---
+          const moduleName = parts[1].toLowerCase();
+          const targetModule = helpRegistry[moduleName];
+
+          if (targetModule) {
+            const text = buildModuleDetailText(moduleName, settings);
+            await message.edit({ text, parseMode: 'html' });
+          } else {
+            // Modul tidak ditemukan
+            const available = Object.keys(helpRegistry).join(', ');
+            const safeName = parts[1].replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            await message.edit({ 
+              text: `<blockquote>❌ Modul "<b>${safeName}</b>" tidak ditemukan!</blockquote>\n\nModul tersedia: <code>${available}</code>\n\nKetik <code>.help</code> untuk melihat daftar modul.\n\n⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`,
+              parseMode: 'html'
+            });
+          }
+        }
       } catch (err) {
-        console.log('Inline help fallback:', err.message);
-        await message.edit({ text: helpMenuText(settings), parseMode: 'html' });
-        return;
+        console.error('Error in help plugin:', err);
+        try {
+          await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
+        } catch (e) {}
       }
     }
-
-    const moduleName = String(parts[1] || '').toLowerCase();
-const text = moduleDetail(moduleName, settings);
-
-    
-
-    try {
-      await sendInlineHelp(client, message, settings, `help ${moduleName}`);
-      return;
-    } catch (err) {
-      console.log('Inline module help fallback:', err.message);
-      await message.edit({ text, parseMode: 'html' });
-      return;
-    }
-  },
+  }
 };
