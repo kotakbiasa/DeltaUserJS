@@ -1,5 +1,5 @@
 import config from '../config.js';
-import { updateUserbotStatus, getUserbotSession, getAllRegisteredUsers, getDisabledPlugins, disablePlugin, enablePlugin, deleteUserbot } from '../database/db.js';
+import { updateUserbotStatus, getUserbotSession, getAllRegisteredUsers, getDisabledPlugins, disablePlugin, enablePlugin, deleteUserbot, updateUserbotFeature } from '../database/db.js';
 import { helpRegistry, loadedPlugins } from '../userbot/pluginRegistry.js';
 import userbotManager from '../userbot/manager.js';
 import {
