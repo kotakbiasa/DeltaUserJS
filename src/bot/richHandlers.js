@@ -1,6 +1,7 @@
 import config from '../config.js';
-import { updateUserbotStatus, getUserbotSession, getAllRegisteredUsers, getDisabledPlugins, disablePlugin, enablePlugin } from '../database/db.js';
+import { updateUserbotStatus, getUserbotSession, getAllRegisteredUsers, getDisabledPlugins, disablePlugin, enablePlugin, deleteUserbot } from '../database/db.js';
 import { helpRegistry, loadedPlugins } from '../userbot/pluginRegistry.js';
+import userbotManager from '../userbot/manager.js';
 import {
   isOwner,
   panelMain,
@@ -116,6 +117,34 @@ export function registerRichHandlers(bot) {
     await sendRich(ctx, panelHealth(await mongoStatusLabel()), keyboardBack('admin'));
   });
 
+  bot.command('revoke', async (ctx) => {
+    const telegramId = ctx.from.id;
+    const session = getUserbotSession(telegramId);
+    if (!session) {
+      return ctx.reply('❌ Anda belum memiliki sesi userbot yang aktif di sistem.');
+    }
+    
+    await ctx.reply('⏳ Memproses penghapusan sesi dan logout dari Telegram...');
+    
+    // Attempt remote logout
+    try {
+      const ubot = userbotManager.clients.get(telegramId);
+      if (ubot && ubot.client) {
+        await ubot.client.call({ _: 'auth.logOut' });
+      }
+    } catch (e) {
+      console.log(`Failed to logout remotely for ${telegramId}:`, e.message);
+    }
+
+    // Stop bot locally
+    await userbotManager.stopUserbot(telegramId);
+    
+    // Delete from database
+    deleteUserbot(telegramId);
+    
+    await ctx.reply('✅ Sesi Anda telah berhasil dihapus sepenuhnya (Revoked).\n\nKetik /daftar kembali jika ingin mendaftar ulang.');
+  });
+
   bot.callbackQuery(/^rich:(.+)$/, async (ctx) => {
     const action = ctx.match[1];
     try { await ctx.answerCallbackQuery(); } catch (_) {}
@@ -213,11 +242,21 @@ export function registerRichHandlers(bot) {
     if (action === 'confirm_delete_session') {
       await ctx.answerCallbackQuery('Menghapus sesi...');
       const telegramId = ctx.from.id;
+      
+      try {
+        const ubot = userbotManager.clients.get(telegramId);
+        if (ubot && ubot.client) {
+          await ubot.client.call({ _: 'auth.logOut' });
+        }
+      } catch (e) {
+        console.log(`Failed to logout remotely for ${telegramId}:`, e.message);
+      }
+
       if (userbotManager.isRunning(telegramId)) {
         await userbotManager.stopUserbot(telegramId);
       }
       deleteUserbot(telegramId);
-      await ctx.reply('🗑️ <b>Sesi berhasil dihapus secara permanen.</b>', { parse_mode: 'HTML' });
+      await ctx.reply('🗑️ <b>Sesi berhasil dihapus secara permanen dari server Telegram dan database.</b>', { parse_mode: 'HTML' });
       return openMain(ctx, { deleteOld: true });
     }
 
