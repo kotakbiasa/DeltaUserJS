@@ -14,12 +14,7 @@ function formatModuleName(name) {
  */
 function buildHelpMenuText(settings) {
   const plugins = Object.keys(helpRegistry);
-  const botName = settings?.custom_name || 'Userbot';
-  const headerName = botName.toUpperCase().split('').join(' ');
-  
-  let text = `🔺 <b>${headerName}</b> 🔺\n` +
-    `───────────────────────\n` +
-    `📖 <b>MENU BANTUAN USERBOT</b>\n\n` +
+  let text = `📖 <b>MENU BANTUAN USERBOT</b>\n\n` +
     `<blockquote>` +
     `<b>Daftar Modul:</b>\n`;
     
@@ -52,12 +47,7 @@ function buildModuleDetailText(moduleName, settings) {
   const mod = helpRegistry[moduleName];
   if (!mod) return null;
 
-  const botName = settings?.custom_name || 'Userbot';
-  const headerName = botName.toUpperCase().split('').join(' ');
-
   return (
-    `🔺 <b>${headerName}</b> 🔺\n` +
-    `───────────────────────\n` +
     `📦 <b>MODUL: ${mod.title}</b>\n\n` +
     `<blockquote>` +
     `📄 <b>Deskripsi</b>:\n${markdownToHtml(mod.description)}\n\n` +
