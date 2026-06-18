@@ -31,7 +31,7 @@ export default {
     if (cmd === '.loop') {
       if (args.length < 3) {
         await message.edit({ 
-          text: `<blockquote>❌ <b>Format Salah:</b>\nPenggunaan: <code>.loop &lt;menit&gt; &lt;pesan&gt;</code>\nContoh: <code>.loop 10 Halo semua!</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ <b>Format Salah:</b>\nPenggunaan: <code>.loop &lt;menit&gt; &lt;pesan&gt;</code>\nContoh: <code>.loop 10 Halo semua!</code></blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -40,7 +40,7 @@ export default {
       const minutes = parseInt(args[1]);
       if (isNaN(minutes) || minutes < 1) {
         await message.edit({ 
-          text: `<blockquote>❌ <b>Menit Tidak Valid:</b> Harap masukkan angka menit minimal 1.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ <b>Menit Tidak Valid:</b> Harap masukkan angka menit minimal 1.</blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -73,7 +73,7 @@ export default {
       });
 
       await message.edit({ 
-        text: `<blockquote>🔁 <b>Loop Aktif!</b>\n\nBot akan otomatis mengirimkan pesan setiap <b>${minutes} menit</b> di obrolan ini.\n\nKetik <code>.rmloop</code> untuk menghentikan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        text: `<blockquote>🔁 <b>Loop Aktif!</b>\n\nBot akan otomatis mengirimkan pesan setiap <b>${minutes} menit</b> di obrolan ini.\n\nKetik <code>.rmloop</code> untuk menghentikan.</blockquote>`, 
         parseMode: 'html' 
       });
     }
@@ -83,12 +83,12 @@ export default {
         clearInterval(myLoops.get(chatKey).intervalId);
         myLoops.delete(chatKey);
         await message.edit({ 
-          text: `<blockquote>⏹️ <b>Loop Dihentikan!</b>\nPesan otomatis di obrolan ini telah dimatikan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>⏹️ <b>Loop Dihentikan!</b>\nPesan otomatis di obrolan ini telah dimatikan.</blockquote>`, 
           parseMode: 'html' 
         });
       } else {
         await message.edit({ 
-          text: `<blockquote>ℹ️ <b>Info:</b> Tidak ada loop yang berjalan di obrolan ini.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>ℹ️ <b>Info:</b> Tidak ada loop yang berjalan di obrolan ini.</blockquote>`, 
           parseMode: 'html' 
         });
       }
@@ -97,7 +97,7 @@ export default {
     else if (cmd === '.listloop') {
       if (myLoops.size === 0) {
         await message.edit({ 
-          text: `<blockquote>ℹ️ <b>Info:</b> Anda tidak memiliki loop yang sedang berjalan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>ℹ️ <b>Info:</b> Anda tidak memiliki loop yang sedang berjalan.</blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -112,7 +112,7 @@ export default {
         listText += `└ Pesan: <i>"${shortMsg}"</i>\n\n`;
         i++;
       }
-      listText += `</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`;
+      listText += `</blockquote>`;
 
       await message.edit({ 
         text: listText, 

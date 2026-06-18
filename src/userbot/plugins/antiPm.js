@@ -87,7 +87,7 @@ export default {
                      `Halo! Maaf, pemilik akun ini sedang mengaktifkan fitur <b>Anti-PM</b>.\n\n` +
                      `Harap <b>tidak</b> mengirimkan pesan pribadi lagi sebelum mode ini dinonaktifkan, atau pesan Anda selanjutnya akan <b>otomatis terhapus secara permanen</b>.` +
                      `</blockquote>\n\n` +
-                     `⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`,
+                     ``,
             parseMode: 'html'
           });
         } catch (err) {

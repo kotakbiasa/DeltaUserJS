@@ -13,7 +13,7 @@ export default {
       const replied = await message.getReplyMessage();
       if (!replied) {
         await message.edit({ 
-          text: `<blockquote>❌ <b>Gagal:</b> Balas sebuah pesan teks untuk membuat quote!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ <b>Gagal:</b> Balas sebuah pesan teks untuk membuat quote!</blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -21,7 +21,7 @@ export default {
       
       try {
         await message.edit({ 
-          text: `<blockquote>⏳ <b>Membuat quote...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>⏳ <b>Membuat quote...</b></blockquote>`, 
           parseMode: 'html' 
         });
         
@@ -58,7 +58,7 @@ export default {
           try { await message.delete(); } catch (e) {}
         } else {
           await message.edit({ 
-            text: `<blockquote>❌ <b>Gagal:</b> Tidak ada balasan dari @QuotLyBot. Coba lagi nanti.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            text: `<blockquote>❌ <b>Gagal:</b> Tidak ada balasan dari @QuotLyBot. Coba lagi nanti.</blockquote>`, 
             parseMode: 'html' 
           });
         }
@@ -66,7 +66,7 @@ export default {
       } catch (err) {
         console.error('Error in quote plugin:', err);
         await message.edit({ 
-          text: `<blockquote>❌ <b>Gagal membuat quote:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ <b>Gagal membuat quote:</b>\n<i>${err.message}</i></blockquote>`, 
           parseMode: 'html' 
         });
       }

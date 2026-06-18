@@ -23,7 +23,7 @@ export default {
     if (!['.carbon', '.rcarbon', '.ccarbon'].includes(cmd)) return;
 
     await message.edit({ 
-      text: `<blockquote>🎨 <b>Processing Carbon...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+      text: `<blockquote>🎨 <b>Processing Carbon...</b></blockquote>`, 
       parseMode: 'html' 
     });
 
@@ -56,7 +56,7 @@ export default {
 
       if (!code) {
         await message.edit({ 
-          text: `<blockquote>❌ <b>Gagal:</b> Harap berikan teks kode atau balas (reply) ke pesan yang berisi teks!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ <b>Gagal:</b> Harap berikan teks kode atau balas (reply) ke pesan yang berisi teks!</blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -84,7 +84,7 @@ export default {
       const tmpPath = `/tmp/carbon_${crypto.randomBytes(4).toString('hex')}.png`;
       fs.writeFileSync(tmpPath, imageBuffer);
 
-      const captionText = `<blockquote>🎨 <b>Carbonised</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`;
+      const captionText = `<blockquote>🎨 <b>Carbonised</b></blockquote>`;
 
       await client.sendMessage(message.peerId, {
         message: captionText,
@@ -103,7 +103,7 @@ export default {
     } catch (err) {
       console.error('Carbon Error:', err);
       await message.edit({ 
-        text: `<blockquote>❌ <b>Carbon Failed:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        text: `<blockquote>❌ <b>Carbon Failed:</b>\n<i>${err.message}</i></blockquote>`, 
         parseMode: 'html' 
       });
     }

@@ -50,7 +50,7 @@ export default {
           `📦 <b>GramJS:</b> <code>${gramjsVer}</code>\n` +
           `💻 <b>Sistem OS:</b> <code>${os.platform()} (${os.arch()})</code>\n` +
           `</blockquote>\n\n` +
-          `⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`;
+          ``;
 
         await message.edit({
           text: text,

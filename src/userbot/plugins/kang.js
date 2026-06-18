@@ -29,7 +29,7 @@ export default {
       const replyMsg = await message.getReplyMessage();
       if (!replyMsg || !replyMsg.media || (!replyMsg.media.document && !replyMsg.media.photo)) {
         await message.edit({ 
-          text: `<blockquote>❌ Balas ke sebuah sticker atau foto untuk melakukan kang!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ Balas ke sebuah sticker atau foto untuk melakukan kang!</blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -41,7 +41,7 @@ export default {
         // Cek jika ini adalah bagian dari media group (album)
         if (replyMsg.groupedId) {
           await message.edit({ 
-            text: `<blockquote>⏳ <b>Menganalisis album foto...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`,
+            text: `<blockquote>⏳ <b>Menganalisis album foto...</b></blockquote>`,
             parseMode: 'html' 
           });
           const history = await client.getMessages(message.chatId, { limit: 20, offsetId: replyMsg.id + 10 });
@@ -61,7 +61,7 @@ export default {
           }
 
           await message.edit({ 
-            text: `<blockquote>📥 <b>Mencuri (kang) media...</b> [${i + 1}/${total}]</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            text: `<blockquote>📥 <b>Mencuri (kang) media...</b> [${i + 1}/${total}]</blockquote>`, 
             parseMode: 'html' 
           });
           
@@ -172,12 +172,12 @@ export default {
         if (successCount > 0) {
           const packUrl = `https://t.me/addstickers/${lastShortName}`;
           await message.edit({ 
-            text: `<blockquote>✅ <b>Berhasil!</b>\nBerhasil mencuri (kang) ${successCount} stiker.\n\n👉 <a href="${packUrl}">Lihat Pack Stiker Anda</a></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            text: `<blockquote>✅ <b>Berhasil!</b>\nBerhasil mencuri (kang) ${successCount} stiker.\n\n👉 <a href="${packUrl}">Lihat Pack Stiker Anda</a></blockquote>`, 
             parseMode: 'html' 
           });
         } else {
           await message.edit({ 
-            text: `<blockquote>❌ <b>Gagal!</b>\nTidak ada stiker yang berhasil dicuri.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            text: `<blockquote>❌ <b>Gagal!</b>\nTidak ada stiker yang berhasil dicuri.</blockquote>`, 
             parseMode: 'html' 
           });
         }
@@ -185,7 +185,7 @@ export default {
       } catch (err) {
         console.error('Error in kang plugin:', err);
         await message.edit({ 
-          text: `<blockquote>❌ <b>Terjadi kesalahan saat memproses kang:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ <b>Terjadi kesalahan saat memproses kang:</b>\n<i>${err.message}</i></blockquote>`, 
           parseMode: 'html' 
         });
       }

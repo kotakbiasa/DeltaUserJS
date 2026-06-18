@@ -24,14 +24,14 @@ export default {
 
     if (!targetUser) {
       await message.edit({ 
-        text: `<blockquote>❌ <b>Gagal:</b> Harap berikan @username/ID target, atau balas pesan target.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        text: `<blockquote>❌ <b>Gagal:</b> Harap berikan @username/ID target, atau balas pesan target.</blockquote>`, 
         parseMode: 'html' 
       });
       return;
     }
 
     await message.edit({ 
-      text: `<blockquote>🔍 <b>Menggali riwayat pesan...</b>\nMohon tunggu sebentar, sedang menghubungi server Telegram...</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+      text: `<blockquote>🔍 <b>Menggali riwayat pesan...</b>\nMohon tunggu sebentar, sedang menghubungi server Telegram...</blockquote>`, 
       parseMode: 'html' 
     });
 
@@ -52,7 +52,7 @@ export default {
 
       if (!history || history.length === 0) {
         await message.edit({ 
-          text: `<blockquote>👻 <b>Jejak Tidak Ditemukan!</b>\nTarget tidak pernah mengirim pesan di obrolan ini, atau pesan sudah terhapus.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>👻 <b>Jejak Tidak Ditemukan!</b>\nTarget tidak pernah mengirim pesan di obrolan ini, atau pesan sudah terhapus.</blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -92,7 +92,7 @@ export default {
         report += `• <i>(Hanya mengirim stiker/media kosong)</i>\n`;
       }
 
-      report += `</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`;
+      report += `</blockquote>`;
 
       await message.edit({ 
         text: report, 
@@ -102,7 +102,7 @@ export default {
     } catch (err) {
       console.error('Stalk Error:', err);
       await message.edit({ 
-        text: `<blockquote>❌ <b>Gagal Menggali Pesan:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        text: `<blockquote>❌ <b>Gagal Menggali Pesan:</b>\n<i>${err.message}</i></blockquote>`, 
         parseMode: 'html' 
       });
     }

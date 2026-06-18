@@ -31,8 +31,7 @@ export default {
           `<blockquote>` +
           `🚀 <b>Speed</b> : <code>${rawLatency} ms</code>\n` +
           `⏱️ <b>Uptime</b> : <code>${uptimeStr}</code>\n` +
-          `🛡️ <b>Status</b> : <code>Online</code>\n` +
-          `⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`;
+          `🛡️ <b>Status</b> : <code>Online</code></blockquote>`;
 
         await message.edit({
           text: newDesign,

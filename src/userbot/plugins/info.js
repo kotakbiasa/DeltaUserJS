@@ -20,7 +20,7 @@ export default {
     if (cmd !== '.info') return;
 
     await message.edit({ 
-      text: `<blockquote>🔍 <b>Mengekstrak informasi target...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+      text: `<blockquote>🔍 <b>Mengekstrak informasi target...</b></blockquote>`, 
       parseMode: 'html' 
     });
 
@@ -94,7 +94,7 @@ export default {
                       `📝 <b>Bio:</b> \n<i>${pBio}</i>\n` +
                       `───────────────────────\n` +
                       `🔖 <b>Status:</b> ${tags.length > 0 ? tags.join(' | ') : 'Normal User'}</blockquote>\n\n` +
-                      `⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`;
+                      ``;
       } else {
         // Group Info (Megagroup/Channel or Basic Chat)
         try {
@@ -117,7 +117,7 @@ export default {
                         `👥 <b>Total Member:</b> ${cMembers}\n` +
                         `📝 <b>Deskripsi:</b> \n<i>${cBio}</i>\n` +
                         `───────────────────────</blockquote>\n\n` +
-                        `⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`;
+                        ``;
         } catch (chanErr) {
           // Jika Basic Chat
           const cName = targetEntity.title;
@@ -127,7 +127,7 @@ export default {
                         `📌 <b>Nama:</b> ${cName}\n` +
                         `🆔 <b>ID:</b> <code>-${cId}</code>\n` +
                         `───────────────────────</blockquote>\n\n` +
-                        `⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`;
+                        ``;
         }
       }
 
@@ -155,7 +155,7 @@ export default {
         errMsg = 'Username/ID tidak ditemukan.';
       }
       await message.edit({ 
-        text: `<blockquote>❌ <b>Gagal menarik data:</b>\n<i>${errMsg}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        text: `<blockquote>❌ <b>Gagal menarik data:</b>\n<i>${errMsg}</i></blockquote>`, 
         parseMode: 'html' 
       });
     }

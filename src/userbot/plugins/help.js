@@ -14,7 +14,7 @@ function formatModuleName(name) {
  */
 function buildHelpMenuText(settings) {
   const plugins = Object.keys(helpRegistry);
-  const botName = settings?.custom_name || 'DeltaUbotJS';
+  const botName = settings?.custom_name || 'Userbot';
   const headerName = botName.toUpperCase().split('').join(' ');
   
   let text = `🔺 <b>${headerName}</b> 🔺\n` +
@@ -27,7 +27,7 @@ function buildHelpMenuText(settings) {
   text += `<code>` + formattedPlugins.join('</code>, <code>') + `</code>\n` +
     `</blockquote>\n` +
     `Ketik <code>.help &lt;nama_modul&gt;</code> untuk melihat detail modul.\n\n` +
-    `⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`;
+    ``;
 
   return text;
 }
@@ -52,7 +52,7 @@ function buildModuleDetailText(moduleName, settings) {
   const mod = helpRegistry[moduleName];
   if (!mod) return null;
 
-  const botName = settings?.custom_name || 'DeltaUbotJS';
+  const botName = settings?.custom_name || 'Userbot';
   const headerName = botName.toUpperCase().split('').join(' ');
 
   return (
@@ -65,7 +65,7 @@ function buildModuleDetailText(moduleName, settings) {
     `📋 <b>Detail Fitur</b>:\n${markdownToHtml(mod.detail)}` +
     `</blockquote>\n` +
     `Ketik <code>.help</code> untuk kembali ke daftar modul.\n\n` +
-    `⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`
+    ``
   );
 }
 
@@ -135,7 +135,7 @@ export default {
             const available = Object.keys(helpRegistry).join(', ');
             const safeName = parts[1].replace(/</g, '&lt;').replace(/>/g, '&gt;');
             await message.edit({ 
-              text: `<blockquote>❌ Modul "<b>${safeName}</b>" tidak ditemukan!</blockquote>\n\nModul tersedia: <code>${available}</code>\n\nKetik <code>.help</code> untuk melihat daftar modul.\n\n⚡ <i>${settings.custom_name || 'DeltaUbotJS'}</i>`,
+              text: `<blockquote>❌ Modul "<b>${safeName}</b>" tidak ditemukan!</blockquote>\n\nModul tersedia: <code>${available}</code>\n\nKetik <code>.help</code> untuk melihat daftar modul.`,
               parseMode: 'html'
             });
           }

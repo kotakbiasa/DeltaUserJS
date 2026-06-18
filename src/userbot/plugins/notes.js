@@ -41,7 +41,7 @@ export default {
       
       if (!noteContent) {
         await message.edit({ 
-          text: `<blockquote>❌ <b>Format salah.</b>\nGunakan: <code>.save nama teks</code> atau reply teks dengan <code>.save nama</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ <b>Format salah.</b>\nGunakan: <code>.save nama teks</code> atau reply teks dengan <code>.save nama</code></blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -51,7 +51,7 @@ export default {
       saveNotes();
       
       await message.edit({ 
-        text: `<blockquote>✅ <b>Note disimpan!</b>\nGunakan <code>.get ${noteName}</code> untuk mengambilnya.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        text: `<blockquote>✅ <b>Note disimpan!</b>\nGunakan <code>.get ${noteName}</code> untuk mengambilnya.</blockquote>`, 
         parseMode: 'html' 
       });
     }
@@ -61,7 +61,7 @@ export default {
         await message.edit({ text: content });
       } else {
         await message.edit({ 
-          text: `<blockquote>❌ Note <code>${noteName}</code> tidak ditemukan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ Note <code>${noteName}</code> tidak ditemukan.</blockquote>`, 
           parseMode: 'html' 
         });
       }
@@ -70,12 +70,12 @@ export default {
       const myNotes = Object.keys(notesDb[telegramId]);
       if (myNotes.length === 0) {
         await message.edit({ 
-          text: `<blockquote>📝 <b>Anda belum menyimpan note apapun.</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>📝 <b>Anda belum menyimpan note apapun.</b></blockquote>`, 
           parseMode: 'html' 
         });
       } else {
         await message.edit({ 
-          text: `<blockquote>📝 <b>Daftar Notes Anda:</b>\n\n` + myNotes.map(n => `• <code>${n}</code>`).join('\n') + `</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>📝 <b>Daftar Notes Anda:</b>\n\n` + myNotes.map(n => `• <code>${n}</code>`).join('\n') + `</blockquote>`, 
           parseMode: 'html' 
         });
       }
@@ -85,12 +85,12 @@ export default {
         delete notesDb[telegramId][noteName];
         saveNotes();
         await message.edit({ 
-          text: `<blockquote>🗑 <b>Note dihapus!</b>\nNote <code>${noteName}</code> telah dihapus secara permanen.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>🗑 <b>Note dihapus!</b>\nNote <code>${noteName}</code> telah dihapus secara permanen.</blockquote>`, 
           parseMode: 'html' 
         });
       } else {
         await message.edit({ 
-          text: `<blockquote>❌ Note <code>${noteName}</code> tidak ditemukan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ Note <code>${noteName}</code> tidak ditemukan.</blockquote>`, 
           parseMode: 'html' 
         });
       }

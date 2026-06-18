@@ -20,14 +20,14 @@ export default {
 
     if (!broadcastMsg && !repliedMsg) {
        await message.edit({ 
-         text: `<blockquote>❌ <b>Gagal:</b> Harap masukkan teks pesan atau balas sebuah pesan untuk di-broadcast!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+         text: `<blockquote>❌ <b>Gagal:</b> Harap masukkan teks pesan atau balas sebuah pesan untuk di-broadcast!</blockquote>`, 
          parseMode: 'html' 
        });
        return;
     }
 
     await message.edit({ 
-      text: `<blockquote>⏳ <b>Mempersiapkan Global Broadcast...</b>\nSedang mengumpulkan data grup.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+      text: `<blockquote>⏳ <b>Mempersiapkan Global Broadcast...</b>\nSedang mengumpulkan data grup.</blockquote>`, 
       parseMode: 'html' 
     });
 
@@ -44,7 +44,7 @@ export default {
       let skippedCount = 0;
 
       await message.edit({ 
-        text: `<blockquote>🚀 <b>Memulai Global Broadcast!</b>\nTarget: ${targetGroups.length} Grup.\nMengirim secara perlahan agar aman dari batas Spam Telegram.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        text: `<blockquote>🚀 <b>Memulai Global Broadcast!</b>\nTarget: ${targetGroups.length} Grup.\nMengirim secara perlahan agar aman dari batas Spam Telegram.</blockquote>`, 
         parseMode: 'html' 
       });
 
@@ -81,14 +81,14 @@ export default {
         text: `<blockquote>✅ <b>Global Broadcast Selesai!</b>\n\n` +
               `📢 Terkirim ke: <b>${successCount} Grup</b>\n` +
               `🛡️ Diabaikan (Blacklist): <b>${skippedCount} Grup</b>\n` +
-              `❌ Gagal kirim: <b>${failCount} Grup</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+              `❌ Gagal kirim: <b>${failCount} Grup</b></blockquote>`, 
         parseMode: 'html' 
       });
 
     } catch (err) {
       console.error('Error in Gcast plugin:', err);
       await message.edit({ 
-        text: `<blockquote>❌ <b>Gagal melakukan Broadcast:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+        text: `<blockquote>❌ <b>Gagal melakukan Broadcast:</b>\n<i>${err.message}</i></blockquote>`, 
         parseMode: 'html' 
       });
     }

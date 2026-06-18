@@ -15,7 +15,7 @@ export default {
 
         if (!replied && (!count || isNaN(count) || count <= 0 || count > 100)) {
           await message.edit({ 
-            text: `<blockquote>❌ <b>Gunakan</b>: <code>.purgeme &lt;1-100&gt;</code> atau balas ke suatu pesan dengan <code>.purgeme</code></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            text: `<blockquote>❌ <b>Gunakan</b>: <code>.purgeme &lt;1-100&gt;</code> atau balas ke suatu pesan dengan <code>.purgeme</code></blockquote>`, 
             parseMode: 'html' 
           });
           return;
@@ -23,7 +23,7 @@ export default {
 
         // Kirim status menghapus
         await message.edit({ 
-          text: `<blockquote>🧹 <b>Membersihkan obrolan...</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>🧹 <b>Membersihkan obrolan...</b></blockquote>`, 
           parseMode: 'html' 
         });
 
@@ -57,7 +57,7 @@ export default {
           try {
             await client.deleteMessages(message.peerId, myMsgIds, { revoke: true });
             const m = await client.sendMessage(message.peerId, { 
-              message: `<blockquote>✅ <b>Berhasil menghapus ${myMsgIds.length - 1} pesan!</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+              message: `<blockquote>✅ <b>Berhasil menghapus ${myMsgIds.length - 1} pesan!</b></blockquote>`, 
               parseMode: 'html' 
             });
             // Auto delete pesan sukses setelah 3 detik
@@ -67,20 +67,20 @@ export default {
           } catch (err) {
             console.error('Failed to purge own messages:', err);
             await message.edit({ 
-              text: `<blockquote>❌ <b>Gagal</b>: Terjadi kesalahan saat menghapus pesan.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+              text: `<blockquote>❌ <b>Gagal</b>: Terjadi kesalahan saat menghapus pesan.</blockquote>`, 
               parseMode: 'html' 
             });
           }
         } else {
           await message.edit({ 
-            text: `<blockquote>❌ <b>Gagal</b>: Tidak ada pesan yang dihapus.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+            text: `<blockquote>❌ <b>Gagal</b>: Tidak ada pesan yang dihapus.</blockquote>`, 
             parseMode: 'html' 
           });
         }
       } catch (err) {
         console.error('Error in purgeme plugin:', err);
         await message.edit({ 
-          text: `<blockquote>❌ <b>Gagal melakukan purgeme:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
+          text: `<blockquote>❌ <b>Gagal melakukan purgeme:</b>\n<i>${err.message}</i></blockquote>`, 
           parseMode: 'html' 
         });
       }
