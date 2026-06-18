@@ -469,10 +469,14 @@ export async function qrRegistrationConversation(conversation, ctx) {
                 }
               }
             });
-            resolve(user);
+            resolve({ status: 'success', user });
           } catch (e) {
             if (!isScanned) console.error('QR Sign-in Error:', e);
-            reject(e);
+            if (e.message?.includes('SESSION_PASSWORD_NEEDED') || e.name === 'SessionPasswordNeededError') {
+              resolve({ status: '2fa_needed' });
+            } else {
+              reject(e);
+            }
           }
         });
 
@@ -480,8 +484,9 @@ export async function qrRegistrationConversation(conversation, ctx) {
           setTimeout(() => reject(new Error('TIMEOUT')), 120000)
         );
 
+        let result;
         try {
-          await Promise.race([loginPromise, timeoutPromise]);
+          result = await Promise.race([loginPromise, timeoutPromise]);
           isScanned = true;
         } finally {
           // Bersihkan QR image
@@ -491,8 +496,12 @@ export async function qrRegistrationConversation(conversation, ctx) {
             } catch (e) {}
           }
         }
+        
+        if (result.status === '2fa_needed') {
+          return { status: '2fa_needed' };
+        }
 
-        // Berhasil login - simpan session
+        // Berhasil login tanpa 2FA - simpan session
         const sessionString = await client.exportSession();
 
         // Disconnect client setelah session disimpan
@@ -501,12 +510,51 @@ export async function qrRegistrationConversation(conversation, ctx) {
         } catch (e) {}
         activeRegClients.delete(telegramId);
 
-        return { sessionString };
+        return { status: 'success', sessionString };
       },
-      // Data dari external() harus serializable - sessionString adalah string
       beforeStore: (data) => data,
       afterLoad: (data) => data,
     });
+
+    // --- Handle 2FA jika diperlukan ---
+    if (qrResult.status === '2fa_needed') {
+      await ctx.reply('🔒 <b>Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</b>\n\n<blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>', {
+        parse_mode: 'HTML',
+        reply_markup: cancelKeyboard,
+      });
+
+      const pwdResult = await conversation.waitFor('message:text');
+      if (pwdResult.message?.text?.trim() === '/cancel') {
+        cleanupClient(telegramId);
+        await ctx.reply('❌ Pendaftaran dibatalkan.');
+        return;
+      }
+      
+      const password = pwdResult.message.text.trim();
+
+      const pwdAuthResult = await conversation.external(async () => {
+        const activeClient = activeRegClients.get(telegramId);
+        if (!activeClient) return { status: 'error', error: 'Client hilang.' };
+        await ensureConnected(activeClient);
+        try {
+          await activeClient.checkPassword(password);
+          const sess = await activeClient.exportSession();
+          try { await activeClient.destroy(); } catch (e) {}
+          activeRegClients.delete(telegramId);
+          return { status: 'success', sessionString: sess };
+        } catch (err) {
+          try { await activeClient.destroy(); } catch (e) {}
+          activeRegClients.delete(telegramId);
+          return { status: 'error', error: err.message };
+        }
+      });
+
+      if (pwdAuthResult.status !== 'success') {
+        await ctx.reply(`❌ <b>Gagal login 2FA:</b>\n<blockquote>${pwdAuthResult.error}</blockquote>\nSilakan ulangi <code>/daftar</code>.`, { parse_mode: 'HTML' });
+        return;
+      }
+      qrResult.sessionString = pwdAuthResult.sessionString;
+    }
 
     // Save to Database
     saveUserbotSession(telegramId, null, qrResult.sessionString);
