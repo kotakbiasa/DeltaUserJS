@@ -1,72 +1,51 @@
-import { addApprovedUser, removeApprovedUser, getApprovedUsers } from '../../database/db.js';
+import { addApprovedUser, getApprovedUsers, removeApprovedUser } from '../../database/db.js';
+import { block, code, escapeHtml, footer } from '../ui.js';
 
 export default {
   name: 'approve',
+  help: {
+    title: 'Approve List',
+    description: 'Mengatur whitelist Anti-PM dan Anti-Flood.',
+    usage: '• reply `.approve`\n• reply `.disapprove`\n• `.approved`\n• `.addadmin <id>`',
+    detail: 'User yang approved tidak akan terkena Anti-PM atau Anti-Flood.'
+  },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
-    
-    const text = message.message.trim();
-    const args = text.split(/\s+/);
+    if (!message.isOutgoing || !message.text) return;
+    const args = message.text.trim().split(/\s+/);
     const cmd = args[0].toLowerCase();
-    
-    if (cmd === '.approve') {
-      const replied = await message.getReplyMessage();
-      if (!replied) {
-        await message.edit({ 
-          text: `<blockquote>❌ <b>Gagal:</b> Balas pesan pengguna yang ingin di-approve!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-          parseMode: 'html' 
-        });
-        return;
-      }
-      
-      const targetId = Number(replied.senderId);
-      if (!targetId) return;
+    if (!['.approve', '.disapprove', '.approved', '.addadmin'].includes(cmd)) return;
 
-      const success = await addApprovedUser(telegramId, targetId);
-      if (success) {
-        await message.edit({ 
-          text: `<blockquote>✅ <b>Pengguna Diizinkan (Approved)!</b>\nPengguna dengan ID <code>${targetId}</code> tidak akan diblokir oleh Anti-PM.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-          parseMode: 'html' 
-        });
-      }
-    }
-    
-    else if (cmd === '.disapprove') {
-      const replied = await message.getReplyMessage();
-      if (!replied) {
-        await message.edit({ 
-          text: `<blockquote>❌ <b>Gagal:</b> Balas pesan pengguna yang ingin di-disapprove!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-          parseMode: 'html' 
-        });
-        return;
-      }
-      
-      const targetId = Number(replied.senderId);
-      if (!targetId) return;
-
-      const success = await removeApprovedUser(telegramId, targetId);
-      if (success) {
-        await message.edit({ 
-          text: `<blockquote>❌ <b>Pengguna Dihapus (Disapproved)!</b>\nPengguna dengan ID <code>${targetId}</code> telah dihapus dari daftar aman Anti-PM.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-          parseMode: 'html' 
-        });
-      }
-    }
-    
-    else if (cmd === '.approved') {
+    if (cmd === '.approved') {
       const list = getApprovedUsers(telegramId);
-      if (list.length === 0) {
-        await message.edit({ 
-          text: `<blockquote>📝 <b>Daftar Approved Kosong.</b>\nBelum ada pengguna yang Anda masukkan ke daftar putih.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-          parseMode: 'html' 
-        });
-      } else {
-        const listText = list.map(id => `• <code>${id}</code>`).join('\n');
-        await message.edit({ 
-          text: `<blockquote>🛡️ <b>Daftar Pengguna Aman (Approved):</b>\n\n${listText}</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-          parseMode: 'html' 
-        });
-      }
+      const body = list.length ? list.map(id => `• ${escapeHtml(id)}`).join('\n') : 'Belum ada user di whitelist.';
+      await message.edit({ text: block('Approved Users', body) + footer(settings), parseMode: 'html' });
+      return;
     }
-  }
+
+    if (cmd === '.addadmin') {
+      const targetId = Number(args[1]);
+      if (!targetId) return;
+      await addApprovedUser(telegramId, targetId);
+      await message.edit({ text: block('User Approved', `${code(targetId)} tidak akan diblokir.`) + footer(settings), parseMode: 'html' });
+      return;
+    }
+
+    const replied = message.replyToMessage;
+    if (!replied) {
+      await message.edit({ text: block('Butuh Reply', `Balas pesan target lalu ketik ${code(cmd)}.`) + footer(settings), parseMode: 'html' });
+      return;
+    }
+
+    const targetId = Number(replied.sender?.id);
+    if (!targetId) return;
+
+    if (cmd === '.approve') {
+      await addApprovedUser(telegramId, targetId);
+      await message.edit({ text: block('User Approved', `${code(targetId)} tidak akan diblokir Anti-PM.`) + footer(settings), parseMode: 'html' });
+      return;
+    }
+
+    await removeApprovedUser(telegramId, targetId);
+    await message.edit({ text: block('User Disapproved', `${code(targetId)} dihapus dari whitelist Anti-PM.`) + footer(settings), parseMode: 'html' });
+  },
 };

@@ -1,96 +1,69 @@
-import { Api } from 'telegram';
 import { getBroadcastBlacklist } from '../../database/db.js';
+import { block, footer } from '../ui.js';
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export default {
   name: 'gcast',
   help: {
     title: 'Global Broadcast (.gcast)',
-    description: 'Mengirim pesan promosi atau pengumuman ke seluruh grup yang Anda ikuti secara otomatis.',
-    usage: '• `.gcast <teks>`\n• Atau balas (reply) sebuah pesan/foto lalu ketik `.gcast`',
-    detail: 'Modul ini akan mengabaikan grup yang ada di daftar Blacklist Anda. Sistem dilengkapi dengan Anti-Spam Delay untuk melindungi akun.'
+    description: 'Mengirim pesan ke semua grup yang Anda ikuti.',
+    usage: '• `.gcast <teks>`\n• reply pesan lalu `.gcast`',
+    detail: 'Broadcast melewati grup blacklist dan memakai delay aman antar pesan.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
-    
-    const text = message.message.trim();
+    if (!message.isOutgoing || !message.text) return;
+    const text = message.text.trim();
     if (!text.toLowerCase().startsWith('.gcast')) return;
 
-    let broadcastMsg = text.substring(6).trim();
-    let repliedMsg = await message.getReplyMessage();
-
-    if (!broadcastMsg && !repliedMsg) {
-       await message.edit({ 
-         text: `<blockquote>❌ <b>Gagal:</b> Harap masukkan teks pesan atau balas sebuah pesan untuk di-broadcast!</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-         parseMode: 'html' 
-       });
-       return;
+    const broadcastText = text.slice('.gcast'.length).trim();
+    const replied = message.replyToMessage;
+    if (!broadcastText && !replied) {
+      await message.edit({ text: block('Broadcast kosong', 'Isi teks broadcast atau reply pesan target.') + footer(settings), parseMode: 'html' });
+      return;
     }
 
-    await message.edit({ 
-      text: `<blockquote>⏳ <b>Mempersiapkan Global Broadcast...</b>\nSedang mengumpulkan data grup.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-      parseMode: 'html' 
+    await message.edit({ text: block('Global Broadcast', 'Mengumpulkan daftar grup...') + footer(settings), parseMode: 'html' });
+
+    const dialogs = await client.getDialogs();
+    const groups = dialogs.filter(dialog => dialog.isGroup);
+    const blacklist = new Set(getBroadcastBlacklist(telegramId).map(String));
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    await message.edit({
+      text: block('Global Broadcast', `<pre>Target      ${groups.length}\nStatus      Mengirim...</pre>`) + footer(settings),
+      parseMode: 'html',
     });
 
-    try {
-      // Ambil daftar semua obrolan
-      const dialogs = await client.getDialogs();
-      
-      // Filter hanya grup dan supergrup (abaikan private chat dan channel broadcast)
-      const targetGroups = dialogs.filter(d => d.isGroup);
-
-      const blacklist = getBroadcastBlacklist(telegramId);
-      let successCount = 0;
-      let failCount = 0;
-      let skippedCount = 0;
-
-      await message.edit({ 
-        text: `<blockquote>🚀 <b>Memulai Global Broadcast!</b>\nTarget: ${targetGroups.length} Grup.\nMengirim secara perlahan agar aman dari batas Spam Telegram.</blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-        parseMode: 'html' 
-      });
-
-      for (const group of targetGroups) {
-        // Ekstrak ID dari entitas dialog untuk dicocokkan dengan blacklist
-        const chatIdStr = String(group.id);
-        
-        if (blacklist.includes(chatIdStr)) {
-          skippedCount++;
-          continue;
-        }
-
-        try {
-          if (repliedMsg) {
-            await client.sendMessage(group.id, {
-              message: broadcastMsg ? broadcastMsg : repliedMsg.message,
-              file: repliedMsg.media
-            });
-          } else {
-            await client.sendMessage(group.id, {
-              message: broadcastMsg
-            });
-          }
-          successCount++;
-          
-          // Delay wajib 2 detik per pesan untuk menghindari FloodWait
-          await new Promise(r => setTimeout(r, 2000));
-        } catch (err) {
-          failCount++;
-        }
+    for (const group of groups) {
+      if (blacklist.has(String(group.id))) {
+        skipped++;
+        continue;
       }
 
-      await message.edit({ 
-        text: `<blockquote>✅ <b>Global Broadcast Selesai!</b>\n\n` +
-              `📢 Terkirim ke: <b>${successCount} Grup</b>\n` +
-              `🛡️ Diabaikan (Blacklist): <b>${skippedCount} Grup</b>\n` +
-              `❌ Gagal kirim: <b>${failCount} Grup</b></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-        parseMode: 'html' 
-      });
-
-    } catch (err) {
-      console.error('Error in Gcast plugin:', err);
-      await message.edit({ 
-        text: `<blockquote>❌ <b>Gagal melakukan Broadcast:</b>\n<i>${err.message}</i></blockquote>\n\n⚡ <i>${settings?.custom_name || 'DeltaUbotJS'}</i>`, 
-        parseMode: 'html' 
-      });
+      try {
+        if (replied) {
+          await client.sendText(group.id, {
+            message: broadcastText || replied.message,
+            file: replied.media,
+          });
+        } else {
+          await client.sendText(group.id, broadcastText);
+        }
+        sent++;
+        await sleep(2000);
+      } catch (_) {
+        failed++;
+      }
     }
-  }
+
+    await message.edit({
+      text: block('Broadcast selesai', `<pre>Terkirim    ${sent}\nBlacklist   ${skipped}\nGagal       ${failed}</pre>`) + footer(settings),
+      parseMode: 'html',
+    });
+  },
 };

@@ -55,19 +55,23 @@ async function main() {
   console.log('🤖 Starting DeltaUbotJS Manager...');
 
   try {
-    // 1. Restart all active userbots from database
-    await userbotManager.restartAllActive();
-    console.log('✅ Active userbots loaded.');
-
-    // 2. Start Expiration Checker Service
+    // 1. Start Expiration Checker Service
     startExpirationChecker();
 
-    // 3. Start the Master Bot
+    // 2. Start Userbot Watchdog Service
+    userbotManager.startWatchdog();
+
+    // 3. Start the Master Bot, and load userbots ONLY after it successfully connects
     console.log('⚡ Starting Master Bot...');
     await bot.start({
-      onStart: (info) => {
+      onStart: async (info) => {
         global.MASTER_BOT_USERNAME = info.username;
         console.log(`🤖 Master Bot [@${info.username}] is running successfully!`);
+        
+        // 4. Restart all active userbots from database as the final step
+        console.log('📦 Starting all active userbots...');
+        await userbotManager.restartAllActive();
+        console.log('✅ All systems and userbots are fully loaded.');
       },
     });
 
@@ -84,7 +88,9 @@ async function shutdown(signal) {
   try {
     console.log('Stop Master Bot...');
     await bot.stop();
-    
+
+    userbotManager.stopWatchdog();
+
     console.log('Disconnecting all active userbots...');
     const activeIds = Array.from(userbotManager.clients.keys());
     for (const id of activeIds) {

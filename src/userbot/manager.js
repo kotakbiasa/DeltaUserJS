@@ -1,99 +1,135 @@
 import { UserbotClient } from './client.js';
-import { getAllActiveUserbots, getUserbotSession } from '../database/db.js';
+import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../database/db.js';
 import inlineBotManager from './inlineBotManager.js';
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 class UserbotManager {
   constructor() {
-    this.clients = new Map(); // Store active clients: telegramId -> UserbotClient
+    this.clients = new Map();
+    this.reconnecting = new Set();
+    this.watchdogInterval = null;
   }
 
-  /**
-   * Start a userbot instance
-   * @param {number} telegramId 
-   * @param {string} sessionString 
-   */
   async startUserbot(telegramId, sessionString) {
-    // If already running, stop it first
-    if (this.clients.has(telegramId)) {
-      console.log(`🔄 Userbot [${telegramId}] is already running. Stopping before restart...`);
-      await this.stopUserbot(telegramId);
+    const id = Number(telegramId);
+    if (!sessionString) throw new Error(`session string kosong untuk ${id}`);
+
+    if (this.clients.has(id)) {
+      await this.stopUserbot(id);
     }
 
-    const userbot = new UserbotClient(telegramId, sessionString);
-    this.clients.set(telegramId, userbot);
+    const userbot = new UserbotClient(id, sessionString);
+    this.clients.set(id, userbot);
 
     try {
       await userbot.start();
-
-      // Mulai inline bot kustom jika user memiliki token
-      const dbSession = getUserbotSession(telegramId);
-      if (dbSession && dbSession.inline_bot_token) {
-        await inlineBotManager.startInlineBot(telegramId, dbSession.inline_bot_token);
-      }
-
+      await this.startInlineBotFor(id);
       return true;
-    } catch (error) {
-      this.clients.delete(telegramId);
-      throw error;
+    } catch (err) {
+      this.clients.delete(id);
+      throw err;
     }
   }
 
-  /**
-   * Stop a userbot instance
-   * @param {number} telegramId 
-   */
+  async startInlineBotFor(telegramId) {
+    const session = getUserbotSession(telegramId);
+    if (!session?.inline_bot_token) return;
+    await inlineBotManager.startInlineBot(telegramId, session.inline_bot_token);
+  }
+
   async stopUserbot(telegramId) {
-    const userbot = this.clients.get(telegramId);
+    const id = Number(telegramId);
+    const userbot = this.clients.get(id);
+
     if (userbot) {
       await userbot.stop();
-      this.clients.delete(telegramId);
-      
-      // Matikan juga inline bot kustomnya
-      await inlineBotManager.stopInlineBot(telegramId);
-      
-      return true;
+      this.clients.delete(id);
     }
-    return false;
+
+    await inlineBotManager.stopInlineBot(id);
+    return Boolean(userbot);
   }
 
-  /**
-   * Restart all userbots marked active in the database
-   */
+  async restartUserbot(telegramId) {
+    const session = getUserbotSession(telegramId);
+    if (!session?.session_string) throw new Error(`session tidak ditemukan untuk ${telegramId}`);
+    return this.startUserbot(telegramId, session.session_string);
+  }
+
   async restartAllActive() {
-    console.log('🚀 Restarting all active userbots from database...');
-    try {
-      const activeBots = getAllActiveUserbots();
-      console.log(`found ${activeBots.length} active userbots to start.`);
-      
-      for (const bot of activeBots) {
-        try {
-          // Add a random delay of 2 to 5 seconds between starting each userbot client
-          // This avoids sending too many connection requests simultaneously (anti-flood check)
-          const delayMs = Math.floor(Math.random() * 3000) + 2000;
-          console.log(`⏳ Waiting ${delayMs}ms before starting userbot [${bot.telegram_id}]...`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+    console.log('🚀 Starting active DeltaUserJS userbots...');
+    const activeBots = getAllActiveUserbots();
+    console.log(`found ${activeBots.length} active userbots to start.`);
 
-          await this.startUserbot(bot.telegram_id, bot.session_string);
-        } catch (err) {
-          console.error(`❌ Failed to auto-restart userbot for ${bot.telegram_id}:`, err.message);
-        }
+    for (const bot of activeBots) {
+      try {
+        const delayMs = Math.floor(Math.random() * 3000) + 2000;
+        console.log(`⏳ Waiting ${delayMs}ms before starting userbot [${bot.telegram_id}]...`);
+        await sleep(delayMs);
+        await this.startUserbot(bot.telegram_id, bot.session_string);
+      } catch (err) {
+        console.error(`Failed to start userbot [${bot.telegram_id}]:`, err.message || err);
       }
-    } catch (error) {
-      console.error('❌ Error during auto-restart of userbots:', error);
     }
   }
 
-  /**
-   * Check if a userbot is currently running
-   * @param {number} telegramId 
-   * @returns {boolean}
-   */
+  startWatchdog(intervalMs = 120000) {
+    if (this.watchdogInterval) return;
+    console.log(`🛡️ Userbot Watchdog started (${intervalMs}ms interval).`);
+    this.watchdogInterval = setInterval(() => {
+      this.checkAndReconnect().catch(err => console.error('Watchdog error:', err.message || err));
+    }, intervalMs);
+  }
+
+  stopWatchdog() {
+    if (!this.watchdogInterval) return;
+    clearInterval(this.watchdogInterval);
+    this.watchdogInterval = null;
+    console.log('🛡️ Userbot Watchdog stopped.');
+  }
+
+  async checkAndReconnect() {
+    const activeBots = getAllActiveUserbots();
+
+    for (const bot of activeBots) {
+      const id = Number(bot.telegram_id);
+      if (this.reconnecting.has(id)) continue;
+
+      const current = this.clients.get(id);
+      if (current?.isConnected()) continue;
+
+      this.reconnecting.add(id);
+      try {
+        console.log(`🛡️ Watchdog reconnecting userbot [${id}]...`);
+        await this.startUserbot(id, bot.session_string);
+        console.log(`✓ Watchdog reconnected userbot [${id}].`);
+        await sleep(1500);
+      } catch (err) {
+        console.error(`Watchdog failed for [${id}]:`, err.message || err);
+        if (err.message && (err.message.includes('Not a valid string') || err.message.includes('session string'))) {
+          console.error(`❌ Sesi untuk [${id}] tidak valid/rusak. Menonaktifkan userbot secara otomatis agar tidak loop.`);
+          updateUserbotStatus(id, false);
+        }
+      } finally {
+        this.reconnecting.delete(id);
+      }
+    }
+  }
+
   isRunning(telegramId) {
-    const client = this.clients.get(telegramId);
-    return client ? client.isActive : false;
+    return Boolean(this.clients.get(Number(telegramId))?.isConnected());
+  }
+
+  status() {
+    return {
+      running: this.clients.size,
+      ids: [...this.clients.keys()],
+    };
   }
 }
 
-// Export a single instance to be used everywhere
 const userbotManager = new UserbotManager();
 export default userbotManager;

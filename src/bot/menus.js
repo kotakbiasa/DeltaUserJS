@@ -1,7 +1,80 @@
 import { Menu } from '@grammyjs/menu';
-import { getUserbotSession, updateUserbotFeature, deleteUserbot, getAllRegisteredUsers } from '../database/db.js';
+import { getUserbotSession, updateUserbotFeature, deleteUserbot, getAllRegisteredUsers, getDisabledPlugins, enablePlugin, disablePlugin, updateUserbotStatus } from '../database/db.js';
 import userbotManager from '../userbot/manager.js';
+import { loadedPlugins } from '../userbot/pluginRegistry.js';
 import config from '../config.js';
+
+const DIVIDER = '───────────────────────';
+const PROTECTED_PLUGINS = ['admin', 'pluginmanager'];
+
+function brandHeader(title, session = null) {
+  const botName = session?.custom_name || 'DeltaUbotJS';
+  const headerName = botName.toUpperCase().split('').join(' ');
+  return `🔺 <b>${headerName}</b> 🔺\n${DIVIDER}\n${title}\n${DIVIDER}`;
+}
+
+function statusBadge(condition, onText, offText) {
+  return condition ? `🟢 <b>${onText}</b>` : `🔴 <b>${offText}</b>`;
+}
+
+function richStatusBadge(condition, onText, offText) {
+  return condition ? `🟢 ${onText}` : `🔴 ${offText}`;
+}
+
+
+function plainStatusBadge(condition, onText, offText) {
+  return condition ? `🟢 ${onText}` : `🔴 ${offText}`;
+}
+
+function stripHtml(value) {
+  return String(value ?? '').replace(/<[^>]+>/g, '');
+}
+
+function preTable(rows) {
+  const width = Math.max(...rows.map(([key]) => String(key).length), 4);
+  const lines = rows.map(([key, value]) => `${String(key).padEnd(width)}  ${String(value)}`);
+  return `<pre>${lines.join('\n')}</pre>`;
+}
+
+function compactHeader(title, session = null) {
+  return `${brandHeader(title, session)}\n`;
+}
+
+function escapeRichHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function daysLeftText(dateValue) {
+  const expDate = new Date(dateValue);
+  const diffDays = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
+  return diffDays > 0
+    ? `🟢 <code>${expDate.toLocaleDateString()}</code> (${diffDays} hari lagi)`
+    : `🔴 <code>${expDate.toLocaleDateString()}</code> (kedaluwarsa)`;
+}
+
+function buildStatsBlock() {
+  const users = getAllRegisteredUsers();
+  const uptimeMinutes = Math.round(process.uptime() / 60);
+  return `Total Userbot  ${users.length}\n` +
+    `Running        ${userbotManager.clients.size}\n` +
+    `Uptime         ${uptimeMinutes} menit`;
+}
+
+function pluginPageItems(ctx) {
+  const plugins = loadedPlugins.map(p => p.name).sort();
+  const perPage = 8;
+  const totalPages = Math.max(1, Math.ceil(plugins.length / perPage));
+  let page = ctx.session?.pluginPage || 1;
+  if (page < 1) page = 1;
+  if (page > totalPages) page = totalPages;
+  if (ctx.session) ctx.session.pluginPage = page;
+  const start = (page - 1) * perPage;
+  return { plugins: plugins.slice(start, start + perPage), page, totalPages };
+}
 
 /**
  * Builds the welcome text for the main menu
@@ -10,48 +83,395 @@ export function getWelcomeText(ctx) {
   const telegramId = ctx.from.id;
   const dbSession = getUserbotSession(telegramId);
   const isOwner = Number(telegramId) === Number(config.ownerId);
+  const isRunning = userbotManager.isRunning(telegramId);
+  const serviceStatus = dbSession
+    ? (isRunning ? '🟢 <b>Aktif / Running</b>' : '🟡 <b>Terdaftar / Stopped</b>')
+    : '🔴 <b>Belum Terdaftar</b>';
 
   if (isOwner) {
-    const activeClients = userbotManager.clients.size;
-    let totalRegistered = 0;
-    try { totalRegistered = getAllRegisteredUsers().length; } catch (e) {}
-    const memoryUsage = Math.round(process.memoryUsage().rss / 1024 / 1024);
-    const uptimeMinutes = Math.round(process.uptime() / 60);
+    return `${brandHeader('👑 <b>OWNER CONTROL CENTER</b>', dbSession)}\n` +
+      `Halo, <b>${ctx.from.first_name}</b>. Kelola semua userbot dan pengaturan server dari panel ini.\n\n` +
+      `<pre>Item           Status\n${buildStatsBlock()}\nMode           Inline Menu</pre>\n` +
+      `🛡️ <b>Status Ubot Pribadi</b>: ${serviceStatus}\n` +
+      `💡 <i>Pilih tombol di bawah. Aksi berbahaya berada di Danger Zone.</i>`;
+  }
 
-    return `👑 <b>MASTER BOT DASHBOARD (OWNER)</b> 👑\n` +
-      `───────────────────────\n` +
-      `Selamat datang, <b>${ctx.from.first_name}</b>!\n` +
-      `Ini adalah pusat kendali level tinggi (Dewa) untuk mengelola server dan seluruh klien Ubot Anda.\n\n` +
-      `<blockquote>` +
-      `📈 <b>Statistik Klien</b>\n` +
-      `• Total Pendaftar: <code>${totalRegistered} Klien</code>\n` +
-      `• Ubot Aktif: <code>${activeClients} Klien</code>\n\n` +
-      `🖥️ <b>Sistem Server</b>\n` +
-      `• Penggunaan RAM: <code>${memoryUsage} MB</code>\n` +
-      `• Uptime: <code>${uptimeMinutes} Menit</code>\n` +
-      `</blockquote>\n` +
-      `💡 <i>Pilih opsi di bawah untuk mengelola sistem.</i>`;
-  } else {
-    let statusLayanan = '🔴 <b>Belum Terdaftar</b>';
-    if (dbSession) {
-      statusLayanan = userbotManager.isRunning(telegramId)
-        ? '🟢 <b>Terdaftar &amp; Aktif</b>'
-        : '🟡 <b>Terdaftar (Nonaktif)</b>';
-    }
+  return `${brandHeader('🏠 <b>DASHBOARD USER</b>', dbSession)}\n` +
+    `Halo, <b>${ctx.from.first_name}</b>. Kelola userbot, plugin, dan fitur otomatisasi Anda dari sini.\n\n` +
+    `<blockquote>` +
+    `🆔 <b>ID Telegram</b>: <code>${telegramId}</code>\n` +
+    `🤖 <b>Status Userbot</b>: ${serviceStatus}\n` +
+    (dbSession?.expired_at ? `📅 <b>Masa Aktif</b>: ${daysLeftText(dbSession.expired_at)}\n` : '') +
+    `</blockquote>\n` +
+    `💡 <i>Gunakan menu inline di bawah untuk navigasi cepat.</i>`;
+}
 
-    const botName = dbSession?.custom_name || 'DeltaUbotJS';
-    const headerName = botName.toUpperCase().split('').join(' ');
 
-    return `🔺 <b>${headerName}</b> 🔺\n` +
-      `───────────────────────\n` +
-      `👋 Halo, <b>${ctx.from.first_name}</b>!\n\n` +
-      `Selamat datang di pusat kendali <b>DeltaUbotJS</b>. Sistem <i>Multi-Userbot</i> canggih yang didesain untuk kecepatan, keamanan, dan keandalan tinggi.\n\n` +
-      `<blockquote>` +
-      `👤 <b>Informasi Akun</b>\n` +
-      `🆔 <b>ID Telegram</b>: <code>${telegramId}</code>\n` +
-      `🛡️ <b>Status Sistem</b>: ${statusLayanan}\n` +
-      `</blockquote>\n` +
-      `💡 <i>Gunakan tombol interaktif di bawah untuk mengelola sesi atau mengakses fitur pengaturan tingkat lanjut.</i>`;
+
+export function getUbotDashboardText(ctx) {
+  const session = getUserbotSession(ctx.from.id);
+  const isRunning = userbotManager.isRunning(ctx.from.id);
+  return compactHeader('🤖 <b>USERBOT DASHBOARD</b>', session) + '\n\n' +
+    preTable([
+      ['Koneksi', plainStatusBadge(isRunning, 'Running', 'Stopped')],
+      ['Anti-PM', plainStatusBadge(session?.anti_pm === 1, 'ON', 'OFF')],
+      ['AFK Reply', plainStatusBadge(session?.auto_reply === 1, 'ON', 'OFF')],
+      ['Masa Aktif', session?.expired_at ? stripHtml(daysLeftText(session.expired_at)) : '-'],
+    ]);
+}
+
+export function getUbotSettingsText(ctx) {
+  const session = getUserbotSession(ctx.from.id);
+  return compactHeader('⚙️ <b>SETTINGS USERBOT</b>', session) + '\n\n' +
+    preTable([
+      ['Anti-PM', plainStatusBadge(session?.anti_pm === 1, 'ON', 'OFF')],
+      ['AFK Reply', plainStatusBadge(session?.auto_reply === 1, 'ON', 'OFF')],
+      ['Inline Bot', session?.inline_bot_username ? `@${session.inline_bot_username}` : '-'],
+    ]);
+}
+
+export function getPluginManagerText(ctx) {
+  const disabled = getDisabledPlugins(ctx.from.id).map(p => p.toLowerCase());
+  const total = loadedPlugins.length;
+  const active = loadedPlugins.filter(p => !disabled.includes(p.name.toLowerCase())).length;
+  return compactHeader('🧩 <b>PLUGIN MANAGER</b>', getUserbotSession(ctx.from.id)) + '\n\n' +
+    preTable([
+      ['Total Plugin', total],
+      ['Aktif', active],
+      ['Nonaktif', Math.max(0, total - active)],
+      ['Protected', PROTECTED_PLUGINS.join(', ')],
+    ]);
+}
+
+export function getRegistrationText() {
+  return `🚀 <b>Mulai DeltaUbot</b>\n\nPilih metode login untuk membuat userbot baru.\n\n` +
+    preTable([
+      ['OTP', 'Nomor HP + kode Telegram'],
+      ['QR', 'Scan dari Telegram > Devices'],
+    ]);
+}
+
+export function getAccessDeniedText() {
+  return `🔒 <b>Akses Belum Dibuka</b>\n\nRegistrasi userbot membutuhkan persetujuan owner.\n\n` +
+    preTable([
+      ['Status', 'Menunggu approval'],
+      ['Aksi', 'Ajukan ke Owner'],
+    ]);
+}
+
+export function getAdminMainText(ctx) {
+  const users = getAllRegisteredUsers();
+  return compactHeader('👑 <b>ADMIN PANEL</b>', getUserbotSession(ctx.from.id)) + '\n\n' +
+    preTable([
+      ['Total Userbot', users.length],
+      ['Running', userbotManager.clients.size],
+      ['Plugin', loadedPlugins.length],
+      ['Mode', 'Owner'],
+    ]);
+}
+
+export function getAdminUserListText(ctx) {
+  const users = getAllRegisteredUsers();
+  return compactHeader('👥 <b>USERBOT USERS</b>', getUserbotSession(ctx.from.id)) + '\n\n' +
+    preTable([
+      ['Total User', users.length],
+      ['Per Halaman', 5],
+      ['Running', userbotManager.clients.size],
+    ]);
+}
+
+export function getAdminManageUserText(ctx, targetId = ctx.session?.selectedUserToManage) {
+  const session = targetId ? getUserbotSession(targetId) : null;
+  const isRunning = targetId ? userbotManager.isRunning(targetId) : false;
+  return compactHeader('👤 <b>MANAGE USERBOT</b>', getUserbotSession(ctx.from.id)) + '\n\n' +
+    preTable([
+      ['User ID', targetId || 'Tidak dipilih'],
+      ['Status', session ? plainStatusBadge(isRunning, 'Running', 'Stopped') : 'Tidak ditemukan'],
+      ['Phone', session?.phone || '-'],
+      ['Masa Aktif', session?.expired_at ? stripHtml(daysLeftText(session.expired_at)) : '-'],
+    ]);
+}
+
+export function getAdminPremiumText(ctx, targetId = ctx.session?.selectedUserToManage) {
+  const session = targetId ? getUserbotSession(targetId) : null;
+  return compactHeader('⏳ <b>ATUR MASA AKTIF</b>', getUserbotSession(ctx.from.id)) + '\n\n' +
+    preTable([
+      ['User ID', targetId || 'Tidak dipilih'],
+      ['Masa Aktif', session?.expired_at ? stripHtml(daysLeftText(session.expired_at)) : '-'],
+    ]);
+}
+
+/**
+ * Native Telegram Rich Message builders.
+ * Design goal: fresh dashboard look, not a 1:1 copy of the old HTML menu.
+ */
+function richHero(icon, title, subtitle) {
+  return `<h1>${icon} ${escapeRichHtml(title)}</h1>` +
+    `<blockquote>${escapeRichHtml(subtitle)}</blockquote>`;
+}
+
+function richKpis(caption, items) {
+  const cells = items.map(([label, value]) =>
+    `<td align="center"><b>${escapeRichHtml(label)}</b><br>${escapeRichHtml(stripHtml(value))}</td>`
+  ).join('');
+  return `<table bordered><caption>${escapeRichHtml(caption)}</caption><tr>${cells}</tr></table>`;
+}
+
+function richTable(caption, rows) {
+  return `<table bordered striped><caption>${escapeRichHtml(caption)}</caption>` +
+    `<tr><th align="center">Menu</th><th align="center">Info</th></tr>` +
+    rows.map(([key, value]) => `<tr><td>${escapeRichHtml(key)}</td><td align="center">${escapeRichHtml(stripHtml(value))}</td></tr>`).join('') +
+    `</table>`;
+}
+
+function richTip(text) {
+  return `<details><summary>Catatan</summary><p>${escapeRichHtml(text)}</p></details>`;
+}
+
+export function getWelcomeRichHtml(ctx) {
+  const telegramId = ctx.from.id;
+  const dbSession = getUserbotSession(telegramId);
+  const isOwner = Number(telegramId) === Number(config.ownerId);
+  const isRunning = userbotManager.isRunning(telegramId);
+  const botName = dbSession?.custom_name || 'DeltaUbotJS';
+  const firstName = ctx.from.first_name || 'User';
+  const serviceStatus = dbSession ? richStatusBadge(isRunning, 'Online', 'Offline') : '🔴 Belum daftar';
+  const expiryText = dbSession?.expired_at ? stripHtml(daysLeftText(dbSession.expired_at)) : 'Belum tersedia';
+
+  if (isOwner) {
+    const users = getAllRegisteredUsers();
+    return richHero('🌐', 'Delta Control', `Selamat datang, ${firstName}. Semua kontrol server dan userbot ada di satu ruang.`) +
+      richKpis('Live Overview', [
+        ['Userbot', users.length],
+        ['Running', userbotManager.clients.size],
+        ['Plugin', loadedPlugins.length],
+      ]) +
+      richTable('Akses Cepat', [
+        ['Userbot Pribadi', serviceStatus],
+        ['Admin Panel', 'Owner Tools'],
+        ['Health', 'Runtime & Service Check'],
+      ]) +
+      `<p>Pilih tombol utama di bawah untuk mulai mengelola panel.</p>`;
+  }
+
+  return richHero('✨', botName, `Halo, ${firstName}. Kelola userbot, plugin, dan otomatisasi dari dashboard baru.`) +
+    richKpis('Status Akun', [
+      ['Userbot', serviceStatus],
+      ['Anti-PM', richStatusBadge(dbSession?.anti_pm === 1, 'ON', 'OFF')],
+      ['AFK', richStatusBadge(dbSession?.auto_reply === 1, 'ON', 'OFF')],
+    ]) +
+    richTable('Detail', [
+      ['Telegram ID', telegramId],
+      ['Masa Aktif', expiryText],
+      ['Inline Bot', dbSession?.inline_bot_username ? `@${dbSession.inline_bot_username}` : 'Belum diset'],
+    ]) +
+    `<p>Gunakan tombol di bawah untuk membuka fitur utama.</p>`;
+}
+
+export function getUbotDashboardRichHtml(ctx) {
+  const telegramId = ctx.from.id;
+  const session = getUserbotSession(telegramId);
+  const isRunning = userbotManager.isRunning(telegramId);
+  const botName = session?.custom_name || 'DeltaUbotJS';
+  const expiryText = session?.expired_at ? stripHtml(daysLeftText(session.expired_at)) : 'Belum tersedia';
+
+  return richHero('🤖', 'Userbot Dashboard', `${botName} siap dikelola dari satu panel modern.`) +
+    richKpis('Kondisi Saat Ini', [
+      ['Koneksi', richStatusBadge(isRunning, 'Online', 'Offline')],
+      ['Anti-PM', richStatusBadge(session?.anti_pm === 1, 'ON', 'OFF')],
+      ['AFK', richStatusBadge(session?.auto_reply === 1, 'ON', 'OFF')],
+    ]) +
+    richTable('Quick Access', [
+      ['Plugin Manager', 'Kelola modul aktif/nonaktif'],
+      ['Settings', 'Atur preferensi userbot'],
+      ['Masa Aktif', expiryText],
+    ]);
+}
+
+export function getAdminMainRichHtml(ctx) {
+  const users = getAllRegisteredUsers();
+  return richHero('👑', 'Admin Command Center', 'Panel owner untuk operasi server, userbot, dan maintenance.') +
+    richKpis('Server Snapshot', [
+      ['Userbot', users.length],
+      ['Running', userbotManager.clients.size],
+      ['Plugin', loadedPlugins.length],
+    ]) +
+    richTable('Admin Tools', [
+      ['Userbot Users', 'Manajemen akun terdaftar'],
+      ['Health Check', 'Status runtime dan koneksi'],
+      ['Backup', 'Database & maintenance tools'],
+    ]) +
+    richTip('Aksi admin dapat memengaruhi semua userbot. Gunakan dengan hati-hati.');
+}
+
+export function getPluginManagerRichHtml(ctx) {
+  const disabled = getDisabledPlugins(ctx.from.id).map(p => p.toLowerCase());
+  const total = loadedPlugins.length;
+  const active = loadedPlugins.filter(p => !disabled.includes(p.name.toLowerCase())).length;
+  const inactive = Math.max(0, total - active);
+
+  return richHero('🧩', 'Plugin Studio', 'Aktifkan, nonaktifkan, dan audit modul userbot.') +
+    richKpis('Plugin State', [
+      ['Total', total],
+      ['Aktif', active],
+      ['Nonaktif', inactive],
+    ]) +
+    richTable('Rules', [
+      ['Protected', PROTECTED_PLUGINS.join(', ')],
+      ['Toggle', 'Tekan nama plugin'],
+      ['Scope', 'Per akun userbot'],
+    ]) +
+    richTip('Plugin protected menjaga fitur inti agar panel tetap bisa dikontrol.');
+}
+
+export function getUbotSettingsRichHtml(ctx) {
+  const session = getUserbotSession(ctx.from.id);
+  return richHero('⚙️', 'Userbot Settings', 'Pusat preferensi untuk identitas dan fitur otomatisasi.') +
+    richKpis('Feature Switch', [
+      ['Anti-PM', richStatusBadge(session?.anti_pm === 1, 'ON', 'OFF')],
+      ['AFK', richStatusBadge(session?.auto_reply === 1, 'ON', 'OFF')],
+      ['Session', session ? '✅ Ada' : '🔴 Tidak ada'],
+    ]) +
+    richTable('Identity', [
+      ['Inline Bot', session?.inline_bot_username ? `@${session.inline_bot_username}` : 'Belum diset'],
+      ['Danger Zone', 'Hapus sesi permanen'],
+    ]) +
+    richTip('Danger Zone hanya digunakan jika ingin melepas sesi dari server.');
+}
+
+export function getRegistrationRichHtml(ctx) {
+  const firstName = ctx.from.first_name || 'User';
+  return richHero('🚀', 'Mulai DeltaUbot', `Halo, ${firstName}. Pilih metode login untuk membuat userbot baru.`) +
+    richKpis('Login Options', [
+      ['OTP', 'Nomor HP'],
+      ['QR', 'Scan Device'],
+      ['Security', 'Private'],
+    ]) +
+    richTable('Perbandingan', [
+      ['OTP', 'Kode Telegram via aplikasi/SMS'],
+      ['QR', 'Scan dari Telegram > Devices'],
+      ['Rekomendasi', 'Gunakan akun milik sendiri'],
+    ]) +
+    richTip('Jangan pernah membagikan OTP, password 2FA, atau session string kepada siapa pun.');
+}
+
+export function getAccessDeniedRichHtml(ctx) {
+  return richHero('🔒', 'Akses Belum Dibuka', 'Registrasi userbot membutuhkan persetujuan owner.') +
+    richTable('Status', [
+      ['Akun', ctx.from.id],
+      ['Registrasi', 'Menunggu approval'],
+      ['Langkah', 'Ajukan permintaan ke owner'],
+    ]);
+}
+
+export function getStatsRichHtml(ctx) {
+  const users = getAllRegisteredUsers();
+  return richHero('📊', 'System Analytics', 'Ringkasan performa layanan DeltaUbotJS.') +
+    richKpis('Metrics', [
+      ['Userbot', users.length],
+      ['Running', userbotManager.clients.size],
+      ['Uptime', `${Math.round(process.uptime() / 60)}m`],
+    ]) +
+    richTable('Service', [
+      ['Plugins', loadedPlugins.length],
+      ['Mode', 'Inline Dashboard'],
+      ['RAM', 'Disembunyikan'],
+    ]);
+}
+
+export function getQuickHelpRichHtml(ctx) {
+  return richHero('❓', 'Quick Guide', 'Panduan singkat untuk tombol utama dashboard.') +
+    richTable('Navigasi', [
+      ['Dashboard', 'Kontrol userbot pribadi'],
+      ['Plugin Studio', 'Kelola modul'],
+      ['Settings', 'Preferensi & identitas'],
+      ['Health', 'Cek layanan server'],
+    ]) +
+    richTip('Kalau panel tidak berubah, kirim /menu ulang untuk membuka dashboard rich terbaru.');
+}
+
+export function getDonationRichHtml(ctx) {
+  return richHero('💰', 'Support Project', 'Dukungan membantu pengembangan dan maintenance server.') +
+    richTable('Channel Donasi', [
+      ['e-Wallet', '0821-xxxx-xxxx'],
+      ['Transfer Bank', '883xxxxxxx'],
+      ['Status', 'Opsional'],
+    ]) +
+    `<p>Terima kasih sudah mendukung DeltaUbotJS.</p>`;
+}
+
+export function getHealthRichHtml(mongoStatus = 'Unknown') {
+  const users = getAllRegisteredUsers();
+  const uptimeMinutes = Math.round(process.uptime() / 60);
+  const userbotRows = users.slice(0, 10).map(user => {
+    const running = userbotManager.isRunning(user.telegram_id) ? '🟢 Running' : '🔴 Stopped';
+    return `<tr><td>${escapeRichHtml(user.telegram_id)}</td><td align="center">${running}</td><td align="center">${user.is_active === 1 ? 'active' : 'inactive'}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" align="center">Belum ada userbot terdaftar</td></tr>';
+
+  return richHero('🩺', 'Server Health', 'Status runtime, database, dan userbot aktif.') +
+    richKpis('Core Status', [
+      ['MongoDB', mongoStatus],
+      ['Running', userbotManager.clients.size],
+      ['Uptime', `${uptimeMinutes}m`],
+    ]) +
+    richTable('Runtime', [
+      ['Node', process.version],
+      ['Platform', `${process.platform} ${process.arch}`],
+      ['Plugins', loadedPlugins.length],
+    ]) +
+    `<details><summary>Userbot Snapshot</summary>` +
+    `<table bordered striped>` +
+    `<tr><th align="center">ID</th><th align="center">Koneksi</th><th align="center">Status</th></tr>` +
+    userbotRows +
+    `</table>` +
+    `</details>`;
+}
+
+export function getAdminUserListRichHtml(ctx) {
+  const users = getAllRegisteredUsers();
+  return richHero('👥', 'Userbot Directory', 'Daftar akun yang terdaftar di server.') +
+    richKpis('Directory', [
+      ['Total', users.length],
+      ['Running', userbotManager.clients.size],
+      ['Page Size', 5],
+    ]) +
+    richTip('Pilih user dari daftar untuk membuka panel manajemen akun.');
+}
+
+export function getAdminManageUserRichHtml(ctx, targetId = ctx.session?.selectedUserToManage) {
+  const session = targetId ? getUserbotSession(targetId) : null;
+  const isRunning = targetId ? userbotManager.isRunning(targetId) : false;
+  return richHero('👤', 'User Control', 'Kelola status, masa aktif, dan sesi userbot terpilih.') +
+    richTable('Selected User', [
+      ['User ID', targetId || 'Tidak dipilih'],
+      ['Status', session ? richStatusBadge(isRunning, 'Online', 'Offline') : 'Tidak ditemukan'],
+      ['Phone', session?.phone || '-'],
+      ['Masa Aktif', session?.expired_at ? stripHtml(daysLeftText(session.expired_at)) : '-'],
+    ]);
+}
+
+export function getAdminPremiumRichHtml(ctx, targetId = ctx.session?.selectedUserToManage) {
+  const session = targetId ? getUserbotSession(targetId) : null;
+  return richHero('⏳', 'Premium Duration', 'Tambahkan masa aktif untuk userbot terpilih.') +
+    richTable('Current Plan', [
+      ['User ID', targetId || 'Tidak dipilih'],
+      ['Masa Aktif', session?.expired_at ? stripHtml(daysLeftText(session.expired_at)) : '-'],
+      ['Action', 'Pilih durasi dari tombol'],
+    ]);
+}
+
+export async function sendRichPanel(ctx, html, replyMarkup, fallbackText) {
+  try {
+    await ctx.replyWithRichMessage(
+      { html },
+      { reply_markup: replyMarkup }
+    );
+    try { await ctx.deleteMessage(); } catch (_) {}
+    return true;
+  } catch (err) {
+    console.warn('sendRichMessage panel failed, falling back to HTML panel:', err.message);
+    await ctx.editMessageText(fallbackText, { parse_mode: 'HTML', reply_markup: replyMarkup });
+    return false;
   }
 }
 
@@ -92,8 +512,85 @@ export const ubotSettingsMenu = new Menu('ubot-settings-menu')
   .text('📝 Ubah Pesan AFK', async (ctx) => {
     await ctx.answerCallbackQuery();
     await ctx.conversation.enter('afk-reason-conv');
+  })
+  .text('🤖 Set Token Bot', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await ctx.conversation.enter('inline-bot-conv');
   }).row()
-  .text('🔙 Kembali', (ctx) => ctx.menu.nav('ubot-main-menu'));
+  .text('⚠️ Danger Zone: Hapus Sesi', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(
+      `🔺 <b>D E L T A   U B O T   J S</b> 🔺\n` +
+      `───────────────────────\n` +
+      `⚠️ <b>KONFIRMASI PENGHAPUSAN SESI</b>\n\n` +
+      `Tindakan ini akan mematikan userbot dan menghapus session string dari database.\n\n` +
+      `Jika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Userbot</b>, bukan hapus sesi.`,
+      { parse_mode: 'HTML', reply_markup: dangerDeleteMenu }
+    );
+  }).row()
+  .text('🔙 Kembali', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await sendRichPanel(ctx, getUbotDashboardRichHtml(ctx), ubotMainMenu, getUbotDashboardText(ctx));
+  });
+
+export const dangerDeleteMenu = new Menu('danger-delete-menu')
+  .text('✅ Ya, Hapus Sesi Permanen', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const telegramId = ctx.from.id;
+    if (userbotManager.isRunning(telegramId)) {
+      await userbotManager.stopUserbot(telegramId);
+    }
+    deleteUserbot(telegramId);
+    await ctx.editMessageText('✅ <b>Sesi Anda berhasil dihapus.</b>\nSilakan ketik /start untuk mendaftar kembali.', { parse_mode: 'HTML' });
+  }).row()
+  .text('❌ Batal', async (ctx) => {
+    await sendRichPanel(ctx, getUbotSettingsRichHtml(ctx), ubotSettingsMenu, getUbotSettingsText(ctx));
+  });
+
+ubotSettingsMenu.register(dangerDeleteMenu);
+
+// --- PLUGIN MANAGER MENU ---
+export const pluginManagerMenu = new Menu('plugin-manager-menu')
+  .dynamic((ctx, range) => {
+    const telegramId = ctx.from.id;
+    const disabledPlugins = getDisabledPlugins(telegramId).map(p => p.toLowerCase());
+    const { plugins, page, totalPages } = pluginPageItems(ctx);
+
+    for (const pluginName of plugins) {
+      const isDisabled = disabledPlugins.includes(pluginName.toLowerCase());
+      const label = `${isDisabled ? '🔴' : '🟢'} ${pluginName}`;
+      range.text(label, async (ctx) => {
+        if (PROTECTED_PLUGINS.includes(pluginName.toLowerCase())) {
+          await ctx.answerCallbackQuery('Plugin ini dilindungi.');
+          return;
+        }
+        if (isDisabled) {
+          await enablePlugin(telegramId, pluginName);
+          await ctx.answerCallbackQuery(`🟢 ${pluginName} diaktifkan`);
+        } else {
+          await disablePlugin(telegramId, pluginName);
+          await ctx.answerCallbackQuery(`🔴 ${pluginName} dinonaktifkan`);
+        }
+        ctx.menu.update();
+      });
+      if (range.row) range.row();
+    }
+
+    if (totalPages > 1) {
+      if (page > 1) {
+        range.text('⬅️ Prev', (ctx) => { ctx.session.pluginPage = page - 1; ctx.menu.update(); });
+      }
+      range.text(`Hal ${page}/${totalPages}`, (ctx) => ctx.answerCallbackQuery(`Halaman ${page}/${totalPages}`));
+      if (page < totalPages) {
+        range.text('Next ➡️', (ctx) => { ctx.session.pluginPage = page + 1; ctx.menu.update(); });
+      }
+      range.row();
+    }
+  })
+  .text('🔙 Kembali ke Userbot', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await sendRichPanel(ctx, getUbotDashboardRichHtml(ctx), ubotMainMenu, getUbotDashboardText(ctx));
+  });
 
 // --- MENU UTAMA: KONTROL UBOT ---
 export const ubotMainMenu = new Menu('ubot-main-menu')
@@ -111,11 +608,13 @@ export const ubotMainMenu = new Menu('ubot-main-menu')
       if (isRunning) {
         await ctx.answerCallbackQuery('Mematikan DeltaUbot...');
         await userbotManager.stopUserbot(telegramId);
+        updateUserbotStatus(telegramId, false);
         await ctx.reply('🔴 <b>DeltaUbot Anda berhasil dimatikan!</b>', { parse_mode: 'HTML' });
       } else {
         await ctx.answerCallbackQuery('Menghidupkan DeltaUbot...');
         try {
           await userbotManager.startUserbot(telegramId, session.session_string);
+          updateUserbotStatus(telegramId, true);
           await ctx.reply('🟢 <b>DeltaUbot Anda berhasil dihidupkan!</b>', { parse_mode: 'HTML' });
         } catch (err) {
           await ctx.reply(`❌ Gagal menghidupkan DeltaUbot: ${err.message}`);
@@ -124,20 +623,42 @@ export const ubotMainMenu = new Menu('ubot-main-menu')
       ctx.menu.update(); 
     }
   ).row()
-  .submenu('⚙️ Pengaturan Lanjutan', 'ubot-settings-menu')
-  .row()
-  .text('❌ Hapus Sesi', async (ctx) => {
+  .text('🧩 Plugin Manager', async (ctx) => {
     await ctx.answerCallbackQuery();
-    const telegramId = ctx.from.id;
-    if (userbotManager.isRunning(telegramId)) {
-      await userbotManager.stopUserbot(telegramId);
-    }
-    deleteUserbot(telegramId);
-    await ctx.editMessageText('✅ <b>Sesi Anda berhasil dihapus.</b>\nSilakan ketik /start untuk mendaftar kembali.', { parse_mode: 'HTML' });
+    await sendRichPanel(ctx, getPluginManagerRichHtml(ctx), pluginManagerMenu, getPluginManagerText(ctx));
   })
-  .text('🔙 Ke Menu Induk', (ctx) => ctx.menu.nav('master-main-menu'));
+  .text('⚙️ Settings', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await sendRichPanel(ctx, getUbotSettingsRichHtml(ctx), ubotSettingsMenu, getUbotSettingsText(ctx));
+  })
+  .row()
+  .text('📦 Modules', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    ctx.session.viewingHelpModule = null;
+    ctx.session.helpPage = 1;
+    const { buildHelpMenuRichHtml, helpKeyboard } = await import('./inlineHelp.js');
+    const { helpRegistry } = await import('../userbot/pluginRegistry.js');
+    const dbSession = getUserbotSession(ctx.from.id);
+    const totalPages = Math.max(1, Math.ceil(Object.keys(helpRegistry).length / 6));
+    await ctx.replyWithRichMessage(
+      { html: buildHelpMenuRichHtml(dbSession, 1, totalPages) },
+      { reply_markup: helpKeyboard(1, 'main') }
+    );
+    try { await ctx.deleteMessage(); } catch (_) {}
+  })
+  .text('📊 Status', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const statusText = getUbotDashboardText(ctx).replace('🤖 <b>USERBOT DASHBOARD</b>', '📊 <b>STATUS USERBOT</b>');
+    const statusRich = getUbotDashboardRichHtml(ctx).replace('<h1>🤖', '<h1>📊').replace('Userbot Dashboard', 'Status Userbot');
+    await sendRichPanel(ctx, statusRich, ctx.menu, statusText);
+  }).row()
+  .text('🔙 Beranda', async (ctx) => {
+    await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML' });
+    ctx.menu.nav('master-main-menu');
+  });
 
 ubotMainMenu.register(ubotSettingsMenu);
+ubotMainMenu.register(pluginManagerMenu);
 
 // --- REGISTRATION MENU ---
 export const registrationMenu = new Menu('reg-menu')
@@ -149,7 +670,10 @@ export const registrationMenu = new Menu('reg-menu')
     await ctx.answerCallbackQuery();
     await ctx.conversation.enter('qr-reg');
   }).row()
-  .text('🔙 Kembali', (ctx) => ctx.menu.nav('master-main-menu'));
+  .text('🔙 Kembali', async (ctx) => {
+    await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML' });
+    ctx.menu.nav('master-main-menu');
+  });
 
 // --- ADMIN PREMIUM MENU ---
 export const adminPremiumMenu = new Menu('admin-premium-menu')
@@ -167,7 +691,8 @@ export const adminPremiumMenu = new Menu('admin-premium-menu')
     range.text(`Masa Aktif: ${diffDays > 0 ? diffDays + ' Hari' : 'KADALUWARSA'}`, (ctx) => ctx.answerCallbackQuery('Info Masa Aktif')).row();
 
     const addDays = (days) => async (ctx) => {
-      const currentExp = new Date(session.expired_at || new Date());
+      const freshSession = getUserbotSession(targetId);
+      const currentExp = new Date(freshSession?.expired_at || new Date());
       currentExp.setDate(currentExp.getDate() + days);
       updateUserbotFeature(targetId, 'expired_at', currentExp.toISOString());
       ctx.menu.update();
@@ -178,7 +703,10 @@ export const adminPremiumMenu = new Menu('admin-premium-menu')
          .text('+90 Hari', addDays(90))
          .text('+365 Hari', addDays(365)).row();
   })
-  .text('🔙 Kembali', (ctx) => ctx.menu.nav('admin-manage-user-menu'));
+  .text('🔙 Kembali', async (ctx) => {
+    await ctx.editMessageText(getAdminManageUserText(ctx), { parse_mode: 'HTML' });
+    ctx.menu.nav('admin-manage-user-menu');
+  });
 
 // --- ADMIN MANAGE USER MENU ---
 export const adminManageUserMenu = new Menu('admin-manage-user-menu')
@@ -219,7 +747,9 @@ export const adminManageUserMenu = new Menu('admin-manage-user-menu')
     ).row();
 
     // Premium button
-    range.submenu('⏳ Atur Masa Aktif', 'admin-premium-menu').row();
+    range.text('⏳ Atur Masa Aktif', async (ctx) => {
+      await sendRichPanel(ctx, getAdminPremiumRichHtml(ctx), adminPremiumMenu, getAdminPremiumText(ctx));
+    }).row();
 
     // Delete session button
     range.text('❌ Hapus Sesi Permanen', async (ctx) => {
@@ -257,7 +787,7 @@ export const adminUserListMenu = new Menu('admin-user-list-menu')
       const label = `👤 ID: ${user.telegram_id}${user.phone ? ' (' + user.phone + ')' : ''}`;
       range.text(label, async (ctx) => {
         ctx.session.selectedUserToManage = user.telegram_id;
-        ctx.menu.nav('admin-manage-user-menu');
+        await sendRichPanel(ctx, getAdminManageUserRichHtml(ctx, user.telegram_id), adminManageUserMenu, getAdminManageUserText(ctx, user.telegram_id));
       }).row();
     }
 
@@ -281,8 +811,9 @@ export const adminUserListMenu = new Menu('admin-user-list-menu')
       range.row();
     }
   })
-  .text('🔙 Kembali ke Dashboard', (ctx) => {
+  .text('🔙 Kembali ke Dashboard', async (ctx) => {
     ctx.session.adminUserListPage = 1; // reset on exit
+    await ctx.editMessageText(getAdminMainText(ctx), { parse_mode: 'HTML' });
     ctx.menu.nav('admin-main-menu');
   });
 
@@ -290,20 +821,40 @@ adminUserListMenu.register(adminManageUserMenu);
 
 // --- ADMIN MAIN MENU ---
 export const adminMainMenu = new Menu('admin-main-menu')
-  .submenu('👥 List Pengguna', 'admin-user-list-menu')
+  .text('👥 Userbot Users', async (ctx) => {
+    await sendRichPanel(ctx, getAdminUserListRichHtml(ctx), adminUserListMenu, getAdminUserListText(ctx));
+  })
   .row()
-  .text('📢 Broadcast Pesan', async (ctx) => {
+  .text('📢 Broadcast', async (ctx) => {
     await ctx.answerCallbackQuery();
     await ctx.conversation.enter('admin-broadcast-conv');
   })
-  .row()
-  .text('🔄 Restart Semua Ubot', async (ctx) => {
+  .text('🔄 Restart Semua', async (ctx) => {
     await ctx.answerCallbackQuery('Merestart semua Ubot...');
-    await userbotManager.restartAllUserbots();
+    await userbotManager.restartAllActive();
     await ctx.reply('✅ <b>Semua Ubot berhasil direstart.</b>', { parse_mode: 'HTML' });
   })
   .row()
-  .text('🔙 Kembali ke Beranda', (ctx) => ctx.menu.nav('master-main-menu'));
+  .text('🩺 Health', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    let mongoStatus = '🔴 Disconnected';
+    try {
+      const mongoose = await import('mongoose');
+      mongoStatus = mongoose.default.connection.readyState === 1
+        ? `🟢 Connected (${mongoose.default.connection.name})`
+        : `🔴 State ${mongoose.default.connection.readyState}`;
+    } catch (e) {}
+    await sendRichPanel(ctx, getHealthRichHtml(mongoStatus), ctx.menu, '🩺 <b>Health Check</b>');
+  })
+  .text('📦 Backup', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await ctx.reply('Command owner tersedia:\n<code>/backup</code> — backup database\n<code>/stats_db</code> — statistik database', { parse_mode: 'HTML' });
+  })
+  .row()
+  .text('🔙 Beranda', async (ctx) => {
+    await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML' });
+    ctx.menu.nav('master-main-menu');
+  });
 
 adminMainMenu.register(adminUserListMenu);
 
@@ -311,8 +862,7 @@ adminMainMenu.register(adminUserListMenu);
 export const masterMainMenu = new Menu('master-main-menu')
   .dynamic((ctx, range) => {
     if (ctx.session?.infoView) {
-      // IN INFO VIEW MODE
-      range.text('🔙 Kembali ke Beranda', async (ctx) => {
+      range.text('🔙 Beranda', async (ctx) => {
         ctx.session.infoView = false;
         await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML', reply_markup: ctx.menu });
         ctx.menu.update();
@@ -320,55 +870,59 @@ export const masterMainMenu = new Menu('master-main-menu')
       return;
     }
 
-    // EVERYONE GETS THE STANDARD LAYOUT
     const isOwner = Number(ctx.from.id) === Number(config.ownerId);
     const dbSession = getUserbotSession(ctx.from.id);
-    
-    const ubotButtonText = isOwner 
-      ? (dbSession ? '🟢 Menu Userbot Pribadi' : '📝 Daftar Ubot (Owner)')
-      : (dbSession ? '🟢 Menu Userbot' : '📝 Daftar DeltaUbot');
-      
-    range.text(ubotButtonText, (ctx) => {
+    const ubotButtonText = dbSession ? '🤖 Userbot Dashboard' : '📝 Daftar DeltaUbot';
+
+    range.text(ubotButtonText, async (ctx) => {
       if (dbSession) {
-        ctx.menu.nav('ubot-main-menu');
+        await sendRichPanel(ctx, getUbotDashboardRichHtml(ctx), ubotMainMenu, getUbotDashboardText(ctx));
       } else {
-        ctx.menu.nav('reg-menu');
+        await sendRichPanel(ctx, getRegistrationRichHtml(ctx), registrationMenu, getRegistrationText());
       }
-    }).row()
-    .text('📦 List Modul', async (ctx) => {
+    }).row();
+
+    range.text('📦 Modules / Help', async (ctx) => {
+      await ctx.answerCallbackQuery();
       ctx.session.viewingHelpModule = null;
       ctx.session.helpPage = 1;
-      const { buildHelpMenuText } = await import('./inlineHelp.js');
-      const dbSession = getUserbotSession(ctx.from.id);
-      await ctx.editMessageText(buildHelpMenuText(dbSession), { parse_mode: 'HTML' });
-      ctx.menu.nav('inline-help-menu');
+      const { buildHelpMenuRichHtml, helpKeyboard } = await import('./inlineHelp.js');
+      const { helpRegistry } = await import('../userbot/pluginRegistry.js');
+      const totalPages = Math.max(1, Math.ceil(Object.keys(helpRegistry).length / 6));
+      await ctx.replyWithRichMessage(
+        { html: buildHelpMenuRichHtml(dbSession, 1, totalPages) },
+        { reply_markup: helpKeyboard(1, 'main') }
+      );
+      try { await ctx.deleteMessage(); } catch (_) {}
     })
     .text('📊 Statistik', async (ctx) => {
       await ctx.answerCallbackQuery();
-      const activeClients = userbotManager.clients.size;
-      let totalRegistered = 0;
-      try { totalRegistered = getAllRegisteredUsers().length; } catch (e) {}
-      const memoryUsage = Math.round(process.memoryUsage().rss / 1024 / 1024);
-      const uptimeMinutes = Math.round(process.uptime() / 60);
-
-      const text = `🔺 <b>D E L T A   U B O T   J S</b> 🔺\n───────────────────────\n📊 <b>STATISTIK DAN KINERJA BOT</b>\n\n<blockquote>📈 <b>Statistik Pengguna</b>:\n• <b>Total Terdaftar</b>: <code>${totalRegistered} Akun</code>\n• <b>Userbot Aktif (Running)</b>: <code>${activeClients} Akun</code>\n\n🖥️ <b>Kinerja Server</b>:\n• <b>Penggunaan RAM</b>: <code>${memoryUsage} MB</code>\n• <b>Waktu Aktif Bot</b>: <code>${uptimeMinutes} Menit</code></blockquote>`;
+      const text = `${brandHeader('📊 <b>STATISTIK SISTEM</b>', dbSession)}\n\n` +
+        `<pre>Item           Status\n${buildStatsBlock()}</pre>`;
       ctx.session.infoView = true;
-      await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: ctx.menu });
+      await sendRichPanel(ctx, getStatsRichHtml(ctx), ctx.menu, text);
     }).row()
-    .text('💰 Donasi', async (ctx) => {
-      await ctx.answerCallbackQuery();
-      const text = `🔺 <b>D E L T A   U B O T   J S</b> 🔺\n───────────────────────\n💰 <b>DONASI &amp; DUKUNGAN PENGEMBANG</b>\n\n<blockquote>• <b>e-Wallet (DANA/OVO/GoPay)</b>: <code>0821-xxxx-xxxx</code>\n• <b>Transfer Bank (BCA)</b>: <code>883xxxxxxx</code>\n</blockquote>`;
-      ctx.session.infoView = true;
-      await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: ctx.menu });
-    })
     .text('❓ Bantuan', async (ctx) => {
       await ctx.answerCallbackQuery();
-      await ctx.reply("Untuk bantuan, silakan gunakan menu navigasi atau kirim pesan ke Admin.", { parse_mode: 'HTML' });
+      const text = `${brandHeader('❓ <b>BANTUAN CEPAT</b>', dbSession)}\n\n` +
+        `Ringkasan fungsi tombol utama.\n\n` +
+        `<pre>Dashboard  hidup/matikan userbot\nPlugin     enable/disable modul\nSettings   Anti-PM, AFK, nama, token\nModules    dokumentasi command</pre>`;
+      ctx.session.infoView = true;
+      await sendRichPanel(ctx, getQuickHelpRichHtml(ctx), ctx.menu, text);
+    })
+    .text('💰 Donasi', async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const text = `${brandHeader('💰 <b>DONASI & DUKUNGAN</b>', dbSession)}\n\n` +
+        `Terima kasih kalau ingin mendukung pengembangan.\n\n` +
+        `<pre>e-Wallet       0821-xxxx-xxxx\nTransfer Bank 883xxxxxxx</pre>`;
+      ctx.session.infoView = true;
+      await sendRichPanel(ctx, getDonationRichHtml(ctx), ctx.menu, text);
     }).row();
 
-    // IF OWNER, ADD ADMIN PANEL BUTTON AT THE BOTTOM
     if (isOwner) {
-      range.submenu('👑 Panel Admin (Owner)', 'admin-main-menu').row();
+      range.text('👑 Admin Panel', async (ctx) => {
+        await sendRichPanel(ctx, getAdminMainRichHtml(ctx), adminMainMenu, getAdminMainText(ctx));
+      }).row();
     }
   });
 

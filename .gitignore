@@ -4,3 +4,4 @@ database.json
 *.log
 notes.json
 approvals.json
+ytdl_*

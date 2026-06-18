@@ -1,37 +1,10 @@
 import { InputFile, InlineKeyboard } from 'grammy';
-import { TelegramClient, Api } from 'telegram';
-import { StringSession } from 'telegram/sessions/index.js';
+import { TelegramClient, MemoryStorage } from '@mtcute/node';
 import qrcode from 'qrcode';
 import config from '../config.js';
 import { saveUserbotSession } from '../database/db.js';
 import userbotManager from '../userbot/manager.js';
-import { cancelKeyboard } from './keypads.js';
-
-// ==========================================
-// 🔧 Custom Prototype Extension for GramJS
-// Resolves client.signIn is not a function
-// ==========================================
-TelegramClient.prototype.signIn = async function ({ phoneNumber, phoneCodeHash, phoneCode, password }) {
-  if (!this.connected) {
-    await this.connect();
-  }
-
-  if (password) {
-    return await this.signInWithPassword(
-      { apiId: this.apiId, apiHash: this.apiHash },
-      { password: async () => password }
-    );
-  } else {
-    const result = await this.invoke(
-      new Api.auth.SignIn({
-        phoneNumber,
-        phoneCodeHash,
-        phoneCode,
-      })
-    );
-    return result.user;
-  }
-};
+export const cancelKeyboard = new InlineKeyboard().text('❌ Batalkan Pendaftaran', 'cancel_reg');
 
 // Global map to track active registration clients
 export const activeRegClients = new Map(); // userId -> GramJS TelegramClient
@@ -50,18 +23,17 @@ function getOrCreateClient(telegramId, phoneNumber) {
   let client = activeRegClients.get(telegramId);
   if (client) return client;
 
-  const session = new StringSession('');
-  // Preset DC 5 untuk nomor Indonesia
-  if (phoneNumber && phoneNumber.startsWith('+62')) {
-    session.setDC(5, '91.108.56.121', 80);
-  }
-  client = new TelegramClient(session, config.apiId, config.apiHash, {
-    connectionRetries: 5,
-    deviceModel: 'Chrome 147',
-    systemVersion: 'Android 11',
-    appVersion: '2.2 K',
-    langCode: 'id',
-    systemLangCode: 'id-ID',
+  client = new TelegramClient({
+    apiId: config.apiId,
+    apiHash: config.apiHash,
+    storage: new MemoryStorage(),
+    initConnectionOptions: {
+      deviceModel: 'DeltaUserJS',
+      systemVersion: 'Android 14',
+      appVersion: '3.0',
+      systemLangCode: 'id-ID',
+      langCode: 'id',
+    }
   });
   activeRegClients.set(telegramId, client);
   return client;
@@ -85,7 +57,7 @@ async function cleanupClient(telegramId) {
   pendingOtpState.delete(telegramId);
   if (client) {
     try {
-      await client.disconnect();
+      await client.close();
     } catch (e) {}
   }
 }
@@ -173,10 +145,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
         await ensureConnected(client);
 
         console.log(`[OTP] Mengirim kode ke ${phoneNumber}...`);
-        const result = await client.sendCode(
-          { apiId: config.apiId, apiHash: config.apiHash },
-          phoneNumber
-        );
+        const result = await client.sendCode({ phone: phoneNumber });
         console.log(`[OTP] Kode terkirim. isCodeViaApp=${result.isCodeViaApp}, hash=${result.phoneCodeHash?.slice(0, 8)}...`);
 
         // Simpan ke pendingOtpState agar replay tidak membuat client baru
@@ -253,11 +222,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
               if (!activeClient) throw new Error('Client tidak ditemukan. Ulangi /daftar.');
               await ensureConnected(activeClient);
               console.log(`[OTP] Resend via SMS ke ${phoneNumber}...`);
-              const r = await activeClient.sendCode(
-                { apiId: config.apiId, apiHash: config.apiHash },
-                phoneNumber,
-                true // forceSMS
-              );
+              const r = await activeClient.sendCode({ phone: phoneNumber }); // mtcute auto-handles resend type if needed
               console.log(`[OTP] SMS terkirim. phoneCodeHash=${r.phoneCodeHash?.slice(0, 8)}...`);
               // Update pending state
               pendingOtpState.set(telegramId, { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: r.isCodeViaApp });
@@ -294,13 +259,9 @@ export async function otpRegistrationConversation(conversation, ctx) {
         await ensureConnected(activeClient);
         console.log(`[OTP] Mencoba signIn... (percobaan ${attemptCount}/${MAX_ATTEMPTS})`);
         try {
-          await activeClient.signIn({
-            phoneNumber,
-            phoneCodeHash,
-            phoneCode: otpCode,
-          });
+          await activeClient.signIn({ phone: phoneNumber, phoneCodeHash, phoneCode: otpCode });
           // Simpan session string SEKARANG
-          const sess = activeClient.session.save();
+          const sess = await activeClient.exportSession();
           return { status: 'success', sessionString: sess };
         } catch (err) {
           const errMsg = err.errorMessage || err.message || '';
@@ -333,7 +294,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
                 if (!activeClient) throw new Error('Client tidak ditemukan. Ulangi /daftar.');
                 await ensureConnected(activeClient);
                 console.log(`[OTP] Resend kode baru karena expired...`);
-                const r = await activeClient.sendCode({ apiId: config.apiId, apiHash: config.apiHash }, phoneNumber);
+                const r = await activeClient.sendCode({ phone: phoneNumber });
                 console.log(`[OTP] Kode baru terkirim. hash=${r.phoneCodeHash?.slice(0, 8)}...`);
                 pendingOtpState.set(telegramId, { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: r.isCodeViaApp });
                 return { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: r.isCodeViaApp };
@@ -370,8 +331,8 @@ export async function otpRegistrationConversation(conversation, ctx) {
             if (!activeClient) return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };
             await ensureConnected(activeClient);
             try {
-              await activeClient.signIn({ password });
-              const sess = activeClient.session.save();
+              await activeClient.checkPassword(password);
+              const sess = await activeClient.exportSession();
               return { status: 'success', sessionString: sess };
             } catch (e) {
               return { status: 'error', error: e.errorMessage || e.message || 'Password salah' };
@@ -460,13 +421,17 @@ export async function qrRegistrationConversation(conversation, ctx) {
     // karena signInUserWithQrCode adalah operasi blocking yang harus selesai sebelum kita bisa lanjut
     const qrResult = await conversation.external({
       task: async (outsideCtx) => {
-        const client = new TelegramClient(new StringSession(''), config.apiId, config.apiHash, {
-          connectionRetries: 5,
-          deviceModel: 'Chrome 147',
-          systemVersion: 'Android 11',
-          appVersion: '2.2 K',
-          langCode: 'id',
-          systemLangCode: 'id-ID',
+        const client = new TelegramClient({
+          apiId: config.apiId,
+          apiHash: config.apiHash,
+          storage: new MemoryStorage(),
+          initConnectionOptions: {
+            deviceModel: 'DeltaUserJS',
+            systemVersion: 'Android 14',
+            appVersion: '3.0',
+            systemLangCode: 'id-ID',
+            langCode: 'id',
+          }
         });
         activeRegClients.set(telegramId, client);
 
@@ -476,47 +441,40 @@ export async function qrRegistrationConversation(conversation, ctx) {
         let isScanned = false;
 
         // QR login with timeout
-        const loginPromise = client.signInUserWithQrCode(
-          {
-            apiId: config.apiId,
-            apiHash: config.apiHash,
-          },
-          {
-            qrCode: async (token) => {
-              try {
-                const url = `tg://login?token=${token.token.toString('base64url')}`;
-                const qrBuffer = await qrcode.toBuffer(url, { scale: 8 });
+        const loginPromise = new Promise(async (resolve, reject) => {
+          try {
+            const user = await client.signInQr({
+              onUrlUpdated: async (url, expires) => {
+                try {
+                  const qrBuffer = await qrcode.toBuffer(url, { scale: 8 });
 
-                // Hapus QR code sebelumnya
-                if (qrImageMessageId) {
-                  try {
-                    await outsideCtx.api.deleteMessage(chatId, qrImageMessageId);
-                  } catch (e) {}
+                  if (qrImageMessageId) {
+                    try { await outsideCtx.api.deleteMessage(chatId, qrImageMessageId); } catch (e) {}
+                  }
+
+                  const qrMsg = await outsideCtx.api.sendPhoto(chatId, new InputFile(qrBuffer), {
+                    caption: '📷 <b>SCAN QR CODE INI</b>\n\n' +
+                             '<blockquote>' +
+                             '1. Buka Telegram di HP Anda.\n' +
+                             '2. Buka <b>Pengaturan (Settings) > Perangkat (Devices) > Hubungkan Perangkat</b>.\n' +
+                             '3. Arahkan kamera HP ke QR Code di atas.' +
+                             '</blockquote>\n' +
+                             '⚠️ <i>QR Code ini berlaku selama 30 detik. Jika kedaluwarsa, bot akan mengirimkan QR Code yang baru.</i>',
+                    parse_mode: 'HTML',
+                    reply_markup: cancelKeyboard,
+                  });
+                  qrImageMessageId = qrMsg.message_id;
+                } catch (qrErr) {
+                  console.error('Error generating/sending QR:', qrErr);
                 }
-
-                const qrMsg = await outsideCtx.api.sendPhoto(chatId, new InputFile(qrBuffer), {
-                  caption: '📷 <b>SCAN QR CODE INI</b>\n\n' +
-                           '<blockquote>' +
-                           '1. Buka Telegram di HP Anda.\n' +
-                           '2. Buka <b>Pengaturan (Settings) > Perangkat (Devices) > Hubungkan Perangkat</b>.\n' +
-                           '3. Arahkan kamera HP ke QR Code di atas.' +
-                           '</blockquote>\n' +
-                           '⚠️ <i>QR Code ini berlaku selama 30 detik. Jika kedaluwarsa, bot akan mengirimkan QR Code yang baru.</i>',
-                  parse_mode: 'HTML',
-                  reply_markup: cancelKeyboard,
-                });
-                qrImageMessageId = qrMsg.message_id;
-              } catch (qrErr) {
-                console.error('Error generating/sending QR:', qrErr);
               }
-            },
-            onError: (err) => {
-              if (!isScanned) {
-                console.error('QR Sign-in Error:', err);
-              }
-            }
+            });
+            resolve(user);
+          } catch (e) {
+            if (!isScanned) console.error('QR Sign-in Error:', e);
+            reject(e);
           }
-        );
+        });
 
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('TIMEOUT')), 120000)
@@ -535,11 +493,11 @@ export async function qrRegistrationConversation(conversation, ctx) {
         }
 
         // Berhasil login - simpan session
-        const sessionString = client.session.save();
+        const sessionString = await client.exportSession();
 
         // Disconnect client setelah session disimpan
         try {
-          await client.disconnect();
+          await client.close();
         } catch (e) {}
         activeRegClients.delete(telegramId);
 

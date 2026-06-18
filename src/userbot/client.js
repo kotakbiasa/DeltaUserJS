@@ -1,149 +1,226 @@
-import { TelegramClient } from 'telegram';
-import { StringSession } from 'telegram/sessions/index.js';
-import { NewMessage, Raw } from 'telegram/events/index.js';
-import { Api } from 'telegram';
-import config from '../config.js';
-import { getUserbotSession } from '../database/db.js';
-import { loadAllPlugins } from './pluginLoader.js';
-import { loadedPlugins } from './pluginRegistry.js';
+import { TelegramClient, MemoryStorage } from '@mtcute/node';
+import { Dispatcher, filters } from '@mtcute/dispatcher';
+import { convertFromGramjsSession } from '@mtcute/convert';
 
-// Flag untuk memastikan plugin hanya di-load sekali
-let pluginsLoaded = false;
+import config from '../config.js';
+import { disablePlugin, getUserbotSession } from '../database/db.js';
+import { loadAllPlugins } from './pluginLoader.js';
+import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
+
+let pluginsReady = false;
+
+async function ensurePluginsLoaded() {
+  if (pluginsReady) return loadedPlugins;
+  await loadAllPlugins();
+  pluginsReady = true;
+  return loadedPlugins;
+}
+
+function disabledSet(settings) {
+  return new Set((settings?.disabled_plugins || []).map(normalizePluginName));
+}
+
+function floodWaitSeconds(err) {
+  if (Number.isFinite(err?.seconds)) return Number(err.seconds);
+  const text = `${err?.errorMessage || ''} ${err?.message || ''}`;
+  const match = text.match(/FLOOD_WAIT_?(\d+)?/i) || text.match(/(\d+)/);
+  return match?.[1] ? Number(match[1]) : 0;
+}
 
 export class UserbotClient {
-  /**
-   * @param {number} telegramId 
-   * @param {string} sessionString 
-   */
   constructor(telegramId, sessionString) {
-    this.telegramId = telegramId;
+    this.telegramId = Number(telegramId);
     this.sessionString = sessionString;
     this.client = null;
+    this.dispatcher = null;
     this.isActive = false;
+    this.errorWindows = new Map();
   }
 
-  /**
-   * Start the userbot instance
-   */
   async start() {
+    await ensurePluginsLoaded();
+
+    let mtcuteSession = this.sessionString;
     try {
-      // Load plugins sekali saja saat userbot pertama kali start
-      if (!pluginsLoaded) {
-        await loadAllPlugins();
-        pluginsLoaded = true;
+      if (this.sessionString.startsWith('1')) {
+        mtcuteSession = convertFromGramjsSession(this.sessionString);
       }
+    } catch (e) {}
 
-      const stringSession = new StringSession(this.sessionString);
-      
-      this.client = new TelegramClient(stringSession, config.apiId, config.apiHash, {
-        connectionRetries: 5,
-        deviceModel: 'Chrome 147',
-        systemVersion: 'Android 11',
-        appVersion: '2.2 K',
-        langCode: 'id',
+    this.client = new TelegramClient({
+      apiId: config.apiId,
+      apiHash: config.apiHash,
+      storage: new MemoryStorage(),
+      initConnectionOptions: {
+        deviceModel: 'DeltaUserJS',
+        systemVersion: 'Android 14',
+        appVersion: '3.0',
         systemLangCode: 'id-ID',
-      });
+        langCode: 'id',
+      }
+    });
 
-      await this.client.connect();
+    if (mtcuteSession) {
+      await this.client.importSession(mtcuteSession);
+    }
+
+    this.dispatcher = new Dispatcher(this.client);
+
+    // Polyfill for plugins
+    this.client.invoke = (req) => this.client.call(req);
+    this.client.getEntity = (id) => this.client.resolvePeer(id);
+    this.client.getInputEntity = (id) => this.client.resolvePeer(id);
+
+    try {
+      await this.client.connect(); // mtcute's connect() just establishes connection if authorized
       this.isActive = true;
-      console.log(`🤖 DeltaUbotJS [${this.telegramId}] connected successfully.`);
-
-      // Register handlers
       this.registerHandlers();
-      
-    } catch (error) {
-      console.error(`❌ Failed to start DeltaUbotJS for user ${this.telegramId}:`, error);
+      await this.runPluginStartHooks();
+      console.log(`🤖 DeltaUserJS userbot [${this.telegramId}] connected.`);
+    } catch (err) {
       this.isActive = false;
-      throw error;
+      console.error(`Failed to start userbot [${this.telegramId}]:`, err.message || err);
+      throw err;
     }
   }
 
-  /**
-   * Stop the userbot instance
-   */
+  isConnected() {
+    return Boolean(this.isActive);
+  }
+
   async stop() {
-    if (this.client) {
-      try {
-        await this.client.disconnect();
-        console.log(`🔌 DeltaUbotJS [${this.telegramId}] disconnected.`);
-      } catch (err) {
-        console.error(`❌ Error disconnecting DeltaUbotJS [${this.telegramId}]:`, err);
-      }
-    }
     this.isActive = false;
+    if (!this.client) return;
+    try {
+      await this.client.close(); // mtcute uses close() instead of disconnect()
+      console.log(`🔌 DeltaUserJS userbot [${this.telegramId}] disconnected.`);
+    } catch (err) {
+      console.error(`Error while disconnecting userbot [${this.telegramId}]:`, err.message || err);
+    }
   }
 
-  /**
-   * Register event handlers for the userbot
-   */
+  currentSettings() {
+    return getUserbotSession(this.telegramId);
+  }
+
+  async restartSchedules() {
+    await this.runPluginStartHooks();
+  }
+
+  async runPluginStartHooks() {
+    const settings = this.currentSettings();
+    const disabled = disabledSet(settings);
+
+    for (const plugin of loadedPlugins) {
+      if (disabled.has(normalizePluginName(plugin.name))) continue;
+      if (typeof plugin.onStart !== 'function') continue;
+
+      try {
+        await plugin.onStart(this.client, this.telegramId, settings);
+      } catch (err) {
+        console.error(`Plugin ${plugin.name} onStart failed for [${this.telegramId}]:`, err.message || err);
+      }
+    }
+  }
+
   registerHandlers() {
-    if (!this.client) return;
+    if (!this.dispatcher) return;
 
-    // ==========================================
-    // Handler 1: Pesan Masuk (NewMessage)
-    // ==========================================
-    this.client.addEventHandler(async (event) => {
-      const message = event.message;
-      if (!message) return;
+    this.dispatcher.onNewMessage(filters.outgoing.and(filters.text('ㅤ')), async (msg) => {
+      try { await msg.delete(); } catch (_) {}
+    });
 
-      // 1. Ambil setelan terkini dari Database RAM Cache (0ms)
-      const settings = getUserbotSession(this.telegramId);
-      if (!settings) return;
+    this.dispatcher.onNewMessage(filters.any, (msg) => this.handleMessage(msg).catch(err => {
+      console.error(`Message handler failed for [${this.telegramId}]:`, err.message || err);
+    }));
 
-      // 2. Jalankan seluruh plugin secara sekuensial (dari loadedPlugins)
-      for (const plugin of loadedPlugins) {
+    this.dispatcher.onCallbackQuery(filters.any, (query) => this.handleCallback(query).catch(err => {
+      console.error(`Callback handler failed for [${this.telegramId}]:`, err.message || err);
+    }));
+  }
+
+  async handleMessage(msg) {
+    const settings = this.currentSettings();
+    if (!settings) return;
+
+    const disabled = disabledSet(settings);
+    for (const plugin of loadedPlugins) {
+      const name = normalizePluginName(plugin.name);
+      if (disabled.has(name)) continue;
+
+      try {
+        await plugin.execute(this.client, msg, settings, this.telegramId);
+      } catch (err) {
+        await this.handlePluginError(plugin, err);
+      }
+    }
+  }
+
+  async handleCallback(query) {
+    const settings = this.currentSettings();
+    const disabled = disabledSet(settings);
+    
+    // Polyfill callback event for plugins
+    const callbackEvent = {
+      update: query,
+      data: Buffer.isBuffer(query.data) ? query.data : Buffer.from(query.dataStr || ''),
+      getMessage: async () => query.message,
+      answer: async (options = {}) => {
         try {
-          await plugin.execute(this.client, message, settings, this.telegramId);
-        } catch (err) {
-          console.error(`❌ Error in plugin ${plugin.name} for [${this.telegramId}]:`, err.message);
-        }
-      }
-      
-    }, new NewMessage({}));
+          await query.answer({
+            text: options.message || '',
+            showAlert: Boolean(options.alert),
+          });
+        } catch (_) {}
+      },
+    };
 
-    // ==========================================
-    // Handler 2: Callback Query (Inline Button Clicks)
-    // Menggunakan Raw event untuk menangkap UpdateBotCallbackQuery
-    // ==========================================
-    this.client.addEventHandler(async (event) => {
-      const update = event.update;
-      
-      // Buat object event yang kompatibel dengan plugin
-      const callbackEvent = {
-        data: update.data,
-        getMessage: async () => {
-          try {
-            // Ambil pesan yang mengandung tombol inline
-            const msgs = await this.client.getMessages(update.peer, { ids: [update.msgId] });
-            return msgs[0] || null;
-          } catch (e) {
-            return null;
-          }
-        },
-        answer: async (options = {}) => {
-          try {
-            await this.client.invoke(
-              new Api.messages.SetBotCallbackAnswer({
-                queryId: update.queryId,
-                alert: options.alert || false,
-                message: options.message || ''
-              })
-            );
-          } catch (e) {}
-        }
-      };
+    for (const plugin of loadedPlugins) {
+      const name = normalizePluginName(plugin.name);
+      if (disabled.has(name)) continue;
+      if (typeof plugin.onCallbackQuery !== 'function') continue;
 
-      // Jalankan onCallbackQuery pada setiap plugin yang memilikinya
-      for (const plugin of loadedPlugins) {
-        if (typeof plugin.onCallbackQuery === 'function') {
-          try {
-            const handled = await plugin.onCallbackQuery(this.client, callbackEvent);
-            if (handled) break; // Stop jika sudah ditangani
-          } catch (err) {
-            console.error(`❌ Error in plugin ${plugin.name} callback handler for [${this.telegramId}]:`, err.message);
-          }
-        }
+      try {
+        const handled = await plugin.onCallbackQuery(this.client, callbackEvent, settings, this.telegramId);
+        if (handled) break;
+      } catch (err) {
+        await this.handlePluginError(plugin, err, { callback: true });
       }
-    }, new Raw({ types: [Api.UpdateBotCallbackQuery] }));
+    }
+  }
+
+  async handlePluginError(plugin, err) {
+    const waitSeconds = floodWaitSeconds(err);
+    if (waitSeconds > 0) {
+      if (waitSeconds <= 60) {
+        console.log(`⏳ [${this.telegramId}] FLOOD_WAIT ${waitSeconds}s in ${plugin.name}`);
+        await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
+      } else {
+        console.warn(`FLOOD_WAIT too long (${waitSeconds}s) in ${plugin.name}; skipped.`);
+      }
+      return;
+    }
+
+    console.error(`Plugin ${plugin.name} failed for [${this.telegramId}]:`, err.message || err);
+
+    const now = Date.now();
+    const name = normalizePluginName(plugin.name);
+    const window = (this.errorWindows.get(name) || []).filter(ts => now - ts <= 10 * 60 * 1000);
+    window.push(now);
+    this.errorWindows.set(name, window);
+
+    if (window.length < 5) return;
+
+    console.error(`Auto-disabling plugin ${name} for [${this.telegramId}] after 5 errors in 10 minutes.`);
+    await disablePlugin(this.telegramId, name);
+    this.errorWindows.set(name, []);
+
+    if (!config.logGroupId) return;
+    try {
+      await this.client.sendText(config.logGroupId, `<b>Plugin error quarantine</b>\n\nPlugin <code>${name}</code> otomatis dinonaktifkan untuk <code>${this.telegramId}</code>.`, {
+        parseMode: 'html',
+        replyTo: config.logTopicId || undefined,
+      });
+    } catch (_) {}
   }
 }

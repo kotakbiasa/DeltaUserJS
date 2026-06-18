@@ -1,97 +1,75 @@
 import { Bot, session } from 'grammy';
-import { conversations, createConversation } from '@grammyjs/conversations';
+import { conversations } from '@grammyjs/conversations';
+
 import { registerInlineHelpHandlers } from '../bot/inlineHelp.js';
 import { registerInlineAntiPmHandlers } from '../bot/inlineAntiPm.js';
-import { setupSettingsHandlers, sendFeaturesMenu } from '../bot/settingsHandler.js';
-import { afkReasonConversation, customNameConversation } from '../bot/conversations.js';
+import { registerInlineLatexHandlers } from '../bot/inlineLatex.js';
 
 class InlineBotManager {
   constructor() {
-    // Menyimpan instance bot aktif (telegramId -> Bot instance)
-    this.activeBots = new Map(); 
+    this.activeBots = new Map();
   }
 
-  /**
-   * Mulai custom inline bot untuk user tertentu
-   * @param {number} telegramId 
-   * @param {string} token 
-   */
   async startInlineBot(telegramId, token) {
-    if (!token) return;
-    if (this.activeBots.has(telegramId)) {
-      console.log(`🤖 Inline Bot for [${telegramId}] is already running.`);
-      return;
+    const id = Number(telegramId);
+    if (!token) return false;
+
+    if (this.activeBots.has(id)) {
+      await this.stopInlineBot(id);
     }
+
+    const bot = new Bot(token);
+    bot.use(session({ initial: () => ({}) }));
+    bot.use(conversations());
+
+    registerInlineHelpHandlers(bot);
+    registerInlineAntiPmHandlers(bot);
+    registerInlineLatexHandlers(bot);
+
+    bot.command(['start', 'menu', 'settings'], async (ctx) => {
+      if (Number(ctx.from.id) !== id) {
+        await ctx.reply('Halo, saya bot inline pribadi DeltaUserJS.');
+        return;
+      }
+      await ctx.reply('⚙️ Pengaturan userbot ada di dashboard bot utama.');
+    });
+
+    bot.catch((err) => {
+      const message = err.error?.description || err.error?.message || err.message || '';
+      if (message.includes('message is not modified')) return;
+      if (message.includes('session key is undefined')) return;
+      console.error(`Custom inline bot error [${id}]:`, message);
+    });
+
+    this.activeBots.set(id, bot);
+    bot.start({
+      onStart: info => console.log(`✅ Custom Inline Bot started for [${id}] as @${info.username}`),
+    }).catch(err => {
+      console.error(`Custom Inline Bot polling error [${id}]:`, err.message || err);
+      this.activeBots.delete(id);
+    });
+
+    return true;
+  }
+
+  async stopInlineBot(telegramId) {
+    const id = Number(telegramId);
+    const bot = this.activeBots.get(id);
+    if (!bot) return false;
 
     try {
-      const bot = new Bot(token);
-      
-      // Register handler yang sama dengan Master Bot agar bisa menjawab .help
-      registerInlineHelpHandlers(bot);
-      registerInlineAntiPmHandlers(bot);
-
-      // Konfigurasi session & conversations
-      bot.use(session({ initial: () => ({}) }));
-      bot.use(conversations());
-      bot.use(createConversation(afkReasonConversation, 'afk-reason-conv'));
-      bot.use(createConversation(customNameConversation, 'custom-name-conv'));
-
-      // Commands
-      bot.command(['start', 'menu', 'settings'], async (ctx) => {
-        // Cek apakah yang memanggil command adalah pemilik (Owner) dari bot ini
-        if (ctx.from.id !== Number(telegramId)) {
-          await ctx.reply("Halo! Saya adalah bot asisten pribadi.");
-          return;
-        }
-        // Jika owner, tampilkan menu pengaturan
-        await sendFeaturesMenu(ctx, false);
-      });
-
-      // Pasang handler pengaturan (callback untuk manage_features, toggle_reply, dll)
-      setupSettingsHandlers(bot);
-
-      // Jalankan bot di latar belakang
-      bot.start({
-        onStart: (botInfo) => {
-          console.log(`✅ Custom Inline Bot started for [${telegramId}] as @${botInfo.username}`);
-        }
-      }).catch(err => {
-        console.error(`❌ Custom Inline Bot polling error for [${telegramId}]:`, err.message);
-        this.activeBots.delete(telegramId);
-      });
-
-      this.activeBots.set(telegramId, bot);
+      await bot.stop();
+      console.log(`🔌 Custom Inline Bot stopped for [${id}].`);
     } catch (err) {
-      console.error(`❌ Failed to instantiate custom Inline Bot for [${telegramId}]:`, err.message);
+      console.error(`Failed to stop custom inline bot [${id}]:`, err.message || err);
+    } finally {
+      this.activeBots.delete(id);
     }
+    return true;
   }
 
-  /**
-   * Matikan custom inline bot untuk user tertentu
-   * @param {number} telegramId 
-   */
-  async stopInlineBot(telegramId) {
-    const bot = this.activeBots.get(telegramId);
-    if (bot) {
-      try {
-        await bot.stop();
-        console.log(`🔌 Custom Inline Bot for [${telegramId}] stopped.`);
-      } catch (err) {
-        console.error(`❌ Error stopping Custom Inline Bot for [${telegramId}]:`, err.message);
-      }
-      this.activeBots.delete(telegramId);
-    }
-  }
-
-  /**
-   * Matikan semua bot inline
-   */
   async stopAll() {
-    const promises = [];
-    for (const telegramId of this.activeBots.keys()) {
-      promises.push(this.stopInlineBot(telegramId));
-    }
-    await Promise.all(promises);
+    await Promise.all([...this.activeBots.keys()].map(id => this.stopInlineBot(id)));
   }
 }
 

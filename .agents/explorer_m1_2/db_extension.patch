@@ -1,0 +1,164 @@
+diff --git a/src/database/db.js b/src/database/db.js
+index 99d8d53..1877d9c 100644
+--- a/src/database/db.js
++++ b/src/database/db.js
+@@ -37,7 +37,10 @@ const UserbotSchema = new mongoose.Schema({
+   broadcast_blacklist: { type: [String], default: [] },
+   disabled_plugins: { type: [String], default: [] },
+   warn_data: { type: mongoose.Schema.Types.Mixed, default: {} },
+-  lock_config: { type: mongoose.Schema.Types.Mixed, default: {} }
++  lock_config: { type: mongoose.Schema.Types.Mixed, default: {} },
++  schedules: { type: [mongoose.Schema.Types.Mixed], default: [] },
++  chat_settings: { type: mongoose.Schema.Types.Mixed, default: {} },
++  reputation_data: { type: mongoose.Schema.Types.Mixed, default: {} }
+ });
+ 
+ export const UserbotModel = mongoose.models.Userbot || mongoose.model('Userbot', UserbotSchema);
+@@ -104,7 +107,10 @@ async function initDatabaseAndCache() {
+           broadcast_blacklist: Array.from(bot.broadcast_blacklist || []),
+           disabled_plugins: Array.from(bot.disabled_plugins || []),
+           warn_data: bot.warn_data || {},
+-          lock_config: bot.lock_config || {}
++          lock_config: bot.lock_config || {},
++          schedules: Array.from(bot.schedules || []),
++          chat_settings: bot.chat_settings || {},
++          reputation_data: bot.reputation_data || {}
+         });
+       }
+       console.log(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`);
+@@ -140,7 +146,10 @@ async function initDatabaseAndCache() {
+       broadcast_blacklist: bot.broadcast_blacklist || [],
+       disabled_plugins: bot.disabled_plugins || [],
+       warn_data: bot.warn_data || {},
+-      lock_config: bot.lock_config || {}
++      lock_config: bot.lock_config || {},
++      schedules: bot.schedules || [],
++      chat_settings: bot.chat_settings || {},
++      reputation_data: bot.reputation_data || {}
+     };
+     dbCache.set(Number(id), botData);
+   }
+@@ -183,7 +192,10 @@ export function saveUserbotSession(telegramId, phone, sessionString) {
+     broadcast_blacklist: existing.broadcast_blacklist || [],
+     disabled_plugins: existing.disabled_plugins || [],
+     warn_data: existing.warn_data || {},
+-    lock_config: existing.lock_config || {}
++    lock_config: existing.lock_config || {},
++    schedules: existing.schedules || [],
++    chat_settings: existing.chat_settings || {},
++    reputation_data: existing.reputation_data || {}
+   };
+ 
+   // 1. Update Cache
+@@ -620,3 +632,85 @@ export function getChatLocks(telegramId, chatId) {
+   const session = dbCache.get(Number(telegramId));
+   return session?.lock_config?.[String(chatId)] || {};
+ }
++
++// --- Schedule Helpers ---
++export async function saveSchedule(telegramId, chatKey, type, value, message) {
++  const session = dbCache.get(Number(telegramId));
++  if (!session) return false;
++
++  if (!session.schedules) {
++    session.schedules = [];
++  }
++
++  const updatedAt = new Date().toISOString();
++  const existingIndex = session.schedules.findIndex(
++    s => s.chatKey === String(chatKey) && s.type === String(type)
++  );
++
++  const scheduleObj = {
++    chatKey: String(chatKey),
++    type: String(type),
++    value,
++    message,
++    updatedAt
++  };
++
++  if (existingIndex > -1) {
++    session.schedules[existingIndex] = scheduleObj;
++  } else {
++    session.schedules.push(scheduleObj);
++  }
++
++  dbCache.set(Number(telegramId), session);
++  await persistNestedFeature(telegramId, 'schedules', session.schedules);
++  return true;
++}
++
++export function getSchedules(telegramId) {
++  const session = dbCache.get(Number(telegramId));
++  if (!session) return [];
++  return session.schedules || [];
++}
++
++export async function deleteSchedule(telegramId, chatKey, type) {
++  const session = dbCache.get(Number(telegramId));
++  if (!session) return false;
++
++  if (!session.schedules) {
++    session.schedules = [];
++    return true;
++  }
++
++  session.schedules = session.schedules.filter(
++    s => !(s.chatKey === String(chatKey) && s.type === String(type))
++  );
++
++  dbCache.set(Number(telegramId), session);
++  await persistNestedFeature(telegramId, 'schedules', session.schedules);
++  return true;
++}
++
++// --- Chat Settings Helpers ---
++export function getChatSettings(telegramId, chatId) {
++  const session = dbCache.get(Number(telegramId));
++  if (!session) return {};
++  const chatSettings = session.chat_settings || {};
++  return chatSettings[String(chatId)] || {};
++}
++
++export async function updateChatSettings(telegramId, chatId, key, value) {
++  const session = dbCache.get(Number(telegramId));
++  if (!session) return false;
++
++  if (!session.chat_settings) {
++    session.chat_settings = {};
++  }
++
++  const chatKey = String(chatId);
++  if (!session.chat_settings[chatKey]) {
++    session.chat_settings[chatKey] = {};
++  }
++
++  session.chat_settings[chatKey][key] = value;
++  dbCache.set(Number(telegramId), session);
++  await persistNestedFeature(telegramId, 'chat_settings', session.chat_settings);
++  return session.chat_settings[chatKey];
++}
++
++// --- Reputation Helpers ---
++export function getReputation(telegramId, targetUserId) {
++  const session = dbCache.get(Number(telegramId));
++  if (!session) return 0;
++  const reputationData = session.reputation_data || {};
++  const score = reputationData[String(targetUserId)];
++  return score !== undefined ? score : 0;
++}
++
++export async function updateReputation(telegramId, targetUserId, points) {
++  const session = dbCache.get(Number(telegramId));
++  if (!session) return null;
++
++  if (!session.reputation_data) {
++    session.reputation_data = {};
++  }
++
++  const userKey = String(targetUserId);
++  session.reputation_data[userKey] = points;
++  dbCache.set(Number(telegramId), session);
++  await persistNestedFeature(telegramId, 'reputation_data', session.reputation_data);
++  return points;
++}

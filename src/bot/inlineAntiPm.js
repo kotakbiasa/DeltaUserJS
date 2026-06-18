@@ -14,12 +14,14 @@ export function registerInlineAntiPmHandlers(bot) {
       const dbSession = getUserbotSession(ctx.from.id);
       
       const botName = dbSession?.custom_name || 'DeltaUbotJS';
-      const text = `🚫 <b>Keamanan Anti-PM</b> 🚫\n\n` +
-                   `<blockquote>` +
-                   `Halo! Maaf, pemilik akun ini sedang mengaktifkan fitur <b>Anti-PM</b>.\n\n` +
-                   `Harap <b>tidak</b> mengirimkan pesan pribadi lagi sebelum mode ini dinonaktifkan, atau pesan Anda selanjutnya akan <b>otomatis terhapus secara permanen</b>.` +
-                   `</blockquote>\n\n` +
-                   `⚡ <i>${botName}</i>`;
+      const richHtml = `<h1>🚫 Keamanan Anti-PM</h1>` +
+        `<blockquote>${botName}<br>Akun ini sedang mengaktifkan perlindungan Anti-PM.</blockquote>` +
+        `<table bordered striped><caption>Status Perlindungan</caption>` +
+        `<tr><th align="center">Item</th><th align="center">Status</th></tr>` +
+        `<tr><td>Mode</td><td align="center">Protected</td></tr>` +
+        `<tr><td>Aksi</td><td align="center">Jangan spam/private chat</td></tr>` +
+        `</table>` +
+        `<p>Pesan lanjutan dapat otomatis dihapus atau diblokir.</p>`;
 
       const markup = new InlineKeyboard()
         .text('✅ Approve', `pm_approve_${senderId}`)
@@ -31,8 +33,9 @@ export function registerInlineAntiPmHandlers(bot) {
         title: 'Anti-PM Warning',
         description: 'Kirim peringatan Anti-PM',
         input_message_content: {
-          message_text: text,
-          parse_mode: 'HTML'
+          rich_message: {
+            html: richHtml,
+          }
         },
         reply_markup: markup
       }], {
@@ -70,10 +73,10 @@ export function registerInlineAntiPmHandlers(bot) {
       try {
         if (action === 'approve') {
           await addApprovedUser(ownerId, targetId);
-          await ctx.editMessageText(`<blockquote>✅ <b>Pengguna Diizinkan!</b>\nPengguna ID <code>${targetId}</code> telah ditambahkan ke dalam daftar putih (Whitelist) Anti-PM.</blockquote>\n\n⚡ <i>${ownerName}</i>`, { parse_mode: 'HTML' });
+          await ctx.editMessageText(`✅ <b>Pengguna Diizinkan!</b>\n\n<pre>User ID  ${targetId}\nStatus   Whitelist</pre>\n⚡ <i>${ownerName}</i>`, { parse_mode: 'HTML' });
           await ctx.answerCallbackQuery({ text: '✅ Pengguna telah diizinkan (Approved)!', show_alert: true });
         } else if (action === 'block') {
-          await ctx.editMessageText(`<blockquote>🚫 <b>Pengguna Diblokir!</b>\nPengguna ID <code>${targetId}</code> tetap dalam status terblokir oleh Anti-PM.</blockquote>\n\n⚡ <i>${ownerName}</i>`, { parse_mode: 'HTML' });
+          await ctx.editMessageText(`🚫 <b>Pengguna Diblokir!</b>\n\n<pre>User ID  ${targetId}\nStatus   Blocked</pre>\n⚡ <i>${ownerName}</i>`, { parse_mode: 'HTML' });
           await ctx.answerCallbackQuery({ text: '🚫 Pengguna ditolak!', show_alert: true });
         }
       } catch (err) {

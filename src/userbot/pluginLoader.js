@@ -1,78 +1,54 @@
 import { readdir } from 'fs/promises';
 import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
-import { registerPlugin, loadedPlugins } from './pluginRegistry.js';
+import { clearRegistry, loadedPlugins, registerPlugin, validatePlugin } from './pluginRegistry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginsDir = path.join(__dirname, 'plugins');
 
-/**
- * Auto-load semua plugin dari folder plugins/
- * 
- * Setiap file .js di folder plugins/ harus export default object dengan:
- * - name (string, required) - nama unik plugin
- * - execute (function, required) - handler pesan masuk
- * - help (object, optional) - metadata untuk menu .help:
- *     { title, description, usage, detail }
- * - onCallbackQuery (function, optional) - handler inline button
- * 
- * Plugin yang tidak valid (missing name/execute) akan di-skip dengan warning.
- * Plugin yang gagal load (syntax error, dll) akan di-skip dengan error.
- */
-export async function loadAllPlugins() {
-  let files;
+function helpIsComplete(help) {
+  if (!help) return true;
+  return ['title', 'description', 'usage', 'detail'].every(key => Boolean(help[key]));
+}
+
+async function importPlugin(file) {
+  const url = pathToFileURL(path.join(pluginsDir, file)).href;
+  // cache-bust in dev restarts so rewritten plugins are re-read in the same process if needed
+  const module = await import(`${url}?v=${Date.now()}`);
+  return module.default;
+}
+
+export async function loadAllPlugins({ reload = true } = {}) {
+  if (reload) clearRegistry();
+
+  let files = [];
   try {
-    files = await readdir(pluginsDir);
+    files = (await readdir(pluginsDir)).filter(file => file.endsWith('.js')).sort();
   } catch (err) {
-    console.error('❌ Failed to read plugins directory:', err.message);
+    console.error('Failed to read plugin directory:', err.message);
     return loadedPlugins;
   }
 
-  // Sort alphabetically agar load order konsisten
-  const pluginFiles = files.filter(f => f.endsWith('.js')).sort();
+  console.log(`📦 Found ${files.length} plugin file(s) in plugins/ directory.`);
 
-  console.log(`📦 Found ${pluginFiles.length} plugin file(s) in plugins/ directory.`);
-
-  for (const file of pluginFiles) {
+  for (const file of files) {
     try {
-      const filePath = pathToFileURL(path.join(pluginsDir, file)).href;
-      const module = await import(filePath);
-      const plugin = module.default;
-
-      // Validasi struktur plugin
-      if (!plugin || typeof plugin !== 'object') {
-        console.warn(`⚠️ Plugin [${file}] skipped: no default export found.`);
+      const plugin = await importPlugin(file);
+      const validationError = validatePlugin(plugin);
+      if (validationError) {
+        console.warn(`  ⚠️ Skipped ${file}: ${validationError}`);
         continue;
       }
 
-      if (!plugin.name || typeof plugin.name !== 'string') {
-        console.warn(`⚠️ Plugin [${file}] skipped: missing 'name' property.`);
-        continue;
+      if (plugin.help && !helpIsComplete(plugin.help)) {
+        console.warn(`  ⚠️ ${plugin.name} help metadata incomplete; hiding from module library.`);
+        delete plugin.help;
       }
 
-      if (typeof plugin.execute !== 'function') {
-        console.warn(`⚠️ Plugin [${file}] skipped: missing 'execute()' function.`);
-        continue;
-      }
-
-      // Validasi help metadata (opsional)
-      if (plugin.help) {
-        const required = ['title', 'description', 'usage', 'detail'];
-        const missing = required.filter(k => !plugin.help[k]);
-        if (missing.length > 0) {
-          console.warn(`⚠️ Plugin [${file}] help metadata incomplete, missing: ${missing.join(', ')}. Help menu will skip this plugin.`);
-          delete plugin.help; // Hapus help agar tidak muncul di menu
-        }
-      }
-
-      // Register plugin
-      registerPlugin(plugin);
-
-      const helpStatus = plugin.help ? '📋 with help metadata' : '⚙️ no help metadata';
-      console.log(`  ✅ Loaded: ${plugin.name} (${file}) ${helpStatus}`);
-
+      const registered = registerPlugin(plugin, { file });
+      console.log(`  ✓ ${registered.name}${registered.help ? ' · help' : ''}`);
     } catch (err) {
-      console.error(`  ❌ Failed to load plugin [${file}]:`, err.message);
+      console.error(`  ✗ Failed to load ${file}:`, err.message);
     }
   }
 

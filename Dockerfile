@@ -4,6 +4,9 @@ FROM node:20-alpine
 # Setel direktori kerja di dalam kontainer
 WORKDIR /app
 
+# Instal dependensi runtime untuk fitur YouTube Downloader (.ytdl)
+RUN apk add --no-cache yt-dlp ffmpeg
+
 # Salin package.json dan package-lock.json (jika ada)
 COPY package*.json ./
 
