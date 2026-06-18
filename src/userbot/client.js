@@ -150,7 +150,12 @@ export class UserbotClient {
     const originalEdit = msg.edit.bind(msg);
     msg.edit = async (params) => {
       if (typeof params === 'object' && params !== null && params.text && String(params.parseMode).toLowerCase() === 'html') {
-        const parsed = html([params.text]);
+        const textToParse = params.text.replace(/(<pre[^>]*>[\s\S]*?<\/pre>)|(\n)/ig, (match, pre, newline) => {
+          if (pre) return pre;
+          if (newline) return '<br>';
+          return match;
+        });
+        const parsed = html([textToParse]);
         params.text = parsed; // MTcute expects InputText (string | TextWithEntities)
         delete params.parseMode;
       }
@@ -161,7 +166,12 @@ export class UserbotClient {
       const originalReply = msg.replyText.bind(msg);
       msg.replyText = async (params) => {
         if (typeof params === 'object' && params !== null && params.text && String(params.parseMode).toLowerCase() === 'html') {
-          const parsed = html([params.text]);
+          const textToParse = params.text.replace(/(<pre[^>]*>[\s\S]*?<\/pre>)|(\n)/ig, (match, pre, newline) => {
+            if (pre) return pre;
+            if (newline) return '<br>';
+            return match;
+          });
+          const parsed = html([textToParse]);
           params.text = parsed; // MTcute expects InputText (string | TextWithEntities)
           delete params.parseMode;
         }
