@@ -73,6 +73,7 @@ export class UserbotClient {
 
     try {
       await this.client.connect(); // mtcute's connect() just establishes connection if authorized
+      await this.client.getMe(); // MTcute requires user info to be cached before starting updates
       this.client.startUpdatesLoop(); // Start processing incoming/outgoing messages
       this.isActive = true;
       this.registerHandlers();
