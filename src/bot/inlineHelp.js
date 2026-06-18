@@ -76,7 +76,9 @@ export function helpKeyboard(page = 1, backTarget = 'main') {
     if (page < totalPages) nav.push({ text: 'Next ➡️', callback_data: `help:page:${page + 1}:${backTarget}` });
     rows.push(nav);
   }
-  rows.push([{ text: backTarget === 'ubot' ? '🔙 Userbot Dashboard' : '🔙 Dashboard', callback_data: `rich:${backTarget === 'ubot' ? 'ubot' : 'main'}` }]);
+  if (backTarget !== 'none') {
+    rows.push([{ text: backTarget === 'ubot' ? '🔙 Userbot Dashboard' : '🔙 Dashboard', callback_data: `rich:${backTarget === 'ubot' ? 'ubot' : 'main'}` }]);
+  }
   return { inline_keyboard: rows };
 }
 
@@ -114,7 +116,7 @@ export function registerInlineHelpHandlers(bot) {
           message_text: buildModuleClassicHtml(moduleName, session),
           parse_mode: 'HTML',
         },
-        reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: 'help:page:1:main' }]] },
+        reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: 'help:page:1:none' }]] },
       }], { cache_time: 0, is_personal: true });
       return;
     }
@@ -132,7 +134,7 @@ export function registerInlineHelpHandlers(bot) {
         message_text: buildHelpMenuClassicHtml(session, 1, totalPages),
         parse_mode: 'HTML',
       },
-      reply_markup: helpKeyboard(1, 'main'),
+      reply_markup: helpKeyboard(1, 'none'),
     }], { cache_time: 0, is_personal: true });
   });
 
@@ -147,13 +149,13 @@ export function registerInlineHelpHandlers(bot) {
     if (moduleMatch) {
       const moduleName = moduleMatch[1].toLowerCase();
       if (!helpRegistry[moduleName]) return;
-      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildModuleRichHtml(moduleName, session) }, { reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: 'help:page:1:main' }]] } }).catch(() => {});
+      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildModuleRichHtml(moduleName, session) }, { reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: 'help:page:1:none' }]] } }).catch(() => {});
       return;
     }
 
     if (query === 'help') {
       const totalPages = Math.max(1, Math.ceil(moduleNames().length / 6));
-      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildHelpMenuRichHtml(session, 1, totalPages) }, { reply_markup: helpKeyboard(1, 'main') }).catch(() => {});
+      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildHelpMenuRichHtml(session, 1, totalPages) }, { reply_markup: helpKeyboard(1, 'none') }).catch(() => {});
     }
   });
 
