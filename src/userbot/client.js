@@ -144,8 +144,6 @@ export class UserbotClient {
     const settings = this.currentSettings();
     if (!settings) return;
 
-    console.log(`[DEBUG] handleMessage triggered: text="${msg.text}", isOutgoing=${msg.isOutgoing}, chat=${msg.chat?.id}`);
-
     const disabled = disabledSet(settings);
     for (const plugin of loadedPlugins) {
       const name = normalizePluginName(plugin.name);
