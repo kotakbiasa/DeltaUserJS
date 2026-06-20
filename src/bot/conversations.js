@@ -3,7 +3,7 @@ import { TelegramClient, Api } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
 import qrcode from 'qrcode';
 import config from '../config.js';
-import { hero } from './richUi.js';
+import { hero } from './dashboard.js';
 import { saveUserbotSession } from '../database/db.js';
 import userbotManager from '../userbot/manager.js';
 
