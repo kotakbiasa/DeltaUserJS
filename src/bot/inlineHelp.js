@@ -1,6 +1,6 @@
 import { helpRegistry } from '../userbot/pluginRegistry.js';
 import { getUserbotSession } from '../database/db.js';
-import { escapeHtml } from './richUi.js';
+import { escapeHtml } from './dashboard.js';
 
 function table(caption, rows) {
   return `<table bordered striped><caption>${escapeHtml(caption)}</caption>` +
