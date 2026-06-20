@@ -1,0 +1,60 @@
+import { getUserbotSession } from '../../../core/database.js';
+import userbotManager from '../../../userbot/engine/manager.js';
+
+export function registerGuestHandler(bot) {
+  bot.use(async (ctx, next) => {
+    const guestMsg = ctx.update.guest_message;
+    if (!guestMsg) return next();
+
+    try {
+      const guestQueryId = guestMsg.guest_query_id;
+      const callerUser = guestMsg.guest_bot_caller_user;
+      const text = (guestMsg.text || '').trim().toLowerCase();
+      if (!guestQueryId || !callerUser) return;
+
+      const telegramId = callerUser.id;
+      const userSession = getUserbotSession(telegramId);
+      const botUsername = ctx.me?.username || 'Bot';
+
+      if (text.startsWith('status')) {
+        const running = userbotManager.isRunning(telegramId);
+        await ctx.api.answerGuestQuery(guestQueryId, {
+          text: `🤖 <b>${ctx.me?.first_name || 'Bot'} Status</b>\n\nUserbot: ${userSession ? (running ? '🟢 Running' : '🔴 Stopped') : 'Belum terdaftar'}\nOwner: <b>${callerUser.first_name}</b>`,
+          parse_mode: 'HTML',
+        });
+        return;
+      }
+
+      if (text.startsWith('verify')) {
+        await ctx.api.answerGuestQuery(guestQueryId, {
+          text: userSession
+            ? `✅ <b>Verified ${ctx.me?.first_name || 'Bot'} User</b>\n\nAkun <b>${callerUser.first_name}</b> memiliki sesi aktif.`
+            : `⚠️ <b>Belum Terverifikasi</b>\n\nAkun <b>${callerUser.first_name}</b> belum punya sesi aktif.`,
+          parse_mode: 'HTML',
+        });
+        return;
+      }
+
+      if (text.startsWith('stop')) {
+        if (!userSession) {
+          await ctx.api.answerGuestQuery(guestQueryId, { text: '❌ Anda belum mendaftarkan userbot.', parse_mode: 'HTML' });
+          return;
+        }
+        if (userbotManager.isRunning(telegramId)) await userbotManager.stopUserbot(telegramId);
+        await ctx.api.answerGuestQuery(guestQueryId, {
+          text: '🛑 <b>Emergency Stop</b>\n\nUserbot berhasil dimatikan.',
+          parse_mode: 'HTML',
+        });
+        return;
+      }
+
+      await ctx.api.answerGuestQuery(guestQueryId, {
+        text: `📖 <b>${ctx.me?.first_name || 'Bot'} Guest Commands</b>\n\n@${botUsername} status\n@${botUsername} verify\n@${botUsername} stop\n@${botUsername} help`,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [[{ text: 'Buka Panel', url: `https://t.me/${botUsername}` }]] },
+      });
+    } catch (err) {
+      console.error('Guest mode error:', err);
+    }
+  });
+}

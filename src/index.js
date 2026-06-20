@@ -1,7 +1,7 @@
 import './config.js';
 import bot from './bot/index.js';
-import userbotManager from './userbot/manager.js';
-import { getAllRegisteredUsers, updateUserbotStatus } from './database/db.js';
+import userbotManager from './userbot/engine/manager.js';
+import { getAllRegisteredUsers, updateUserbotStatus } from './core/database.js';
 
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 

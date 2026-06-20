@@ -21,6 +21,7 @@
     "jimp": "^1.6.1",
     "mongoose": "^9.7.1",
     "qrcode": "^1.5.4",
+    "speedtest-net": "^2.2.0",
     "teleproto": "^1.227.0"
   }
 }
