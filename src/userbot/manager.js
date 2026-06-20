@@ -11,6 +11,7 @@ class UserbotManager {
     this.clients = new Map();
     this.reconnecting = new Set();
     this.watchdogInterval = null;
+    this.watchdogRunning = false;
   }
 
   async startUserbot(telegramId, sessionString) {
@@ -80,7 +81,12 @@ class UserbotManager {
     if (this.watchdogInterval) return;
     console.log(`🛡️ Userbot Watchdog started (${intervalMs}ms interval).`);
     this.watchdogInterval = setInterval(() => {
-      this.checkAndReconnect().catch(err => console.error('Watchdog error:', err.message || err));
+      // Cegah siklus tumpang-tindih bila pengecekan sebelumnya belum selesai
+      if (this.watchdogRunning) return;
+      this.watchdogRunning = true;
+      this.checkAndReconnect()
+        .catch(err => console.error('Watchdog error:', err.message || err))
+        .finally(() => { this.watchdogRunning = false; });
     }, intervalMs);
   }
 
@@ -111,7 +117,7 @@ class UserbotManager {
         console.error(`Watchdog failed for [${id}]:`, err.message || err);
         if (err.message && (err.message.includes('Not a valid string') || err.message.includes('session string'))) {
           console.error(`❌ Sesi untuk [${id}] tidak valid/rusak. Menonaktifkan userbot secara otomatis agar tidak loop.`);
-          updateUserbotStatus(id, false);
+          await updateUserbotStatus(id, false);
         }
       } finally {
         this.reconnecting.delete(id);
@@ -126,7 +132,7 @@ class UserbotManager {
   status() {
     return {
       running: this.clients.size,
-      ids: [...this.clients.keys()],
+      ids: [...this.clients.keys()]
     };
   }
 }
