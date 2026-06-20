@@ -23,8 +23,7 @@ import {
 import { registerInlineHelpHandlers } from './inlineHelp.js';
 import { registerInlineAntiPmHandlers } from './inlineAntiPm.js';
 import { registerInlineLatexHandlers } from './inlineLatex.js';
-import { registerRichHandlers, sendAccessDeniedRich } from './richHandlers.js';
-import { panelMain, keyboardMain } from './richUi.js';
+import { registerRichHandlers, sendAccessDeniedRich, panelMain, keyboardMain } from './dashboard.js';
 
 const bot = new Bot(config.botToken);
 
