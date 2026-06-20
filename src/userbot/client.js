@@ -3,7 +3,7 @@ import { StringSession } from 'teleproto/sessions/index.js';
 import { NewMessage, Raw } from 'teleproto/events/index.js';
 import { Api } from 'teleproto';
 import config from '../config.js';
-import { disablePlugin, getUserbotSession } from '../database/db.js';
+import { getUserbotSession } from '../database/db.js';
 import { loadAllPlugins } from './pluginLoader.js';
 import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
 
@@ -11,13 +11,13 @@ function disabledSet(settings) {
   return new Set((settings?.disabled_plugins || []).map(normalizePluginName));
 }
 
-// Flag untuk memastikan plugin hanya di-load sekali
+// Flag untuk memastikan plugin hanya di-load sekali di seluruh proses
 let pluginsLoaded = false;
 
 export class UserbotClient {
   /**
-   * @param {number} telegramId 
-   * @param {string} sessionString 
+   * @param {number} telegramId
+   * @param {string} sessionString
    */
   constructor(telegramId, sessionString) {
     this.telegramId = telegramId;
@@ -38,14 +38,14 @@ export class UserbotClient {
       }
 
       const stringSession = new StringSession(this.sessionString);
-      
+
       this.client = new TelegramClient(stringSession, config.apiId, config.apiHash, {
         connectionRetries: 5,
         deviceModel: 'Chrome 147',
         systemVersion: 'Android 11',
         appVersion: '2.2 K',
         langCode: 'id',
-        systemLangCode: 'id-ID',
+        systemLangCode: 'id-ID'
       });
 
       await this.client.connect();
@@ -55,7 +55,6 @@ export class UserbotClient {
 
       // Register handlers
       this.registerHandlers();
-      
     } catch (error) {
       console.error(`❌ Failed to start DeltaUbotJS for user ${this.telegramId}:`, error);
       this.isActive = false;
@@ -98,15 +97,14 @@ export class UserbotClient {
       const message = event.message;
       if (!message) return;
 
-      // 1. Ambil setelan terkini dari Database RAM Cache (0ms)
+      // 1. Ambil setelan terkini dari in-memory cache (0ms)
       const settings = getUserbotSession(this.telegramId);
       if (!settings) return;
 
-      // 2. Jalankan seluruh plugin secara sekuensial (dari loadedPlugins)
+      // 2. Jalankan seluruh plugin secara sekuensial
       const disabled = disabledSet(settings);
       for (const plugin of loadedPlugins) {
-        const name = normalizePluginName(plugin.name);
-        if (disabled.has(name)) continue;
+        if (disabled.has(normalizePluginName(plugin.name))) continue;
 
         try {
           await plugin.execute(this.client, message, settings, this.telegramId);
@@ -114,7 +112,6 @@ export class UserbotClient {
           console.error(`❌ Error in plugin ${plugin.name} for [${this.telegramId}]:`, err.message);
         }
       }
-      
     }, new NewMessage({}));
 
     // ==========================================
@@ -123,16 +120,16 @@ export class UserbotClient {
     // ==========================================
     this.client.addEventHandler(async (event) => {
       const update = event.update;
-      
-      // Buat object event yang kompatibel dengan plugin
+
+      // Objek event yang kompatibel dengan plugin
       const callbackEvent = {
         data: update.data,
         getMessage: async () => {
           try {
-            // Ambil pesan yang mengandung tombol inline
             const msgs = await this.client.getMessages(update.peer, { ids: [update.msgId] });
             return msgs[0] || null;
-          } catch (e) {
+          } catch (err) {
+            console.error(`❌ Error fetching callback message for [${this.telegramId}]:`, err.message);
             return null;
           }
         },
@@ -145,7 +142,9 @@ export class UserbotClient {
                 message: options.message || ''
               })
             );
-          } catch (e) {}
+          } catch (err) {
+            console.error(`❌ Error answering callback for [${this.telegramId}]:`, err.message);
+          }
         }
       };
 
@@ -154,16 +153,14 @@ export class UserbotClient {
 
       // Jalankan onCallbackQuery pada setiap plugin yang memilikinya
       for (const plugin of loadedPlugins) {
-        const name = normalizePluginName(plugin.name);
-        if (disabled.has(name)) continue;
+        if (disabled.has(normalizePluginName(plugin.name))) continue;
+        if (typeof plugin.onCallbackQuery !== 'function') continue;
 
-        if (typeof plugin.onCallbackQuery === 'function') {
-          try {
-            const handled = await plugin.onCallbackQuery(this.client, callbackEvent, settings, this.telegramId);
-            if (handled) break; // Stop jika sudah ditangani
-          } catch (err) {
-            console.error(`❌ Error in plugin ${plugin.name} callback handler for [${this.telegramId}]:`, err.message);
-          }
+        try {
+          const handled = await plugin.onCallbackQuery(this.client, callbackEvent, settings, this.telegramId);
+          if (handled) break; // Stop jika sudah ditangani
+        } catch (err) {
+          console.error(`❌ Error in plugin ${plugin.name} callback handler for [${this.telegramId}]:`, err.message);
         }
       }
     }, new Raw({ types: [Api.UpdateBotCallbackQuery] }));
