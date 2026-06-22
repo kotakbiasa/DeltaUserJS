@@ -1,6 +1,9 @@
 import { saveGroupNote, deleteGroupNote, getGroupNote, getAllGroupNotes } from '../../../core/database.js';
 import { parseRichText } from '../../../utils/richParser.js';
+import { replyRich, quote, b, code } from '../../../utils/richMessage.js';
 import { isAdmin } from '../admin/admin_bot.js';
+
+const NOTE_NAME_RE = /^[a-z0-9_]+$/;
 
 export function registerNotesHandlers(bot) {
   // --- SAVE NOTE ---
@@ -10,18 +13,19 @@ export function registerNotesHandlers(bot) {
 
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
-      return ctx.reply('❌ Format salah.\nGunakan: <code>/save namacatatan [isi catatan]</code> atau balas pesan dengan <code>/save namacatatan</code>.', { parse_mode: 'HTML' });
+      return replyRich(
+        ctx,
+        quote(`${b('❌ FORMAT SALAH')}\nGunakan: ${code('/save namacatatan [isi]')} ` +
+          `atau balas sebuah pesan dengan ${code('/save namacatatan')}.`),
+      );
     }
 
     const noteName = parts[1].toLowerCase();
-    
-    // Jangan izinkan nama catatan yang aneh
-    if (!/^[a-z0-9_]+$/.test(noteName)) {
+    if (!NOTE_NAME_RE.test(noteName)) {
       return ctx.reply('❌ Nama catatan hanya boleh mengandung huruf, angka, dan underscore (_).');
     }
 
     let noteText = '';
-    
     if (ctx.message.reply_to_message) {
       noteText = ctx.message.reply_to_message.text || ctx.message.reply_to_message.caption || '';
       if (!noteText) {
@@ -36,9 +40,12 @@ export function registerNotesHandlers(bot) {
 
     try {
       await saveGroupNote(ctx.chat.id, noteName, noteText);
-      await ctx.replyWithRichMessage({ html: `<blockquote><b>✅ BERHASIL</b><br>Catatan <b>#${noteName}</b> berhasil disimpan.\n\nAnggota grup sekarang bisa memanggilnya dengan mengetik <code>#${noteName}</code></blockquote>` });
+      await replyRich(ctx, quote(
+        `${b('✅ BERHASIL')}\nCatatan ${b(`#${noteName}`)} berhasil disimpan.\n\n` +
+        `Anggota grup dapat memanggilnya dengan mengetik ${code(`#${noteName}`)}.`,
+      ));
     } catch (err) {
-      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal menyimpan catatan: ${err.message}</blockquote>` });
+      await replyRich(ctx, quote(`${b('❌ KESALAHAN')}\nGagal menyimpan catatan: ${err.message}`));
     }
   });
 
@@ -49,20 +56,19 @@ export function registerNotesHandlers(bot) {
 
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
-      return ctx.reply('❌ Harap sebutkan nama catatan.\nContoh: <code>/clear rules</code>', { parse_mode: 'HTML' });
+      return replyRich(ctx, quote(`${b('❌ KESALAHAN')}\nHarap sebutkan nama catatan. Contoh: ${code('/clear rules')}`));
     }
 
     const noteName = parts[1].toLowerCase();
-
     try {
       const success = await deleteGroupNote(ctx.chat.id, noteName);
       if (success) {
-        await ctx.replyWithRichMessage({ html: `<blockquote><b>✅ BERHASIL</b><br>Catatan <b>#${noteName}</b> berhasil dihapus.</blockquote>` });
+        await replyRich(ctx, quote(`${b('✅ BERHASIL')}\nCatatan ${b(`#${noteName}`)} berhasil dihapus.`));
       } else {
-        await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Catatan <b>#${noteName}</b> tidak ditemukan.</blockquote>` });
+        await replyRich(ctx, quote(`${b('❌ KESALAHAN')}\nCatatan ${b(`#${noteName}`)} tidak ditemukan.`));
       }
     } catch (err) {
-      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal menghapus catatan: ${err.message}</blockquote>` });
+      await replyRich(ctx, quote(`${b('❌ KESALAHAN')}\nGagal menghapus catatan: ${err.message}`));
     }
   });
 
@@ -76,15 +82,13 @@ export function registerNotesHandlers(bot) {
         return ctx.reply('📝 Tidak ada catatan yang tersimpan di grup ini.');
       }
 
-      let text = '📝 <b>Daftar Catatan Grup:</b>\n\n';
-      notes.forEach(note => {
-        text += `- <code>#${note}</code>\n`;
-      });
-      text += '\n<i>Ketik nama catatan untuk melihat isinya.</i>';
-
-      await ctx.reply(text, { parse_mode: 'HTML' });
+      const lines = notes.map((note) => `• ${code(`#${note}`)}`).join('\n');
+      await replyRich(ctx, quote(
+        `${b('📝 Daftar Catatan Grup')}\n\n${lines}\n\nKetik nama catatan untuk melihat isinya.`,
+        { expandable: notes.length > 8 },
+      ));
     } catch (err) {
-      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal mengambil daftar catatan: ${err.message}</blockquote>` });
+      await replyRich(ctx, quote(`${b('❌ KESALAHAN')}\nGagal mengambil daftar catatan: ${err.message}`));
     }
   });
 
@@ -92,25 +96,20 @@ export function registerNotesHandlers(bot) {
   bot.on('message:text', async (ctx, next) => {
     if (ctx.chat.type === 'private') return next();
 
-    const text = ctx.message.text;
-    
-    // Cari semua string yang berawalan #
-    const matches = text.match(/#([a-z0-9_]+)/gi);
+    const matches = ctx.message.text.match(/#([a-z0-9_]+)/gi);
     if (!matches) return next();
 
-    // Untuk mencegah spam bot, kita hanya akan merespon hashtag pertama jika ada banyak
+    // Only respond to the first hashtag to avoid spam.
     const firstTag = matches[0].substring(1).toLowerCase();
-    
     const noteText = getGroupNote(ctx.chat.id, firstTag);
     if (noteText) {
       const { text: parsedText, keyboard } = parseRichText(noteText, ctx.from, ctx.chat);
       const options = {
-        parse_mode: 'Markdown',
-        reply_parameters: { message_id: ctx.message.message_id }
+        markdown: true,
+        reply_parameters: { message_id: ctx.message.message_id },
       };
       if (keyboard) options.reply_markup = keyboard;
-      
-      await ctx.reply(parsedText, options);
+      await replyRich(ctx, parsedText, options).catch(() => {});
     }
 
     return next();

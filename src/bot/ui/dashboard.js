@@ -309,7 +309,7 @@ export function keyboardMain(ctx) {
   const rows = [
     [{ text: `➕ Tambahkan ${botName} ke Grup Anda ➕`, url: `https://t.me/${botUsername}?startgroup=true` }],
     [
-      { text: '📚 Bantuan Manajemen', callback_data: 'rich:group_help' },
+      { text: '📚 Help', callback_data: 'rich:help_main' },
       { text: '⚙️ Pengaturan Grup', callback_data: 'rich:group_settings' },
     ],
     [{ text: '🤖 Userbot', callback_data: 'rich:panel_menu', style: 'primary' }],
@@ -341,7 +341,7 @@ export function keyboardUserbot(ctx) {
   return { inline_keyboard: [
     [{ text: isRunning ? '🔌 Matikan Bot' : '⚡ Hidupkan Bot', callback_data: 'rich:toggle_power' }],
     [{ text: '🧩 Plugin Studio', callback_data: 'rich:plugin_page:1' }, { text: '⚙️ Settings', callback_data: 'rich:settings' }],
-    [{ text: '📚 Module Library', callback_data: 'rich:help_ubot' }],
+    [{ text: '📚 Help', callback_data: 'rich:help_ubot' }],
     [{ text: '🔙 Dashboard Utama', callback_data: 'rich:main' }],
   ] };
 }
@@ -458,6 +458,12 @@ async function mongoStatusLabel() {
 }
 
 async function sendRich(ctx, rich, reply_markup, { deleteOld = false } = {}) {
+  if (ctx.inlineMessageId) {
+    if (ctx.answerCallbackQuery) {
+      await ctx.answerCallbackQuery({ text: '⚠️ Silakan akses menu ini melalui Private Chat (DM) bot.', show_alert: true }).catch(()=>{});
+    }
+    return;
+  }
   const rich_message = typeof rich === 'string' ? { html: rich } : rich;
   try {
     await ctx.replyWithRichMessage(
@@ -477,10 +483,9 @@ async function openMain(ctx, options = {}) {
   await sendRich(ctx, panelMain(ctx), keyboardMain(ctx), options);
 }
 
-async function openHelp(ctx, target = 'ubot', options = {}) {
+async function openHelp(ctx, target = 'main', options = {}) {
   const dbSession = getUserbotSession(ctx.from.id);
-  const totalPages = Math.ceil(Object.keys(helpRegistry).length / 4) || 1;
-  await sendRich(ctx, buildHelpMenuRichHtml(dbSession, 1, totalPages), helpKeyboard(1, target), options);
+  await sendRich(ctx, buildHelpMenuRichHtml(dbSession, 1, target), helpKeyboard(1, target), options);
 }
 
 
@@ -506,7 +511,12 @@ export function registerRichHandlers(bot) {
     return prev(method, payload, signal);
   });
 
-  bot.command(['start', 'menu', 'help'], async (ctx) => {
+  bot.command('help', async (ctx) => {
+    if (ctx.chat.type !== 'private') return;
+    await openHelp(ctx, 'main');
+  });
+
+  bot.command(['start', 'menu'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
       await ctx.reply(`🤖 <b>${ctx.me.first_name} Aktif!</b>\n\nSilakan kirim pesan secara privat (PM) kepada saya untuk mengelola Bot Anda.`, {
         parse_mode: 'HTML',
@@ -531,7 +541,7 @@ export function registerRichHandlers(bot) {
       return ctx.reply('❌ Anda belum memiliki sesi bot yang aktif di sistem.');
     }
     
-    await ctx.replyWithRichMessage({ html: `<tg-thinking>Memproses penghapusan sesi dan logout dari Telegram...</tg-thinking>` });
+    await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Memproses penghapusan sesi dan logout dari Telegram...</blockquote>` });
     
     // Attempt remote logout
     try {
@@ -561,7 +571,7 @@ export function registerRichHandlers(bot) {
     
     if (action === 'ubot') {
       try {
-        const thinking = await ctx.replyWithRichMessage({ html: `<tg-thinking>Mengambil data sensor Userbot...</tg-thinking>` });
+        const thinking = await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Mengambil data sensor Userbot...</blockquote>` });
         await sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { deleteOld: true });
         if (thinking && thinking.message_id) {
           await ctx.api.deleteMessage(ctx.chat?.id || ctx.callbackQuery?.message?.chat?.id, thinking.message_id).catch(()=>{});

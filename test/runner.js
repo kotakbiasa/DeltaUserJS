@@ -1,9 +1,9 @@
 // 1. Load stubs before any other module imports to isolate DB and file system
 import './setupStubs.js';
 
-import userbotManager from '../src/userbot/manager.js';
-import { UserbotClient } from '../src/userbot/client.js';
-import { loadAllPlugins } from '../src/userbot/pluginLoader.js';
+import userbotManager from '../src/userbot/engine/manager.js';
+import { UserbotClient } from '../src/userbot/engine/client.js';
+import { loadAllPlugins } from '../src/userbot/engine/pluginLoader.js';
 import { MockTelegramClient } from './mockGramJS.js';
 import { tests } from './e2e.test.js';
 
@@ -25,7 +25,7 @@ UserbotClient.prototype.start = async function() {
   console.log(`🤖 Mocked DeltaUbotJS [${this.telegramId}] started successfully.`);
 };
 
-import { saveUserbotSession, deleteUserbotSession } from '../src/database/db.js';
+import { saveUserbotSession, deleteUserbot as deleteUserbotSession } from '../src/core/database.js';
 
 // 3. Execution Engine
 async function runSuite() {

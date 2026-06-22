@@ -406,7 +406,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
     // Session string sudah didapat dari dalam external() di atas
     saveUserbotSession(telegramId, phoneNumber, sessionString);
 
-    await ctx.replyWithRichMessage({ html: `<h1>✨ Selamat! Pendaftaran Userbot Berhasil!</h1><blockquote><tg-thinking>Mengaktifkan userbot Anda...</tg-thinking></blockquote>` }, {  });
+    await ctx.replyWithRichMessage({ html: `<h1>✨ Selamat! Pendaftaran Userbot Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>` }, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
@@ -593,7 +593,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
     // Save to Database
     saveUserbotSession(telegramId, null, qrResult.sessionString);
 
-    await ctx.replyWithRichMessage({ html: `<h1>✨ Selamat! Pendaftaran via QR Code Berhasil!</h1><blockquote><tg-thinking>Mengaktifkan userbot Anda...</tg-thinking></blockquote>` }, {  });
+    await ctx.replyWithRichMessage({ html: `<h1>✨ Selamat! Pendaftaran via QR Code Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>` }, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
@@ -683,7 +683,7 @@ export async function broadcastConversation(conversation, ctx) {
       throw err;
     }
 
-    await ctx.replyWithRichMessage({ html: `<tg-thinking>Memulai proses broadcast...</tg-thinking>` });
+    await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Memulai proses broadcast...</blockquote>` });
 
     // Load DB and active list
     const { getAllRegisteredUsers } = await import('../../../core/database.js');

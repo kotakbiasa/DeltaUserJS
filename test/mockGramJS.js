@@ -1,4 +1,4 @@
-import { Api } from 'telegram';
+import { Api } from 'teleproto';
 
 export class MockTelegramClient {
   constructor(telegramId) {

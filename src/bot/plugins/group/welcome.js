@@ -1,5 +1,6 @@
 import { getGroupConfig, updateGroupConfig } from '../../../core/database.js';
 import { parseRichText } from '../../../utils/richParser.js';
+import { replyRich, quote } from '../../../utils/richMessage.js';
 import { isAdmin } from '../admin/admin_bot.js';
 
 async function isGroupAdmin(ctx, userId) {
@@ -67,15 +68,15 @@ export function registerWelcomeHandlers(bot) {
 
     for (const member of ctx.message.new_chat_members) {
       if (member.id === ctx.me.id) {
-        await ctx.reply(`<blockquote>Terima kasih telah menambahkan saya ke grup! Jadikan saya Admin agar fitur moderasi berfungsi optimal.</blockquote>`, { parse_mode: 'HTML' }).catch(()=>{});
+        await replyRich(ctx, quote('Terima kasih telah menambahkan saya ke grup! Jadikan saya Admin agar fitur moderasi berfungsi optimal.')).catch(() => {});
         continue;
       }
-      
+
       const { text, keyboard } = parseRichText(config.welcome_text, member, ctx.chat);
-      const options = { parse_mode: 'Markdown' };
+      const options = { markdown: true };
       if (keyboard) options.reply_markup = keyboard;
-        
-      await ctx.reply(text, options).catch(() => {});
+
+      await replyRich(ctx, text, options).catch(() => {});
     }
     return next();
   });
@@ -88,10 +89,10 @@ export function registerWelcomeHandlers(bot) {
     if (member.id === ctx.me.id) return next();
 
     const { text, keyboard } = parseRichText(config.goodbye_text, member, ctx.chat);
-    const options = { parse_mode: 'Markdown' };
+    const options = { markdown: true };
     if (keyboard) options.reply_markup = keyboard;
-      
-    await ctx.reply(text, options).catch(() => {});
+
+    await replyRich(ctx, text, options).catch(() => {});
     return next();
   });
 }

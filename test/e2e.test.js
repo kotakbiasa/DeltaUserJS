@@ -1,11 +1,11 @@
-import { Api } from 'telegram';
+import { Api } from 'teleproto';
 import { 
   getSchedules, 
   getChatSettings, 
   getReputation,
   getWarns,
   getChatLocks
-} from '../src/database/db.js';
+} from '../src/core/database.js';
 
 export const tests = [];
 

@@ -24,7 +24,7 @@ export function registerInfoHandlers(bot) {
 
     try {
       // Show thinking indicator using API 10.1
-      const thinkingMsg = await ctx.replyWithRichMessage({ html: `<tg-thinking>Mengambil profil pengguna...</tg-thinking>` });
+      const thinkingMsg = await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Mengambil profil pengguna...</blockquote>` });
 
       // Fetch full chat to get bio if possible (for users it might be empty without Userbot, but we try)
       const fullChat = await ctx.api.getChat(targetUser.id).catch(() => targetUser);

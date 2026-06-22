@@ -1,7 +1,7 @@
 # Project: DeltaUserJS Advanced Features
 
 ## Architecture
-- Database: Mongoose models defined in `src/database/db.js` for persistent schedules, per-chat settings, and reputation tracking.
+- Database: Mongoose models defined in `src/core/database.js` for persistent schedules, per-chat settings, and reputation tracking.
 - Scheduler: Automatically starts on userbot startup, queries the persistent schedules from Mongo, and registers timeout/intervals.
 - Plugins: Integrated into `src/userbot/plugins/`. Commands are registered via exporting default object with `name`, `help`, `execute`.
 - Event Handling: Intercepts service messages for welcome/goodbye/cleanup and monitors message frequency for anti-flood.

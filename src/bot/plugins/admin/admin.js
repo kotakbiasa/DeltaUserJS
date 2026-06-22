@@ -7,7 +7,7 @@ export function registerOwnerHandlers(bot) {
   // --- Owner utility commands ---
   bot.command('backup', async (ctx) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) return;
-    await ctx.replyWithRichMessage({ html: `<tg-thinking>Menyiapkan backup database...</tg-thinking>` });
+    await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Menyiapkan backup database...</blockquote>` });
     try {
       const users = await UserbotModel.find({}).lean();
       const backupData = JSON.stringify(users, null, 2);

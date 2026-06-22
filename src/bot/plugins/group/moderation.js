@@ -200,7 +200,7 @@ export function registerModerationHandlers(bot) {
     
     // Telegram API allows deleting up to 100 messages at once
     try {
-      const thinkingMsg = await ctx.replyWithRichMessage({ html: `<tg-thinking>Menyapu bersih ${messageIds.length} pesan...</tg-thinking>` });
+      const thinkingMsg = await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Menyapu bersih ${messageIds.length} pesan...</blockquote>` });
 
       // Split into chunks of 100
       for (let i = 0; i < messageIds.length; i += 100) {

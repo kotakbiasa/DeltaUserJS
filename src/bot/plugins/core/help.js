@@ -1,16 +1,23 @@
-import { helpRegistry } from '../../../userbot/engine/pluginRegistry.js';
+import { helpRegistry as userbotHelpRegistry } from '../../../userbot/engine/pluginRegistry.js';
 import { getUserbotSession } from '../../../core/database.js';
 import { escapeHtml } from '../../ui/dashboard.js';
 
 function table(caption, rows) {
   return `<table bordered striped><caption>${escapeHtml(caption)}</caption>` +
     `<tr><th align="center">Item</th><th align="center">Detail</th></tr>` +
-    rows.map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td align="center">${escapeHtml(v)}</td></tr>`).join('') +
+    rows.map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td align="center">${v}</td></tr>`).join('') +
     `</table>`;
 }
 
-function moduleNames() {
-  return Object.keys(helpRegistry).sort();
+export const masterHelpRegistry = {};
+
+function getRegistry(target) {
+  if (target === 'ubot') return userbotHelpRegistry;
+  return masterHelpRegistry;
+}
+
+function moduleNames(target = 'main') {
+  return Object.keys(getRegistry(target)).sort();
 }
 
 function formatModuleName(name) {
@@ -19,39 +26,100 @@ function formatModuleName(name) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-
-// Inject Master Bot modules manually since they don't use the Userbot PluginRegistry
-helpRegistry['moderation'] = {
-  title: 'Moderation (Master)',
-  description: 'Sistem perlindungan grup: ban, kick, mute, dan pembersihan pesan.',
-  usage: '/ban | /unban | /kick | /mute | /unmute | /purge | /del | /pin | /unpin | /unpinall',
-  detail: 'Modul ini hanya bekerja di dalam grup dan hanya bisa dipanggil oleh Admin grup.'
+// Inject Master Bot modules manually
+masterHelpRegistry['antispam'] = {
+  title: 'Anti-Spam (Master)',
+  description: 'Mendeteksi dan menghapus pesan spam atau link mencurigakan.',
+  usage: '/antispam <on/off>',
+  detail: 'Modul ini membantu melindungi grup dari serangan bot spam.'
 };
-helpRegistry['security'] = {
-  title: 'Security & Spam (Master)',
-  description: 'Proteksi ekstra untuk melawan botnet dan spammer (Locks, Blacklist, Captcha).',
-  usage: '/lock <tipe> | /unlock <tipe> | /captcha <on/off> | /addbl <kata> | /rmbl <kata> | /listbl',
-  detail: 'Tipe lock: url, forward, sticker, arabic, bots. Segala pelanggaran akan otomatis dihapus oleh bot.'
+masterHelpRegistry['approve'] = {
+  title: 'Auto-Approve (Master)',
+  description: 'Persetujuan otomatis untuk anggota baru yang meminta bergabung.',
+  usage: '/autoapprove <on/off> | /approve | /disapprove',
+  detail: 'Berguna untuk grup yang menggunakan sistem persetujuan masuk (Join Request).'
 };
-helpRegistry['federation'] = {
-  title: 'Federation F-Ban (Master)',
-  description: 'Jaringan keamanan global antar grup. Scammer diban di satu grup, akan terblokir di semua cabang.',
+masterHelpRegistry['blacklist'] = {
+  title: 'Blacklist (Master)',
+  description: 'Memblokir kata-kata tertentu di grup.',
+  usage: '/addbl <kata> | /rmbl <kata> | /listbl',
+  detail: 'Setiap pesan yang mengandung kata dalam blacklist akan otomatis dihapus.'
+};
+masterHelpRegistry['captcha'] = {
+  title: 'Captcha (Master)',
+  description: 'Verifikasi anggota baru untuk mencegah bot.',
+  usage: '/captcha <on/off>',
+  detail: 'Anggota baru harus menyelesaikan captcha tombol sebelum bisa mengirim pesan.'
+};
+masterHelpRegistry['federation'] = {
+  title: 'Federation (Master)',
+  description: 'Jaringan keamanan global antar grup. F-Ban scammer di semua grup yang tergabung.',
   usage: '/newfed | /joinfed | /leavefed | /fban | /unfban | /fedinfo',
   detail: 'Tautkan banyak grup untuk membagi daftar hitam (blacklist) secara real-time antar grup.'
 };
-helpRegistry['utils'] = {
-  title: 'Group Utils (Master)',
-  description: 'Fungsi otomatisasi untuk mempermudah manajemen grup.',
-  usage: '/autoapprove <on/off> | /nightmode <on/off> | /setwelcome | /setgoodbye | /save <nama> | /info',
-  detail: 'Memiliki sistem Rich Messages! Anda bisa mengetik [Tombol](buttonurl://link.com) saat menyimpan notes atau welcome.'
+masterHelpRegistry['info'] = {
+  title: 'Information (Master)',
+  description: 'Melihat ID dan informasi pengguna atau grup.',
+  usage: '/info [reply/username] | /id',
+  detail: 'Menampilkan data lengkap Telegram dari entitas tersebut.'
+};
+masterHelpRegistry['locks'] = {
+  title: 'Locks (Master)',
+  description: 'Mengunci tipe media tertentu di grup.',
+  usage: '/lock <tipe> | /unlock <tipe> | /locks',
+  detail: 'Tipe yang bisa dikunci: url, forward, sticker, arabic, bots, photo, video, document, dll.'
+};
+masterHelpRegistry['moderation'] = {
+  title: 'Moderation (Master)',
+  description: 'Perintah moderasi dasar untuk admin grup.',
+  usage: '/ban | /unban | /kick | /mute | /unmute | /purge | /del | /pin | /unpin | /unpinall',
+  detail: 'Pastikan bot memiliki hak akses Admin yang cukup untuk mengeksekusi ini.'
+};
+masterHelpRegistry['nightmode'] = {
+  title: 'Nightmode (Master)',
+  description: 'Mode malam untuk grup (otomatis tutup grup di jam tertentu).',
+  usage: '/nightmode <on/off>',
+  detail: 'Saat nightmode aktif, grup hanya bisa dikirimi pesan oleh Admin.'
+};
+masterHelpRegistry['notes'] = {
+  title: 'Notes (Master)',
+  description: 'Menyimpan catatan atau teks panjang di grup.',
+  usage: '/save <nama> | /get <nama> | /clear <nama> | /notes',
+  detail: 'Mendukung Rich Messages! Anda bisa menggunakan format markdown untuk tombol: [Teks](buttonurl://link.com).'
+};
+masterHelpRegistry['report'] = {
+  title: 'Report (Master)',
+  description: 'Melaporkan pesan ke admin grup.',
+  usage: '/report | @admin',
+  detail: 'Balas pesan yang melanggar dengan /report agar Admin grup dinotifikasi.'
+};
+masterHelpRegistry['warns'] = {
+  title: 'Warnings (Master)',
+  description: 'Sistem peringatan untuk member yang melanggar aturan.',
+  usage: '/warn | /unwarn | /warns',
+  detail: 'Member yang mencapai batas peringatan maksimum akan otomatis dibanned atau dimute.'
+};
+masterHelpRegistry['welcome'] = {
+  title: 'Welcome (Master)',
+  description: 'Pesan sambutan otomatis untuk anggota baru.',
+  usage: '/welcome <on/off> | /setwelcome | /setgoodbye | /resetwelcome',
+  detail: 'Sama seperti Notes, Anda dapat menggunakan tombol interaktif pada pesan sambutan.'
+};
+masterHelpRegistry['zombies'] = {
+  title: 'Zombies (Master)',
+  description: 'Membersihkan akun yang sudah dihapus (Deleted Accounts) dari grup.',
+  usage: '/zombies | /zombies clean',
+  detail: 'Hanya bisa dijalankan oleh Owner grup untuk menjaga kebersihan anggota.'
 };
 
-export function buildHelpMenuRichHtml(session, page = 1, totalPages = 1) {
-  return `<h1>📖 Module Library</h1>` +
+export function buildHelpMenuRichHtml(session, page = 1, target = 'main') {
+  const names = moduleNames(target);
+  const totalPages = Math.max(1, Math.ceil(names.length / 4));
+  return `<h1>📖 Help ${target === 'ubot' ? '(Userbot)' : '(Master)'}</h1>` +
     `<blockquote>Pilih modul untuk melihat command dan detail penggunaan.</blockquote>` +
     table('Library Overview', [
       ['Halaman', `${page}/${totalPages}`],
-      ['Total Modul', moduleNames().length],
+      ['Total Modul', names.length],
     ]);
 }
 
@@ -59,15 +127,17 @@ function plain(value = '-') {
   return String(value || '-').replace(/<[^>]+>/g, '');
 }
 
-function buildHelpMenuClassicHtml(session, page = 1, totalPages = 1) {
-  return `<b>📖 Module Library</b>\n` +
+function buildHelpMenuClassicHtml(session, page = 1, target = 'main') {
+  const names = moduleNames(target);
+  const totalPages = Math.max(1, Math.ceil(names.length / 4));
+  return `<b>📖 Help ${target === 'ubot' ? '(Userbot)' : '(Master)'}</b>\n` +
     `<blockquote>Pilih modul lewat tombol di bawah.</blockquote>\n` +
     `<b>Halaman:</b> <code>${page}/${totalPages}</code>\n` +
-    `<b>Total Modul:</b> <code>${moduleNames().length}</code>`;
+    `<b>Total Modul:</b> <code>${names.length}</code>`;
 }
 
-function buildModuleRichHtml(moduleName, session) {
-  const mod = helpRegistry[moduleName];
+function buildModuleRichHtml(moduleName, session, target = 'main') {
+  const mod = getRegistry(target)[moduleName];
   if (!mod) return `<h1>📦 Modul Tidak Ditemukan</h1>`;
   return `<h1>📦 ${escapeHtml(mod.title || formatModuleName(moduleName))}</h1>` +
     `<blockquote>${escapeHtml(mod.description)}</blockquote>` +
@@ -77,8 +147,8 @@ function buildModuleRichHtml(moduleName, session) {
     ]);
 }
 
-function buildModuleClassicHtml(moduleName, session) {
-  const mod = helpRegistry[moduleName];
+function buildModuleClassicHtml(moduleName, session, target = 'main') {
+  const mod = getRegistry(target)[moduleName];
   if (!mod) return `<b>📦 Modul Tidak Ditemukan</b>`;
   return `<b>📦 ${escapeHtml(mod.title || formatModuleName(moduleName))}</b>\n` +
     `<blockquote>${escapeHtml(plain(mod.description))}</blockquote>\n` +
@@ -86,27 +156,25 @@ function buildModuleClassicHtml(moduleName, session) {
     `<b>Detail</b>\n${escapeHtml(plain(mod.detail))}`;
 }
 
-export function helpKeyboard(page = 1, backTarget = 'main') {
-  const names = moduleNames();
-  const perPage = 6;
+export function helpKeyboard(page = 1, target = 'main', isInline = false) {
+  const names = moduleNames(target);
+  const perPage = 4;
   const totalPages = Math.max(1, Math.ceil(names.length / perPage));
   page = Math.min(Math.max(1, page), totalPages);
   const items = names.slice((page - 1) * perPage, page * perPage);
   const rows = [];
   for (let i = 0; i < items.length; i += 2) {
-    rows.push(items.slice(i, i + 2).map(name => ({ text: formatModuleName(name), callback_data: `help:module:${name}:${backTarget}` })));
+    rows.push(items.slice(i, i + 2).map(name => ({ text: formatModuleName(name), callback_data: `help:module:${name}:${target}` })));
   }
   if (totalPages > 1) {
     const nav = [];
-    if (page > 1) nav.push({ text: '⬅️ Prev', callback_data: `help:page:${page - 1}:${backTarget}` });
+    if (page > 1) nav.push({ text: '⬅️ Prev', callback_data: `help:page:${page - 1}:${target}` });
     nav.push({ text: `📄 ${page}/${totalPages}`, callback_data: 'help:noop' });
-    if (page < totalPages) nav.push({ text: 'Next ➡️', callback_data: `help:page:${page + 1}:${backTarget}` });
+    if (page < totalPages) nav.push({ text: 'Next ➡️', callback_data: `help:page:${page + 1}:${target}` });
     rows.push(nav);
   }
-  if (backTarget !== 'none') {
-    rows.push([{ text: backTarget === 'ubot' ? '🔙 Userbot Dashboard' : '🔙 Dashboard', callback_data: `rich:${backTarget === 'ubot' ? 'ubot' : 'main'}` }]);
-  } else {
-    rows.push([{ text: '❌ Tutup', callback_data: 'help:close' }]);
+  if (!isInline) {
+    rows.push([{ text: target === 'ubot' ? '🔙 Userbot Dashboard' : '🔙 Dashboard', callback_data: `rich:${target === 'ubot' ? 'ubot' : 'main'}` }]);
   }
   return { inline_keyboard: rows };
 }
@@ -131,7 +199,7 @@ export function registerInlineHelpHandlers(bot) {
     const moduleMatch = query.match(/^help(?:\s+|:)([a-z0-9_-]+)$/i);
     if (moduleMatch) {
       const moduleName = moduleMatch[1].toLowerCase();
-      if (!helpRegistry[moduleName]) {
+      if (!masterHelpRegistry[moduleName]) {
         await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
         return;
       }
@@ -140,7 +208,7 @@ export function registerInlineHelpHandlers(bot) {
         type: 'article',
         id: `help-module-${moduleName}-rich-v2`,
         title: `Module · ${formatModuleName(moduleName)}`,
-        description: helpRegistry[moduleName]?.description || `Detail modul ${ctx.me?.first_name || 'Bot'}`,
+        description: masterHelpRegistry[moduleName]?.description || `Detail modul ${ctx.me?.first_name || 'Bot'}`,
         input_message_content: {
           message_text: buildModuleClassicHtml(moduleName, session),
           parse_mode: 'HTML',
@@ -165,20 +233,20 @@ export function registerInlineHelpHandlers(bot) {
       return;
     }
 
-    if (query !== 'help') return next();
+    if (query !== 'help' && query !== 'help_ubot') return next();
 
+    const target = query === 'help_ubot' ? 'ubot' : 'main';
     const session = getUserbotSession(ctx.from.id);
-    const totalPages = Math.max(1, Math.ceil(moduleNames().length / 6));
     await ctx.answerInlineQuery([{
       type: 'article',
-      id: 'help-menu-rich-v2',
-      title: 'Module Library',
+      id: `help-menu-rich-v2-${target}`,
+      title: `Module Library (${target === 'ubot' ? 'Userbot' : 'Master'})`,
       description: `Buka library command ${ctx.me?.first_name || 'Bot'}`,
       input_message_content: {
-        message_text: buildHelpMenuClassicHtml(session, 1, totalPages),
+        message_text: buildHelpMenuClassicHtml(session, 1, target),
         parse_mode: 'HTML',
       },
-      reply_markup: helpKeyboard(1, 'none'),
+      reply_markup: helpKeyboard(1, target, true),
     }], { cache_time: 0, is_personal: true });
   });
 
@@ -192,32 +260,35 @@ export function registerInlineHelpHandlers(bot) {
     const moduleMatch = query.match(/^help(?:\s+|:)([a-z0-9_-]+)$/i);
     if (moduleMatch) {
       const moduleName = moduleMatch[1].toLowerCase();
-      if (!helpRegistry[moduleName]) return;
-      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildModuleRichHtml(moduleName, session) }, { reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: 'help:page:1:none' }]] } }).catch(() => {});
+      if (!masterHelpRegistry[moduleName]) return;
+      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildModuleRichHtml(moduleName, session, 'main') }, { reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: 'help:page:1:main' }]] } }).catch(() => {});
       return;
     }
 
-    if (query === 'help') {
-      const totalPages = Math.max(1, Math.ceil(moduleNames().length / 6));
-      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildHelpMenuRichHtml(session, 1, totalPages) }, { reply_markup: helpKeyboard(1, 'none') }).catch(() => {});
+    if (query === 'help' || query === 'help_ubot') {
+      const target = query === 'help_ubot' ? 'ubot' : 'main';
+      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildHelpMenuRichHtml(session, 1, target) }, { reply_markup: helpKeyboard(1, target, true) }).catch(() => {});
     }
   });
 
   bot.callbackQuery(/^help:page:(\d+)(?::(.+))?$/, async (ctx) => {
     const page = Number(ctx.match[1]);
-    const backTarget = ctx.match[2] || 'main';
+    const target = ctx.match[2] || 'main';
     const session = getUserbotSession(ctx.from.id);
-    const totalPages = Math.max(1, Math.ceil(moduleNames().length / 6));
+    const isInline = !!ctx.inlineMessageId;
     await ctx.answerCallbackQuery();
-    await sendHelpRich(ctx, buildHelpMenuRichHtml(session, page, totalPages), helpKeyboard(page, backTarget), true);
+    await sendHelpRich(ctx, buildHelpMenuRichHtml(session, page, target), helpKeyboard(page, target, isInline), true);
   });
 
   bot.callbackQuery(/^help:module:([^:]+)(?::(.+))?$/, async (ctx) => {
     const moduleName = ctx.match[1];
-    const backTarget = ctx.match[2] || 'main';
+    const target = ctx.match[2] || 'main';
     const session = getUserbotSession(ctx.from.id);
+    const isInline = !!ctx.inlineMessageId;
     await ctx.answerCallbackQuery();
-    await sendHelpRich(ctx, buildModuleRichHtml(moduleName, session), { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: `help:page:1:${backTarget}` }]] }, true);
+    
+    const backKeyboard = { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: `help:page:1:${target}` }]] };
+    await sendHelpRich(ctx, buildModuleRichHtml(moduleName, session, target), backKeyboard, true);
   });
 
   bot.callbackQuery('help:noop', async (ctx) => {
