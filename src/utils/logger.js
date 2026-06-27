@@ -7,13 +7,23 @@ export function setLoggerBot(botInstance) {
 }
 
 export class Logger {
+  static getTimestamp() {
+    const now = new Date();
+    return `\x1b[2m[${now.toLocaleTimeString()}]\x1b[0m`;
+  }
+
   static async logSystem(message, level = 'INFO') {
-    const prefix = `[${new Date().toISOString()}] [SYSTEM] [${level}]`;
-    if (level === 'ERROR' || level === 'WARN') {
-      console.error(`${prefix} ${message}`);
-    } else {
-      console.log(`${prefix} ${message}`);
+    const time = Logger.getTimestamp();
+    let levelTag = `\x1b[36m[SYSTEM]\x1b[0m`;
+    if (level === 'ERROR') {
+      levelTag = `\x1b[31m[ERROR]\x1b[0m`;
+    } else if (level === 'WARN') {
+      levelTag = `\x1b[33m[WARN]\x1b[0m`;
+    } else if (level === 'SUCCESS') {
+      levelTag = `\x1b[32m[SUCCESS]\x1b[0m`;
     }
+
+    console.log(`${time} ${levelTag} ${message}`);
 
     if (!masterBot) return;
 
@@ -28,12 +38,17 @@ export class Logger {
   }
 
   static async logUser(telegramId, message, level = 'INFO') {
-    const prefix = `[${new Date().toISOString()}] [USER:${telegramId}] [${level}]`;
-    if (level === 'ERROR' || level === 'WARN') {
-      console.error(`${prefix} ${message}`);
-    } else {
-      console.log(`${prefix} ${message}`);
+    const time = Logger.getTimestamp();
+    let levelTag = `\x1b[34m[USER:${telegramId}]\x1b[0m`;
+    if (level === 'ERROR') {
+      levelTag = `\x1b[31m[ERROR:${telegramId}]\x1b[0m`;
+    } else if (level === 'WARN') {
+      levelTag = `\x1b[33m[WARN:${telegramId}]\x1b[0m`;
+    } else if (level === 'SUCCESS') {
+      levelTag = `\x1b[32m[SUCCESS:${telegramId}]\x1b[0m`;
     }
+
+    console.log(`${time} ${levelTag} ${message}`);
 
     if (!masterBot) return;
 
