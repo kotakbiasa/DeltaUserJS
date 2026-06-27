@@ -5,10 +5,11 @@ services:
     build: .
     container_name: delta-ubot-js
     restart: always
-    volumes:
-      # Petakan file database lokal agar data sesi tidak hilang saat kontainer direstart/update
-      - ./database.json:/app/database.json
-      # Petakan file .env untuk kredensial
-      - ./.env:/app/.env
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_PATH=/app/data/database.json
+    volumes:
+      # Petakan direktori data lokal agar database.json tidak hilang saat kontainer direstart/update
+      - ./data:/app/data

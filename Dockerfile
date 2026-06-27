@@ -1,5 +1,5 @@
 # Gunakan image Node.js berbasis Alpine yang sangat ringan (hanya ~40MB)
-FROM node:20-alpine
+FROM node:26-alpine
 
 # Setel direktori kerja di dalam kontainer
 WORKDIR /app

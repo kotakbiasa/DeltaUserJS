@@ -24,6 +24,20 @@ mongoose.Model.find = async function(query) {
   return mockMongoStore;
 };
 
+mongoose.Model.findById = async function(id) {
+  if (id === 'system') {
+    return { _id: 'system', vars: {}, toObject: function() { return this; } };
+  }
+  return null;
+};
+
+mongoose.Model.findOne = async function(query) {
+  if (query && (query._id === 'system' || query.chat_id || query.telegram_id)) {
+    return { _id: 'system', vars: {}, toObject: function() { return this; } };
+  }
+  return null;
+};
+
 mongoose.Model.findOneAndUpdate = async function(query, update, options) {
   let bot = mockMongoStore.find(b => b.telegram_id === query.telegram_id);
   const data = update.$set || update;
