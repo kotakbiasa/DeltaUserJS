@@ -5,6 +5,7 @@ import { registerLegacyCallbacks } from './core/callbacks.js';
 import { registerInlineHelpHandlers, registerInlineLatexHandlers } from './core/help.js';
 import { registerInlineAntiPmHandlers } from './core/antiPm.js';
 import { registerInlineAnilistHandlers } from './core/anilist.js';
+import config from '../../config.js';
 
 import { registerOwnerHandlers } from './admin/admin.js';
 import { registerAdminHandlers } from './admin/admin_bot.js';
@@ -30,10 +31,14 @@ import { registerFilterHandlers } from './core/filters.js';
 export function registerAllHandlers(bot) {
   // Query Handlers
   registerLegacyCallbacks(bot);
-  registerInlineHelpHandlers(bot);
-  registerInlineAntiPmHandlers(bot);
-  registerInlineLatexHandlers(bot);
-  registerInlineAnilistHandlers(bot);
+  
+  // Registrasi inline query HANYA untuk custom inline bot milik masing-masing user
+  if (bot.token !== config.botToken) {
+    registerInlineHelpHandlers(bot);
+    registerInlineAntiPmHandlers(bot);
+    registerInlineLatexHandlers(bot);
+    registerInlineAnilistHandlers(bot);
+  }
 
   // User Handlers
   registerGuestHandler(bot);
