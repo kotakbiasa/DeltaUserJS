@@ -59,20 +59,10 @@ export default {
           if (session?.inline_bot_username) {
             // Coba menggunakan Custom Inline Bot agar pesan memiliki Inline Button
             try {
-              const botEntity = await client.getEntity(session.inline_bot_username);
-              const results = await client.invoke(new Api.messages.GetInlineBotResults({
-                bot: botEntity,
-                peer: message.peerId,
-                query: `antipm_${senderId}`,
-                offset: ''
-              }));
+              const results = await client.inlineQuery(session.inline_bot_username, `antipm_${senderId}`);
 
-              if (results && results.results && results.results.length > 0) {
-                await client.invoke(new Api.messages.SendInlineBotResult({
-                  peer: message.peerId,
-                  queryId: results.queryId,
-                  id: results.results[0].id
-                }));
+              if (results && results.length > 0) {
+                await results[0].click(message.peerId);
                 return; // Sukses mengirim via inline bot
               }
             } catch (inlineErr) {

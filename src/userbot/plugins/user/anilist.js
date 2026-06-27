@@ -32,25 +32,20 @@ export default {
     await message.edit({ text: `⏳ <b>Mencari informasi di database Anilist...</b>`, parseMode: 'html' });
 
     try {
-      // Dapatkan Bot Master dari bot token
-      const botId = Number(config.botToken.split(':')[0]);
-      const botEntity = await client.getEntity(botId);
+      const botUsername = settings.inline_bot_username;
+      if (!botUsername) {
+        await message.edit({
+          text: `❌ <b>Gagal:</b> Pencarian Anilist membutuhkan <b>Custom Inline Bot</b>.\nHarap atur <code>INLINE_BOT_TOKEN</code> terlebih dahulu di menu Vars Config.`,
+          parseMode: 'html'
+        });
+        return;
+      }
 
-      const results = await client.invoke(new Api.messages.GetInlineBotResults({
-        bot: botEntity,
-        peer: message.peerId,
-        query: `anilist_${cmd}_${search}`,
-        offset: ''
-      }));
+      const results = await client.inlineQuery(botUsername, `anilist_${cmd}_${search}`);
 
-      if (results && results.results && results.results.length > 0) {
+      if (results && results.length > 0) {
         // Kirim hasil inline
-        await client.invoke(new Api.messages.SendInlineBotResult({
-          peer: message.peerId,
-          queryId: results.queryId,
-          id: results.results[0].id,
-          replyToMsgId: message.replyToMsgId
-        }));
+        await results[0].click(message.peerId, message.replyToMsgId);
         
         // Hapus pesan loading
         try { await message.delete(); } catch(e) {}
