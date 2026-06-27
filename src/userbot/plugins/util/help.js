@@ -14,24 +14,27 @@ function formatModuleName(name) {
  */
 function buildHelpMenuText(settings) {
   const plugins = Object.keys(helpRegistry);
-  let text = `📖 <b>MENU BANTUAN USERBOT</b>\n\n` +
-    `<blockquote>` +
-    `<b>Daftar Modul:</b>\n`;
-    
-  const formattedPlugins = plugins.map(p => formatModuleName(p));
-  text += `<code>` + formattedPlugins.join('</code>, <code>') + `</code>\n` +
-    `</blockquote>\n` +
-    `Ketik <code>.help &lt;nama_modul&gt;</code> untuk melihat detail modul.\n\n` +
-    ``;
+  const total = plugins.length;
+  const formattedPlugins = plugins.map(p => `• <code>${formatModuleName(p)}</code>`).join('\n');
 
-  return text;
+  return (
+    `⚡ <b>DELTA UBOT — DAFTAR MODUL</b>\n` +
+    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
+    `ℹ️ <i>Gunakan custom inline bot untuk tampilan tombol interaktif.</i>\n\n` +
+    `📦 <b>Modul Aktif (${total}):</b>\n` +
+    `${formattedPlugins}\n\n` +
+    `📖 <b>Petunjuk Penggunaan:</b>\n` +
+    `<blockquote>Ketik <code>.help &lt;nama_modul&gt;</code> untuk melihat cara penggunaan dan detail modul.</blockquote>\n` +
+    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
+    `💻 <i>DeltaUserJS Project</i>`
+  );
 }
 
 /**
  * Konversi Markdown sederhana ke HTML
  */
 function markdownToHtml(text) {
-  if (!text) return text;
+  if (!text) return '';
   return text
     .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
     .replace(/__(.*?)__/g, '<i>$1</i>')
@@ -48,12 +51,16 @@ function buildModuleDetailText(moduleName, settings) {
   if (!mod) return null;
 
   return (
-    `📦 <b>MODUL: ${mod.title}</b>\n\n` +
-    `<details><summary><b>Deskripsi Modul</b></summary>\n${markdownToHtml(mod.description)}\n</details>\n` +
-    `<details><summary><b>Penggunaan Modul</b></summary>\n${markdownToHtml(mod.usage)}\n</details>\n` +
-    `<details><summary><b>Detail Tambahan</b></summary>\n${markdownToHtml(mod.detail)}\n</details>\n\n` +
-    `Ketik <code>.help</code> untuk kembali ke daftar modul.\n\n` +
-    ``
+    `📦 <b>MODUL: ${mod.title.toUpperCase()}</b>\n` +
+    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n` +
+    `📝 <b>Deskripsi:</b>\n` +
+    `<blockquote>${markdownToHtml(mod.description)}</blockquote>\n\n` +
+    `🚀 <b>Penggunaan:</b>\n` +
+    `<blockquote><code>${markdownToHtml(mod.usage)}</code></blockquote>\n\n` +
+    `💡 <b>Detail Tambahan:</b>\n` +
+    `<blockquote>${markdownToHtml(mod.detail)}</blockquote>\n\n` +
+    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
+    `🔙 <i>Ketik <code>.help</code> untuk kembali ke daftar modul.</i>`
   );
 }
 
