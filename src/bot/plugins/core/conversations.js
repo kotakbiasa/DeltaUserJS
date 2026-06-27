@@ -735,6 +735,7 @@ export async function manageVarsConv(conversation, ctx) {
     // Tombol untuk variabel umum
     kb.text('🔑 INLINE_BOT_TOKEN', 'var:set:INLINE_BOT_TOKEN').row();
     kb.text('💬 LOG_CHAT_ID', 'var:set:LOG_CHAT_ID').row();
+    kb.text('⚙️ PREFIX', 'var:set:PREFIX').row();
     kb.text('➕ Tambah Kustom', 'var:custom').row();
     
     // Jika ada variabel yang bisa dihapus, munculkan tombol Hapus

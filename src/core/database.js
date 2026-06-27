@@ -570,7 +570,19 @@ export function getWarns(telegramId, chatId, targetUserId = null) {
   const session = dbCache.get(Number(telegramId));
   const chatWarns = session?.warn_data?.[String(chatId)] || {};
   if (targetUserId === null || targetUserId === undefined) return chatWarns;
-  return chatWarns[String(targetUserId)] || { count: 0, reasons: [] };}
+  
+  const warn = chatWarns[String(targetUserId)];
+  if (!warn) return { count: 0, reasons: [] };
+
+  // Expire warnings if time window has passed
+  const chatSettings = getChatSettings(telegramId, chatId);
+  const timeWindow = Number(chatSettings.flood_time_window || 3) * 1000;
+  if (warn.lastWarnedAt && (Date.now() - new Date(warn.lastWarnedAt).getTime() > timeWindow)) {
+    warn.count = 0;
+    warn.reasons = [];
+  }
+  return warn;
+}
 
 
 // ==========================================================================

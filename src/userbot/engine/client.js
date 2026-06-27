@@ -3,7 +3,7 @@ import { StringSession } from 'teleproto/sessions/index.js';
 import { NewMessage, Raw } from 'teleproto/events/index.js';
 import { Api } from 'teleproto';
 import config from '../../config.js';
-import { getUserbotSession } from '../../core/database.js';
+import { getUserbotSession, getChatSettings } from '../../core/database.js';
 import { loadAllPlugins } from './pluginLoader.js';
 import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
@@ -56,10 +56,33 @@ export class UserbotClient {
 
       // Register handlers
       this.registerHandlers();
+
+      // Restart persistent schedules on startup
+      await this.restartSchedules();
     } catch (error) {
       console.error(`❌ Failed to start DeltaUbotJS for user ${this.telegramId}:`, error);
       this.isActive = false;
       throw error;
+    }
+  }
+
+  /**
+   * Restart persistent loop schedules
+   */
+  async restartSchedules() {
+    try {
+      const { getSchedules } = await import('../../core/database.js');
+      const { startLoop } = await import('../plugins/util/schedule.js');
+      
+      const schedules = getSchedules(this.telegramId);
+      for (const s of schedules) {
+        if (s.type === 'loop') {
+          startLoop(this.client, this.telegramId, s.chatKey, s.value, s.message, false);
+        }
+      }
+      console.log(`🔁 Restored ${schedules.length} loop schedules for [${this.telegramId}].`);
+    } catch (err) {
+      console.error(`❌ Failed to restart schedules for [${this.telegramId}]:`, err.message);
     }
   }
 
@@ -101,6 +124,40 @@ export class UserbotClient {
       // 1. Ambil setelan terkini dari in-memory cache (0ms)
       const settings = getUserbotSession(this.telegramId);
       if (!settings) return;
+
+      // Get prefix setting for the current chat (fallback to global PREFIX var)
+      const chatId = message.chatId;
+      const chatKey = String(chatId);
+      const chatSettings = (settings.chat_settings || {})[chatKey] || {};
+      const globalPrefix = settings.vars?.PREFIX || '.';
+      const customPrefix = chatSettings.prefix || globalPrefix;
+
+      // If message is outgoing, intercept custom prefix to '.' and enforce signature
+      if (message.out && message.message) {
+        const text = message.message;
+        if (customPrefix !== '.') {
+          if (text.startsWith(customPrefix)) {
+            message.message = '.' + text.slice(customPrefix.length);
+          } else if (text.startsWith('.')) {
+            // Ignore old prefix
+            message.message = '_\x00_' + text;
+          }
+        }
+      }
+
+      // Wrap message.edit to inject custom signature
+      const originalEdit = message.edit.bind(message);
+      message.edit = async (options) => {
+        let text = options.text || options.message || '';
+        if (settings.custom_name && text && typeof text === 'string') {
+          if (!text.includes(settings.custom_name)) {
+            text += `\n\n— <b>${settings.custom_name}</b>`;
+          }
+        }
+        if (options.text !== undefined) options.text = text;
+        if (options.message !== undefined) options.message = text;
+        return originalEdit(options);
+      };
 
       // 2. Jalankan seluruh plugin secara sekuensial
       const disabled = disabledSet(settings);
