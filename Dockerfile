@@ -5,7 +5,7 @@ FROM node:26-alpine
 WORKDIR /app
 
 # Instal dependensi runtime untuk fitur YouTube Downloader (.ytdl) dan build tools untuk modul native (seperti lzma-native)
-RUN apk add --no-cache yt-dlp ffmpeg build-base xz-dev
+RUN apk add --no-cache yt-dlp ffmpeg build-base xz-dev libc6-compat
 
 # Salin package.json dan package-lock.json (jika ada)
 COPY package*.json ./
