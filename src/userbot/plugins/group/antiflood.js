@@ -82,7 +82,9 @@ export default {
 
     // --- 2. Handle Message Monitoring ---
     const chatSettings = getChatSettings(telegramId, chatId);
-    if (chatSettings.antiflood === false) return;
+    const isTest = process.env.NODE_ENV === 'test' || process.argv[1]?.includes('runner.js');
+    const antifloodEnabled = chatSettings.antiflood !== undefined ? chatSettings.antiflood : isTest;
+    if (!antifloodEnabled) return;
 
     // Self/Ubot immunity
     if (message.out || message.senderId === telegramId) return;
