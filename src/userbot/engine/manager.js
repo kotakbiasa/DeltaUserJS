@@ -38,8 +38,9 @@ class UserbotManager {
 
   async startInlineBotFor(telegramId) {
     const session = getUserbotSession(telegramId);
-    if (!session?.inline_bot_token) return;
-    await inlineBotManager.startInlineBot(telegramId, session.inline_bot_token);
+    const token = session?.inline_bot_token || session?.vars?.INLINE_BOT_TOKEN;
+    if (!token) return;
+    await inlineBotManager.startInlineBot(telegramId, token);
   }
 
   async stopUserbot(telegramId) {

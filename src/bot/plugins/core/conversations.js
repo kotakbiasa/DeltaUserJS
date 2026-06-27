@@ -817,6 +817,7 @@ export async function manageVarsConv(conversation, ctx) {
           await conversation.external(async () => {
             const db = await import('../../../core/database.js');
             await db.setUserVar(telegramId, key, value);
+            await db.updateUserbotFeature(telegramId, 'inline_bot_token', value);
             await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
             const inlineBotManager = (await import('../../../core/inlineBotManager.js')).default;
             await inlineBotManager.stopInlineBot(telegramId);
@@ -901,6 +902,8 @@ export async function manageVarsConv(conversation, ctx) {
             const db = await import('../../../core/database.js');
             await db.deleteUserVar(telegramId, keyToDelete);
             if (keyToDelete === 'INLINE_BOT_TOKEN') {
+              await db.updateUserbotFeature(telegramId, 'inline_bot_token', null);
+              await db.updateUserbotFeature(telegramId, 'inline_bot_username', null);
               const inlineBotManager = (await import('../../../core/inlineBotManager.js')).default;
               await inlineBotManager.stopInlineBot(telegramId);
             }
