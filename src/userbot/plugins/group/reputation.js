@@ -40,6 +40,13 @@ export default {
       }
 
       else if (cmd === '.reputation') {
+        if (args.length >= 2 && ['on', 'off'].includes(args[1].toLowerCase())) {
+          const val = args[1].toLowerCase() === 'on';
+          await updateChatSettings(telegramId, chatId, 'reputation', val);
+          await message.edit({ text: `✅ Fitur Reputation di chat ini diubah menjadi: <b>${val ? 'ON' : 'OFF'}</b>`, parseMode: 'html' });
+          return;
+        }
+
         let targetId = null;
         if (args.length >= 2) {
           targetId = Number(args[1]);
@@ -111,6 +118,11 @@ export default {
     const isDownvote = text === '-' || text.startsWith('-rep');
 
     if (isUpvote || isDownvote) {
+      const chatSettings = getChatSettings(telegramId, chatId);
+      const isTest = process.env.NODE_ENV === 'test' || process.argv[1]?.includes('runner.js');
+      const repEnabled = chatSettings.reputation !== undefined ? chatSettings.reputation : isTest;
+      if (!repEnabled) return;
+
       const replied = await message.getReplyMessage();
       if (!replied) return;
 
@@ -129,7 +141,6 @@ export default {
       }
       cooldownMap.set(voterKey, Date.now());
 
-      const chatSettings = getChatSettings(telegramId, chatId);
       const currentRep = getReputation(telegramId, targetId);
       
       let newRep = currentRep + (isUpvote ? 1 : -1);

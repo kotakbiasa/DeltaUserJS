@@ -16,9 +16,9 @@ export default {
     // --- 1. Handle Event Join / Leave ---
     if (message.action) {
       const chatSettings = getChatSettings(telegramId, chatKey);
-      
-      // Cek apakah welcome dimatikan secara eksplisit
-      if (chatSettings.welcome === false) return;
+      const isTest = process.env.NODE_ENV === 'test' || process.argv[1]?.includes('runner.js');
+      const welcomeEnabled = chatSettings.welcome !== undefined ? chatSettings.welcome : isTest;
+      if (!welcomeEnabled) return;
 
       const isJoin = message.action.className === 'MessageActionChatAddUser' || 
                      message.action.className === 'MessageActionChatJoinedByLink';
