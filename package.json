@@ -23,5 +23,10 @@
     "qrcode": "^1.5.4",
     "speedtest-net": "^2.2.0",
     "teleproto": "^1.227.0"
+  },
+  "overrides": {
+    "got": "^11.8.6",
+    "http-cache-semantics": "^4.1.1",
+    "tar": "^7.5.16"
   }
 }
