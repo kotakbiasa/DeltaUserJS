@@ -5,16 +5,34 @@ import { getAllRegisteredUsers, updateUserbotStatus } from './core/database.js';
 
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 
+// --- Helper Logger dengan Style ANSI ---
+function getTimestamp() {
+  const now = new Date();
+  return `\x1b[2m[${now.toLocaleTimeString()}]\x1b[0m`;
+}
+
+function logInfo(message) {
+  console.log(`${getTimestamp()} \x1b[36m[SYSTEM]\x1b[0m ${message}`);
+}
+
+function logSuccess(message) {
+  console.log(`${getTimestamp()} \x1b[32m[SUCCESS]\x1b[0m ${message}`);
+}
+
+function logWarn(message) {
+  console.log(`${getTimestamp()} \x1b[33m[WARN]\x1b[0m ${message}`);
+}
+
+function logError(message, err = null) {
+  console.error(`${getTimestamp()} \x1b[31m[ERROR]\x1b[0m ${message}`, err || '');
+}
+
 /**
  * ⏰ SUBSCRIPTION EXPIRATION CHECKER
  * Berjalan periodik di background untuk mendeteksi userbot yang masa aktifnya habis.
- * Jika habis: matikan userbot, tandai nonaktif di DB, dan kirim notifikasi pribadi.
- *
- * Dilindungi flag `isRunning` agar siklus tidak tumpang-tindih bila pengecekan
- * (banyak user) memakan waktu lebih lama dari interval.
  */
 function startExpirationChecker() {
-  console.log('⏰ Expiration Checker background service started.');
+  logInfo('Expiration Checker background service started.');
 
   let isRunning = false;
 
@@ -27,11 +45,10 @@ function startExpirationChecker() {
       const now = new Date();
 
       for (const user of allUsers) {
-        // Hanya periksa userbot yang saat ini aktif & punya tanggal kedaluwarsa
         if (user.is_active !== 1 || !user.expired_at) continue;
         if (now <= new Date(user.expired_at)) continue;
 
-        console.log(`⚠️ [DeltaUbotJS] User [${user.telegram_id}] masa aktif telah kadaluwarsa! Menonaktifkan...`);
+        logWarn(`User [${user.telegram_id}] masa aktif telah kadaluwarsa! Menonaktifkan...`);
 
         // 1. Matikan instans userbot
         await userbotManager.stopUserbot(user.telegram_id);
@@ -53,7 +70,7 @@ function startExpirationChecker() {
         }
       }
     } catch (error) {
-      console.error('❌ Error in Expiration Checker service:', error);
+      logError('Error in Expiration Checker service', error);
     } finally {
       isRunning = false;
     }
@@ -61,7 +78,19 @@ function startExpirationChecker() {
 }
 
 async function main() {
-  console.log('🤖 Starting DeltaUbotJS Manager...');
+  const logo = `
+\x1b[1m\x1b[35m    ____  ______  __  ______  _______  ____  ____  ______    _______ 
+   / __ \\/ ____/ / / /_  __/ / / / __ )/ __ \\/ __ \\/_  __/   / / ___/ 
+  / / / / __/   / /   / / / / / / __  / / / / / / / / /_____/ /\\__ \\  
+ / /_/ / /___  / /___/ / / /_/ / /_/ / /_/ / /_/ / / /_____/ /___/ /  
+/_____/_____/ /_____/_/  \\____/_____/\\____/\\____/ /_/     /_//____/   
+\x1b[0m
+\x1b[36m  ⚡ DeltaUbotJS Advanced Multitenant Bot Engine v1.0.0 ⚡\x1b[0m
+\x1b[2m  ─────────────────────────────────────────────────────────────────\x1b[0m
+`;
+  console.log(logo);
+
+  logInfo('Starting DeltaUbotJS Manager...');
 
   try {
     // 1. Start Expiration Checker Service
@@ -71,35 +100,36 @@ async function main() {
     userbotManager.startWatchdog();
 
     // 3. Start the Master Bot, and load userbots ONLY after it successfully connects
-    console.log('⚡ Starting Master Bot...');
+    logInfo('Starting Master Bot...');
     await bot.start({
       onStart: async (info) => {
         global.MASTER_BOT_USERNAME = info.username;
-        console.log(`🤖 Master Bot [@${info.username}] is running successfully!`);
+        logSuccess(`Master Bot [@${info.username}] is running successfully!`);
 
         // 4. Restart all active userbots from database as the final step
-        console.log('📦 Starting all active userbots...');
+        logInfo('Starting all active userbots...');
         await userbotManager.restartAllActive();
-        console.log('✅ All systems and userbots are fully loaded.');
+        logSuccess('All systems and userbots are fully loaded.');
       }
     });
   } catch (error) {
-    console.error('💥 Critical error during system startup:', error);
+    logError('Critical error during system startup', error);
     process.exit(1);
   }
 }
 
 // Graceful shutdown handlers
 async function shutdown(signal) {
-  console.log(`\n🔌 Received ${signal}. Shutting down gracefully...`);
+  console.log('');
+  logWarn(`Received ${signal}. Shutting down gracefully...`);
 
   try {
-    console.log('Stop Master Bot...');
+    logInfo('Stopping Master Bot...');
     await bot.stop();
 
     userbotManager.stopWatchdog();
 
-    console.log('Disconnecting all active userbots...');
+    logInfo('Disconnecting all active userbots...');
     const activeIds = Array.from(userbotManager.clients.keys());
     for (const id of activeIds) {
       await userbotManager.stopUserbot(id);
@@ -109,17 +139,17 @@ async function shutdown(signal) {
     try {
       const mongoose = await import('mongoose');
       if (mongoose.default.connection.readyState === 1) {
-        console.log('Closing MongoDB connection...');
+        logInfo('Closing MongoDB connection...');
         await mongoose.default.disconnect();
       }
     } catch (err) {
-      console.error('Error closing MongoDB connection:', err.message);
+      logError('Error closing MongoDB connection', err);
     }
 
-    console.log('👋 Shutdown complete.');
+    logSuccess('Shutdown complete. Bye! 👋');
     process.exit(0);
   } catch (error) {
-    console.error('Error during shutdown:', error);
+    logError('Error during shutdown', error);
     process.exit(1);
   }
 }
