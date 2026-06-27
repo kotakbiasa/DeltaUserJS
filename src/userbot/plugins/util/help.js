@@ -24,7 +24,7 @@ function buildHelpMenuText(settings) {
     `📦 <b>Modul Aktif (${total}):</b>\n` +
     `${formattedPlugins}\n\n` +
     `📖 <b>Petunjuk Penggunaan:</b>\n` +
-    `<blockquote>Ketik <code>.help &lt;nama_modul&gt;</code> untuk melihat cara penggunaan dan detail modul.</blockquote>\n` +
+    `<blockquote>Ketik <code>.help [nama_modul]</code> untuk melihat cara penggunaan dan detail modul.</blockquote>\n` +
     `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
     `💻 <i>DeltaUserJS Project</i>`
   );
@@ -35,7 +35,13 @@ function buildHelpMenuText(settings) {
  */
 function markdownToHtml(text) {
   if (!text) return '';
-  return text
+  // Escape raw HTML characters to prevent parsing issues
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  return escaped
     .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
     .replace(/__(.*?)__/g, '<i>$1</i>')
     .replace(/\*(.*?)\*/g, '<i>$1</i>')
@@ -79,7 +85,7 @@ export default {
   help: {
     title: 'Help Menu',
     description: 'Menampilkan panduan penggunaan dan daftar modul yang tersedia di userbot Anda.',
-    usage: 'Ketik `.help` untuk menu utama atau `.help <nama_modul>` untuk detail spesifik.',
+    usage: 'Ketik `.help` untuk menu utama atau `.help [nama_modul]` untuk detail spesifik.',
     detail: '• `.help` akan memunculkan menu inline jika Anda sudah mengatur Custom Inline Bot.\n• Jika belum, menu text biasa akan dimunculkan.'
   },
 
