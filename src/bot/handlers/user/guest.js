@@ -23,9 +23,6 @@ export function registerGuestHandler(bot) {
       
       if (text.startsWith('dl ') || text.startsWith('/dl ') || text.startsWith('.dl ')) {
         url = cmdParts.length > 1 ? cmdParts[1] : '';
-      } else {
-        const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
-        if (urlMatch) url = urlMatch[1];
       }
 
       if (url) {
