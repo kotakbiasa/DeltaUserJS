@@ -1,5 +1,6 @@
 import { registerGuestHandler } from './user/guest.js';
 import { registerSettingsHandlers } from './user/settings.js';
+import { registerDlHandler } from './user/dl.js';
 
 import { registerLegacyCallbacks } from './core/callbacks.js';
 import { registerInlineHelpHandlers, registerInlineLatexHandlers } from './core/help.js';
@@ -43,6 +44,7 @@ export function registerAllHandlers(bot) {
   // User Handlers
   registerGuestHandler(bot);
   registerSettingsHandlers(bot);
+  registerDlHandler(bot);
 
   // Owner Handlers
   registerOwnerHandlers(bot);

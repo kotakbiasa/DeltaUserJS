@@ -12,7 +12,7 @@ export default {
     detail: 'Modul ini akan mendownload media langsung ke chat.'
   },
   async execute(client, message, settings, telegramId) {
-    if (message.out && message.message && (message.message.toLowerCase().startsWith('.dl ') || message.message.toLowerCase().startsWith('/dl '))) {
+    if (message.out && message.message && message.message.toLowerCase().startsWith('.dl ')) {
       const args = message.message.split(' ');
       const url = args[1];
       
