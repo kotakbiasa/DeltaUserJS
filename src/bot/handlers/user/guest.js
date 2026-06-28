@@ -21,7 +21,7 @@ export function registerGuestHandler(bot) {
       let url = '';
       const cmdParts = text.split(/\s+/);
       
-      if (text.startsWith('dl ') || text.startsWith('/dl ') || text.startsWith('.dl ')) {
+      if (text.startsWith('dl ')) {
         url = cmdParts.length > 1 ? cmdParts[1] : '';
       }
 
