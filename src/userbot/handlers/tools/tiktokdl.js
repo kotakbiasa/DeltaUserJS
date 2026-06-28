@@ -44,7 +44,7 @@ export default {
         let title = meta.title || '';
         if (title.length > 900) title = title.slice(0, 900) + '...';
 
-        if (meta.isSlideshow) {
+        if (meta.ext !== 'mp4' && filePaths.length > 1) {
           // Send each photo
           for (let i = 0; i < filePaths.length; i++) {
             const file = filePaths[i];
