@@ -1,5 +1,6 @@
 import { getUserbotSession } from '../../../infrastructure/database.js';
 import userbotManager from '../../../userbot/engine/manager.js';
+import { TiktokService } from '../../../domain/services/TiktokService.js';
 
 export function registerGuestHandler(bot) {
   bot.use(async (ctx, next) => {
@@ -15,6 +16,34 @@ export function registerGuestHandler(bot) {
       const telegramId = callerUser.id;
       const userSession = getUserbotSession(telegramId);
       const botUsername = ctx.me?.username || 'Bot';
+
+      if (TiktokService.supports(text)) {
+        await ctx.api.answerGuestQuery(guestQueryId, {
+          text: `⏳ <b>Mendownload TikTok...</b>\n\nMohon tunggu sebentar, file akan dikirim ke chat pribadi Anda.`,
+          parse_mode: 'HTML',
+        });
+
+        try {
+          const meta = await TiktokService.getMetadata(text);
+          if (meta.isSlideshow) {
+            const mediaGroup = meta.mediaUrls.map((url, i) => ({
+              type: 'photo',
+              media: url,
+              caption: i === 0 ? `📸 <b>${meta.title}</b>\n\n<i>Diunduh via @${botUsername}</i>` : '',
+              parse_mode: 'HTML'
+            }));
+            await ctx.api.sendMediaGroup(telegramId, mediaGroup);
+          } else {
+            await ctx.api.sendVideo(telegramId, meta.videoUrl, {
+              caption: `🎥 <b>${meta.title}</b>\n\n<i>Diunduh via @${botUsername}</i>`,
+              parse_mode: 'HTML'
+            });
+          }
+        } catch (err) {
+          await ctx.api.sendMessage(telegramId, `❌ <b>Gagal Mendownload:</b>\n\n${err.message}`, { parse_mode: 'HTML' });
+        }
+        return;
+      }
 
       if (text.startsWith('status')) {
         const running = userbotManager.isRunning(telegramId);
