@@ -41,13 +41,16 @@ export default {
           parseMode: 'html' 
         });
 
+        let title = meta.title || '';
+        if (title.length > 900) title = title.slice(0, 900) + '...';
+
         if (meta.isSlideshow) {
           // Send each photo
           for (let i = 0; i < filePaths.length; i++) {
             const file = filePaths[i];
             await client.sendFile(message.chatId, {
               file: file,
-              caption: i === 0 ? `<blockquote>✅ <b>${meta.title}</b>\n🔗 ${url}</blockquote>` : '',
+              caption: i === 0 ? `<blockquote>✅ <b>${title}</b>\n🔗 ${url}</blockquote>` : '',
               replyTo: message.replyToMsgId,
               parseMode: 'html'
             });
@@ -57,7 +60,7 @@ export default {
           // Send video
           await client.sendFile(message.chatId, {
             file: filePaths[0],
-            caption: `<blockquote>✅ <b>${meta.title}</b>\n🔗 ${url}</blockquote>`,
+            caption: `<blockquote>✅ <b>${title}</b>\n🔗 ${url}</blockquote>`,
             replyTo: message.replyToMsgId,
             parseMode: 'html'
           });

@@ -44,26 +44,28 @@ export function registerGuestHandler(bot) {
 
           if (meta.isSlideshow || (meta.mediaUrls && meta.mediaUrls.length > 1)) {
             // Instagram / Tiktok Slideshows
-            const mediaGroup = meta.mediaUrls.map((mediaUrl, i) => ({
-              type: 'photo',
-              media: mediaUrl,
-              caption: i === 0 ? `📸 <b>${meta.title}</b>\n\n<i>Diunduh via @${botUsername}</i>` : '',
-              parse_mode: 'HTML'
-            }));
+            const mediaGroup = meta.mediaUrls.map((mediaUrl, i) => {
+              let title = meta.title || '';
+              if (title.length > 900) title = title.slice(0, 900) + '...';
+              return {
+                type: 'photo',
+                media: mediaUrl,
+                caption: i === 0 ? `📸 <b>${title}</b>\n\n<i>Diunduh via @${botUsername}</i>` : '',
+                parse_mode: 'HTML'
+              };
+            });
             await ctx.api.sendMediaGroup(telegramId, mediaGroup);
           } else {
             // Video or single photo
             const ext = meta.ext === 'mp4' ? 'Video' : 'Foto';
             const method = meta.ext === 'mp4' ? 'sendVideo' : 'sendPhoto';
             
-            // Wait, for local files, we might need InputFile in Grammy, or we can just pass the path?
-            // Actually, Grammy doesn't accept file paths directly without InputFile.
-            // Let's rely on mediaUrl if available for guest. But downloadMedia downloaded it locally!
-            // Wait, the guest mode didn't use local files for TiktokService initially, it used `meta.videoUrl`!
-            // But downloadMedia returns local `filePath`! We can use InputFile from Grammy.
+            let title = meta.title || '';
+            if (title.length > 900) title = title.slice(0, 900) + '...';
+
             const { InputFile } = await import('grammy');
             await ctx.api[method](telegramId, new InputFile(filePaths[0]), {
-              caption: `🎥 <b>${meta.title}</b>\n\n<i>Diunduh via @${botUsername}</i>`,
+              caption: `🎥 <b>${title}</b>\n\n<i>Diunduh via @${botUsername}</i>`,
               parse_mode: 'HTML'
             });
           }
