@@ -1,6 +1,7 @@
 import { getUserbotSession } from '../../../infrastructure/database.js';
 import userbotManager from '../../../userbot/engine/manager.js';
-import { TiktokService } from '../../../domain/services/TiktokService.js';
+import { getService, downloadMedia } from '../../../domain/services/downloader/index.js';
+import crypto from 'crypto';
 
 export function registerGuestHandler(bot) {
   bot.use(async (ctx, next) => {
@@ -20,31 +21,48 @@ export function registerGuestHandler(bot) {
       if (text.startsWith('dl ') || text.startsWith('/dl ')) {
         const cmdParts = text.split(' ');
         const url = cmdParts.length > 1 ? cmdParts[1] : '';
-        if (!url || !TiktokService.supports(url)) {
+        const service = getService(url);
+        if (!url || !service) {
           await ctx.api.answerGuestQuery(guestQueryId, {
-            text: `❌ <b>URL tidak valid!</b>\nHarap masukkan link TikTok yang benar (tiktok.com/vt.tiktok.com).`,
+            text: `❌ <b>URL tidak valid/tidak didukung!</b>\nLink ini tidak didukung oleh Downloader.`,
             parse_mode: 'HTML',
           });
           return;
         }
 
         await ctx.api.answerGuestQuery(guestQueryId, {
-          text: `⏳ <b>Mendownload TikTok...</b>\n\nMohon tunggu sebentar, file akan dikirim ke chat pribadi Anda.`,
+          text: `⏳ <b>Mendownload Media...</b>\n\nMohon tunggu sebentar, file akan dikirim ke chat pribadi Anda.`,
           parse_mode: 'HTML',
         });
 
         try {
-          const meta = await TiktokService.getMetadata(url);
-          if (meta.isSlideshow) {
-            const mediaGroup = meta.mediaUrls.map((url, i) => ({
+          const id = crypto.randomBytes(4).toString('hex');
+          const { filePath: filePathsRaw, metadata: meta } = await downloadMedia(url, id);
+          
+          // Normalize to array
+          const filePaths = Array.isArray(filePathsRaw) ? filePathsRaw : [filePathsRaw];
+
+          if (meta.isSlideshow || (meta.mediaUrls && meta.mediaUrls.length > 1)) {
+            // Instagram / Tiktok Slideshows
+            const mediaGroup = meta.mediaUrls.map((mediaUrl, i) => ({
               type: 'photo',
-              media: url,
+              media: mediaUrl,
               caption: i === 0 ? `📸 <b>${meta.title}</b>\n\n<i>Diunduh via @${botUsername}</i>` : '',
               parse_mode: 'HTML'
             }));
             await ctx.api.sendMediaGroup(telegramId, mediaGroup);
           } else {
-            await ctx.api.sendVideo(telegramId, meta.videoUrl, {
+            // Video or single photo
+            const ext = meta.ext === 'mp4' ? 'Video' : 'Foto';
+            const method = meta.ext === 'mp4' ? 'sendVideo' : 'sendPhoto';
+            
+            // Wait, for local files, we might need InputFile in Grammy, or we can just pass the path?
+            // Actually, Grammy doesn't accept file paths directly without InputFile.
+            // Let's rely on mediaUrl if available for guest. But downloadMedia downloaded it locally!
+            // Wait, the guest mode didn't use local files for TiktokService initially, it used `meta.videoUrl`!
+            // But downloadMedia returns local `filePath`! We can use InputFile from Grammy.
+            const { InputFile } = await import('grammy');
+            await ctx.api[method](telegramId, new InputFile(filePaths[0]), {
               caption: `🎥 <b>${meta.title}</b>\n\n<i>Diunduh via @${botUsername}</i>`,
               parse_mode: 'HTML'
             });
@@ -88,7 +106,7 @@ export function registerGuestHandler(bot) {
       }
 
       await ctx.api.answerGuestQuery(guestQueryId, {
-        text: `📖 <b>${ctx.me?.first_name || 'Bot'} Guest Commands</b>\n\n@${botUsername} status\n@${botUsername} verify\n@${botUsername} stop\n@${botUsername} dl [url tiktok]`,
+        text: `📖 <b>${ctx.me?.first_name || 'Bot'} Guest Commands</b>\n\n@${botUsername} status\n@${botUsername} verify\n@${botUsername} stop\n@${botUsername} dl [url]`,
         parse_mode: 'HTML',
         reply_markup: { inline_keyboard: [[{ text: 'Buka Panel', url: `https://t.me/${botUsername}` }]] },
       });

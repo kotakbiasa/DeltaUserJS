@@ -1,23 +1,24 @@
 import fs from 'fs';
 import path from 'path';
-import { TiktokService } from '../../../domain/services/TiktokService.js';
+import crypto from 'crypto';
+import { getService, downloadMedia } from '../../../domain/services/downloader/index.js';
 
 export default {
   name: 'dl',
   help: {
-    title: 'TikTok Downloader (.dl)',
-    description: 'Mengunduh video/foto dari TikTok tanpa watermark.',
+    title: 'Universal Downloader (.dl)',
+    description: 'Mengunduh video/foto dari TikTok, IG, FB, Twitter/X.',
     usage: 'Ketik `.dl [url]` atau `/dl [url]`',
-    detail: 'Modul ini akan mendownload media TikTok langsung ke chat.'
+    detail: 'Modul ini akan mendownload media langsung ke chat.'
   },
   async execute(client, message, settings, telegramId) {
     if (message.out && message.message && (message.message.toLowerCase().startsWith('.dl ') || message.message.toLowerCase().startsWith('/dl '))) {
       const args = message.message.split(' ');
       const url = args[1];
       
-      if (!url || !TiktokService.supports(url)) {
+      if (!url || !getService(url)) {
         await message.edit({ 
-          text: `<blockquote>❌ <b>URL tidak valid!</b>\nHarap masukkan link TikTok yang benar (tiktok.com/vt.tiktok.com).</blockquote>`, 
+          text: `<blockquote>❌ <b>URL tidak valid/tidak didukung!</b>\nLink ini tidak didukung oleh Downloader.</blockquote>`, 
           parseMode: 'html' 
         });
         return;
@@ -25,12 +26,15 @@ export default {
       
       try {
         await message.edit({ 
-          text: `<blockquote>⏳ <b>Sedang mendownload dari TikTok...</b>\nMohon tunggu...</blockquote>`, 
+          text: `<blockquote>⏳ <b>Sedang mendownload media...</b>\nMohon tunggu...</blockquote>`, 
           parseMode: 'html' 
         });
         
-        const destDir = path.join(process.cwd(), 'downloads');
-        const { filePaths, meta } = await TiktokService.download(url, destDir);
+        const id = crypto.randomBytes(4).toString('hex');
+        const { filePath: filePathsRaw, metadata: meta } = await downloadMedia(url, id);
+        
+        // Normalize filePaths to array
+        const filePaths = Array.isArray(filePathsRaw) ? filePathsRaw : [filePathsRaw];
         
         await message.edit({ 
           text: `<blockquote>📤 <b>Media berhasil diunduh. Sedang mengirim ke chat...</b></blockquote>`, 
