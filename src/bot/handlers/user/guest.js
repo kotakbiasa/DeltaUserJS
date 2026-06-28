@@ -17,14 +17,23 @@ export function registerGuestHandler(bot) {
       const userSession = getUserbotSession(telegramId);
       const botUsername = ctx.me?.username || 'Bot';
 
-      if (TiktokService.supports(text)) {
+      if (text.startsWith('/dl ')) {
+        const url = text.split(' ')[1];
+        if (!url || !TiktokService.supports(url)) {
+          await ctx.api.answerGuestQuery(guestQueryId, {
+            text: `❌ <b>URL tidak valid!</b>\nHarap masukkan link TikTok yang benar (tiktok.com/vt.tiktok.com).`,
+            parse_mode: 'HTML',
+          });
+          return;
+        }
+
         await ctx.api.answerGuestQuery(guestQueryId, {
           text: `⏳ <b>Mendownload TikTok...</b>\n\nMohon tunggu sebentar, file akan dikirim ke chat pribadi Anda.`,
           parse_mode: 'HTML',
         });
 
         try {
-          const meta = await TiktokService.getMetadata(text);
+          const meta = await TiktokService.getMetadata(url);
           if (meta.isSlideshow) {
             const mediaGroup = meta.mediaUrls.map((url, i) => ({
               type: 'photo',
@@ -78,7 +87,7 @@ export function registerGuestHandler(bot) {
       }
 
       await ctx.api.answerGuestQuery(guestQueryId, {
-        text: `📖 <b>${ctx.me?.first_name || 'Bot'} Guest Commands</b>\n\n@${botUsername} status\n@${botUsername} verify\n@${botUsername} stop\n@${botUsername} help`,
+        text: `📖 <b>${ctx.me?.first_name || 'Bot'} Guest Commands</b>\n\n@${botUsername} status\n@${botUsername} verify\n@${botUsername} stop\n@${botUsername} /dl [url tiktok]`,
         parse_mode: 'HTML',
         reply_markup: { inline_keyboard: [[{ text: 'Buka Panel', url: `https://t.me/${botUsername}` }]] },
       });
