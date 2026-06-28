@@ -63,4 +63,37 @@ export class TiktokService {
       isSlideshow: false
     };
   }
+
+  static async download(url, destDir) {
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    const meta = await this.getMetadata(url);
+    const id = meta.id;
+
+    if (meta.isSlideshow) {
+      const filePaths = [];
+      let i = 0;
+      for (const imgUrl of meta.mediaUrls) {
+        const filePath = path.join(destDir, `${id}_${i}.jpg`);
+        await this._downloadFile(imgUrl, filePath);
+        filePaths.push(filePath);
+        i++;
+      }
+      return { filePaths, meta };
+    } else {
+      const filePath = path.join(destDir, `${id}.mp4`);
+      await this._downloadFile(meta.videoUrl, filePath);
+      return { filePaths: [filePath], meta };
+    }
+  }
+
+  static async _downloadFile(url, dest) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to download file from ${url}`);
+    
+    const buffer = await res.arrayBuffer();
+    fs.writeFileSync(dest, Buffer.from(buffer));
+  }
 }
