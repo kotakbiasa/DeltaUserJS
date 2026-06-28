@@ -18,9 +18,17 @@ export function registerGuestHandler(bot) {
       const userSession = getUserbotSession(telegramId);
       const botUsername = ctx.me?.username || 'Bot';
 
-      if (text.startsWith('dl ') || text.startsWith('/dl ')) {
-        const cmdParts = text.split(' ');
-        const url = cmdParts.length > 1 ? cmdParts[1] : '';
+      let url = '';
+      const cmdParts = text.split(/\s+/);
+      
+      if (text.startsWith('dl ') || text.startsWith('/dl ') || text.startsWith('.dl ')) {
+        url = cmdParts.length > 1 ? cmdParts[1] : '';
+      } else {
+        const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
+        if (urlMatch) url = urlMatch[1];
+      }
+
+      if (url) {
         const service = getService(url);
         if (!url || !service) {
           await ctx.api.answerGuestQuery(guestQueryId, {
