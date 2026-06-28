@@ -32,12 +32,23 @@ export function registerDlHandler(bot) {
           return {
             type: 'photo',
             media: new InputFile(filePath),
-            caption: i === 0 ? `📸 <b>${title}</b>\n\n<i>Diunduh via @${botUsername}</i>` : '',
+            caption: i === 0 ? `<blockquote expandable>${title}</blockquote>\n\n<i>Diunduh via @${botUsername}</i>` : '',
             parse_mode: 'HTML'
           };
         });
         
-        await ctx.replyWithMediaGroup(mediaGroup, { reply_to_message_id: ctx.message.message_id });
+        // Note: sendMediaGroup does not support inline keyboards on individual media items natively in the same way,
+        // but we can send a follow-up message with the button, or just rely on the text link if media group.
+        // Actually, for media groups, we'll just include the button in a follow-up message if needed, 
+        // or just send the media group without a button. Let's send a follow up message with the button.
+        const sentMsg = await ctx.replyWithMediaGroup(mediaGroup, { reply_to_message_id: ctx.message.message_id });
+        await ctx.reply(`🔗 <b>Link Sumber</b>`, {
+          reply_to_message_id: sentMsg[0].message_id,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[{ text: 'Source', url: url }]]
+          }
+        });
         
         // Cleanup local files
         for (const file of filePaths) {
@@ -50,9 +61,12 @@ export function registerDlHandler(bot) {
         
         const { InputFile } = await import('grammy');
         await ctx[method](new InputFile(filePaths[0]), {
-          caption: `🎥 <b>${title}</b>\n\n<i>Diunduh via @${botUsername}</i>`,
+          caption: `<blockquote expandable>${title}</blockquote>\n\n<i>Diunduh via @${botUsername}</i>`,
           parse_mode: 'HTML',
-          reply_to_message_id: ctx.message.message_id
+          reply_to_message_id: ctx.message.message_id,
+          reply_markup: {
+            inline_keyboard: [[{ text: 'Source', url: url }]]
+          }
         });
         
         if (fs.existsSync(filePaths[0])) fs.unlinkSync(filePaths[0]);

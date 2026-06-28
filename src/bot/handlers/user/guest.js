@@ -50,11 +50,18 @@ export function registerGuestHandler(bot) {
               return {
                 type: 'photo',
                 media: mediaUrl,
-                caption: i === 0 ? `📸 <b>${title}</b>\n\n<i>Diunduh via @${botUsername}</i>` : '',
+                caption: i === 0 ? `<blockquote expandable>${title}</blockquote>\n\n<i>Diunduh via @${botUsername}</i>` : '',
                 parse_mode: 'HTML'
               };
             });
-            await ctx.api.sendMediaGroup(telegramId, mediaGroup);
+            const sentMsg = await ctx.api.sendMediaGroup(telegramId, mediaGroup);
+            await ctx.api.sendMessage(telegramId, `🔗 <b>Link Sumber</b>`, {
+              reply_to_message_id: sentMsg[0].message_id,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: 'Source', url: url }]]
+              }
+            });
           } else {
             // Video or single photo
             const ext = meta.ext === 'mp4' ? 'Video' : 'Foto';
@@ -65,8 +72,11 @@ export function registerGuestHandler(bot) {
 
             const { InputFile } = await import('grammy');
             await ctx.api[method](telegramId, new InputFile(filePaths[0]), {
-              caption: `🎥 <b>${title}</b>\n\n<i>Diunduh via @${botUsername}</i>`,
-              parse_mode: 'HTML'
+              caption: `<blockquote expandable>${title}</blockquote>\n\n<i>Diunduh via @${botUsername}</i>`,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: 'Source', url: url }]]
+              }
             });
           }
         } catch (err) {
