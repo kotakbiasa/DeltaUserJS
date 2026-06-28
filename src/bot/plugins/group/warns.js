@@ -1,5 +1,6 @@
 import { addGroupWarn, removeGroupWarn, getGroupWarns, resetGroupWarns } from '../../../core/database.js';
 import { isAdmin, isBotAdmin } from '../admin/admin_bot.js';
+import { replyRich } from '../../../utils/richMessage.js';
 
 function getTargetUser(ctx) {
   if (ctx.message?.reply_to_message) {
@@ -55,7 +56,7 @@ export function registerWarnHandlers(bot) {
         text += `\n\n⛔ <b>Batas peringatan tercapai! Pengguna telah di-banned.</b>`;
       }
       
-      await ctx.reply(text, { parse_mode: 'HTML' });
+      await replyRich(ctx, text);
     } catch (err) {
       await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal memberikan peringatan: ${err.message}</blockquote>` });
     }
@@ -73,7 +74,7 @@ export function registerWarnHandlers(bot) {
       const warnData = await removeGroupWarn(ctx.chat.id, target.id);
       
       if (!warnData) {
-        return ctx.reply(`✅ <b>${target.name}</b> tidak memiliki peringatan saat ini.`, { parse_mode: 'HTML' });
+        return replyRich(ctx, `✅ <b>${target.name}</b> tidak memiliki peringatan saat ini.`);
       }
       
       await ctx.replyWithRichMessage({ html: `<blockquote><b>✅ BERHASIL</b><br><b>Peringatan Dihapus</b>\nPengguna: <b>${target.name}</b>\nSisa peringatan: <b>${warnData.count}/3</b></blockquote>` });
@@ -102,7 +103,7 @@ export function registerWarnHandlers(bot) {
     try {
       const warnData = getGroupWarns(ctx.chat.id, target.id);
       if (!warnData || warnData.count === 0) {
-        return ctx.reply(`✅ <b>${target.name}</b> bersih dari peringatan.`, { parse_mode: 'HTML' });
+        return replyRich(ctx, `✅ <b>${target.name}</b> bersih dari peringatan.`);
       }
 
       let text = `📋 <b>Daftar Peringatan</b>\nPengguna: <b>${target.name}</b>\nTotal: <b>${warnData.count}/3</b>\n\n<b>Alasan Terakhir:</b>\n`;
@@ -110,7 +111,7 @@ export function registerWarnHandlers(bot) {
         text += `${idx + 1}. ${r.reason}\n`;
       });
 
-      await ctx.reply(text, { parse_mode: 'HTML' });
+      await replyRich(ctx, text);
     } catch (err) {
       await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal mengambil data peringatan: ${err.message}</blockquote>` });
     }

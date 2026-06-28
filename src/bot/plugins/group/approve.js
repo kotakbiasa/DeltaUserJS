@@ -1,5 +1,6 @@
 import { getGroupConfig, updateGroupConfig } from '../../../core/database.js';
 import { isAdmin } from '../admin/admin_bot.js';
+import { replyRich } from '../../../utils/richMessage.js';
 
 async function isGroupAdmin(ctx, userId) {
   try {
@@ -19,13 +20,13 @@ export function registerApproveHandlers(bot) {
     if (await isGroupAdmin(ctx, userId) || isAdmin(userId)) {
       return next();
     }
-    return ctx.reply('❌ Anda bukan admin.');
+    return replyRich(ctx, '❌ Anda bukan admin.');
   };
 
   bot.command('autoapprove', modCheck, async (ctx) => {
     const args = ctx.match.trim().toLowerCase();
     if (!['on', 'off'].includes(args)) {
-      return ctx.reply('❌ Format: `/autoapprove on` atau `/autoapprove off`', { parse_mode: 'Markdown' });
+      return replyRich(ctx, '❌ Format: `/autoapprove on` atau `/autoapprove off`', { markdown: true });
     }
 
     const chatId = ctx.chat.id.toString();
@@ -33,7 +34,7 @@ export function registerApproveHandlers(bot) {
     config.autoapprove_enabled = (args === 'on');
     await updateGroupConfig(chatId, config);
 
-    ctx.reply(`✅ Auto-Approve berhasil di-${args === 'on' ? 'aktifkan' : 'matikan'}. Bot akan otomatis menyetujui Chat Join Request.`);
+    replyRich(ctx, `✅ Auto-Approve berhasil di-${args === 'on' ? 'aktifkan' : 'matikan'}. Bot akan otomatis menyetujui Chat Join Request.`);
   });
 
   bot.on('chat_join_request', async (ctx) => {

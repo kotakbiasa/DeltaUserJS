@@ -1,6 +1,7 @@
 import { getGroupConfig } from '../../../core/database.js';
 import { InlineKeyboard } from 'grammy';
 import { isAdmin } from '../admin/admin_bot.js';
+import { replyRich } from '../../../utils/richMessage.js';
 
 async function isGroupAdmin(ctx, userId) {
   try {
@@ -21,14 +22,14 @@ export function registerCaptchaHandlers(bot) {
     if (await isGroupAdmin(ctx, userId) || isAdmin(userId)) {
       return next();
     }
-    return ctx.reply('❌ Anda bukan admin.');
+    return replyRich(ctx, '❌ Anda bukan admin.');
   };
 
   // Command to enable/disable captcha
   bot.command('captcha', modCheck, async (ctx) => {
     const args = ctx.match.trim().toLowerCase();
     if (!['on', 'off'].includes(args)) {
-      return ctx.reply('❌ Format: `/captcha on` atau `/captcha off`', { parse_mode: 'Markdown' });
+      return replyRich(ctx, '❌ Format: `/captcha on` atau `/captcha off`', { markdown: true });
     }
 
     const chatId = ctx.chat.id.toString();
@@ -40,7 +41,7 @@ export function registerCaptchaHandlers(bot) {
     const db = await import('../../../core/database.js');
     await db.updateGroupConfig(chatId, config);
 
-    ctx.reply(`🛡️ Sistem Captcha Anti-Botnet berhasil di-${args === 'on' ? 'aktifkan' : 'matikan'}.`);
+    replyRich(ctx, `🛡️ Sistem Captcha Anti-Botnet berhasil di-${args === 'on' ? 'aktifkan' : 'matikan'}.`);
   });
 
   // Intercept new members
@@ -82,11 +83,11 @@ export function registerCaptchaHandlers(bot) {
           if (i === 1) keyboard.row();
         }
 
-        const msg = await ctx.reply(
+        const msg = await replyRich(ctx, 
           `Halo [${newMember.first_name}](tg://user?id=${newMember.id})! 🛡️\n\n` +
           `Untuk membuktikan Anda bukan bot, silakan jawab soal matematika berikut dalam waktu 2 menit:\n\n` +
           `**Berapa ${num1} + ${num2}?**`,
-          { parse_mode: 'Markdown', reply_markup: keyboard }
+          { markdown: true, reply_markup: keyboard }
         );
 
         // Timeout handler

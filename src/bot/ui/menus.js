@@ -3,6 +3,7 @@ import { getUserbotSession, updateUserbotFeature, deleteUserbot, getAllRegistere
 import userbotManager from '../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../core/pluginRegistry.js';
 import config from '../../config.js';
+import { editRich } from '../../utils/richMessage.js';
 
 const DIVIDER = '───────────────────────';
 const PROTECTED_PLUGINS = ['admin', 'pluginmanager'];
@@ -470,7 +471,7 @@ export async function sendRichPanel(ctx, html, replyMarkup, fallbackText) {
     return true;
   } catch (err) {
     console.warn('sendRichMessage panel failed, falling back to HTML panel:', err.message);
-    await ctx.editMessageText(fallbackText, { parse_mode: 'HTML', reply_markup: replyMarkup });
+    await editRich(ctx, fallbackText, { reply_markup: replyMarkup });
     return false;
   }
 }
@@ -519,13 +520,13 @@ export const ubotSettingsMenu = new Menu('ubot-settings-menu')
   }).row()
   .text('⚠️ Danger Zone: Hapus Sesi', async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(
+    await editRich(ctx, 
       `🔺 <b>D E L T A   U B O T   J S</b> 🔺\n` +
       `───────────────────────\n` +
       `⚠️ <b>KONFIRMASI PENGHAPUSAN SESI</b>\n\n` +
       `Tindakan ini akan mematikan userbot dan menghapus session string dari database.\n\n` +
       `Jika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Userbot</b>, bukan hapus sesi.`,
-      { parse_mode: 'HTML', reply_markup: dangerDeleteMenu }
+      { reply_markup: dangerDeleteMenu }
     );
   }).row()
   .text('🔙 Kembali', async (ctx) => {
@@ -653,7 +654,7 @@ export const ubotMainMenu = new Menu('ubot-main-menu')
     await sendRichPanel(ctx, statusRich, ctx.menu, statusText);
   }).row()
   .text('🔙 Beranda', async (ctx) => {
-    await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML' });
+    await editRich(ctx, getWelcomeText(ctx));
     ctx.menu.nav('master-main-menu');
   });
 
@@ -671,7 +672,7 @@ export const registrationMenu = new Menu('reg-menu')
     await ctx.conversation.enter('qr-reg');
   }).row()
   .text('🔙 Kembali', async (ctx) => {
-    await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML' });
+    await editRich(ctx, getWelcomeText(ctx));
     ctx.menu.nav('master-main-menu');
   });
 
@@ -704,7 +705,7 @@ export const adminPremiumMenu = new Menu('admin-premium-menu')
          .text('+365 Hari', addDays(365)).row();
   })
   .text('🔙 Kembali', async (ctx) => {
-    await ctx.editMessageText(getAdminManageUserText(ctx), { parse_mode: 'HTML' });
+    await editRich(ctx, getAdminManageUserText(ctx));
     ctx.menu.nav('admin-manage-user-menu');
   });
 
@@ -813,7 +814,7 @@ export const adminUserListMenu = new Menu('admin-user-list-menu')
   })
   .text('🔙 Kembali ke Dashboard', async (ctx) => {
     ctx.session.adminUserListPage = 1; // reset on exit
-    await ctx.editMessageText(getAdminMainText(ctx), { parse_mode: 'HTML' });
+    await editRich(ctx, getAdminMainText(ctx));
     ctx.menu.nav('admin-main-menu');
   });
 
@@ -857,7 +858,7 @@ export const adminMainMenu = new Menu('admin-main-menu')
   })
   .row()
   .text('🔙 Beranda', async (ctx) => {
-    await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML' });
+    await editRich(ctx, getWelcomeText(ctx));
     ctx.menu.nav('master-main-menu');
   });
 
@@ -869,7 +870,7 @@ export const masterMainMenu = new Menu('master-main-menu')
     if (ctx.session?.infoView) {
       range.text('🔙 Beranda', async (ctx) => {
         ctx.session.infoView = false;
-        await ctx.editMessageText(getWelcomeText(ctx), { parse_mode: 'HTML', reply_markup: ctx.menu });
+        await editRich(ctx, getWelcomeText(ctx), { reply_markup: ctx.menu });
         ctx.menu.update();
       }).row();
       return;

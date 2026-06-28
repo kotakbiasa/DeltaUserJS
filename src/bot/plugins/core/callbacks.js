@@ -4,6 +4,7 @@ import { InlineKeyboard } from 'grammy';
 import config from '../../../config.js';
 import { activeRegClients } from '../core/conversations.js';
 import { sendAccessDeniedRich, panelMain, keyboardMain } from '../../ui/dashboard.js';
+import { replyRich, editRich } from '../../../utils/richMessage.js';
 
 // --- Registration approval state ---
 const approvalsFile = path.join(process.cwd(), 'approvals.json');
@@ -20,10 +21,7 @@ function saveApprovals() {
 }
 
 async function sendMainRich(ctx, deleteOld = false) {
-  await ctx.replyWithRichMessage(
-    { html: panelMain(ctx) },
-    { reply_markup: keyboardMain(ctx) }
-  );
+  await replyRich(ctx, panelMain(ctx), { reply_markup: keyboardMain(ctx) });
   if (deleteOld) {
     try { await ctx.deleteMessage(); } catch (_) {}
   }
@@ -87,7 +85,7 @@ export function registerLegacyCallbacks(bot) {
     const targetId = Number(ctx.match[1]);
     global.approvedUsers.add(targetId);
     saveApprovals();
-    await ctx.editMessageText({ html: `<blockquote><b>✅ BERHASIL</b><br>Pendaftaran <code>${targetId}</code> disetujui.</blockquote>` });
+    await editRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Pendaftaran <code>${targetId}</code> disetujui.</blockquote>`);
     try { await ctx.api.sendMessage(targetId, '🎉 Pendaftaran disetujui. Kirim /menu untuk mulai.'); } catch (_) {}
   });
 
@@ -95,7 +93,7 @@ export function registerLegacyCallbacks(bot) {
     const targetId = Number(ctx.match[1]);
     global.approvedUsers.delete(targetId);
     saveApprovals();
-    await ctx.editMessageText({ html: `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran <code>${targetId}</code> ditolak.</blockquote>` });
+    await editRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran <code>${targetId}</code> ditolak.</blockquote>`);
     try { await ctx.api.sendMessage(targetId, '❌ Pendaftaran userbot ditolak oleh owner.'); } catch (_) {}
   });
 
@@ -109,7 +107,7 @@ export function registerLegacyCallbacks(bot) {
     try { await ctx.answerCallbackQuery('Pendaftaran dibatalkan.'); } catch (_) {}
     await ctx.conversation.exitAll();
     try { await ctx.deleteMessage(); } catch (_) {}
-    await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>` });
+    await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
     await sendMainRich(ctx);
   });
 }

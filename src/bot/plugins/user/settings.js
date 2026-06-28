@@ -1,5 +1,6 @@
 import { getGroupConfig, updateGroupConfig } from '../../../core/database.js';
 import { isAdmin } from '../admin/admin_bot.js';
+import { replyRich, editRich } from '../../../utils/richMessage.js';
 
 async function sendSettingsPanel(ctx, chatId, config, isEdit = false) {
   const text = `⚙️ <b>Pengaturan Grup</b>\nID: <code>${chatId}</code>\n\n` +
@@ -16,9 +17,9 @@ async function sendSettingsPanel(ctx, chatId, config, isEdit = false) {
   };
 
   if (isEdit) {
-    await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: keyboard }).catch(() => {});
+    await editRich(ctx, text, { reply_markup: keyboard }).catch(() => {});
   } else {
-    await ctx.reply(text, { parse_mode: 'HTML', reply_markup: keyboard }).catch(() => {});
+    await replyRich(ctx, text, { reply_markup: keyboard }).catch(() => {});
   }
 }
 
@@ -38,7 +39,7 @@ export function registerSettingsHandlers(bot) {
       `<b>Pengaturan (Hanya di Grup):</b>\n` +
       `/settings - Buka panel konfigurasi grup\n` +
       `/rules - Lihat aturan grup`;
-    await ctx.reply(helpText, { parse_mode: 'HTML' });
+    await replyRich(ctx, helpText);
   });
 
   // Callback dari tombol di PM Dashboard (Pengaturan Grup)

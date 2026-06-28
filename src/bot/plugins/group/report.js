@@ -1,4 +1,5 @@
 import { getGroupConfig } from '../../../core/database.js';
+import { replyRich } from '../../../utils/richMessage.js';
 
 export function registerReportHandlers(bot) {
   bot.command('report', async (ctx) => {
@@ -15,8 +16,7 @@ export function registerReportHandlers(bot) {
         .map(a => `<a href="tg://user?id=${a.user.id}">\u200b</a>`)
         .join('');
       
-      await ctx.reply(`⚠️ <b>Report terkirim!</b> Admin telah dipanggil untuk memeriksa pesan ini.${adminMentions}`, {
-        parse_mode: 'HTML',
+      await replyRich(ctx, `⚠️ <b>Report terkirim!</b> Admin telah dipanggil untuk memeriksa pesan ini.${adminMentions}`, {
         reply_to_message_id: ctx.message.reply_to_message.message_id
       });
     } catch (e) {
@@ -37,8 +37,7 @@ export function registerReportHandlers(bot) {
           .map(a => `<a href="tg://user?id=${a.user.id}">\u200b</a>`)
           .join('');
         
-        await ctx.reply(`⚠️ Admin telah dipanggil.${adminMentions}`, {
-          parse_mode: 'HTML',
+        await replyRich(ctx, `⚠️ Admin telah dipanggil.${adminMentions}`, {
           reply_to_message_id: ctx.message.reply_to_message ? ctx.message.reply_to_message.message_id : ctx.message.message_id
         });
       } catch (e) {

@@ -1,5 +1,6 @@
 import { getGroupConfig, updateGroupConfig, getFederation, saveFederation } from '../../../core/database.js';
 import { isAdmin } from '../admin/admin_bot.js';
+import { replyRich } from '../../../utils/richMessage.js';
 
 // Random ID generator
 function generateId() {
@@ -23,14 +24,14 @@ export function registerFederationHandlers(bot) {
     if (await isGroupAdmin(ctx, userId) || isAdmin(userId)) {
       return next();
     }
-    return ctx.reply('❌ Anda bukan admin.');
+    return replyRich(ctx, '❌ Anda bukan admin.');
   };
 
   bot.command('newfed', async (ctx) => {
-    if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Hanya owner bot yang bisa membuat Federasi utama.');
+    if (!isAdmin(ctx.from.id)) return replyRich(ctx, '❌ Hanya owner bot yang bisa membuat Federasi utama.');
     
     const fedName = ctx.match.trim();
-    if (!fedName) return ctx.reply('❌ Format: `/newfed <Nama Fed>`', { parse_mode: 'Markdown' });
+    if (!fedName) return replyRich(ctx, '❌ Format: `/newfed <Nama Fed>`', { markdown: true });
 
     const fedId = generateId();
     const fedData = {
@@ -43,21 +44,21 @@ export function registerFederationHandlers(bot) {
     };
 
     await saveFederation(fedData);
-    ctx.reply(`✅ Federasi **${fedName}** berhasil dibuat!\n\nID Federasi: \`${fedId}\`\n\nGunakan \`/joinfed ${fedId}\` di grup lain untuk menautkan grup ke federasi ini.`, { parse_mode: 'Markdown' });
+    replyRich(ctx, `✅ Federasi **${fedName}** berhasil dibuat!\n\nID Federasi: \`${fedId}\`\n\nGunakan \`/joinfed ${fedId}\` di grup lain untuk menautkan grup ke federasi ini.`, { markdown: true });
   });
 
   bot.command('joinfed', modCheck, async (ctx) => {
     const fedId = ctx.match.trim();
-    if (!fedId) return ctx.reply('❌ Format: `/joinfed <Fed ID>`', { parse_mode: 'Markdown' });
+    if (!fedId) return replyRich(ctx, '❌ Format: `/joinfed <Fed ID>`', { markdown: true });
 
     const fed = getFederation(fedId);
-    if (!fed) return ctx.reply('❌ Federasi tidak ditemukan.');
+    if (!fed) return replyRich(ctx, '❌ Federasi tidak ditemukan.');
 
     const chatId = ctx.chat.id.toString();
     const config = await getGroupConfig(chatId);
     
     if (config.linked_fed === fedId) {
-      return ctx.reply('❌ Grup ini sudah terhubung ke federasi tersebut.');
+      return replyRich(ctx, '❌ Grup ini sudah terhubung ke federasi tersebut.');
     }
 
     config.linked_fed = fedId;
@@ -69,7 +70,7 @@ export function registerFederationHandlers(bot) {
       await saveFederation(fed);
     }
 
-    ctx.reply(`🤝 Grup ini berhasil ditautkan ke Federasi **${fed.fed_name}**.`);
+    replyRich(ctx, `🤝 Grup ini berhasil ditautkan ke Federasi **${fed.fed_name}**.`);
   });
 
   bot.command('leavefed', modCheck, async (ctx) => {
@@ -77,7 +78,7 @@ export function registerFederationHandlers(bot) {
     const config = await getGroupConfig(chatId);
     
     if (!config.linked_fed) {
-      return ctx.reply('❌ Grup ini tidak terhubung ke federasi manapun.');
+      return replyRich(ctx, '❌ Grup ini tidak terhubung ke federasi manapun.');
     }
 
     const fedId = config.linked_fed;
@@ -90,7 +91,7 @@ export function registerFederationHandlers(bot) {
       await saveFederation(fed);
     }
 
-    ctx.reply('🚪 Grup ini telah keluar dari federasi.');
+    replyRich(ctx, '🚪 Grup ini telah keluar dari federasi.');
   });
 
   bot.command('fban', modCheck, async (ctx) => {
@@ -98,14 +99,14 @@ export function registerFederationHandlers(bot) {
     const config = await getGroupConfig(chatId);
     
     if (!config.linked_fed) {
-      return ctx.reply('❌ Grup ini tidak terhubung ke federasi. Gabung dulu dengan `/joinfed`.', { parse_mode: 'Markdown' });
+      return replyRich(ctx, '❌ Grup ini tidak terhubung ke federasi. Gabung dulu dengan `/joinfed`.', { markdown: true });
     }
 
     const fed = getFederation(config.linked_fed);
-    if (!fed) return ctx.reply('❌ Federasi tidak ditemukan.');
+    if (!fed) return replyRich(ctx, '❌ Federasi tidak ditemukan.');
 
     if (!fed.admins.includes(ctx.from.id)) {
-      return ctx.reply('❌ Anda bukan admin di federasi ini.');
+      return replyRich(ctx, '❌ Anda bukan admin di federasi ini.');
     }
 
     let targetId = null;
@@ -121,11 +122,11 @@ export function registerFederationHandlers(bot) {
     }
 
     if (!targetId || isNaN(targetId)) {
-      return ctx.reply('❌ Reply pesan atau gunakan: `/fban <ID> [alasan]`', { parse_mode: 'Markdown' });
+      return replyRich(ctx, '❌ Reply pesan atau gunakan: `/fban <ID> [alasan]`', { markdown: true });
     }
 
     if (targetId === ctx.from.id || targetId === bot.botInfo.id || isAdmin(targetId)) {
-      return ctx.reply('❌ Tidak dapat mem-ban target ini.');
+      return replyRich(ctx, '❌ Tidak dapat mem-ban target ini.');
     }
 
     if (!fed.banned_users) fed.banned_users = {};
@@ -142,19 +143,19 @@ export function registerFederationHandlers(bot) {
       await ctx.banChatMember(targetId);
     } catch(e) {}
 
-    ctx.reply(`🦅 **F-BAN DITEGAKKAN!**\n\nTarget: \`${targetId}\`\nAlasan: ${fed.banned_users[targetId].reason}\nFederasi: ${fed.fed_name}\n\nPengguna ini akan ditolak di seluruh jaringan grup federasi ini.`, { parse_mode: 'Markdown' });
+    replyRich(ctx, `🦅 **F-BAN DITEGAKKAN!**\n\nTarget: \`${targetId}\`\nAlasan: ${fed.banned_users[targetId].reason}\nFederasi: ${fed.fed_name}\n\nPengguna ini akan ditolak di seluruh jaringan grup federasi ini.`, { markdown: true });
   });
 
   bot.command('unfban', modCheck, async (ctx) => {
     const chatId = ctx.chat.id.toString();
     const config = await getGroupConfig(chatId);
     
-    if (!config.linked_fed) return ctx.reply('❌ Grup tidak terhubung ke federasi.');
+    if (!config.linked_fed) return replyRich(ctx, '❌ Grup tidak terhubung ke federasi.');
 
     const fed = getFederation(config.linked_fed);
-    if (!fed) return ctx.reply('❌ Federasi tidak ditemukan.');
+    if (!fed) return replyRich(ctx, '❌ Federasi tidak ditemukan.');
 
-    if (!fed.admins.includes(ctx.from.id)) return ctx.reply('❌ Anda bukan admin federasi.');
+    if (!fed.admins.includes(ctx.from.id)) return replyRich(ctx, '❌ Anda bukan admin federasi.');
 
     let targetId = null;
     if (ctx.message.reply_to_message) {
@@ -163,10 +164,10 @@ export function registerFederationHandlers(bot) {
       targetId = parseInt(ctx.match.trim());
     }
 
-    if (!targetId || isNaN(targetId)) return ctx.reply('❌ Reply pesan atau berikan ID.');
+    if (!targetId || isNaN(targetId)) return replyRich(ctx, '❌ Reply pesan atau berikan ID.');
 
     if (!fed.banned_users || !fed.banned_users[targetId]) {
-      return ctx.reply('❌ Pengguna tidak ada dalam daftar F-Ban.');
+      return replyRich(ctx, '❌ Pengguna tidak ada dalam daftar F-Ban.');
     }
 
     delete fed.banned_users[targetId];
@@ -176,17 +177,17 @@ export function registerFederationHandlers(bot) {
       await ctx.unbanChatMember(targetId);
     } catch(e) {}
 
-    ctx.reply(`🕊️ **UN-FBAN**\nPengguna \`${targetId}\` telah dicabut dari daftar hitam Federasi.`, { parse_mode: 'Markdown' });
+    replyRich(ctx, `🕊️ **UN-FBAN**\nPengguna \`${targetId}\` telah dicabut dari daftar hitam Federasi.`, { markdown: true });
   });
 
   bot.command('fedinfo', modCheck, async (ctx) => {
     const chatId = ctx.chat.id.toString();
     const config = await getGroupConfig(chatId);
     
-    if (!config.linked_fed) return ctx.reply('❌ Grup tidak terhubung ke federasi.');
+    if (!config.linked_fed) return replyRich(ctx, '❌ Grup tidak terhubung ke federasi.');
     
     const fed = getFederation(config.linked_fed);
-    if (!fed) return ctx.reply('❌ Federasi tidak ditemukan.');
+    if (!fed) return replyRich(ctx, '❌ Federasi tidak ditemukan.');
 
     const banCount = fed.banned_users ? Object.keys(fed.banned_users).length : 0;
     const groupCount = fed.linked_groups ? fed.linked_groups.length : 0;
@@ -222,7 +223,7 @@ export function registerFederationHandlers(bot) {
       </table>
     `.trim();
 
-    ctx.replyWithRichMessage({ html }, { reply_parameters: { message_id: ctx.message.message_id } });
+    replyRich(ctx, html, { reply_parameters: { message_id: ctx.message.message_id } });
   });
 
   // F-Ban interceptor
@@ -253,7 +254,7 @@ export function registerFederationHandlers(bot) {
         if (fed.banned_users[m.id]) {
           try {
             await ctx.banChatMember(m.id);
-            await ctx.reply(`🦅 Pengguna [${m.first_name}](tg://user?id=${m.id}) dilarang masuk karena berada dalam daftar hitam Federasi **${fed.fed_name}**.`, { parse_mode: 'Markdown' });
+            await replyRich(ctx, `🦅 Pengguna [${m.first_name}](tg://user?id=${m.id}) dilarang masuk karena berada dalam daftar hitam Federasi **${fed.fed_name}**.`, { markdown: true });
           } catch(e) {}
         }
       }

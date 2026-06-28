@@ -1,6 +1,7 @@
 import { helpRegistry as userbotHelpRegistry } from '../../../userbot/engine/pluginRegistry.js';
 import { getUserbotSession } from '../../../core/database.js';
 import { escapeHtml } from '../../ui/dashboard.js';
+import { replyRich } from '../../../utils/richMessage.js';
 
 function table(caption, rows) {
   return `<table bordered striped><caption>${escapeHtml(caption)}</caption>` +
@@ -181,12 +182,9 @@ export function helpKeyboard(page = 1, target = 'main', isInline = false) {
 
 async function sendHelpRich(ctx, html, keyboard, deleteOld = false) {
   if (ctx.inlineMessageId) {
-    await ctx.api.editMessageTextInline(ctx.inlineMessageId, { html }, { reply_markup: keyboard }).catch(() => {});
+    await ctx.api.editMessageTextInline(ctx.inlineMessageId, html, { parse_mode: 'HTML', reply_markup: keyboard }).catch(() => {});
   } else {
-    await ctx.replyWithRichMessage(
-      { html },
-      { reply_markup: keyboard }
-    );
+    await replyRich(ctx, html, { reply_markup: keyboard });
     if (deleteOld) {
       try { await ctx.deleteMessage(); } catch (_) {}
     }
@@ -261,13 +259,13 @@ export function registerInlineHelpHandlers(bot) {
     if (moduleMatch) {
       const moduleName = moduleMatch[1].toLowerCase();
       if (!masterHelpRegistry[moduleName]) return;
-      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildModuleRichHtml(moduleName, session, 'main') }, { reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: 'help:page:1:main' }]] } }).catch(() => {});
+      await ctx.api.editMessageTextInline(inlineMessageId, buildModuleRichHtml(moduleName, session, 'main'), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: 'help:page:1:main' }]] } }).catch(() => {});
       return;
     }
 
     if (query === 'help' || query === 'help_ubot') {
       const target = query === 'help_ubot' ? 'ubot' : 'main';
-      await ctx.api.editMessageTextInline(inlineMessageId, { html: buildHelpMenuRichHtml(session, 1, target) }, { reply_markup: helpKeyboard(1, target, true) }).catch(() => {});
+      await ctx.api.editMessageTextInline(inlineMessageId, buildHelpMenuRichHtml(session, 1, target), { parse_mode: 'HTML', reply_markup: helpKeyboard(1, target, true) }).catch(() => {});
     }
   });
 

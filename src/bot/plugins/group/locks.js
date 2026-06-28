@@ -1,5 +1,6 @@
 import { getGroupConfig, updateGroupConfig } from '../../../core/database.js';
 import { isAdmin } from '../admin/admin_bot.js';
+import { replyRich } from '../../../utils/richMessage.js';
 
 async function isGroupAdmin(ctx, userId) {
   try {
@@ -18,7 +19,7 @@ export function registerLocksHandlers(bot) {
     if (await isGroupAdmin(ctx, userId) || isAdmin(userId)) {
       return next();
     }
-    return ctx.reply('❌ Anda bukan admin.');
+    return replyRich(ctx, '❌ Anda bukan admin.');
   };
 
   const validLocks = ['url', 'forward', 'sticker', 'arabic', 'bots'];
@@ -26,7 +27,7 @@ export function registerLocksHandlers(bot) {
   bot.command('lock', modCheck, async (ctx) => {
     const args = ctx.match.trim().toLowerCase();
     if (!validLocks.includes(args)) {
-      return ctx.reply(`❌ Kunci tidak valid. Pilih: \`${validLocks.join(', ')}\``, { parse_mode: 'Markdown' });
+      return replyRich(ctx, `❌ Kunci tidak valid. Pilih: \`${validLocks.join(', ')}\``, { markdown: true });
     }
 
     const chatId = ctx.chat.id.toString();
@@ -36,13 +37,13 @@ export function registerLocksHandlers(bot) {
     config.locks[args] = 1;
     await updateGroupConfig(chatId, config);
 
-    ctx.reply(`🔒 Gembok \`${args}\` berhasil diaktifkan.`, { parse_mode: 'Markdown' });
+    replyRich(ctx, `🔒 Gembok \`${args}\` berhasil diaktifkan.`, { markdown: true });
   });
 
   bot.command('unlock', modCheck, async (ctx) => {
     const args = ctx.match.trim().toLowerCase();
     if (!validLocks.includes(args)) {
-      return ctx.reply(`❌ Kunci tidak valid. Pilih: \`${validLocks.join(', ')}\``, { parse_mode: 'Markdown' });
+      return replyRich(ctx, `❌ Kunci tidak valid. Pilih: \`${validLocks.join(', ')}\``, { markdown: true });
     }
 
     const chatId = ctx.chat.id.toString();
@@ -52,7 +53,7 @@ export function registerLocksHandlers(bot) {
     config.locks[args] = 0;
     await updateGroupConfig(chatId, config);
 
-    ctx.reply(`🔓 Gembok \`${args}\` berhasil dinonaktifkan.`, { parse_mode: 'Markdown' });
+    replyRich(ctx, `🔓 Gembok \`${args}\` berhasil dinonaktifkan.`, { markdown: true });
   });
 
   // Lock logic interceptor

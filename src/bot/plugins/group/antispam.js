@@ -1,5 +1,6 @@
 import { getGroupConfig, updateGroupConfig, addWarn } from '../../../core/database.js';
 import { isAdmin } from '../admin/admin_bot.js';
+import { replyRich } from '../../../utils/richMessage.js';
 
 const spamTracker = new Map();
 const SPAM_LIMIT = 5;
@@ -19,7 +20,7 @@ export function registerAntispamHandlers(bot) {
   // Command to toggle antispam
   bot.command('antispam', async (ctx) => {
     if (ctx.chat.type === 'private') {
-      return ctx.reply('❌ Perintah ini hanya bisa digunakan di dalam grup.');
+      return replyRich(ctx, '❌ Perintah ini hanya bisa digunakan di dalam grup.');
     }
 
     const userId = ctx.from?.id;
@@ -29,12 +30,12 @@ export function registerAntispamHandlers(bot) {
     const isBotOwner = isAdmin(userId);
 
     if (!isAdminMember && !isBotOwner) {
-      return ctx.reply('❌ Hanya admin grup yang bisa mengatur fitur ini.');
+      return replyRich(ctx, '❌ Hanya admin grup yang bisa mengatur fitur ini.');
     }
 
     const args = ctx.match.trim().toLowerCase();
     if (!['on', 'off'].includes(args)) {
-      return ctx.reply('❌ Format salah.\nGunakan: `/antispam on` atau `/antispam off`', { parse_mode: 'Markdown' });
+      return replyRich(ctx, '❌ Format salah.\nGunakan: `/antispam on` atau `/antispam off`', { markdown: true });
     }
 
     const chatId = ctx.chat.id.toString();
@@ -42,7 +43,7 @@ export function registerAntispamHandlers(bot) {
     config.antispam_enabled = (args === 'on');
     await updateGroupConfig(chatId, config);
 
-    return ctx.reply(`🛡️ **Anti-Spam** berhasil di-${args === 'on' ? 'aktifkan' : 'matikan'} untuk grup ini.`, { parse_mode: 'Markdown' });
+    return replyRich(ctx, `🛡️ **Anti-Spam** berhasil di-${args === 'on' ? 'aktifkan' : 'matikan'} untuk grup ini.`, { markdown: true });
   });
 
   // Message listener for spam tracking
@@ -100,7 +101,7 @@ export function registerAntispamHandlers(bot) {
           }
         }
 
-        await ctx.reply(replyText, { parse_mode: 'HTML' });
+        await replyRich(ctx, replyText);
       } catch (err) {
         console.error('Master Bot Antispam Error:', err);
       }

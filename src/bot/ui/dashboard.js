@@ -7,6 +7,7 @@
  */
 import { Api } from 'teleproto';
 import config from '../../config.js';
+import { replyRich } from '../../utils/richMessage.js';
 import {
   getUserbotSession,
   getAllRegisteredUsers,
@@ -518,8 +519,7 @@ export function registerRichHandlers(bot) {
 
   bot.command(['start', 'menu'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
-      await ctx.reply(`🤖 <b>${ctx.me.first_name} Aktif!</b>\n\nSilakan kirim pesan secara privat (PM) kepada saya untuk mengelola Bot Anda.`, {
-        parse_mode: 'HTML',
+      await replyRich(ctx, `🤖 <b>${ctx.me.first_name} Aktif!</b>\n\nSilakan kirim pesan secara privat (PM) kepada saya untuk mengelola Bot Anda.`, {
         reply_markup: {
           inline_keyboard: [[{ text: 'Buka Private Chat', url: `https://t.me/${ctx.me.username}?start=true` }]]
         }

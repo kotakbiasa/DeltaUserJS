@@ -1,5 +1,6 @@
 import { InlineKeyboard } from 'grammy';
 import { getUserbotSession, addApprovedUser } from '../../../core/database.js';
+import { editRich } from '../../../utils/richMessage.js';
 
 /**
  * Register Anti-PM handlers to the master/inline bot
@@ -73,10 +74,10 @@ export function registerInlineAntiPmHandlers(bot) {
       try {
         if (action === 'approve') {
           await addApprovedUser(ownerId, targetId);
-          await ctx.editMessageText(`✅ <b>Pengguna Diizinkan!</b>\n\n<pre>User ID  ${targetId}\nStatus   Whitelist</pre>\n⚡ <i>${ownerName}</i>`, { parse_mode: 'HTML' });
+          await editRich(ctx, `✅ <b>Pengguna Diizinkan!</b>\n\n<pre>User ID  ${targetId}\nStatus   Whitelist</pre>\n⚡ <i>${ownerName}</i>`);
           await ctx.answerCallbackQuery({ text: '✅ Pengguna telah diizinkan (Approved)!', show_alert: true });
         } else if (action === 'block') {
-          await ctx.editMessageText(`🚫 <b>Pengguna Diblokir!</b>\n\n<pre>User ID  ${targetId}\nStatus   Blocked</pre>\n⚡ <i>${ownerName}</i>`, { parse_mode: 'HTML' });
+          await editRich(ctx, `🚫 <b>Pengguna Diblokir!</b>\n\n<pre>User ID  ${targetId}\nStatus   Blocked</pre>\n⚡ <i>${ownerName}</i>`);
           await ctx.answerCallbackQuery({ text: '🚫 Pengguna ditolak!', show_alert: true });
         }
       } catch (err) {
