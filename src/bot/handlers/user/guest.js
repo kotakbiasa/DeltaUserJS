@@ -17,8 +17,9 @@ export function registerGuestHandler(bot) {
       const userSession = getUserbotSession(telegramId);
       const botUsername = ctx.me?.username || 'Bot';
 
-      if (text.startsWith('dl ')) {
-        const url = text.split(' ')[1];
+      if (text.startsWith('dl ') || text.startsWith('/dl ')) {
+        const cmdParts = text.split(' ');
+        const url = cmdParts.length > 1 ? cmdParts[1] : '';
         if (!url || !TiktokService.supports(url)) {
           await ctx.api.answerGuestQuery(guestQueryId, {
             text: `❌ <b>URL tidak valid!</b>\nHarap masukkan link TikTok yang benar (tiktok.com/vt.tiktok.com).`,
