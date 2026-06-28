@@ -4,7 +4,7 @@ import path from 'path';
 import { clearRegistry, loadedPlugins, registerPlugin, validatePlugin } from './pluginRegistry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const pluginsDir = path.join(__dirname, '../plugins');
+const pluginsDir = path.join(__dirname, '../handlers');
 
 function helpIsComplete(help) {
   if (!help) return true;
@@ -45,7 +45,7 @@ export async function loadAllPlugins({ reload = true } = {}) {
     return loadedPlugins;
   }
 
-  console.log(`📦 Found ${files.length} plugin file(s) in plugins/ directory.`);
+  console.log(`📦 Found ${files.length} plugin file(s) in handlers/ directory.`);
 
   for (const filePath of files) {
     const fileRelPath = path.relative(pluginsDir, filePath);

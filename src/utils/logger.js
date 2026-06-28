@@ -1,4 +1,4 @@
-import { getSystemVar, getUserVar } from '../core/database.js';
+import { getSystemVar, getUserVar } from '../infrastructure/database.js';
 
 let masterBot = null;
 

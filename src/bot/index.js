@@ -11,10 +11,10 @@ import {
   manageVarsConv,
   manageSystemVarsConv,
   customNameConversation,
-} from './plugins/core/conversations.js';
-import { registerRichHandlers } from './ui/dashboard.js';
+} from './handlers/core/conversations.js';
+import { registerRichHandlers } from './keyboards/dashboard.js';
 import { setLoggerBot } from '../utils/logger.js';
-import { registerAllHandlers } from './plugins/index.js';
+import { registerAllHandlers } from './handlers/index.js';
 
 const bot = new Bot(config.botToken);
 

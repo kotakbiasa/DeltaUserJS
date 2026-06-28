@@ -3,7 +3,7 @@ import { StringSession } from 'teleproto/sessions/index.js';
 import { NewMessage, Raw } from 'teleproto/events/index.js';
 import { Api } from 'teleproto';
 import config from '../../config.js';
-import { getUserbotSession, getChatSettings } from '../../core/database.js';
+import { getUserbotSession, getChatSettings } from '../../infrastructure/database.js';
 import { loadAllPlugins } from './pluginLoader.js';
 import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
@@ -71,8 +71,8 @@ export class UserbotClient {
    */
   async restartSchedules() {
     try {
-      const { getSchedules } = await import('../../core/database.js');
-      const { startLoop } = await import('../plugins/util/schedule.js');
+      const { getSchedules } = await import('../../infrastructure/database.js');
+      const { startLoop } = await import('../handlers/util/schedule.js');
       
       const schedules = getSchedules(this.telegramId);
       for (const s of schedules) {

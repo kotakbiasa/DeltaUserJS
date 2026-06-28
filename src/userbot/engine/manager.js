@@ -1,5 +1,5 @@
 import { UserbotClient } from './client.js';
-import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../../core/database.js';
+import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../../infrastructure/database.js';
 import inlineBotManager from '../../core/inlineBotManager.js';
 import { Logger } from '../../utils/logger.js';
 

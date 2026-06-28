@@ -1,9 +1,9 @@
 import { Bot, session } from 'grammy';
 import { conversations } from '@grammyjs/conversations';
 
-import { registerInlineHelpHandlers, registerInlineLatexHandlers } from '../bot/plugins/core/help.js';
-import { registerInlineAntiPmHandlers } from '../bot/plugins/core/antiPm.js';
-import { registerInlineAnilistHandlers } from '../bot/plugins/core/anilist.js';
+import { registerInlineHelpHandlers, registerInlineLatexHandlers } from '../bot/handlers/core/help.js';
+import { registerInlineAntiPmHandlers } from '../bot/handlers/core/antiPm.js';
+import { registerInlineAnilistHandlers } from '../bot/handlers/core/anilist.js';
 
 class InlineBotManager {
   constructor() {
