@@ -7,18 +7,17 @@ MongoDB (dengan fallback file JSON lokal) dan di-cache di memori untuk akses cep
 
 ## ✨ Fitur
 
-- Manajemen banyak userbot dari satu Master Bot.
-- Sistem plugin modular (`src/userbot/plugins/`).
-- Pengecek masa aktif (subscription expiration) otomatis.
-- Watchdog yang menyambungkan ulang userbot yang terputus.
-- Fitur grup: AFK, anti-PM, warn, lock, notes, gcast, kang sticker, dll.
+- Manajemen banyak userbot dari satu Master Bot
+- Sistem plugin modular untuk userbot commands
+- Pengecek masa aktif (subscription expiration) otomatis
+- Watchdog yang menyambungkan ulang userbot yang terputus
+- Dashboard interaktif dengan rich message support
 
 ## 📦 Prasyarat
 
-- **Node.js >= 18** (memakai ESM + top-level `await`).
-- **MongoDB** (Atlas atau self-hosted) — opsional; tanpa `MONGO_URI` akan
-  memakai database file lokal `database.json`.
-- **Bot token** dari [@BotFather](https://t.me/BotFather).
+- **Node.js >= 18** (memakai ESM + top-level `await`)
+- **MongoDB** (Atlas atau self-hosted) — opsional; tanpa `MONGO_URI` akan memakai database file lokal `database.json`
+- **Bot token** dari [@BotFather](https://t.me/BotFather)
 
 ## 🚀 Instalasi
 
@@ -45,15 +44,52 @@ cp .env.example .env   # lalu isi nilainya
 ```bash
 npm start      # produksi
 npm run dev    # mode watch (auto-restart saat file berubah)
+npm run build  # compile TypeScript
 npm test       # menjalankan E2E test runner
+```
+
+## 🤖 Cara Pakai
+
+1. Kirim `/start` atau `/menu` ke Master Bot di private chat
+2. Pilih **🤖 Userbot** untuk masuk panel userbot
+3. Klik **🚀 Register Panel** untuk registrasi akun userbot baru (OTP atau QR)
+4. Setelah berhasil login, gunakan dashboard untuk:
+   - ⚡ Hidupkan/Matikan Bot
+   - 🧩 Kelola Plugin (aktifkan/nonaktifkan modul)
+   - ⚙️ Settings (Anti-PM, AFK, custom name)
+
+## 🗂️ Struktur Project
+
+```
+src/
+├── bot/                    # Master Bot Layer (grammY)
+│   ├── conversations/     # Registration flows (OTP, QR)
+│   ├── handlers/          # Command & callback handlers
+│   ├── ui/                # Dashboard UI components
+│   └── index.ts
+├── userbot/               # Userbot Layer (GramJS)
+│   ├── engine/           # Client, manager, plugin system
+│   └── handlers/         # Plugin commands (admin, system, tools, util)
+├── services/             # Business logic services
+│   ├── UserbotService.ts
+│   ├── SystemVarService.ts
+│   └── inlineBotManager.ts
+├── infrastructure/       # Data persistence layer
+│   ├── dbCore.ts        # MongoDB + file fallback + models
+│   └── database.ts      # Re-exports
+├── utils/               # Shared utilities
+│   ├── logger.ts
+│   ├── richMessage.ts
+│   └── richParser.ts
+├── config.ts            # Environment config
+└── index.ts             # Entry point
 ```
 
 ## 🧩 Membuat Plugin
 
-Letakkan file `.js` di `src/userbot/plugins/`. Setiap plugin mengekspor objek
-default:
+Letakkan file `.ts` atau `.js` di `src/userbot/handlers/`. Setiap plugin mengekspor objek default:
 
-```js
+```ts
 export default {
   name: 'ping',
   help: {
@@ -63,36 +99,25 @@ export default {
     detail: 'Membalas dengan waktu respons.'
   },
   async execute(client, message, settings, telegramId) {
-    // logika command di sini
-  },
-  // opsional:
-  async onCallbackQuery(client, event, settings, telegramId) {
-    // tangani klik tombol inline; return true bila sudah ditangani
+    const start = Date.now();
+    const sent = await message.reply({ message: '🏓 Pong!' });
+    const latency = Date.now() - start;
+    await sent.edit({ text: `🏓 Pong! \`${latency}ms\`` });
   }
 };
 ```
 
-Field `name` dan `execute` wajib. `help` opsional tetapi jika ada harus lengkap
-(`title`, `description`, `usage`, `detail`) agar tampil di module library.
-
-## 🗂️ Struktur Proyek
-
-```
-src/
-├── index.js              # entry point + expiration checker
-├── config.js             # konfigurasi dari .env
-├── bot/                  # Master Bot (grammY): menu, percakapan, handler
-├── userbot/              # manajer userbot, loader plugin, registry
-│   └── plugins/          # plugin command userbot
-└── database/db.js        # layer database (Mongo + cache + fallback file)
-test/                     # E2E test runner & mock GramJS
-```
+Field `name` dan `execute` wajib. `help` opsional tetapi jika ada harus lengkap (`title`, `description`, `usage`, `detail`) agar tampil di module library.
 
 ## 🐳 Docker
 
 ```bash
 docker compose up -d
 ```
+
+## 📚 Dokumentasi
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Penjelasan detail struktur & arsitektur
 
 ## 📄 Lisensi
 

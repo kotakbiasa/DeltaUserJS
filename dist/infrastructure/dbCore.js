@@ -4,11 +4,40 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import config from '../config.js';
-import { DEFAULT_AFK_REASON, DEFAULT_CUSTOM_NAME, SUBSCRIPTION_DAYS, UserbotModel, SystemConfigModel, GroupConfigModel, FederationModel } from '../domain/models/index.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, '../../database.json');
 const MONGO_URI = config.mongoUri || process.env.MONGO_URI;
 const DB_NAME = config.dbName || process.env.DB_NAME || 'DeltaUbotJS';
+// Constants
+export const DEFAULT_AFK_REASON = 'AFK';
+export const DEFAULT_CUSTOM_NAME = 'Userbot';
+export const SUBSCRIPTION_DAYS = 7;
+// Mongoose Models (if using MongoDB)
+const userbotSchema = new mongoose.Schema({
+    telegram_id: { type: Number, required: true, unique: true, index: true },
+    phone: String,
+    session_string: String,
+    is_active: { type: Number, default: 1 },
+    auto_read: { type: Number, default: 0 },
+    auto_reply: { type: Number, default: 0 },
+    anti_pm: { type: Number, default: 0 },
+    afk_reason: { type: String, default: DEFAULT_AFK_REASON },
+    expired_at: Date,
+    created_at: { type: Date, default: Date.now },
+    inline_bot_token: String,
+    inline_bot_username: String,
+    custom_name: { type: String, default: DEFAULT_CUSTOM_NAME },
+    approved_users: [Number],
+    broadcast_blacklist: [Number],
+    disabled_plugins: [String],
+    vars: { type: Map, of: String, default: {} },
+}, { strict: false });
+const systemConfigSchema = new mongoose.Schema({
+    _id: { type: String, default: 'system' },
+    vars: { type: Map, of: String, default: {} },
+}, { _id: false });
+export const UserbotModel = mongoose.models.Userbot || mongoose.model('Userbot', userbotSchema);
+export const SystemConfigModel = mongoose.models.SystemConfig || mongoose.model('SystemConfig', systemConfigSchema);
 export const dbCache = new Map();
 export let isMongo = false;
 export let systemConfigCache = { vars: {} };

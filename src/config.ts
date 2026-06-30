@@ -17,9 +17,6 @@ const config = {
   logTopicId: process.env.LOG_TOPIC_ID ? parseInt(process.env.LOG_TOPIC_ID) : 0,
   mongoUri: process.env.MONGO_URI,
   dbName: 'DeltaUbotJS',
-  
-  // Downloader service config
-  downloadsDir: path.join(process.cwd(), 'downloads'),
 };
 
 // Check if credentials are set

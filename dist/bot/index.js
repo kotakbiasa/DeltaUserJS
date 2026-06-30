@@ -3,8 +3,8 @@ import { Bot, session } from 'grammy';
 import { conversations, createConversation } from '@grammyjs/conversations';
 import { limit } from '@grammyjs/ratelimiter';
 import config from '../config.js';
-import { otpRegistrationConversation, qrRegistrationConversation, afkReasonConversation, broadcastConversation, manageVarsConv, manageSystemVarsConv, customNameConversation, } from './handlers/core/conversations.js';
-import { registerRichHandlers } from './keyboards/dashboard.js';
+import { otpRegistrationConversation, qrRegistrationConversation, customNameConversation, } from './conversations/registration.js';
+import { registerRichHandlers } from './ui/keyboards/dashboard.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 const bot = new Bot(config.botToken);
@@ -23,10 +23,6 @@ bot.use(limit({
 bot.use(conversations());
 bot.use(createConversation(otpRegistrationConversation, 'otp-reg'));
 bot.use(createConversation(qrRegistrationConversation, 'qr-reg'));
-bot.use(createConversation(afkReasonConversation, 'afk-reason-conv'));
-bot.use(createConversation(broadcastConversation, 'admin-broadcast-conv'));
-bot.use(createConversation(manageVarsConv, 'manage-vars-conv'));
-bot.use(createConversation(manageSystemVarsConv, 'manage-system-vars-conv'));
 bot.use(createConversation(customNameConversation, 'custom-name-conv'));
 setLoggerBot(bot);
 // Register dashboard UI components (menus, start command, etc)

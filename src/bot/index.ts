@@ -7,13 +7,9 @@ import config from '../config.js';
 import {
   otpRegistrationConversation,
   qrRegistrationConversation,
-  afkReasonConversation,
-  broadcastConversation,
-  manageVarsConv,
-  manageSystemVarsConv,
   customNameConversation,
-} from './handlers/core/conversations.js';
-import { registerRichHandlers } from './keyboards/dashboard.js';
+} from './conversations/registration.js';
+import { registerRichHandlers } from './ui/keyboards/dashboard.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 
@@ -32,10 +28,6 @@ bot.use(limit({
 bot.use(conversations());
 bot.use(createConversation(otpRegistrationConversation, 'otp-reg'));
 bot.use(createConversation(qrRegistrationConversation, 'qr-reg'));
-bot.use(createConversation(afkReasonConversation, 'afk-reason-conv'));
-bot.use(createConversation(broadcastConversation, 'admin-broadcast-conv'));
-bot.use(createConversation(manageVarsConv, 'manage-vars-conv'));
-bot.use(createConversation(manageSystemVarsConv, 'manage-system-vars-conv'));
 bot.use(createConversation(customNameConversation, 'custom-name-conv'));
 
 setLoggerBot(bot);

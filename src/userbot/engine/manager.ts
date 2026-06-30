@@ -1,6 +1,6 @@
 import { UserbotClient } from './client.js';
 import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../../infrastructure/database.js';
-import inlineBotManager from '../../core/inlineBotManager.js';
+import inlineBotManager from '../../services/inlineBotManager.js';
 import { Logger } from '../../utils/logger.js';
 
 function sleep(ms) {
