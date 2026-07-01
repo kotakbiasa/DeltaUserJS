@@ -45,6 +45,13 @@ const systemConfigSchema = new mongoose.Schema({
 export const UserbotModel = mongoose.models.Userbot || mongoose.model('Userbot', userbotSchema);
 export const SystemConfigModel = mongoose.models.SystemConfig || mongoose.model('SystemConfig', systemConfigSchema);
 
+const groupConfigSchema = new mongoose.Schema({
+  chat_id: { type: String, required: true, unique: true, index: true },
+  notes: { type: Map, of: String, default: {} }
+}, { strict: false });
+
+export const GroupConfigModel = mongoose.models.GroupConfig || mongoose.model('GroupConfig', groupConfigSchema);
+
 export const dbCache = new Map();
 export let isMongo = false;
 export let systemConfigCache = { vars: {} };
@@ -190,6 +197,11 @@ export async function initDatabaseAndCache() {
 
       const sysConf = await SystemConfigModel.findById('system');
       if (sysConf) systemConfigCache = sysConf.toObject();
+
+      const groups = await GroupConfigModel.find({});
+      for (const group of groups) {
+        groupConfigCache.set(group.chat_id, group.toObject());
+      }
 
       console.log(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`);
       return;

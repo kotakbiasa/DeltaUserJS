@@ -42,7 +42,7 @@ export default {
            teleprotoVer = (pkg.dependencies['teleproto'] || 'N/A').replace(/^[\^~>=]+/, '');
         } catch (e) {}
 
-        const text = `📊 <b>DELTAUBOTJS STATS</b>\n\n` +
+        const text = `📊 <b>USERBOT STATS</b>\n\n` +
           `<blockquote>` +
           `🤖 <b>Modul Aktif:</b> <code>${pluginCount}</code>\n` +
           `⏳ <b>Uptime:</b> <code>${uptimeStr}</code>\n` +

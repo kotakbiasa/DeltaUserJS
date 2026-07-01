@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node --no-warnings dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "test": "node test/runner.js"
   },
   "dependencies": {

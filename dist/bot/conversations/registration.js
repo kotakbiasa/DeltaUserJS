@@ -622,7 +622,7 @@ export async function broadcastConversation(conversation, ctx) {
         return;
     }
     try {
-        await replyRich(ctx, `<h1>📢 Panel Broadcast DeltaUbotJS</h1><blockquote>Silakan kirimkan pesan broadcast yang ingin Anda sebarluaskan ke seluruh pengguna terdaftar.</blockquote>`, { reply_markup: cancelKeyboard, });
+        await replyRich(ctx, `<h1>📢 Panel Broadcast Userbot</h1><blockquote>Silakan kirimkan pesan broadcast yang ingin Anda sebarluaskan ke seluruh pengguna terdaftar.</blockquote>`, { reply_markup: cancelKeyboard, });
         let broadcastMsg;
         try {
             broadcastMsg = await waitForInput(conversation, ctx);
@@ -640,7 +640,7 @@ export async function broadcastConversation(conversation, ctx) {
         let failCount = 0;
         for (const user of allUsers) {
             try {
-                await ctx.api.sendMessage(user.telegram_id, `📢 <b>PEMBERITAHUAN DELTAUBOTJS</b>\n\n<blockquote>${broadcastMsg}</blockquote>`, {
+                await ctx.api.sendMessage(user.telegram_id, `📢 <b>PEMBERITAHUAN USERBOT</b>\n\n<blockquote>${broadcastMsg}</blockquote>`, {
                     parse_mode: 'HTML',
                 });
                 successCount++;

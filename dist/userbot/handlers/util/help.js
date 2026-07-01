@@ -16,15 +16,13 @@ function buildHelpMenuText(settings) {
     const plugins = Object.keys(helpRegistry);
     const total = plugins.length;
     const formattedPlugins = plugins.map(p => `• <code>${formatModuleName(p)}</code>`).join('\n');
-    return (`⚡ <b>DELTA UBOT — DAFTAR MODUL</b>\n` +
+    return (`⚡ <b>USERBOT — DAFTAR MODUL</b>\n` +
         `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
         `ℹ️ <i>Gunakan custom inline bot untuk tampilan tombol interaktif.</i>\n\n` +
         `📦 <b>Modul Aktif (${total}):</b>\n` +
         `${formattedPlugins}\n\n` +
         `📖 <b>Petunjuk Penggunaan:</b>\n` +
-        `<blockquote>Ketik <code>.help [nama_modul]</code> untuk melihat cara penggunaan dan detail modul.</blockquote>\n` +
-        `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
-        `💻 <i>DeltaUserJS Project</i>`);
+        `<blockquote>Ketik <code>.help [nama_modul]</code> untuk melihat cara penggunaan dan detail modul.</blockquote>`);
 }
 /**
  * Konversi Markdown sederhana ke HTML
