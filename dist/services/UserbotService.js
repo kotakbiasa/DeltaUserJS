@@ -155,3 +155,101 @@ export async function updateChatSettings(telegramId, chatId, key, value) {
     await persistField(idNum, 'chat_settings', session.chat_settings);
     return session.chat_settings[chatKey];
 }
+export function getSchedules(telegramId) {
+    const session = dbCache.get(Number(telegramId));
+    return session?.schedules || [];
+}
+export function getReputation(telegramId, targetUserId) {
+    const session = dbCache.get(Number(telegramId));
+    if (!session)
+        return 0;
+    return (session.reputation_data || {})[String(targetUserId)] || 0;
+}
+export function getWarns(telegramId, chatId, targetUserId) {
+    const session = dbCache.get(Number(telegramId));
+    if (!session)
+        return { count: 0 };
+    const chatWarns = (session.warn_data || {})[String(chatId)] || {};
+    return chatWarns[String(targetUserId)] || { count: 0 };
+}
+export function getChatLocks(telegramId, chatId) {
+    const session = dbCache.get(Number(telegramId));
+    if (!session)
+        return {};
+    return (session.lock_config || {})[String(chatId)] || {};
+}
+export async function saveSchedule(telegramId, chatId, type, value, message) {
+    const idNum = Number(telegramId);
+    const session = dbCache.get(idNum);
+    if (!session)
+        return false;
+    session.schedules = session.schedules || [];
+    const chatKey = String(chatId);
+    session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
+    session.schedules.push({
+        chatKey,
+        type,
+        value,
+        message
+    });
+    await persistField(idNum, 'schedules', session.schedules);
+    return true;
+}
+export async function deleteSchedule(telegramId, chatId, type) {
+    const idNum = Number(telegramId);
+    const session = dbCache.get(idNum);
+    if (!session)
+        return false;
+    session.schedules = session.schedules || [];
+    const chatKey = String(chatId);
+    session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
+    await persistField(idNum, 'schedules', session.schedules);
+    return true;
+}
+export async function updateReputation(telegramId, targetUserId, points) {
+    const idNum = Number(telegramId);
+    const session = dbCache.get(idNum);
+    if (!session)
+        return false;
+    session.reputation_data = session.reputation_data || {};
+    session.reputation_data[String(targetUserId)] = points;
+    await persistField(idNum, 'reputation_data', session.reputation_data);
+    return true;
+}
+export async function addWarn(telegramId, chatId, targetUserId, reason = '') {
+    const idNum = Number(telegramId);
+    const session = dbCache.get(idNum);
+    if (!session)
+        return { count: 0 };
+    if (!session.warn_data)
+        session.warn_data = {};
+    const chatKey = String(chatId);
+    if (!session.warn_data[chatKey])
+        session.warn_data[chatKey] = {};
+    const userKey = String(targetUserId);
+    const existing = session.warn_data[chatKey][userKey] || { count: 0, reasons: [] };
+    const newCount = existing.count + 1;
+    session.warn_data[chatKey][userKey] = {
+        count: newCount,
+        reasons: [...(existing.reasons || []), reason]
+    };
+    await persistField(idNum, 'warn_data', session.warn_data);
+    return session.warn_data[chatKey][userKey];
+}
+export async function resetWarns(telegramId, chatId, targetUserId) {
+    const idNum = Number(telegramId);
+    const session = dbCache.get(idNum);
+    if (!session)
+        return true;
+    if (!session.warn_data)
+        return true;
+    const chatKey = String(chatId);
+    if (!session.warn_data[chatKey])
+        return true;
+    const userKey = String(targetUserId);
+    if (session.warn_data[chatKey][userKey]) {
+        delete session.warn_data[chatKey][userKey];
+        await persistField(idNum, 'warn_data', session.warn_data);
+    }
+    return true;
+}

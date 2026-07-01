@@ -24,7 +24,7 @@ async function getJsFilesRecursively(dir) {
         if (statResult.isDirectory()) {
             results = results.concat(await getJsFilesRecursively(filePath));
         }
-        else if (file.endsWith('.js')) {
+        else if ((file.endsWith('.js') || file.endsWith('.ts')) && !file.endsWith('.d.ts')) {
             results.push(filePath);
         }
     }

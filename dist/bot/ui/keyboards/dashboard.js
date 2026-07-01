@@ -7,11 +7,11 @@
  * karena keduanya saling terikat & dipakai oleh Master Bot.
  */
 import { Api } from 'teleproto';
-import config from '../../config.js';
-import { replyRich } from '../../utils/richMessage.js';
-import { getUserbotSession, getAllRegisteredUsers, getDisabledPlugins, updateUserbotStatus, disablePlugin, enablePlugin, deleteUserbot, updateUserbotFeature, hasClaimedTrial, setTrialClaimed, } from '../../infrastructure/database.js';
-import { loadedPlugins } from '../../userbot/engine/pluginRegistry.js';
-import userbotManager from '../../userbot/engine/manager.js';
+import config from '../../../config.js';
+import { replyRich } from '../../../utils/richMessage.js';
+import { getUserbotSession, getAllRegisteredUsers, getDisabledPlugins, updateUserbotStatus, disablePlugin, enablePlugin, deleteUserbot, updateUserbotFeature, hasClaimedTrial, setTrialClaimed, } from '../../../infrastructure/database.js';
+import { loadedPlugins } from '../../../userbot/engine/pluginRegistry.js';
+import userbotManager from '../../../userbot/engine/manager.js';
 // ==========================================================================
 // SECTION 1 — UI BUILDERS (panels & keyboards)  [ex richUi.js]
 // ==========================================================================

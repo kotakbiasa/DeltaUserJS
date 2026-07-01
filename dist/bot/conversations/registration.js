@@ -1,12 +1,12 @@
 // @ts-nocheck
 import { InputFile, InlineKeyboard } from 'grammy';
-import { replyRich } from '../../../utils/richMessage.js';
+import { replyRich } from '../../utils/richMessage.js';
 import { TelegramClient, Api } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
 import qrcode from 'qrcode';
-import config from '../../../config.js';
-import { saveUserbotSession } from '../../../infrastructure/database.js';
-import userbotManager from '../../../userbot/engine/manager.js';
+import config from '../../config.js';
+import { saveUserbotSession } from '../../infrastructure/database.js';
+import userbotManager from '../../userbot/engine/manager.js';
 export const cancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel');
 // ==========================================
 // 🔧 Custom Prototype Extension for GramJS
@@ -599,7 +599,7 @@ export async function afkReasonConversation(conversation, ctx) {
             return;
         }
         // Save to DB
-        const { updateUserbotFeature } = await import('../../../infrastructure/database.js');
+        const { updateUserbotFeature } = await import('../../infrastructure/database.js');
         updateUserbotFeature(telegramId, 'afk_reason', newReason);
         await replyRich(ctx, `✅ <b>Alasan AFK berhasil diperbarui menjadi:</b>\n<blockquote>"${newReason}"</blockquote>`);
         await ctx.replyWithRichMessage({ html: `<blockquote>Gunakan ` / menu ` untuk kembali ke Panel Kontrol Utama.</blockquote>` });
@@ -634,7 +634,7 @@ export async function broadcastConversation(conversation, ctx) {
         }
         await replyRich(ctx, `<blockquote>⏳ Memulai proses broadcast...</blockquote>`);
         // Load DB and active list
-        const { getAllRegisteredUsers } = await import('../../../infrastructure/database.js');
+        const { getAllRegisteredUsers } = await import('../../infrastructure/database.js');
         const allUsers = getAllRegisteredUsers();
         let successCount = 0;
         let failCount = 0;
@@ -689,7 +689,7 @@ export async function manageVarsConv(conversation, ctx) {
         while (loop) {
             // 1. Ambil data vars terbaru
             const currentVars = await conversation.external(async () => {
-                const db = await import('../../../infrastructure/database.js');
+                const db = await import('../../infrastructure/database.js');
                 return db.getAllUserVars(telegramId);
             });
             let varList = Object.entries(currentVars)
@@ -743,11 +743,11 @@ export async function manageVarsConv(conversation, ctx) {
                     }
                     const botUsername = botData.result.username;
                     await conversation.external(async () => {
-                        const db = await import('../../../infrastructure/database.js');
+                        const db = await import('../../infrastructure/database.js');
                         await db.setUserVar(telegramId, key, value);
                         await db.updateUserbotFeature(telegramId, 'inline_bot_token', value);
                         await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
-                        const inlineBotManager = (await import('../../../services/inlineBotManager.js')).default;
+                        const inlineBotManager = (await import('../../services/inlineBotManager.js')).default;
                         await inlineBotManager.stopInlineBot(telegramId);
                         await inlineBotManager.startInlineBot(telegramId, value);
                     });
@@ -755,7 +755,7 @@ export async function manageVarsConv(conversation, ctx) {
                 }
                 else {
                     await conversation.external(async () => {
-                        const db = await import('../../../infrastructure/database.js');
+                        const db = await import('../../infrastructure/database.js');
                         await db.setUserVar(telegramId, key, value);
                     });
                     await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${key}</b> berhasil disimpan!</blockquote>`);
@@ -789,7 +789,7 @@ export async function manageVarsConv(conversation, ctx) {
                     throw err;
                 }
                 await conversation.external(async () => {
-                    const db = await import('../../../infrastructure/database.js');
+                    const db = await import('../../infrastructure/database.js');
                     await db.setUserVar(telegramId, key, value);
                 });
                 await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${key}</b> berhasil disimpan!</blockquote>`);
@@ -814,12 +814,12 @@ export async function manageVarsConv(conversation, ctx) {
                 if (delData.startsWith('var:del:')) {
                     const keyToDelete = delData.split('var:del:')[1];
                     await conversation.external(async () => {
-                        const db = await import('../../../infrastructure/database.js');
+                        const db = await import('../../infrastructure/database.js');
                         await db.deleteUserVar(telegramId, keyToDelete);
                         if (keyToDelete === 'INLINE_BOT_TOKEN') {
                             await db.updateUserbotFeature(telegramId, 'inline_bot_token', null);
                             await db.updateUserbotFeature(telegramId, 'inline_bot_username', null);
-                            const inlineBotManager = (await import('../../../services/inlineBotManager.js')).default;
+                            const inlineBotManager = (await import('../../services/inlineBotManager.js')).default;
                             await inlineBotManager.stopInlineBot(telegramId);
                         }
                     });
@@ -845,7 +845,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
         return;
     try {
         const currentVars = await conversation.external(async () => {
-            const db = await import('../../../infrastructure/database.js');
+            const db = await import('../../infrastructure/database.js');
             return db.getAllSystemVars();
         });
         let varList = Object.entries(currentVars).map(([k, v]) => `<code>${k}</code> = <code>${v}</code>`).join('\n');
@@ -870,7 +870,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
         if (command === 'HAPUS') {
             const key = parts[1].toUpperCase();
             await conversation.external(async () => {
-                const db = await import('../../../infrastructure/database.js');
+                const db = await import('../../infrastructure/database.js');
                 await db.deleteSystemVar(key);
             });
             await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil dihapus.</blockquote>`);
@@ -879,7 +879,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
         const key = parts[0].toUpperCase();
         const value = parts.slice(1).join(' ');
         await conversation.external(async () => {
-            const db = await import('../../../infrastructure/database.js');
+            const db = await import('../../infrastructure/database.js');
             await db.setSystemVar(key, value);
         });
         await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil disimpan!</blockquote>`);
@@ -912,7 +912,7 @@ export async function customNameConversation(conversation, ctx) {
             return;
         }
         // Save to DB
-        const { updateUserbotFeature } = await import('../../../infrastructure/database.js');
+        const { updateUserbotFeature } = await import('../../infrastructure/database.js');
         updateUserbotFeature(telegramId, 'custom_name', newName);
         await replyRich(ctx, `✅ <b>Nama Ubot berhasil diperbarui menjadi:</b>\n<blockquote>"${newName}"</blockquote>`);
         await ctx.replyWithRichMessage({ html: `<blockquote>Gunakan ` / menu ` untuk kembali ke Panel Kontrol Utama.</blockquote>` });

@@ -173,10 +173,6 @@ export async function initDatabaseAndCache() {
             const sysConf = await SystemConfigModel.findById('system');
             if (sysConf)
                 systemConfigCache = sysConf.toObject();
-            const groups = await GroupConfigModel.find({});
-            for (const group of groups) {
-                groupConfigCache.set(group.chat_id, group.toObject());
-            }
             console.log(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`);
             return;
         }
@@ -199,14 +195,4 @@ export async function initDatabaseAndCache() {
     console.log('📦 DeltaUbotJS Local JSON Database initialized.');
     console.log(`⚡ In-memory cache loaded with ${dbCache.size} userbot sessions.`);
 }
-export async function loadFederations() {
-    try {
-        const feds = await FederationModel.find({});
-        for (const f of feds) {
-            fedCache.set(f.fed_id, f.toObject());
-        }
-    }
-    catch (e) { }
-}
 await initDatabaseAndCache();
-await loadFederations();

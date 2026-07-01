@@ -1,13 +1,13 @@
 // @ts-nocheck
 import { InputFile, InlineKeyboard } from 'grammy';
-import { replyRich, editRich } from '../../../utils/richMessage.js';
+import { replyRich, editRich } from '../../utils/richMessage.js';
 import { TelegramClient, Api } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
 import qrcode from 'qrcode';
-import config from '../../../config.js';
+import config from '../../config.js';
 import { hero } from '../ui/keyboards/dashboard.js';
-import { saveUserbotSession } from '../../../infrastructure/database.js';
-import userbotManager from '../../../userbot/engine/manager.js';
+import { saveUserbotSession } from '../../infrastructure/database.js';
+import userbotManager from '../../userbot/engine/manager.js';
 
 export const cancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel');
 
@@ -641,7 +641,7 @@ export async function afkReasonConversation(conversation, ctx) {
     }
 
     // Save to DB
-    const { updateUserbotFeature } = await import('../../../infrastructure/database.js');
+    const { updateUserbotFeature } = await import('../../infrastructure/database.js');
     updateUserbotFeature(telegramId, 'afk_reason', newReason);
 
     await replyRich(ctx, `✅ <b>Alasan AFK berhasil diperbarui menjadi:</b>\n<blockquote>"${newReason}"</blockquote>`);
@@ -682,7 +682,7 @@ export async function broadcastConversation(conversation, ctx) {
     await replyRich(ctx, `<blockquote>⏳ Memulai proses broadcast...</blockquote>`);
 
     // Load DB and active list
-    const { getAllRegisteredUsers } = await import('../../../infrastructure/database.js');
+    const { getAllRegisteredUsers } = await import('../../infrastructure/database.js');
     const allUsers = getAllRegisteredUsers();
 
     let successCount = 0;
@@ -745,7 +745,7 @@ export async function manageVarsConv(conversation, ctx) {
     while (loop) {
       // 1. Ambil data vars terbaru
       const currentVars = await conversation.external(async () => {
-        const db = await import('../../../infrastructure/database.js');
+        const db = await import('../../infrastructure/database.js');
         return db.getAllUserVars(telegramId);
       });
 
@@ -803,18 +803,18 @@ export async function manageVarsConv(conversation, ctx) {
           
           const botUsername = botData.result.username;
           await conversation.external(async () => {
-            const db = await import('../../../infrastructure/database.js');
+            const db = await import('../../infrastructure/database.js');
             await db.setUserVar(telegramId, key, value);
             await db.updateUserbotFeature(telegramId, 'inline_bot_token', value);
             await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
-            const inlineBotManager = (await import('../../../services/inlineBotManager.js')).default;
+            const inlineBotManager = (await import('../../services/inlineBotManager.js')).default;
             await inlineBotManager.stopInlineBot(telegramId);
             await inlineBotManager.startInlineBot(telegramId, value);
           });
           await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
         } else {
           await conversation.external(async () => {
-            const db = await import('../../../infrastructure/database.js');
+            const db = await import('../../infrastructure/database.js');
             await db.setUserVar(telegramId, key, value);
           });
           await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${key}</b> berhasil disimpan!</blockquote>`);
@@ -850,7 +850,7 @@ export async function manageVarsConv(conversation, ctx) {
         }
 
         await conversation.external(async () => {
-          const db = await import('../../../infrastructure/database.js');
+          const db = await import('../../infrastructure/database.js');
           await db.setUserVar(telegramId, key, value);
         });
 
@@ -878,12 +878,12 @@ export async function manageVarsConv(conversation, ctx) {
         if (delData.startsWith('var:del:')) {
           const keyToDelete = delData.split('var:del:')[1];
           await conversation.external(async () => {
-            const db = await import('../../../infrastructure/database.js');
+            const db = await import('../../infrastructure/database.js');
             await db.deleteUserVar(telegramId, keyToDelete);
             if (keyToDelete === 'INLINE_BOT_TOKEN') {
               await db.updateUserbotFeature(telegramId, 'inline_bot_token', null);
               await db.updateUserbotFeature(telegramId, 'inline_bot_username', null);
-              const inlineBotManager = (await import('../../../services/inlineBotManager.js')).default;
+              const inlineBotManager = (await import('../../services/inlineBotManager.js')).default;
               await inlineBotManager.stopInlineBot(telegramId);
             }
           });
@@ -909,7 +909,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
   
   try {
     const currentVars = await conversation.external(async () => {
-      const db = await import('../../../infrastructure/database.js');
+      const db = await import('../../infrastructure/database.js');
       return db.getAllSystemVars();
     });
 
@@ -937,7 +937,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
     if (command === 'HAPUS') {
       const key = parts[1].toUpperCase();
       await conversation.external(async () => {
-        const db = await import('../../../infrastructure/database.js');
+        const db = await import('../../infrastructure/database.js');
         await db.deleteSystemVar(key);
       });
       await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil dihapus.</blockquote>`);
@@ -948,7 +948,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
     const value = parts.slice(1).join(' ');
 
     await conversation.external(async () => {
-      const db = await import('../../../infrastructure/database.js');
+      const db = await import('../../infrastructure/database.js');
       await db.setSystemVar(key, value);
     });
 
@@ -985,7 +985,7 @@ export async function customNameConversation(conversation, ctx) {
     }
 
     // Save to DB
-    const { updateUserbotFeature } = await import('../../../infrastructure/database.js');
+    const { updateUserbotFeature } = await import('../../infrastructure/database.js');
     updateUserbotFeature(telegramId, 'custom_name', newName);
 
     await replyRich(ctx, `✅ <b>Nama Ubot berhasil diperbarui menjadi:</b>\n<blockquote>"${newName}"</blockquote>`);

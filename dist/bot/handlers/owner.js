@@ -1,8 +1,8 @@
 // @ts-nocheck
 import fs from 'fs';
 import { InputFile } from 'grammy';
-import config from '../../../config.js';
-import { UserbotModel } from '../../../infrastructure/database.js';
+import config from '../../config.js';
+import { UserbotModel } from '../../infrastructure/database.js';
 export function registerOwnerHandlers(bot) {
     // --- Owner utility commands ---
     bot.command('backup', async (ctx) => {

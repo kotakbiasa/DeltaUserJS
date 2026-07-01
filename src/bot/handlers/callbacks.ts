@@ -2,10 +2,10 @@
 import fs from 'fs';
 import path from 'path';
 import { InlineKeyboard } from 'grammy';
-import config from '../../../config.js';
+import config from '../../config.js';
 import { activeRegClients } from '../conversations/registration.js';
 import { sendAccessDeniedRich, panelMain, keyboardMain } from '../ui/keyboards/dashboard.js';
-import { replyRich, editRich } from '../../../utils/richMessage.js';
+import { replyRich, editRich } from '../../utils/richMessage.js';
 
 // --- Registration approval state ---
 const approvalsFile = path.join(process.cwd(), 'approvals.json');

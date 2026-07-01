@@ -5,7 +5,7 @@ import {
   getReputation,
   getWarns,
   getChatLocks
-} from '../src/core/database.js';
+} from '../dist/infrastructure/database.js';
 
 export const tests = [];
 
