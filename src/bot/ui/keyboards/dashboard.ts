@@ -648,7 +648,7 @@ export function registerRichHandlers(bot) {
     
     if (action === 'danger_delete_session') {
       await ctx.answerCallbackQuery();
-      const text = `🔺 <b>D E L T A   B O T</b> 🔺\n────────────────────────\n⚠️ <b>KONFIRMASI PENGHAPUSAN SESI</b>\n\nTindakan ini akan mematikan bot dan menghapus session string dari database.\n\nJika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Bot</b>, bukan hapus sesi.`;
+      const text = `🔺 <b>U S E R B O T</b> 🔺\n────────────────────────\n⚠️ <b>KONFIRMASI PENGHAPUSAN SESI</b>\n\nTindakan ini akan mematikan bot dan menghapus session string dari database.\n\nJika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Bot</b>, bukan hapus sesi.`;
       return sendRich(ctx, text, keyboardDangerDelete(), { deleteOld: true });
     }
     

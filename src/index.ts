@@ -59,7 +59,7 @@ function startExpirationChecker() {
         // 3. Kirim notifikasi pribadi via Master Bot
         try {
           await bot.api.sendMessage(user.telegram_id,
-            '⚠️ **DELTAUBOTJS - MASA AKTIF HABIS** ⚠️\n' +
+            '⚠️ **USERBOT - MASA AKTIF HABIS** ⚠️\n' +
             '────────────────────────\n' +
             'Halo, masa aktif layanan userbot Anda telah berakhir secara otomatis.\n\n' +
             'Seluruh sistem otomatisasi Anda telah **dinonaktifkan**. Silakan hubungi Owner atau lakukan perpanjangan langganan melalui menu **💰 Donasi** di bot ini untuk mengaktifkannya kembali!\n' +
@@ -79,18 +79,18 @@ function startExpirationChecker() {
 
 async function main() {
   const logo = `
-\x1b[1m\x1b[35m    ____  ______  __  ______  _______  ____  ____  ______    _______ 
-   / __ \\/ ____/ / / /_  __/ / / / __ )/ __ \\/ __ \\/_  __/   / / ___/ 
-  / / / / __/   / /   / / / / / / __  / / / / / / / / /_____/ /\\__ \\  
- / /_/ / /___  / /___/ / / /_/ / /_/ / /_/ / /_/ / / /_____/ /___/ /  
-/_____/_____/ /_____/_/  \\____/_____/\\____/\\____/ /_/     /_//____/   
+\x1b[1m\x1b[35m    __  ______  ____  ____  ______   __  ______    _   __  ___   __________  ____ 
+   / / / / __ \\/ __ \\/ __ \\/_  __/  /  |/  /   |  / | / / /   | / ____/ __ \\/ __ \\
+  / / / / /_/ / / / / / / / / /    / /|_/ / /| | /  |/ / / /| |/ / __/ /_/ / /_/ /
+ / /_/ / /_/ / /_/ / /_/ / / /    / /  / / ___ |/ /|  / / ___ / /_/ / _, _/ _, _/ 
+ \\____/\\____/\\____/\\____/ /_/    /_/  /_/_/  |_/_/ |_/ /_/  |_\\____/_/ |_/_/ |_|  
 \x1b[0m
-\x1b[36m  ⚡ DeltaUbotJS Advanced Multitenant Bot Engine v1.0.0 ⚡\x1b[0m
+\x1b[36m  ⚡ Ubot Manager Advanced Multitenant Bot Engine v1.0.0 ⚡\x1b[0m
 \x1b[2m  ─────────────────────────────────────────────────────────────────\x1b[0m
 `;
   console.log(logo);
 
-  logInfo('Starting DeltaUbotJS Manager...');
+  logInfo('Starting Ubot Manager...');
 
   try {
     // 1. Start Expiration Checker Service

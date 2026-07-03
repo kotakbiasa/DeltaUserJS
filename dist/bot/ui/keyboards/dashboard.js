@@ -573,15 +573,15 @@ export function registerRichHandlers(bot) {
         }
         if (action === 'edit_afk') {
             await ctx.answerCallbackQuery();
-            return ctx.reply('⚠️ Conversation afk-reason-conv telah dihapus. Fitur AFK tidak tersedia.');
+            return ctx.conversation.enter('afk-reason-conv');
         }
         if (action === 'edit_vars') {
             await ctx.answerCallbackQuery();
-            return ctx.reply('⚠️ Conversation manage-vars-conv telah dihapus. Fitur ini tidak tersedia.');
+            return ctx.conversation.enter('manage-vars-conv');
         }
         if (action === 'danger_delete_session') {
             await ctx.answerCallbackQuery();
-            const text = `🔺 <b>D E L T A   B O T</b> 🔺\n────────────────────────\n⚠️ <b>KONFIRMASI PENGHAPUSAN SESI</b>\n\nTindakan ini akan mematikan bot dan menghapus session string dari database.\n\nJika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Bot</b>, bukan hapus sesi.`;
+            const text = `🔺 <b>U S E R B O T</b> 🔺\n────────────────────────\n⚠️ <b>KONFIRMASI PENGHAPUSAN SESI</b>\n\nTindakan ini akan mematikan bot dan menghapus session string dari database.\n\nJika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Bot</b>, bukan hapus sesi.`;
             return sendRich(ctx, text, keyboardDangerDelete(), { deleteOld: true });
         }
         if (action === 'confirm_delete_session') {
@@ -642,7 +642,7 @@ export function registerRichHandlers(bot) {
             if (!isOwner(ctx))
                 return;
             await ctx.answerCallbackQuery();
-            return ctx.reply('⚠️ Conversation manage-system-vars-conv telah dihapus. Fitur ini tidak tersedia.');
+            return ctx.conversation.enter('manage-system-vars-conv');
         }
         if (action === 'admin_users') {
             if (!isOwner(ctx))
