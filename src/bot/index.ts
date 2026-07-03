@@ -9,7 +9,13 @@ import {
   qrRegistrationConversation,
   customNameConversation,
 } from './conversations/registration.js';
+import {
+  afkReasonConversation,
+  manageVarsConv,
+  manageSystemVarsConv,
+} from './conversations/settings.js';
 import { registerRichHandlers } from './ui/keyboards/dashboard.js';
+import { registerInlineHelpHandlers } from './handlers/inlineHelp.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 
@@ -29,12 +35,17 @@ bot.use(conversations());
 bot.use(createConversation(otpRegistrationConversation, 'otp-reg'));
 bot.use(createConversation(qrRegistrationConversation, 'qr-reg'));
 bot.use(createConversation(customNameConversation, 'custom-name-conv'));
+bot.use(createConversation(afkReasonConversation, 'afk-reason-conv'));
+bot.use(createConversation(manageVarsConv, 'manage-vars-conv'));
+bot.use(createConversation(manageSystemVarsConv, 'manage-system-vars-conv'));
 
 setLoggerBot(bot);
 
 // Register dashboard UI components (menus, start command, etc)
 registerRichHandlers(bot);
 
+// Inline help handlers (menjawab inline query 'help_ubot' dari userbot .help)
+registerInlineHelpHandlers(bot);
 // Register all modular handlers
 registerAllHandlers(bot);
 

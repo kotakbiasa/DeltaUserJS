@@ -638,12 +638,12 @@ export function registerRichHandlers(bot) {
     
     if (action === 'edit_afk') {
       await ctx.answerCallbackQuery();
-      return ctx.reply('⚠️ Conversation afk-reason-conv telah dihapus. Fitur AFK tidak tersedia.');
+      return ctx.conversation.enter('afk-reason-conv');
     }
     
     if (action === 'edit_vars') {
       await ctx.answerCallbackQuery();
-      return ctx.reply('⚠️ Conversation manage-vars-conv telah dihapus. Fitur ini tidak tersedia.');
+      return ctx.conversation.enter('manage-vars-conv');
     }
     
     if (action === 'danger_delete_session') {
@@ -708,7 +708,7 @@ export function registerRichHandlers(bot) {
     if (action === 'edit_system_vars') {
       if (!isOwner(ctx)) return;
       await ctx.answerCallbackQuery();
-      return ctx.reply('⚠️ Conversation manage-system-vars-conv telah dihapus. Fitur ini tidak tersedia.');
+      return ctx.conversation.enter('manage-system-vars-conv');
     }
     if (action === 'admin_users') {
       if (!isOwner(ctx)) return;
