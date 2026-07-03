@@ -1,0 +1,152 @@
+import { helpRegistry } from '../../engine/pluginRegistry.js';
+
+/**
+ * Format nama modul agar rapi
+ */
+function formatModuleName(name) {
+  if (name.toLowerCase() === 'antipm') return 'AntiPM';
+  if (name.length <= 3) return name.toUpperCase();
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/**
+ * Helper: Teks menu utama help (Fallback jika inline bot gagal)
+ */
+function buildHelpMenuText(settings) {
+  const plugins = Object.keys(helpRegistry);
+  const total = plugins.length;
+  const formattedPlugins = plugins.map(p => `• <code>${formatModuleName(p)}</code>`).join('\n');
+
+  return (
+    `⚡ <b>USERBOT — DAFTAR MODUL</b>\n` +
+    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
+    `ℹ️ <i>Gunakan custom inline bot untuk tampilan tombol interaktif.</i>\n\n` +
+    `📦 <b>Modul Aktif (${total}):</b>\n` +
+    `${formattedPlugins}\n\n` +
+    `📖 <b>Petunjuk Penggunaan:</b>\n` +
+    `<blockquote>Ketik <code>.help [nama_modul]</code> untuk melihat cara penggunaan dan detail modul.</blockquote>`
+  );
+}
+
+/**
+ * Konversi Markdown sederhana ke HTML
+ */
+function markdownToHtml(text) {
+  if (!text) return '';
+  // Escape raw HTML characters to prevent parsing issues
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  return escaped
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    .replace(/__(.*?)__/g, '<i>$1</i>')
+    .replace(/\*(.*?)\*/g, '<i>$1</i>')
+    .replace(/_(.*?)_/g, '<i>$1</i>')
+    .replace(/`(.*?)`/g, '<code>$1</code>');
+}
+
+/**
+ * Helper: Teks detail modul
+ */
+function buildModuleDetailText(moduleName, settings) {
+  const mod = helpRegistry[moduleName];
+  if (!mod) return null;
+
+  return (
+    `📦 <b>MODUL: ${mod.title.toUpperCase()}</b>\n` +
+    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n` +
+    `📝 <b>Deskripsi:</b>\n` +
+    `<blockquote>${markdownToHtml(mod.description)}</blockquote>\n\n` +
+    `🚀 <b>Penggunaan:</b>\n` +
+    `<blockquote><code>${markdownToHtml(mod.usage)}</code></blockquote>\n\n` +
+    `💡 <b>Detail Tambahan:</b>\n` +
+    `<blockquote>${markdownToHtml(mod.detail)}</blockquote>\n\n` +
+    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
+    `🔙 <i>Ketik <code>.help</code> untuk kembali ke daftar modul.</i>`
+  );
+}
+
+/**
+ * Helper: Dapatkan replyTo untuk forum topic
+ */
+function getReplyToForTopic(message) {
+  if (message.replyTo) {
+    return message.replyTo.replyToTopId || message.replyTo.replyToMsgId || message.id;
+  }
+  return message.id;
+}
+
+export default {
+  name: 'help',
+  help: {
+    title: 'Help Menu',
+    description: 'Menampilkan panduan penggunaan dan daftar modul yang tersedia di userbot Anda.',
+    usage: 'Ketik `.help` untuk menu utama atau `.help [nama_modul]` untuk detail spesifik.',
+    detail: '• `.help` akan memunculkan menu inline jika Anda sudah mengatur Custom Inline Bot.\n• Jika belum, menu text biasa akan dimunculkan.'
+  },
+
+  /**
+   * Handler untuk pesan .help dan .help <modul>
+   */
+  async execute(client, message, settings, telegramId) {
+    if (message.out && message.message && message.message.toLowerCase().startsWith('.help')) {
+      try {
+        const parts = message.message.trim().split(' ');
+        const replyToMsgId = getReplyToForTopic(message);
+        
+        if (parts.length === 1) {
+          // --- .help → Coba panggil Master Bot via Inline Query ---
+          try {
+            // Cek apakah user memiliki custom inline bot
+            const botUsername = settings.inline_bot_username || global.MASTER_BOT_USERNAME || 'DeltaUbot_bot';
+
+            const results = await Promise.race([
+              client.inlineQuery(botUsername, 'help_ubot'),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout (3s): Inline bot tidak merespon. Pastikan Inline Mode aktif di @BotFather.")), 3000))
+            ]);
+            
+            if (results && results.length > 0) {
+              // Kirim hasil inline query menggunakan method .click()
+              await results[0].click(message.peerId, replyToMsgId);
+              // Hapus pesan .help asli agar rapi
+              try { await message.delete(); } catch (e) {}
+              return;
+            } else {
+              throw new Error("No inline result from bot (Inline mode mungkin belum diaktifkan di @BotFather)");
+            }
+          } catch (inlineErr) {
+            console.log("Inline help fallback:", inlineErr.message);
+            // Fallback: Tampilkan menu teks biasa jika inline gagal
+            const text = buildHelpMenuText(settings);
+            await message.edit({ text, parseMode: 'html' });
+          }
+
+        } else {
+          // --- .help <nama_modul> → Tampilkan detail modul ---
+          const moduleName = parts[1].toLowerCase();
+          const targetModule = helpRegistry[moduleName];
+
+          if (targetModule) {
+            const text = buildModuleDetailText(moduleName, settings);
+            await message.edit({ text, parseMode: 'html' });
+          } else {
+            // Modul tidak ditemukan
+            const available = Object.keys(helpRegistry).join(', ');
+            const safeName = parts[1].replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            await message.edit({ 
+              text: `<blockquote>❌ Modul "<b>${safeName}</b>" tidak ditemukan!</blockquote>\n\nModul tersedia: <code>${available}</code>\n\nKetik <code>.help</code> untuk melihat daftar modul.`,
+              parseMode: 'html'
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error in help plugin:', err);
+        try {
+          await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
+        } catch (e) {}
+      }
+    }
+  }
+};

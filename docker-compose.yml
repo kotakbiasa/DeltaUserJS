@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  delta-ubot:
+    build: .
+    container_name: delta-ubot-js
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_PATH=/app/data/database.json
+    volumes:
+      # Petakan direktori data lokal agar database.json tidak hilang saat kontainer direstart/update
+      - ./data:/app/data

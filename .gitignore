@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+!.env.example
+database.json
+*.log
+notes.json
+approvals.json
+ytdl_*
+.agents/
+
+scratch*.js
+test_*.js
