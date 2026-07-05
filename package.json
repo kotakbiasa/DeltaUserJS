@@ -11,7 +11,10 @@
     "start": "node --no-warnings dist/index.js",
     "dev": "tsx watch src/index.ts",
     "build": "rm -rf dist && tsc",
-    "test": "node test/runner.js"
+    "test": "node test/runner.js",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write src/"
   },
   "dependencies": {
     "@grammyjs/conversations": "^2.1.1",
@@ -33,6 +36,10 @@
   "devDependencies": {
     "@types/node": "^26.0.1",
     "@types/qrcode": "^1.5.6",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }

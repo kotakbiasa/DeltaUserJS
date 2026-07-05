@@ -1,13 +1,30 @@
 import { InlineKeyboard } from 'grammy';
 
+/** Minimal types for user/chat context used by parseRichText. */
+interface RichUserContext {
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  id: number;
+}
+
+interface RichChatContext {
+  title?: string;
+  id: number | string;
+}
+
 /**
  * Menerjemahkan teks dengan format (mirip Rose Bot) menjadi teks bersih + Inline Keyboard
- * @param {string} text - Teks mentah berformat
- * @param {Object} userContext - Context user yang memicu (ctx.from)
- * @param {Object} chatContext - Context grup (ctx.chat)
- * @returns {Object} { text: string, keyboard: InlineKeyboard | null }
+ * @param text - Teks mentah berformat
+ * @param userContext - Context user yang memicu (ctx.from)
+ * @param chatContext - Context grup (ctx.chat)
+ * @returns { text: string, keyboard: InlineKeyboard | null }
  */
-export function parseRichText(text: any, userContext: any = {}, chatContext: any = {}) {
+export function parseRichText(
+  text: string | undefined,
+  userContext: RichUserContext = {} as RichUserContext,
+  chatContext: RichChatContext = {} as RichChatContext,
+) {
   let parsedText = String(text || '');
 
   // 1. Replace Variables
@@ -16,9 +33,9 @@ export function parseRichText(text: any, userContext: any = {}, chatContext: any
     '{last_name}': userContext.last_name || '',
     '{fullname}': `${userContext.first_name || ''} ${userContext.last_name || ''}`.trim(),
     '{username}': userContext.username ? `@${userContext.username}` : '',
-    '{id}': userContext.id || '',
+    '{id}': String(userContext.id || ''),
     '{chat_title}': chatContext.title || '',
-    '{chat_id}': chatContext.id || '',
+    '{chat_id}': String(chatContext.id || ''),
   };
 
   for (const [key, value] of Object.entries(placeholders)) {
@@ -31,7 +48,7 @@ export function parseRichText(text: any, userContext: any = {}, chatContext: any
   const buttonRegex = /\[([^\]]+)\]\(buttonurl:\/\/([^)]+)\)/g;
   const keyboard = new InlineKeyboard();
   let hasButtons = false;
-  let currentRow = [];
+  let currentRow: unknown[] = [];
 
   parsedText = parsedText.replace(buttonRegex, (match, btnText, btnUrl) => {
     hasButtons = true;
@@ -42,7 +59,7 @@ export function parseRichText(text: any, userContext: any = {}, chatContext: any
       isSame = true;
       url = url.slice(0, -5).trim();
     }
-    
+
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
@@ -51,21 +68,21 @@ export function parseRichText(text: any, userContext: any = {}, chatContext: any
       currentRow.push(InlineKeyboard.url(btnText.trim(), url));
     } else {
       if (currentRow.length > 0) {
-        keyboard.row(...currentRow);
+        keyboard.row(...(currentRow as any));
       }
       currentRow = [InlineKeyboard.url(btnText.trim(), url)];
     }
-    
+
     return ''; // Hilangkan syntax tombol dari teks chat
   });
 
   // Tambahkan baris terakhir
   if (currentRow.length > 0) {
-    keyboard.row(...currentRow);
+    keyboard.row(...(currentRow as any));
   }
 
   return {
     text: parsedText.trim(),
-    keyboard: hasButtons ? keyboard : null
+    keyboard: hasButtons ? keyboard : null,
   };
 }

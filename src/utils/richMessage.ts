@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Rich Message helper (Telegram Bot API 10.1 / grammY 1.44+).
  *
@@ -23,87 +22,100 @@
  * @module utils/richMessage
  */
 
+import type { Api, Context } from 'grammy';
+import type { InputRichMessage } from 'grammy/types';
+
+/** Parsed send options from splitOptions. */
+interface RichOpts {
+  markdown: boolean;
+  isRtl?: boolean;
+  skipEntityDetection?: boolean;
+}
+
 /**
  * Build an InputRichMessage payload.
- * @param {string} content - HTML (default) or Markdown content.
- * @param {object} [opts]
- * @param {boolean} [opts.markdown=false] - Treat `content` as Markdown instead of HTML.
- * @param {boolean} [opts.isRtl] - Render right-to-left.
- * @param {boolean} [opts.skipEntityDetection] - Disable auto entity detection.
- * @returns {import('grammy/types').InputRichMessage}
  */
-export function buildRich(content: any, { markdown = false, isRtl, skipEntityDetection }: any = {}): any {
-  const rich = markdown
+export function buildRich(content: string, opts?: { markdown?: boolean; isRtl?: boolean; skipEntityDetection?: boolean }): InputRichMessage {
+  const rich = (opts?.markdown
     ? { markdown: String(content ?? '') }
-    : { html: String(content ?? '') };
-  if (isRtl) rich.is_rtl = true;
-  if (skipEntityDetection) rich.skip_entity_detection = true;
+    : { html: String(content ?? '') }) as InputRichMessage;
+  if (opts?.isRtl) rich.is_rtl = true;
+  if (opts?.skipEntityDetection) rich.skip_entity_detection = true;
   return rich;
 }
 
 /**
  * Split rich-only options from plain send options (reply_markup, reply_parameters, ...).
- * @param {object} options
  */
-function splitOptions(options = {}) {
-  const { markdown = false, isRtl, skipEntityDetection, ...sendOptions } = options;
+function splitOptions(options: Record<string, unknown> = {}): { richOpts: RichOpts; sendOptions: Record<string, unknown> } {
+  const opts = options as { markdown?: boolean; isRtl?: boolean; skipEntityDetection?: boolean } & Record<string, unknown>;
+  const markdown = opts.markdown ?? false;
+  const isRtl = opts.isRtl;
+  const skipEntityDetection = opts.skipEntityDetection;
+  const sendOptions: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(options)) {
+    if (k !== 'markdown' && k !== 'isRtl' && k !== 'skipEntityDetection') {
+      sendOptions[k] = v;
+    }
+  }
   return { richOpts: { markdown, isRtl, skipEntityDetection }, sendOptions };
 }
 
 /**
  * Reply with a rich message, falling back to a classic message on failure.
- * @param {import('grammy').Context} ctx
- * @param {string} content - HTML (default) or Markdown content.
- * @param {object} [options] - markdown/isRtl/skipEntityDetection + any send option (reply_markup, reply_parameters, ...).
- * @returns {Promise<import('grammy/types').Message>}
  */
-export async function replyRich(ctx, content, options = {}) {
+export async function replyRich(
+  ctx: Context,
+  content: string,
+  options?: Record<string, unknown>,
+) {
   const { richOpts, sendOptions } = splitOptions(options);
   try {
-    return await ctx.replyWithRichMessage(buildRich(content, richOpts), sendOptions);
+    return await ctx.replyWithRichMessage(buildRich(content, richOpts), sendOptions as Record<string, unknown>);
   } catch (err) {
     return ctx.reply(String(content ?? ''), {
       parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
       ...sendOptions,
-    });
+    } as Record<string, unknown>);
   }
 }
 
 /**
  * Send a rich message to an explicit chat, falling back to a classic message.
- * @param {import('grammy').Api} api
- * @param {number|string} chatId
- * @param {string} content
- * @param {object} [options]
- * @returns {Promise<import('grammy/types').Message>}
  */
-export async function sendRich(api, chatId, content, options = {}) {
+export async function sendRich(
+  api: Api,
+  chatId: number | string,
+  content: string,
+  options?: Record<string, unknown>,
+) {
   const { richOpts, sendOptions } = splitOptions(options);
   try {
-    return await api.sendRichMessage(chatId, buildRich(content, richOpts), sendOptions);
+    return await api.sendRichMessage(chatId, buildRich(content, richOpts), sendOptions as Record<string, unknown>);
   } catch (err) {
     return api.sendMessage(chatId, String(content ?? ''), {
       parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
       ...sendOptions,
-    });
+    } as Record<string, unknown>);
   }
 }
 
 /**
  * Edit the current message to rich content, falling back to a classic edit.
- * @param {import('grammy').Context} ctx
- * @param {string} content
- * @param {object} [options]
  */
-export async function editRich(ctx, content, options = {}) {
+export async function editRich(
+  ctx: Context,
+  content: string,
+  options?: Record<string, unknown>,
+) {
   const { richOpts, sendOptions } = splitOptions(options);
   try {
-    return await ctx.editMessageText(buildRich(content, richOpts), sendOptions);
+    return await ctx.editMessageText(buildRich(content, richOpts), sendOptions as Record<string, unknown>);
   } catch (err) {
     return ctx.editMessageText(String(content ?? ''), {
       parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
       ...sendOptions,
-    });
+    } as Record<string, unknown>);
   }
 }
 

@@ -1,7 +1,7 @@
 import './config.js';
 import bot from './bot/index.js';
 import userbotManager from './userbot/engine/manager.js';
-import { getAllRegisteredUsers, updateUserbotStatus } from './infrastructure/database.js';
+import { getAllRegisteredUsers, updateUserbotStatus, initDatabaseAndCache } from './infrastructure/database.js';
 
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 
@@ -93,6 +93,15 @@ async function main() {
   logInfo('Starting Ubot Manager...');
 
   try {
+    // 0. Initialize database explicitly (no more top-level await in dbCore)
+    logInfo('Initializing database...');
+    try {
+      await initDatabaseAndCache();
+    } catch (dbErr) {
+      logError('Failed to initialize database. Please check your .env configuration.', dbErr);
+      process.exit(1);
+    }
+
     // 1. Start Expiration Checker Service
     startExpirationChecker();
 

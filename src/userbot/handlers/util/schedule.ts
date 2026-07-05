@@ -93,11 +93,12 @@ export default {
 
     const chatId = message.chatId;
     const chatKey = String(chatId);
+    const idNum = Number(telegramId);
 
-    if (!loopStore.has(telegramId)) {
-      loopStore.set(telegramId, new Map());
+    if (!loopStore.has(idNum)) {
+      loopStore.set(idNum, new Map());
     }
-    const myLoops = loopStore.get(telegramId);
+    const myLoops = loopStore.get(idNum);
     
     if (cmd === '.loop') {
       if (args.length < 3) {

@@ -400,7 +400,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
     // Step 6: Save session on success
     // Session string sudah didapat dari dalam external() di atas
-    saveUserbotSession(telegramId, phoneNumber, sessionString);
+    await saveUserbotSession(telegramId, phoneNumber, sessionString);
 
     await replyRich(ctx, `<h1>✨ Selamat! Pendaftaran Userbot Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
 
@@ -587,7 +587,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
     }
 
     // Save to Database
-    saveUserbotSession(telegramId, null, qrResult.sessionString);
+    await saveUserbotSession(telegramId, null, qrResult.sessionString);
 
     await replyRich(ctx, `<h1>✨ Selamat! Pendaftaran via QR Code Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
 
@@ -642,7 +642,7 @@ export async function afkReasonConversation(conversation, ctx) {
 
     // Save to DB
     const { updateUserbotFeature } = await import('../../infrastructure/database.js');
-    updateUserbotFeature(telegramId, 'afk_reason', newReason);
+    await updateUserbotFeature(telegramId, 'afk_reason', newReason);
 
     await replyRich(ctx, `✅ <b>Alasan AFK berhasil diperbarui menjadi:</b>\n<blockquote>"${newReason}"</blockquote>`);
     
@@ -986,7 +986,7 @@ export async function customNameConversation(conversation, ctx) {
 
     // Save to DB
     const { updateUserbotFeature } = await import('../../infrastructure/database.js');
-    updateUserbotFeature(telegramId, 'custom_name', newName);
+    await updateUserbotFeature(telegramId, 'custom_name', newName);
 
     await replyRich(ctx, `✅ <b>Nama Ubot berhasil diperbarui menjadi:</b>\n<blockquote>"${newName}"</blockquote>`);
     

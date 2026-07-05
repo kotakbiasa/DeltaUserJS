@@ -53,9 +53,10 @@ export default {
 
         if (cmd === '.kick') {
           const banRights = new Api.ChatBannedRights({ untilDate: 0, viewMessages: true });
-          const unbanRights = new Api.ChatBannedRights({ untilDate: 0, viewMessages: false, sendMessages: false });
-
           await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights: banRights }));
+
+          // Unban immediately after kick (Telegram requires this two-step for groups)
+          const unbanRights = new Api.ChatBannedRights({ untilDate: 0, viewMessages: false, sendMessages: false });
           await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights: unbanRights }));
 
           await message.edit({ 

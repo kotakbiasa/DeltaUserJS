@@ -120,12 +120,9 @@ export default {
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      // Tambahkan ekstensi agar dikenali sebagai PNG
-      buffer.name = 'carbon.png';
-
       await client.sendMessage(message.chatId, {
         message: "Here's your carbon!",
-        file: buffer,
+        file: { source: buffer, filename: 'carbon.png' },
         replyTo: message.replyToMsgId
       });
 

@@ -4,10 +4,66 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import config from '../config.js';
+import { decrypt, isEncrypted } from '../utils/crypto.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, '../../database.json');
 
+// Per-key async lock to prevent read-modify-write races on dbCache
+// Maps key -> queue of pending promises for that key
+const keyLocks = new Map();
+
+function getLock(key) {
+  if (!keyLocks.has(key)) {
+    keyLocks.set(key, { queue: [], pending: null });
+  }
+  return keyLocks.get(key);
+}
+
+/**
+ * Acquire a per-key async lock. Ensures read-modify-write operations
+ * on the same cache key are serialized.
+ * Usage:
+ *   const release = await acquireCacheLock(key);
+ *   try { /* modify dbCache *\/ } finally { release(); }
+ */
+async function acquireCacheLock(key) {
+  const lock = getLock(key);
+  return new Promise((resolve) => {
+    const task = async () => {
+      const release = () => {
+        lock.pending = null;
+        const next = lock.queue.shift();
+        if (next) next();
+      };
+      resolve(release);
+    };
+    if (!lock.pending) {
+      lock.pending = task();
+      task().catch(() => { lock.pending = null; lock.queue.shift(); const next = lock.queue.shift(); if (next) next(); });
+    } else {
+      lock.queue.push(task);
+    }
+  });
+}
+
+export async function updateCacheField(idNum, field, value) {
+  const release = await acquireCacheLock(idNum);
+  try {
+    const existing = dbCache.get(idNum) || {};
+    const updated = { ...existing, [field]: value };
+    dbCache.set(idNum, updated);
+    return persistDoc(idNum, updated);
+  } finally {
+    release();
+  }
+}
+
+export function getFromCache(idNum) {
+  return dbCache.get(idNum);
+}
+
+export const DEFAULT_AFK_REASON = 'AFK';
 const MONGO_URI = config.mongoUri || process.env.MONGO_URI;
 const DB_NAME = config.dbName || process.env.DB_NAME || 'DeltaUbotJS';
 
@@ -69,10 +125,20 @@ export function normalizeBot(raw: any = {}, id?: any) {
   const createdAt = raw.created_at || new Date().toISOString();
   const pick = (key, fallback) => (raw[key] !== undefined && raw[key] !== null ? raw[key] : fallback);
 
+  // Decrypt session_string if it's encrypted
+  let sessionString = raw.session_string || null;
+  if (sessionString && isEncrypted(sessionString)) {
+    try {
+      sessionString = decrypt(sessionString);
+    } catch {
+      // If decryption fails, keep raw value (migration or key mismatch)
+    }
+  }
+
   return {
     telegram_id: idNum,
     phone: raw.phone || null,
-    session_string: raw.session_string,
+    session_string: sessionString,
     is_active: pick('is_active', 1),
     auto_read: pick('auto_read', 0),
     auto_reply: pick('auto_reply', 0),
@@ -123,10 +189,31 @@ export function writeDbToFile(data) {
   }
 }
 
+// File-based DB write lock to prevent race conditions
+let writeLock = Promise.resolve();
+
+function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+  let next: () => void;
+  const chain = writeLock.then(fn).then((result) => {
+    next();
+    return result;
+  });
+  // eslint-disable-next-line promise/catch-or-return
+  chain.catch(() => { next(); });
+  writeLock = chain;
+  return new Promise((resolve) => { next = resolve; });
+}
+
 export async function persistField(idNum, field, value) {
   if (isMongo) {
     try {
-      await UserbotModel.updateOne({ telegram_id: idNum }, { [field]: value });
+      // Use $set to update only the specific field (not replace entire doc)
+      const update: Record<string, unknown> = {};
+      update[field] = value;
+      await UserbotModel.updateOne(
+        { telegram_id: idNum },
+        { $set: update }
+      );
       return true;
     } catch (err) {
       console.error(`❌ MongoDB update error (${field}):`, err.message);
@@ -134,10 +221,12 @@ export async function persistField(idNum, field, value) {
     }
   }
 
-  const data = readDbFromFile();
-  if (!data.userbots[idNum]) return false;
-  data.userbots[idNum][field] = value;
-  return writeDbToFile(data);
+  return withWriteLock(async () => {
+    const data = readDbFromFile();
+    if (!data.userbots[idNum]) return false;
+    data.userbots[idNum][field] = value;
+    return writeDbToFile(data);
+  });
 }
 
 export async function persistDoc(idNum, doc) {
@@ -155,9 +244,11 @@ export async function persistDoc(idNum, doc) {
     }
   }
 
-  const data = readDbFromFile();
-  data.userbots[idNum] = doc;
-  return writeDbToFile(data);
+  return withWriteLock(async () => {
+    const data = readDbFromFile();
+    data.userbots[idNum] = doc;
+    return writeDbToFile(data);
+  });
 }
 
 export async function persistDelete(idNum) {
@@ -171,10 +262,12 @@ export async function persistDelete(idNum) {
     }
   }
 
-  const data = readDbFromFile();
-  if (!data.userbots[idNum]) return false;
-  delete data.userbots[idNum];
-  return writeDbToFile(data);
+  return withWriteLock(async () => {
+    const data = readDbFromFile();
+    if (!data.userbots[idNum]) return false;
+    delete data.userbots[idNum];
+    return writeDbToFile(data);
+  });
 }
 
 export async function initDatabaseAndCache() {
@@ -229,5 +322,12 @@ export async function initDatabaseAndCache() {
   console.log(`⚡ In-memory cache loaded with ${dbCache.size} userbot sessions.`);
 }
 
-await initDatabaseAndCache();
+// Module-level initialization: do NOT use top-level await.
+// The application entry point (src/index.ts) calls this explicitly
+// so startup order is controlled and testable.
+// initDatabaseAndCache is exported for caller-side invocation.
+
+// Placeholder so module load is instant; real init happens in main().
+dbCache.clear();
+systemConfigCache = { vars: {} };
 

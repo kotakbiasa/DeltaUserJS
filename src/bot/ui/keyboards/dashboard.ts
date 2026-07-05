@@ -539,7 +539,7 @@ export function registerRichHandlers(bot) {
     await userbotManager.stopUserbot(telegramId);
     
     // Delete from database
-    deleteUserbot(telegramId);
+    await deleteUserbot(telegramId);
     
     await ctx.replyWithRichMessage({ html: `<blockquote><b>✅ BERHASIL</b><br>Sesi Anda telah berhasil dihapus sepenuhnya (Revoked).\n\nKetik /daftar kembali jika ingin mendaftar ulang.</blockquote>` });
   });
@@ -622,7 +622,7 @@ export function registerRichHandlers(bot) {
       const session = getUserbotSession(ctx.from.id);
       if (!session) return ctx.answerCallbackQuery('Sesi tidak ditemukan.');
       const newStatus = session.anti_pm === 1 ? 0 : 1;
-      updateUserbotFeature(ctx.from.id, 'anti_pm', newStatus);
+      await updateUserbotFeature(ctx.from.id, 'anti_pm', newStatus);
       await ctx.answerCallbackQuery(`Anti-PM diubah menjadi ${newStatus === 1 ? 'ON' : 'OFF'}`);
       return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });
     }
@@ -631,7 +631,7 @@ export function registerRichHandlers(bot) {
       const session = getUserbotSession(ctx.from.id);
       if (!session) return ctx.answerCallbackQuery('Sesi tidak ditemukan.');
       const newStatus = session.auto_reply === 1 ? 0 : 1;
-      updateUserbotFeature(ctx.from.id, 'auto_reply', newStatus);
+      await updateUserbotFeature(ctx.from.id, 'auto_reply', newStatus);
       await ctx.answerCallbackQuery(`Auto-Reply (AFK) diubah menjadi ${newStatus === 1 ? 'ON' : 'OFF'}`);
       return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });
     }
@@ -668,7 +668,7 @@ export function registerRichHandlers(bot) {
       if (userbotManager.isRunning(telegramId)) {
         await userbotManager.stopUserbot(telegramId);
       }
-      deleteUserbot(telegramId);
+      await deleteUserbot(telegramId);
       await ctx.replyWithRichMessage({ html: `<blockquote>🗑️ <b>Sesi berhasil dihapus secara permanen dari server Telegram dan database.</b></blockquote>` });
       return openMain(ctx, { deleteOld: true });
     }

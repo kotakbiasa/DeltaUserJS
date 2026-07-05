@@ -1,3 +1,5 @@
+import { formatUptime } from '../../../utils/format.js';
+
 export default {
   name: 'ping',
   help: {
@@ -19,13 +21,7 @@ export default {
         const rawLatency = Date.now() - startMs;
 
         const uptimeTotal = process.uptime();
-        const hours = Math.floor(uptimeTotal / 3600);
-        const minutes = Math.floor((uptimeTotal % 3600) / 60);
-        const seconds = Math.floor(uptimeTotal % 60);
-        let uptimeStr = '';
-        if (hours > 0) uptimeStr += `${hours}j `;
-        if (minutes > 0) uptimeStr += `${minutes}m `;
-        uptimeStr += `${seconds}d`;
+        const uptimeStr = formatUptime(uptimeTotal);
 
         const newDesign = `🏓 <b>PING！</b>\n` +
           `<blockquote>` +

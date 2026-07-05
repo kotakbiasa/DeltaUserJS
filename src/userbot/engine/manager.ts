@@ -1,10 +1,35 @@
 import { UserbotClient } from './client.js';
 import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../../infrastructure/database.js';
+import { dbCache } from '../../infrastructure/dbCore.js';
 import inlineBotManager from '../../services/inlineBotManager.js';
 import { Logger } from '../../utils/logger.js';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Per-ID async lock — simple mutex untuk mencegah race condition di lifecycle userbot.
+ * NON-reentrant: jika dipanggil nested, akan wait sampai outer lock released.
+ * Ini intentional agar tidak ada concurrent access.
+ */
+const locks = new Map<number, Promise<void>>();
+
+/**
+ * Acquire lock for a specific userbot ID.
+ * Returns a release function that MUST be called in finally block.
+ */
+async function acquireLock(id: number): Promise<() => void> {
+  while (locks.has(id)) {
+    await locks.get(id);
+  }
+  let releaseFn: () => void;
+  const lock = new Promise<void>((resolve) => { releaseFn = resolve; });
+  locks.set(id, lock);
+  return () => {
+    locks.delete(id);
+    releaseFn();
+  };
 }
 
 class UserbotManager {
@@ -21,22 +46,34 @@ class UserbotManager {
 
   async startUserbot(telegramId, sessionString) {
     const id = Number(telegramId);
-    if (!sessionString) throw new Error(`session string kosong untuk ${id}`);
-
-    if (this.clients.has(id)) {
-      await this.stopUserbot(id);
-    }
-
-    const userbot = new UserbotClient(id, sessionString);
-    this.clients.set(id, userbot);
-
+    const release = await acquireLock(id);
     try {
-      await userbot.start();
-      await this.startInlineBotFor(id);
-      return true;
-    } catch (err) {
-      this.clients.delete(id);
-      throw err;
+      if (!sessionString) throw new Error(`session string kosong untuk ${id}`);
+
+      // Guard: pastikan tidak ada duplikasi client untuk telegram ID yang sama
+      if (this.clients.has(id)) {
+        const existing = this.clients.get(id);
+        if (existing && existing.isConnected()) {
+          console.warn(`⚠️ Userbot [${id}] sudah berjalan, skip start.`);
+          return true;
+        }
+        // Stop existing userbot (will be locked by stopUserbot)
+        await this.stopUserbot(id);
+      }
+
+      const userbot = new UserbotClient(id, sessionString);
+      this.clients.set(id, userbot);
+
+      try {
+        await userbot.start();
+        await this.startInlineBotFor(id);
+        return true;
+      } catch (err) {
+        this.clients.delete(id);
+        throw err;
+      }
+    } finally {
+      release();
     }
   }
 
@@ -49,21 +86,50 @@ class UserbotManager {
 
   async stopUserbot(telegramId) {
     const id = Number(telegramId);
-    const userbot = this.clients.get(id);
+    const release = await acquireLock(id);
+    try {
+      const userbot = this.clients.get(id);
 
-    if (userbot) {
-      await userbot.stop();
-      this.clients.delete(id);
+      if (userbot) {
+        await userbot.stop();
+        this.clients.delete(id);
+      }
+
+      await inlineBotManager.stopInlineBot(id);
+      return Boolean(userbot);
+    } finally {
+      release();
     }
-
-    await inlineBotManager.stopInlineBot(id);
-    return Boolean(userbot);
   }
 
   async restartUserbot(telegramId) {
+    const id = Number(telegramId);
     const session = getUserbotSession(telegramId);
-    if (!session?.session_string) throw new Error(`session tidak ditemukan untuk ${telegramId}`);
-    return this.startUserbot(telegramId, session.session_string);
+    if (!session?.session_string) throw new Error(`session tidak ditemukan untuk ${id}`);
+    const release = await acquireLock(id);
+    try {
+      // Inline stop logic directly — don't call stopUserbot() to avoid double-lock
+      const userbot = this.clients.get(id);
+      if (userbot) {
+        await userbot.stop();
+        this.clients.delete(id);
+      }
+      await inlineBotManager.stopInlineBot(id);
+
+      // Inline start logic directly — don't call startUserbot() to avoid double-lock
+      const newUserbot = new UserbotClient(id, session.session_string);
+      this.clients.set(id, newUserbot);
+      try {
+        await newUserbot.start();
+        await this.startInlineBotFor(id);
+        return true;
+      } catch (err) {
+        this.clients.delete(id);
+        throw err;
+      }
+    } finally {
+      release();
+    }
   }
 
   async restartAllActive() {
@@ -104,14 +170,23 @@ class UserbotManager {
   }
 
   async checkAndReconnect() {
-    const activeBots = getAllActiveUserbots();
+    // Snapshot aktif bots agar tidak terpengaruh perubahan saat iterasi
+    const activeBots = getAllActiveUserbots().map(bot => ({ ...bot }));
 
     for (const bot of activeBots) {
       const id = Number(bot.telegram_id);
-      if (this.reconnecting.has(id)) continue;
 
-      const current = this.clients.get(id);
-      if (current?.isConnected()) continue;
+      // Double-check: apakah userbot masih aktif setelah snapshot diambil?
+      const fresh = dbCache.get(id);
+      if (!fresh || fresh.is_active !== 1) continue;
+
+      // Cek lagi apakah sudah terhubung (mungkin sudah di-reconnect oleh eksekusi sebelumnya)
+      if (this.clients.has(id)) {
+        const existing = this.clients.get(id);
+        if (existing?.isConnected()) continue;
+      }
+
+      if (this.reconnecting.has(id)) continue;
 
       this.reconnecting.add(id);
       try {

@@ -50,7 +50,7 @@ export async function afkReasonConversation(conversation, ctx) {
     }
 
     const { updateUserbotFeature } = await import('../../infrastructure/database.js');
-    updateUserbotFeature(telegramId, 'afk_reason', newReason);
+    await updateUserbotFeature(telegramId, 'afk_reason', newReason);
 
     await replyRich(ctx, `✅ <b>Alasan AFK berhasil diperbarui menjadi:</b>\n<blockquote>"${newReason}"</blockquote>`);
     await replyRich(ctx, `<blockquote>Gunakan <code>/menu</code> untuk kembali ke Panel Kontrol Utama.</blockquote>`);
