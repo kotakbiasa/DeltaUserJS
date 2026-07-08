@@ -6,8 +6,8 @@ dotenv.config();
  */
 const config = {
     botToken: process.env.BOT_TOKEN,
-    apiId: process.env.API_ID ? parseInt(process.env.API_ID) : undefined,
-    apiHash: process.env.API_HASH || undefined,
+    apiId: 2496,
+    apiHash: "8da85b0d5bfe62527e5b244c209159c3",
     ownerId: process.env.OWNER_ID ? parseInt(process.env.OWNER_ID) : undefined,
     logGroupId: process.env.LOG_GROUP_ID ? parseInt(process.env.LOG_GROUP_ID) : 0,
     logTopicId: process.env.LOG_TOPIC_ID ? parseInt(process.env.LOG_TOPIC_ID) : 0,
