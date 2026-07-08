@@ -14,11 +14,12 @@ const SAFE_EVAL_CONTEXT = {
         error: (...args) => args.join(' '),
     },
 };
-/** Validate command is in whitelist. Block pipes, redirects, backticks, semicolons. */
+/** Validate command is in whitelist. Block pipes, redirects, backticks, semicolons, newlines. */
 function validateCommand(cmd) {
     // Block dangerous characters — only allow alphanumeric, space, dash, dot, slash
-    if (/[;|&`$(){}!\\n\\r\\t]/.test(cmd)) {
-        return 'Karakter khusus (;|&`${}!) tidak diizinkan. Gunakan hanya nama perintah + argumen sederhana.';
+    // Also block newlines, carriage returns, tabs, and other control chars
+    if (/[;|&`$(){}!\n\r\t\x00-\x1f\x7f]/.test(cmd)) {
+        return 'Karakter khusus (;|&`${}! kontrol) tidak diizinkan. Gunakan hanya nama perintah + argumen sederhana.';
     }
     const base = cmd.trim().split(/\s+/)[0];
     if (ALLOWED_COMMANDS.includes(base))
