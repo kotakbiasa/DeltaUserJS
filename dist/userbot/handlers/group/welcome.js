@@ -53,10 +53,13 @@ export default {
                     if (welcomeTemplate === undefined || welcomeTemplate === null || String(welcomeTemplate).trim() === '') {
                         welcomeTemplate = 'Welcome / Selamat datang {name} ke {title}!';
                     }
+                    // Escape HTML in user-provided values to prevent XSS injection
+                    const safeName = escapeHtml(name);
+                    const safeTitle = escapeHtml(title);
                     const parsedMsg = welcomeTemplate
-                        .replace(/{name}/g, name)
+                        .replace(/{name}/g, safeName)
                         .replace(/{id}/g, String(uId))
-                        .replace(/{title}/g, title);
+                        .replace(/{title}/g, safeTitle);
                     await client.sendMessage(chatId, { message: parsedMsg });
                 }
             }
@@ -78,10 +81,13 @@ export default {
                 if (goodbyeTemplate === undefined || goodbyeTemplate === null || String(goodbyeTemplate).trim() === '') {
                     goodbyeTemplate = 'Goodbye {name} dari {title}!';
                 }
+                // Escape HTML in user-provided values to prevent XSS injection
+                const safeName = escapeHtml(name);
+                const safeTitle = escapeHtml(title);
                 const parsedMsg = goodbyeTemplate
-                    .replace(/{name}/g, name)
+                    .replace(/{name}/g, safeName)
                     .replace(/{id}/g, String(uId))
-                    .replace(/{title}/g, title);
+                    .replace(/{title}/g, safeTitle);
                 await client.sendMessage(chatId, { message: parsedMsg });
             }
             return;
@@ -118,3 +124,11 @@ export default {
         }
     }
 };
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}

@@ -59,10 +59,14 @@ export default {
             welcomeTemplate = 'Welcome / Selamat datang {name} ke {title}!';
           }
 
+          // Escape HTML in user-provided values to prevent XSS injection
+          const safeName = escapeHtml(name);
+          const safeTitle = escapeHtml(title);
+
           const parsedMsg = welcomeTemplate
-            .replace(/{name}/g, name)
+            .replace(/{name}/g, safeName)
             .replace(/{id}/g, String(uId))
-            .replace(/{title}/g, title);
+            .replace(/{title}/g, safeTitle);
 
           await client.sendMessage(chatId, { message: parsedMsg });
         }
@@ -87,10 +91,14 @@ export default {
           goodbyeTemplate = 'Goodbye {name} dari {title}!';
         }
 
+        // Escape HTML in user-provided values to prevent XSS injection
+        const safeName = escapeHtml(name);
+        const safeTitle = escapeHtml(title);
+
         const parsedMsg = goodbyeTemplate
-          .replace(/{name}/g, name)
+          .replace(/{name}/g, safeName)
           .replace(/{id}/g, String(uId))
-          .replace(/{title}/g, title);
+          .replace(/{title}/g, safeTitle);
 
         await client.sendMessage(chatId, { message: parsedMsg });
       }
@@ -130,3 +138,12 @@ export default {
     }
   }
 };
+
+function escapeHtml(text: string): string {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
