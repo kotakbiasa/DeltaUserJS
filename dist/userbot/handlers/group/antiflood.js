@@ -3,6 +3,24 @@ import { Api } from 'teleproto';
 // In-memory tracker for message timestamps
 // Key: telegramId_chatId_senderId -> Array of timestamps (numbers)
 const floodTracker = new Map();
+// Periodic cleanup: remove stale entries (> 1 hour inactive) every 10 minutes
+setInterval(() => {
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000;
+    let cleaned = 0;
+    for (const [key, timestamps] of floodTracker.entries()) {
+        const recent = timestamps.filter(t => now - t <= oneHour);
+        if (recent.length === 0) {
+            floodTracker.delete(key);
+            cleaned++;
+        }
+        else {
+            floodTracker.set(key, recent);
+        }
+    }
+    if (cleaned > 0)
+        console.log(`🧹 FloodTracker cleanup: removed ${cleaned} stale entries`);
+}, 10 * 60 * 1000); // every 10 minutes
 export default {
     name: 'antiflood',
     help: {

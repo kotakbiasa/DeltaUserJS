@@ -102,6 +102,20 @@ export class UserbotClient {
    * Stop the userbot instance
    */
   async stop() {
+    // Cleanup: stop all active loops for this userbot to prevent memory leaks
+    try {
+      const { loopStore } = await import('../handlers/util/schedule.js');
+      const loops = loopStore.get(Number(this.telegramId));
+      if (loops) {
+        for (const [chatKey, loopData] of loops.entries()) {
+          clearInterval(loopData.intervalId);
+        }
+        loops.clear();
+        loopStore.delete(Number(this.telegramId));
+        console.log(`🧹 Cleaned up ${[...loops?.values() || []].length} active loops for [${this.telegramId}]`);
+      }
+    } catch (e) { /* ignore: schedule module may not be loaded */ }
+
     if (this.client) {
       try {
         await this.client.disconnect();

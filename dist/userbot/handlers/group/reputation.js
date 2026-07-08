@@ -1,6 +1,20 @@
 import { getChatSettings, updateChatSettings, getReputation, updateReputation } from '../../../infrastructure/database.js';
 // Key: telegramId_chatId_voterId_targetId -> last voted timestamp
 const cooldownMap = new Map();
+// Periodic cleanup: remove stale cooldown entries (> 24 hours old) every 10 minutes
+setInterval(() => {
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+    let cleaned = 0;
+    for (const [key, timestamp] of cooldownMap.entries()) {
+        if (now - timestamp > oneDay) {
+            cooldownMap.delete(key);
+            cleaned++;
+        }
+    }
+    if (cleaned > 0)
+        console.log(`🧹 CooldownMap cleanup: removed ${cleaned} stale entries`);
+}, 10 * 60 * 1000); // every 10 minutes
 export default {
     name: 'reputation',
     help: {
