@@ -2,30 +2,8 @@ import os from 'os';
 import { exec } from 'child_process';
 import util from 'util';
 import config from '../../../config.js';
+import { formatUptimeAlt, formatBytes } from '../../../utils/format.js';
 const execAsync = util.promisify(exec);
-function formatBytes(bytes) {
-    if (bytes === 0)
-        return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-function formatUptime(seconds) {
-    const d = Math.floor(seconds / 86400);
-    const h = Math.floor((seconds % 86400) / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    let str = '';
-    if (d > 0)
-        str += `${d}d `;
-    if (h > 0)
-        str += `${h}h `;
-    if (m > 0)
-        str += `${m}m `;
-    str += `${s}s`;
-    return str;
-}
 function getCpuUsage() {
     const cpus = os.cpus();
     let totalIdle = 0, totalTick = 0;
@@ -76,8 +54,8 @@ export default {
             const platform = os.type();
             const release = os.release();
             const arch = os.arch();
-            const osUptime = formatUptime(os.uptime());
-            const processUptime = formatUptime(process.uptime());
+            const osUptime = formatUptimeAlt(os.uptime());
+            const processUptime = formatUptimeAlt(process.uptime());
             // Load Average (Linux/Mac)
             const loadAvg = os.loadavg().map(l => l.toFixed(2)).join(' / ');
             // Disk Info (Linux)

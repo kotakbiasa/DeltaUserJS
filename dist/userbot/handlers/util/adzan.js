@@ -1,3 +1,4 @@
+import config from '../../../config.js';
 export default {
     name: 'adzan',
     version: '1.0.0',
@@ -6,7 +7,7 @@ export default {
         title: 'Adzan / Jadwal Sholat',
         description: 'Menampilkan jadwal sholat 5 waktu secara lengkap menggunakan API muslimsalat.com.',
         usage: '`.adzan <nama kota>`',
-        detail: 'Contoh: `.adzan Bandung`\nJika kota tidak disebutkan, secara default akan menampilkan jadwal untuk Jakarta.'
+        detail: 'Contoh: `.adzan Bandung`\\nJika kota tidak disebutkan, secara default akan menampilkan jadwal untuk Jakarta.'
     },
     async execute(client, message, settings, telegramId) {
         if (!message.out || !message.message)
@@ -16,12 +17,19 @@ export default {
             return;
         const inputStr = match[1];
         const lokasi = inputStr ? inputStr.trim() : 'Jakarta';
+        if (!config.muslimSalatApiKey) {
+            await message.edit({
+                text: `<blockquote>❌ <b>Konfigurasi kurang:</b> MUSLIM_SALAT_API_KEY belum diset di .env.</blockquote>`,
+                parseMode: 'html'
+            });
+            return;
+        }
         await message.edit({
             text: `⏳ <b>Mencari jadwal sholat untuk ${lokasi}...</b>`,
             parseMode: 'html'
         });
         try {
-            const url = `http://muslimsalat.com/${encodeURIComponent(lokasi)}.json?key=bd099c5825cbedb9aa934e255a81a5fc`;
+            const url = `http://muslimsalat.com/${encodeURIComponent(lokasi)}.json?key=${config.muslimSalatApiKey}`;
             const response = await fetch(url);
             if (!response.ok) {
                 await message.edit({

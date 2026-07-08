@@ -1,10 +1,10 @@
 import { InlineKeyboard } from 'grammy';
 /**
  * Menerjemahkan teks dengan format (mirip Rose Bot) menjadi teks bersih + Inline Keyboard
- * @param {string} text - Teks mentah berformat
- * @param {Object} userContext - Context user yang memicu (ctx.from)
- * @param {Object} chatContext - Context grup (ctx.chat)
- * @returns {Object} { text: string, keyboard: InlineKeyboard | null }
+ * @param text - Teks mentah berformat
+ * @param userContext - Context user yang memicu (ctx.from)
+ * @param chatContext - Context grup (ctx.chat)
+ * @returns { text: string, keyboard: InlineKeyboard | null }
  */
 export function parseRichText(text, userContext = {}, chatContext = {}) {
     let parsedText = String(text || '');
@@ -14,9 +14,9 @@ export function parseRichText(text, userContext = {}, chatContext = {}) {
         '{last_name}': userContext.last_name || '',
         '{fullname}': `${userContext.first_name || ''} ${userContext.last_name || ''}`.trim(),
         '{username}': userContext.username ? `@${userContext.username}` : '',
-        '{id}': userContext.id || '',
+        '{id}': String(userContext.id || ''),
         '{chat_title}': chatContext.title || '',
-        '{chat_id}': chatContext.id || '',
+        '{chat_id}': String(chatContext.id || ''),
     };
     for (const [key, value] of Object.entries(placeholders)) {
         // case insensitive replacement for variables
@@ -56,6 +56,6 @@ export function parseRichText(text, userContext = {}, chatContext = {}) {
     }
     return {
         text: parsedText.trim(),
-        keyboard: hasButtons ? keyboard : null
+        keyboard: hasButtons ? keyboard : null,
     };
 }

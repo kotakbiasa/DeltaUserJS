@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Rich Message helper (Telegram Bot API 10.1 / grammY 1.44+).
  *
@@ -24,39 +23,37 @@
  */
 /**
  * Build an InputRichMessage payload.
- * @param {string} content - HTML (default) or Markdown content.
- * @param {object} [opts]
- * @param {boolean} [opts.markdown=false] - Treat `content` as Markdown instead of HTML.
- * @param {boolean} [opts.isRtl] - Render right-to-left.
- * @param {boolean} [opts.skipEntityDetection] - Disable auto entity detection.
- * @returns {import('grammy/types').InputRichMessage}
  */
-export function buildRich(content, { markdown = false, isRtl, skipEntityDetection } = {}) {
-    const rich = markdown
+export function buildRich(content, opts) {
+    const rich = (opts?.markdown
         ? { markdown: String(content ?? '') }
-        : { html: String(content ?? '') };
-    if (isRtl)
+        : { html: String(content ?? '') });
+    if (opts?.isRtl)
         rich.is_rtl = true;
-    if (skipEntityDetection)
+    if (opts?.skipEntityDetection)
         rich.skip_entity_detection = true;
     return rich;
 }
 /**
  * Split rich-only options from plain send options (reply_markup, reply_parameters, ...).
- * @param {object} options
  */
 function splitOptions(options = {}) {
-    const { markdown = false, isRtl, skipEntityDetection, ...sendOptions } = options;
+    const opts = options;
+    const markdown = opts.markdown ?? false;
+    const isRtl = opts.isRtl;
+    const skipEntityDetection = opts.skipEntityDetection;
+    const sendOptions = {};
+    for (const [k, v] of Object.entries(options)) {
+        if (k !== 'markdown' && k !== 'isRtl' && k !== 'skipEntityDetection') {
+            sendOptions[k] = v;
+        }
+    }
     return { richOpts: { markdown, isRtl, skipEntityDetection }, sendOptions };
 }
 /**
  * Reply with a rich message, falling back to a classic message on failure.
- * @param {import('grammy').Context} ctx
- * @param {string} content - HTML (default) or Markdown content.
- * @param {object} [options] - markdown/isRtl/skipEntityDetection + any send option (reply_markup, reply_parameters, ...).
- * @returns {Promise<import('grammy/types').Message>}
  */
-export async function replyRich(ctx, content, options = {}) {
+export async function replyRich(ctx, content, options) {
     const { richOpts, sendOptions } = splitOptions(options);
     try {
         return await ctx.replyWithRichMessage(buildRich(content, richOpts), sendOptions);
@@ -70,13 +67,8 @@ export async function replyRich(ctx, content, options = {}) {
 }
 /**
  * Send a rich message to an explicit chat, falling back to a classic message.
- * @param {import('grammy').Api} api
- * @param {number|string} chatId
- * @param {string} content
- * @param {object} [options]
- * @returns {Promise<import('grammy/types').Message>}
  */
-export async function sendRich(api, chatId, content, options = {}) {
+export async function sendRich(api, chatId, content, options) {
     const { richOpts, sendOptions } = splitOptions(options);
     try {
         return await api.sendRichMessage(chatId, buildRich(content, richOpts), sendOptions);
@@ -90,11 +82,8 @@ export async function sendRich(api, chatId, content, options = {}) {
 }
 /**
  * Edit the current message to rich content, falling back to a classic edit.
- * @param {import('grammy').Context} ctx
- * @param {string} content
- * @param {object} [options]
  */
-export async function editRich(ctx, content, options = {}) {
+export async function editRich(ctx, content, options) {
     const { richOpts, sendOptions } = splitOptions(options);
     try {
         return await ctx.editMessageText(buildRich(content, richOpts), sendOptions);

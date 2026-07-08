@@ -1,4 +1,21 @@
 import { dbCache, persistField, systemConfigCache, isMongo, readDbFromFile, writeDbToFile, SystemConfigModel } from '../infrastructure/dbCore.js';
+// System vars write lock
+let sysVarWriteLock = Promise.resolve();
+function withSysVarWriteLock(fn) {
+    let next;
+    const chain = sysVarWriteLock.then(fn).then((result) => {
+        next();
+        return result;
+    });
+    chain.catch(() => { next(); });
+    sysVarWriteLock = chain;
+    return new Promise((resolve) => {
+        // Cast resolve to no-arg function to avoid type mismatch
+        // since we call next() without args in .then/.catch
+        const noopResolve = resolve.bind(null, {});
+        next = noopResolve;
+    });
+}
 export function getUserVar(telegramId, key) {
     const session = dbCache.get(Number(telegramId));
     return session?.vars ? session.vars[key] : undefined;
@@ -37,29 +54,33 @@ export async function setSystemVar(key, value) {
     if (!systemConfigCache.vars)
         systemConfigCache.vars = {};
     systemConfigCache.vars[key] = value;
-    if (isMongo) {
-        await SystemConfigModel.updateOne({ _id: 'system' }, { vars: systemConfigCache.vars }, { upsert: true });
-    }
-    else {
-        const data = readDbFromFile();
-        data.systemConfig = systemConfigCache;
-        writeDbToFile(data);
-    }
-    return true;
+    return withSysVarWriteLock(async () => {
+        if (isMongo) {
+            await SystemConfigModel.updateOne({ _id: 'system' }, { $set: { vars: systemConfigCache.vars } }, { upsert: true });
+        }
+        else {
+            const data = readDbFromFile();
+            data.systemConfig = systemConfigCache;
+            writeDbToFile(data);
+        }
+        return true;
+    });
 }
 export async function deleteSystemVar(key) {
     if (!systemConfigCache.vars)
         return false;
     delete systemConfigCache.vars[key];
-    if (isMongo) {
-        await SystemConfigModel.updateOne({ _id: 'system' }, { vars: systemConfigCache.vars }, { upsert: true });
-    }
-    else {
-        const data = readDbFromFile();
-        data.systemConfig = systemConfigCache;
-        writeDbToFile(data);
-    }
-    return true;
+    return withSysVarWriteLock(async () => {
+        if (isMongo) {
+            await SystemConfigModel.updateOne({ _id: 'system' }, { $unset: { [`vars.${key}`]: '' } }, { upsert: true });
+        }
+        else {
+            const data = readDbFromFile();
+            data.systemConfig = systemConfigCache;
+            writeDbToFile(data);
+        }
+        return true;
+    });
 }
 export function hasClaimedTrial(telegramId) {
     const claims = getSystemVar('trial_claims') || {};

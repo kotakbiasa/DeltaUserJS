@@ -150,19 +150,19 @@ export class UserbotClient {
         }
       }
 
-      // Wrap message.edit to inject custom signature
-      const originalEdit = message.edit.bind(message);
-      message.edit = async (options) => {
-        let text = options.text || options.message || '';
-        if (settings.custom_name && text && typeof text === 'string') {
-          if (!text.includes(settings.custom_name)) {
-            text += `\n\n— <b>${settings.custom_name}</b>`;
-          }
-        }
-        if (options.text !== undefined) options.text = text;
-        if (options.message !== undefined) options.message = text;
-        return originalEdit(options);
-      };
+      // Wrap message.edit to inject custom signature (DISABLED - no watermark)
+      // const originalEdit = message.edit.bind(message);
+      // message.edit = async (options) => {
+      //   let text = options.text || options.message || '';
+      //   if (settings.custom_name && text && typeof text === 'string') {
+      //     if (!text.includes(settings.custom_name)) {
+      //       text += `\n\n— <b>${settings.custom_name}</b>`;
+      //     }
+      //   }
+      //   if (options.text !== undefined) options.text = text;
+      //   if (options.message !== undefined) options.message = text;
+      //   return originalEdit(options);
+      // };
 
       // 2. Jalankan seluruh plugin secara sekuensial
       const disabled = disabledSet(settings);

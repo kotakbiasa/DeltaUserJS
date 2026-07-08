@@ -12,7 +12,7 @@ export function isOwner(userId) {
 /**
  * Check if the current context's user is a GROUP admin (creator or administrator).
  * Returns false if the chat is private or on API error.
- * NOTE: This checks GROUP admin status, NOT bot owner. Use isOwner() for that.
+ * NOTE: This checks GROUP admin status, NOT bot owner. Use isOwner() for that!
  */
 export async function isAdmin(ctx) {
     if (!ctx.chat || ctx.chat.type === 'private')

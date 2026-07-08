@@ -95,7 +95,7 @@ export default {
         if (!senderId)
             return;
         // Admin & whitelisted immunity check
-        const isApproved = settings?.approved_users?.includes(senderId) || chatSettings.admins?.includes(senderId);
+        const isApproved = (settings?.approved_users || []).includes(senderId) || (chatSettings.admins || []).includes(senderId);
         if (isApproved)
             return;
         // Fetch config
@@ -107,8 +107,13 @@ export default {
         const key = `${telegramId}_${chatId}_${senderId}`;
         let timestamps = floodTracker.get(key) || [];
         timestamps.push(now);
+        // Cleanup: remove old timestamps outside the window
         timestamps = timestamps.filter(t => now - t <= timeWindow);
         floodTracker.set(key, timestamps);
+        // Clean up empty keys to prevent memory leaks
+        if (timestamps.length === 0) {
+            floodTracker.delete(key);
+        }
         if (timestamps.length >= limit) {
             // Trigger warning
             const warnInfo = await addWarn(telegramId, chatId, senderId, 'Flooding chat');

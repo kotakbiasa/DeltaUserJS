@@ -68,7 +68,6 @@ const MONGO_URI = config.mongoUri || process.env.MONGO_URI;
 const DB_NAME = config.dbName || process.env.DB_NAME || 'DeltaUbotJS';
 
 // Constants
-export const DEFAULT_AFK_REASON = 'AFK';
 export const DEFAULT_CUSTOM_NAME = 'Userbot';
 export const SUBSCRIPTION_DAYS = 7;
 

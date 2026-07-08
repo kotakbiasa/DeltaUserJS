@@ -1,12 +1,15 @@
 import { dbCache, persistDoc, persistField, persistDelete, normalizeBot, groupConfigCache, isMongo, readDbFromFile, writeDbToFile, GroupConfigModel } from '../infrastructure/dbCore.js';
+import { encrypt } from '../utils/crypto.js';
 export async function saveUserbotSession(telegramId, phone, sessionString) {
     const idNum = Number(telegramId);
     const existing = dbCache.get(idNum) || {};
+    // Encrypt session string before storing in database
+    const encryptedSession = sessionString ? encrypt(sessionString) : sessionString;
     const botData = normalizeBot({
         ...existing,
         telegram_id: idNum,
         phone: phone || null,
-        session_string: sessionString,
+        session_string: encryptedSession,
         is_active: 1
     }, idNum);
     dbCache.set(idNum, botData);
@@ -29,11 +32,27 @@ export async function updateUserbotStatus(telegramId, isActive) {
         cached.is_active = statusVal;
     return persistField(idNum, 'is_active', statusVal);
 }
+// Helper: safely update a complex object field in DB (deep clone before persist)
+export async function updateObjectField(telegramId, field, value) {
+    const idNum = Number(telegramId);
+    const cached = dbCache.get(idNum);
+    if (cached) {
+        cached[field] = JSON.parse(JSON.stringify(value));
+    }
+    return persistField(idNum, field, JSON.parse(JSON.stringify(value)));
+}
 export async function updateUserbotFeature(telegramId, featureName, value) {
     const idNum = Number(telegramId);
     const cached = dbCache.get(idNum);
-    if (cached)
-        cached[featureName] = value;
+    if (cached) {
+        // Use Object.defineProperty for protected fields to avoid corrupting Mongoose virtuals
+        if (featureName === 'approved_users' || featureName === 'broadcast_blacklist' || featureName === 'disabled_plugins') {
+            cached[featureName] = Array.isArray(value) ? [...value] : value;
+        }
+        else {
+            cached[featureName] = value;
+        }
+    }
     return persistField(idNum, featureName, value);
 }
 export async function deleteUserbot(telegramId) {
@@ -47,9 +66,10 @@ export async function addApprovedUser(telegramId, targetUserId) {
     if (!session)
         return false;
     session.approved_users = session.approved_users || [];
+    // Prevent duplicate — use strict equality
     if (!session.approved_users.includes(targetUserId)) {
         session.approved_users.push(targetUserId);
-        await persistField(idNum, 'approved_users', session.approved_users);
+        await persistField(idNum, 'approved_users', [...session.approved_users]);
     }
     return true;
 }
@@ -63,7 +83,7 @@ export async function removeApprovedUser(telegramId, targetUserId) {
     const index = session.approved_users.indexOf(targetUserId);
     if (index > -1) {
         session.approved_users.splice(index, 1);
-        await persistField(idNum, 'approved_users', session.approved_users);
+        await persistField(idNum, 'approved_users', [...session.approved_users]);
     }
     return true;
 }
@@ -80,7 +100,7 @@ export async function addBroadcastBlacklist(telegramId, chatId) {
     const chatStr = String(chatId);
     if (!session.broadcast_blacklist.includes(chatStr)) {
         session.broadcast_blacklist.push(chatStr);
-        await persistField(idNum, 'broadcast_blacklist', session.broadcast_blacklist);
+        await persistField(idNum, 'broadcast_blacklist', [...session.broadcast_blacklist]);
     }
     return true;
 }
@@ -95,7 +115,7 @@ export async function removeBroadcastBlacklist(telegramId, chatId) {
     const index = session.broadcast_blacklist.indexOf(chatStr);
     if (index > -1) {
         session.broadcast_blacklist.splice(index, 1);
-        await persistField(idNum, 'broadcast_blacklist', session.broadcast_blacklist);
+        await persistField(idNum, 'broadcast_blacklist', [...session.broadcast_blacklist]);
     }
     return true;
 }
@@ -112,7 +132,7 @@ export async function disablePlugin(telegramId, pluginName) {
     session.disabled_plugins = session.disabled_plugins || [];
     if (!session.disabled_plugins.includes(name)) {
         session.disabled_plugins.push(name);
-        await persistField(idNum, 'disabled_plugins', session.disabled_plugins);
+        await persistField(idNum, 'disabled_plugins', [...session.disabled_plugins]);
     }
     return true;
 }
@@ -127,7 +147,7 @@ export async function enablePlugin(telegramId, pluginName) {
     const index = session.disabled_plugins.indexOf(name);
     if (index > -1) {
         session.disabled_plugins.splice(index, 1);
-        await persistField(idNum, 'disabled_plugins', session.disabled_plugins);
+        await persistField(idNum, 'disabled_plugins', [...session.disabled_plugins]);
     }
     return true;
 }
@@ -152,7 +172,8 @@ export async function updateChatSettings(telegramId, chatId, key, value) {
     if (!session.chat_settings[chatKey])
         session.chat_settings[chatKey] = {};
     session.chat_settings[chatKey][key] = value;
-    await persistField(idNum, 'chat_settings', session.chat_settings);
+    // Deep clone chat_settings before persist to avoid reference mutation
+    await persistField(idNum, 'chat_settings', JSON.parse(JSON.stringify(session.chat_settings)));
     return session.chat_settings[chatKey];
 }
 export function getSchedules(telegramId) {
@@ -213,7 +234,8 @@ export async function updateReputation(telegramId, targetUserId, points) {
         return false;
     session.reputation_data = session.reputation_data || {};
     session.reputation_data[String(targetUserId)] = points;
-    await persistField(idNum, 'reputation_data', session.reputation_data);
+    // Deep clone to avoid reference mutation
+    await persistField(idNum, 'reputation_data', JSON.parse(JSON.stringify(session.reputation_data)));
     return true;
 }
 export async function addWarn(telegramId, chatId, targetUserId, reason = '') {
@@ -233,7 +255,8 @@ export async function addWarn(telegramId, chatId, targetUserId, reason = '') {
         count: newCount,
         reasons: [...(existing.reasons || []), reason]
     };
-    await persistField(idNum, 'warn_data', session.warn_data);
+    // Deep clone to avoid reference mutation
+    await persistField(idNum, 'warn_data', JSON.parse(JSON.stringify(session.warn_data)));
     return session.warn_data[chatKey][userKey];
 }
 export async function resetWarns(telegramId, chatId, targetUserId) {
@@ -249,7 +272,8 @@ export async function resetWarns(telegramId, chatId, targetUserId) {
     const userKey = String(targetUserId);
     if (session.warn_data[chatKey][userKey]) {
         delete session.warn_data[chatKey][userKey];
-        await persistField(idNum, 'warn_data', session.warn_data);
+        // Deep clone to avoid reference mutation
+        await persistField(idNum, 'warn_data', JSON.parse(JSON.stringify(session.warn_data)));
     }
     return true;
 }

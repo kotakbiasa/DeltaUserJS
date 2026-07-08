@@ -133,6 +133,10 @@ export function registerInlineHelpHandlers(bot) {
             }
             const registry = getRegistry(target);
             const session = getUserbotSession(ctx.from.id);
+            if (!session) {
+                await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+                return;
+            }
             await ctx.answerInlineQuery([{
                     type: 'article',
                     id: `help-module-${moduleName}-rich-v2`,
@@ -164,6 +168,8 @@ export function registerInlineHelpHandlers(bot) {
             return next();
         const target = query === 'help_ubot' ? 'ubot' : 'main';
         const session = getUserbotSession(ctx.from.id);
+        if (!session)
+            return next();
         await ctx.answerInlineQuery([{
                 type: 'article',
                 id: `help-menu-rich-v2-${target}`,

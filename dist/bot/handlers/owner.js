@@ -12,10 +12,16 @@ export function registerOwnerHandlers(bot) {
         try {
             const users = await UserbotModel.find({}).lean();
             const backupData = JSON.stringify(users, null, 2);
-            fs.writeFileSync('database_backup.json', backupData);
-            await ctx.replyWithDocument(new InputFile('database_backup.json'), {
+            const filename = `database_backup_${Date.now()}.json`;
+            fs.writeFileSync(filename, backupData);
+            await ctx.replyWithDocument(new InputFile(filename, 'database_backup.json'), {
                 caption: `📦 Backup MongoDB Userbots\n${new Date().toLocaleString()}`,
             });
+            // Clean up temp file after sending
+            setTimeout(() => { try {
+                fs.unlinkSync(filename);
+            }
+            catch (_) { } }, 60000);
         }
         catch (err) {
             await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal backup: ${err.message}</blockquote>` });
@@ -44,7 +50,8 @@ export function registerOwnerHandlers(bot) {
         await ctx.replyWithRichMessage({ html: `<h1>🔄 Restarting Bot</h1><blockquote>Sistem sedang dimuat ulang. Harap tunggu beberapa saat hingga bot menyala kembali.</blockquote>` });
         console.log('🔄 Restart command received from owner. Exiting process...');
         setTimeout(() => {
-            process.exit(1);
+            // Use exit code 0 for graceful restart (PM2/systemd will restart it)
+            process.exit(0);
         }, 1000);
     });
 }
