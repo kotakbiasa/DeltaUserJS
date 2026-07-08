@@ -5,21 +5,21 @@
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+let ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
+// Generate secure random key if not provided (logged once at startup)
 if (!ENCRYPTION_KEY) {
-  console.warn('⚠️ ENCRYPTION_KEY belum diset di .env. Session strings tidak akan dienkripsi.');
+  ENCRYPTION_KEY = crypto.randomBytes(32).toString('hex');
+  console.log('⚠️ ENCRYPTION_KEY tidak diset — menggunakan random key (session tidak persisten antar restart). Setel ENCRYPTION_KEY di .env untuk persistensi.');
 }
 
 let keyBuffer: Buffer;
 try {
   // Gunakan unique salt dari ENCRYPTION_KEY itu sendiri untuk menghindari rainbow table
-  const salt = ENCRYPTION_KEY
-    ? crypto.createHash('sha256').update(ENCRYPTION_KEY).digest().subarray(0, 16)
-    : Buffer.alloc(16);
-  keyBuffer = crypto.scryptSync(ENCRYPTION_KEY || 'disabled', salt, 32);
+  const salt = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest().subarray(0, 16);
+  keyBuffer = crypto.scryptSync(ENCRYPTION_KEY, salt, 32);
 } catch {
-  keyBuffer = Buffer.alloc(32);
+  keyBuffer = crypto.randomBytes(32);
 }
 
 /**
