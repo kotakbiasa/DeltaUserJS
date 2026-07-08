@@ -90,7 +90,7 @@ async function cleanupClient(telegramId) {
   if (client) {
     try {
       await client.disconnect();
-    } catch (e) {}
+    } catch (e) { /* ignore: already disconnected */ }
   }
 }
 
@@ -106,7 +106,7 @@ async function waitForInput(conversation, ctx) {
     await result.answerCallbackQuery('Pendaftaran dibatalkan.');
     try {
       await result.deleteMessage();
-    } catch (e) {}
+    } catch (e) { /* ignore: already deleted */ }
     await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
     throw new Error('USER_CANCELLED');
   }
@@ -114,7 +114,7 @@ async function waitForInput(conversation, ctx) {
   // Berikan reaksi 👍 pada pesan yang dikirim pengguna sebagai indikasi bot memprosesnya
   try {
     await result.react('👍');
-  } catch (e) {}
+  } catch (e) { /* ignore: reaction may fail */ }
 
   return result.message.text.trim();
 }
@@ -238,7 +238,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
         if (cbData === 'cancel_reg') {
           await inputResult.answerCallbackQuery('Pendaftaran dibatalkan.');
-          try { await inputResult.deleteMessage(); } catch (e) {}
+          try { await inputResult.deleteMessage(); } catch (e) { /* ignore */ }
           await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
           return;
         }
@@ -477,7 +477,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
                 if (qrImageMessageId) {
                   try {
                     await outsideCtx.api.deleteMessage(chatId, qrImageMessageId);
-                  } catch (e) {}
+                  } catch (e) { /* ignore: may be already deleted */ }
                 }
 
                 const qrMsg = await outsideCtx.api.sendPhoto(chatId, new InputFile(qrBuffer), {
@@ -525,7 +525,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
           if (qrImageMessageId) {
             try {
               await outsideCtx.api.deleteMessage(chatId, qrImageMessageId);
-            } catch (e) {}
+            } catch (e) { /* ignore */ }
           }
         }
 
@@ -539,7 +539,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
         // Disconnect client setelah session disimpan
         try {
           await client.disconnect();
-        } catch (e) {}
+        } catch (e) { /* ignore */ }
         activeRegClients.delete(telegramId);
 
         return { status: 'success', sessionString };
@@ -569,11 +569,11 @@ export async function qrRegistrationConversation(conversation, ctx) {
         try {
           await activeClient.signInWithPassword({ apiId: config.apiId, apiHash: config.apiHash }, { password: async () => password });
           const sess = activeClient.session.save();
-          try { await activeClient.disconnect(); } catch (e) {}
+          try { await activeClient.disconnect(); } catch (e) { /* ignore */ }
           activeRegClients.delete(telegramId);
           return { status: 'success', sessionString: sess };
         } catch (err) {
-          try { await activeClient.disconnect(); } catch (e) {}
+          try { await activeClient.disconnect(); } catch (e) { /* ignore */ }
           activeRegClients.delete(telegramId);
           return { status: 'error', error: err.message };
         }

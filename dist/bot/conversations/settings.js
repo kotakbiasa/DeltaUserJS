@@ -17,18 +17,18 @@ async function waitForInput(conversation, ctx) {
         try {
             await result.answerCallbackQuery('Dibatalkan.');
         }
-        catch (e) { }
+        catch (e) { /* ignore: already answered */ }
         try {
             await result.deleteMessage();
         }
-        catch (e) { }
+        catch (e) { /* ignore: already deleted */ }
         await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Aksi dibatalkan.</blockquote>`);
         throw new Error('USER_CANCELLED');
     }
     try {
         await result.react('👍');
     }
-    catch (e) { }
+    catch (e) { /* ignore: reaction may fail */ }
     return result.message.text.trim();
 }
 /**

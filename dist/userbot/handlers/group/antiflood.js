@@ -157,7 +157,7 @@ export default {
                     const userEntity = await client.getEntity(senderId);
                     name = userEntity.firstName || userEntity.username || `User_${senderId}`;
                 }
-                catch (e) { }
+                catch (e) { /* ignore: use default name */ }
                 await client.sendMessage(chatId, {
                     message: `⚠️ <b>warning</b> / <b>Banjir</b>: User ${name} telah di-${isKick ? 'kick' : 'mute'} karena melebihi batas flood!`
                 });
@@ -166,13 +166,13 @@ export default {
                 try {
                     await client.deleteMessages(message.peerId, [message.id], { revoke: true });
                 }
-                catch (e) { }
+                catch (e) { /* ignore */ }
                 let name = `User_${senderId}`;
                 try {
                     const userEntity = await client.getEntity(senderId);
                     name = userEntity.firstName || userEntity.username || `User_${senderId}`;
                 }
-                catch (e) { }
+                catch (e) { /* ignore: use default name */ }
                 await client.sendMessage(chatId, {
                     message: `⚠️ <b>warning</b>: Mohon jangan spam, ${name}! [Peringatan: ${warnInfo.count}/${maxWarns}]`
                 });

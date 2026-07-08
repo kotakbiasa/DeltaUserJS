@@ -26,7 +26,7 @@ export default {
                     try {
                         await client.deleteMessages(message.peerId, [message.id], { revoke: true });
                     }
-                    catch (e) { }
+                    catch (e) { /* ignore */ }
                 }
                 // Dapatkan user baru
                 let userIds = [];

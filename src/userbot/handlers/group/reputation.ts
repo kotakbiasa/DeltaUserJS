@@ -67,7 +67,7 @@ export default {
         try {
           const userEntity = await client.getEntity(targetId);
           name = userEntity.firstName || userEntity.username || `User_${targetId}`;
-        } catch (e) {}
+        } catch (e) { /* ignore: use default name */ }
 
         await message.edit({
           text: `ℹ️ <b>Reputasi Pengguna:</b>\n` +
@@ -108,7 +108,7 @@ export default {
           try {
             const userEntity = await client.getEntity(entry.userId);
             name = userEntity.firstName || userEntity.username || `User_${entry.userId}`;
-          } catch (e) {}
+          } catch (e) { /* ignore: use default name */ }
           textList += `${i}. <b>${name}</b> (ID: <code>${entry.userId}</code>) — <b>${entry.score} rep</b>\n`;
           i++;
         }
@@ -164,13 +164,13 @@ export default {
       try {
         const targetEntity = await client.getEntity(targetId);
         targetName = targetEntity.firstName || targetEntity.username || `User_${targetId}`;
-      } catch (e) {}
+      } catch (e) { /* ignore: use default name */ }
 
       let voterName = `User_${senderId}`;
       try {
         const voterEntity = await client.getEntity(senderId);
         voterName = voterEntity.firstName || voterEntity.username || `User_${senderId}`;
-      } catch (e) {}
+      } catch (e) { /* ignore: use default name */ }
 
       // Reply confirmation in chat
       await client.sendMessage(message.peerId, {

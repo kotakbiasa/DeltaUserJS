@@ -78,7 +78,7 @@ async function cleanupClient(telegramId) {
         try {
             await client.disconnect();
         }
-        catch (e) { }
+        catch (e) { /* ignore: already disconnected */ }
     }
 }
 /**
@@ -93,7 +93,7 @@ async function waitForInput(conversation, ctx) {
         try {
             await result.deleteMessage();
         }
-        catch (e) { }
+        catch (e) { /* ignore: already deleted */ }
         await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
         throw new Error('USER_CANCELLED');
     }
@@ -101,7 +101,7 @@ async function waitForInput(conversation, ctx) {
     try {
         await result.react('👍');
     }
-    catch (e) { }
+    catch (e) { /* ignore: reaction may fail */ }
     return result.message.text.trim();
 }
 /**
@@ -209,7 +209,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
                     try {
                         await inputResult.deleteMessage();
                     }
-                    catch (e) { }
+                    catch (e) { /* ignore */ }
                     await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
                     return;
                 }
@@ -443,7 +443,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
                                 try {
                                     await outsideCtx.api.deleteMessage(chatId, qrImageMessageId);
                                 }
-                                catch (e) { }
+                                catch (e) { /* ignore: may be already deleted */ }
                             }
                             const qrMsg = await outsideCtx.api.sendPhoto(chatId, new InputFile(qrBuffer), {
                                 caption: '📷 <b>SCAN QR CODE INI</b>\n\n' +
@@ -490,7 +490,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
                         try {
                             await outsideCtx.api.deleteMessage(chatId, qrImageMessageId);
                         }
-                        catch (e) { }
+                        catch (e) { /* ignore */ }
                     }
                 }
                 if (result.status === '2fa_needed') {
@@ -502,7 +502,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
                 try {
                     await client.disconnect();
                 }
-                catch (e) { }
+                catch (e) { /* ignore */ }
                 activeRegClients.delete(telegramId);
                 return { status: 'success', sessionString };
             },
@@ -530,7 +530,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
                     try {
                         await activeClient.disconnect();
                     }
-                    catch (e) { }
+                    catch (e) { /* ignore */ }
                     activeRegClients.delete(telegramId);
                     return { status: 'success', sessionString: sess };
                 }
@@ -538,7 +538,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
                     try {
                         await activeClient.disconnect();
                     }
-                    catch (e) { }
+                    catch (e) { /* ignore */ }
                     activeRegClients.delete(telegramId);
                     return { status: 'error', error: err.message };
                 }

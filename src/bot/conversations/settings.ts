@@ -16,13 +16,13 @@ async function waitForInput(conversation, ctx) {
   const cbData = result.callbackQuery?.data;
 
   if (cbData === 'cancel' || cbData === 'cancel_reg') {
-    try { await result.answerCallbackQuery('Dibatalkan.'); } catch (e) {}
-    try { await result.deleteMessage(); } catch (e) {}
+    try { await result.answerCallbackQuery('Dibatalkan.'); } catch (e) { /* ignore: already answered */ }
+    try { await result.deleteMessage(); } catch (e) { /* ignore: already deleted */ }
     await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Aksi dibatalkan.</blockquote>`);
     throw new Error('USER_CANCELLED');
   }
 
-  try { await result.react('👍'); } catch (e) {}
+  try { await result.react('👍'); } catch (e) { /* ignore: reaction may fail */ }
 
   return result.message.text.trim();
 }
