@@ -23,12 +23,12 @@ export default {
 
     try {
       if (cmd === '.clear_@') {
-        await message.delete().catch(() => {});
+        await message.delete().catch(() => { /* ignore */ });
         await client.invoke(new Api.messages.ReadMentions({ peer: message.chatId }));
       }
 
       else if (cmd === '.clear_reacts') {
-        await message.delete().catch(() => {});
+        await message.delete().catch(() => { /* ignore */ });
         await client.invoke(new Api.messages.ReadReactions({ peer: message.chatId }));
       }
 
@@ -45,7 +45,7 @@ export default {
 
             // Update pesan hanya per 5 pembersihan & beri jeda agar TIDAK terkena FloodWait
             if (counter % 5 === 0) {
-              await message.edit({ text: `⏳ <b>Menyapu bersih semua mention (tag)...</b>\n\n✅ <b>Dibersihkan:</b> <code>${counter}</code> chat`, parseMode: 'html' }).catch(() => {});
+              await message.edit({ text: `⏳ <b>Menyapu bersih semua mention (tag)...</b>\n\n✅ <b>Dibersihkan:</b> <code>${counter}</code> chat`, parseMode: 'html' }).catch(() => { /* ignore */ });
               await sleep(1500); 
             }
           }
@@ -66,7 +66,7 @@ export default {
               counter++;
 
               if (counter % 5 === 0) {
-                await message.edit({ text: `⏳ <b>Menyapu bersih semua reaksi...</b>\n\n✅ <b>Dibersihkan:</b> <code>${counter}</code> chat`, parseMode: 'html' }).catch(() => {});
+                await message.edit({ text: `⏳ <b>Menyapu bersih semua reaksi...</b>\n\n✅ <b>Dibersihkan:</b> <code>${counter}</code> chat`, parseMode: 'html' }).catch(() => { /* ignore */ });
                 await sleep(1500);
               }
             } catch (err) {

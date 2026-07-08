@@ -54,7 +54,7 @@ export default {
                     try {
                         await message.delete();
                     }
-                    catch (e) { }
+                    catch (e) { /* ignore */ }
                 }
                 else {
                     await message.edit({

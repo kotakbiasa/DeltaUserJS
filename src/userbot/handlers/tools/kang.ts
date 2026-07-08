@@ -160,13 +160,13 @@ export default {
           } finally {
             // Cleanup
             if (sentMsgId) {
-              try { await client.deleteMessages('me', [sentMsgId], { revoke: true }); } catch (e) {}
+              try { await client.deleteMessages('me', [sentMsgId], { revoke: true }); } catch (e) { /* ignore */ }
             }
             try {
               if (fs.existsSync(tmpPath)) {
                 fs.unlinkSync(tmpPath);
               }
-            } catch (e) {}
+            } catch (e) { /* ignore */ }
           }
         }
         

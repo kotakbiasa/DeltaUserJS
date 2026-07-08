@@ -84,7 +84,7 @@ export default {
                     }));
                     photoCount = userPhotos.count || userPhotos.photos.length || 0;
                 }
-                catch (e) { }
+                catch (e) { /* ignore */ }
                 captionText = `<blockquote>👤 <b>USER INFORMATION</b>\n` +
                     `───────────────────────\n` +
                     `📛 <b>Nama:</b> ${pName}\n` +

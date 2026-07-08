@@ -71,7 +71,7 @@ export default {
       try {
         const { stdout } = await execAsync("df -h / | tail -1 | awk '{print $2 \" total, \" $3 \" used, \" $4 \" free (\" $5 \" used)\"}'", { timeout: 5000 });
         diskInfo = stdout.trim() || 'N/A';
-      } catch (e) {}
+      } catch (e) { /* ignore */ }
 
       // Network interfaces
       const nets = os.networkInterfaces();

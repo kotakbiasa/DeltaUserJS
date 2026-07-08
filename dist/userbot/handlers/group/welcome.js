@@ -42,13 +42,13 @@ export default {
                         const userEntity = await client.getEntity(uId);
                         name = userEntity.firstName || userEntity.username || `User_${uId}`;
                     }
-                    catch (e) { }
+                    catch (e) { /* ignore */ }
                     let title = String(chatId);
                     try {
                         const chatEntity = await client.getEntity(chatId);
                         title = chatEntity.title || String(chatId);
                     }
-                    catch (e) { }
+                    catch (e) { /* ignore */ }
                     let welcomeTemplate = chatSettings.welcome_msg;
                     if (welcomeTemplate === undefined || welcomeTemplate === null || String(welcomeTemplate).trim() === '') {
                         welcomeTemplate = 'Welcome / Selamat datang {name} ke {title}!';
@@ -67,13 +67,13 @@ export default {
                     const userEntity = await client.getEntity(uId);
                     name = userEntity.firstName || userEntity.username || `User_${uId}`;
                 }
-                catch (e) { }
+                catch (e) { /* ignore */ }
                 let title = String(chatId);
                 try {
                     const chatEntity = await client.getEntity(chatId);
                     title = chatEntity.title || String(chatId);
                 }
-                catch (e) { }
+                catch (e) { /* ignore */ }
                 let goodbyeTemplate = chatSettings.goodbye_msg;
                 if (goodbyeTemplate === undefined || goodbyeTemplate === null || String(goodbyeTemplate).trim() === '') {
                     goodbyeTemplate = 'Goodbye {name} dari {title}!';

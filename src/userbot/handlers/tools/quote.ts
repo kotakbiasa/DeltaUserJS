@@ -55,7 +55,7 @@ export default {
             replyTo: message.replyToMsgId
           });
           // Hapus pesan "membuat quote..."
-          try { await message.delete(); } catch (e) {}
+          try { await message.delete(); } catch (e) { /* ignore */ }
         } else {
           await message.edit({ 
             text: `<blockquote>❌ <b>Gagal:</b> Tidak ada balasan dari @QuotLyBot. Coba lagi nanti.</blockquote>`, 

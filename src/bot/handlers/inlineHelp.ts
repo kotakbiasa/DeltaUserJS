@@ -106,7 +106,7 @@ export function helpKeyboard(page = 1, target = 'main', isInline = false) {
 
 async function sendHelpRich(ctx, html, keyboard, deleteOld = false) {
   if (ctx.inlineMessageId) {
-    await ctx.api.editMessageTextInline(ctx.inlineMessageId, html, { parse_mode: 'HTML', reply_markup: keyboard }).catch(() => {});
+    await ctx.api.editMessageTextInline(ctx.inlineMessageId, html, { parse_mode: 'HTML', reply_markup: keyboard }).catch(() => { /* ignore */ });
   } else {
     await replyRich(ctx, html, { reply_markup: keyboard });
     if (deleteOld) {
@@ -198,13 +198,13 @@ export function registerInlineHelpHandlers(bot) {
       const moduleName = moduleMatch[1].toLowerCase();
       const target = resolveModuleTarget(moduleName);
       if (!target) return;
-      await ctx.api.editMessageTextInline(inlineMessageId, buildModuleRichHtml(moduleName, session, target), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: `help:page:1:${target}` }]] } }).catch(() => {});
+      await ctx.api.editMessageTextInline(inlineMessageId, buildModuleRichHtml(moduleName, session, target), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: `help:page:1:${target}` }]] } }).catch(() => { /* ignore */ });
       return;
     }
 
     if (query === 'help' || query === 'help_ubot') {
       const target = query === 'help_ubot' ? 'ubot' : 'main';
-      await ctx.api.editMessageTextInline(inlineMessageId, buildHelpMenuRichHtml(session, 1, target), { parse_mode: 'HTML', reply_markup: helpKeyboard(1, target, true) }).catch(() => {});
+      await ctx.api.editMessageTextInline(inlineMessageId, buildHelpMenuRichHtml(session, 1, target), { parse_mode: 'HTML', reply_markup: helpKeyboard(1, target, true) }).catch(() => { /* ignore */ });
     }
   });
 
@@ -238,7 +238,7 @@ export function registerInlineHelpHandlers(bot) {
         ctx.inlineMessageId,
         'Menu bantuan ditutup.',
         { reply_markup: { inline_keyboard: [] } }
-      ).catch(() => {});
+      ).catch(() => { /* ignore */ });
     } else {
       try { await ctx.deleteMessage(); } catch (_) {}
     }

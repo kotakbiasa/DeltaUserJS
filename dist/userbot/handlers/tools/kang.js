@@ -145,14 +145,14 @@ export default {
                             try {
                                 await client.deleteMessages('me', [sentMsgId], { revoke: true });
                             }
-                            catch (e) { }
+                            catch (e) { /* ignore */ }
                         }
                         try {
                             if (fs.existsSync(tmpPath)) {
                                 fs.unlinkSync(tmpPath);
                             }
                         }
-                        catch (e) { }
+                        catch (e) { /* ignore */ }
                     }
                 }
                 if (successCount > 0) {

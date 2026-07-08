@@ -101,7 +101,7 @@ export default {
                             try {
                                 await message.delete();
                             }
-                            catch (e) { }
+                            catch (e) { /* ignore */ }
                             return;
                         }
                         else {
@@ -139,7 +139,7 @@ export default {
                 try {
                     await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
                 }
-                catch (e) { }
+                catch (e) { /* ignore */ }
             }
         }
     }

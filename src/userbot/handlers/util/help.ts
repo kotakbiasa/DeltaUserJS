@@ -111,7 +111,7 @@ export default {
               // Kirim hasil inline query menggunakan method .click()
               await results[0].click(message.peerId, replyToMsgId);
               // Hapus pesan .help asli agar rapi
-              try { await message.delete(); } catch (e) {}
+              try { await message.delete(); } catch (e) { /* ignore */ }
               return;
             } else {
               throw new Error("No inline result from bot (Inline mode mungkin belum diaktifkan di @BotFather)");
@@ -145,7 +145,7 @@ export default {
         console.error('Error in help plugin:', err);
         try {
           await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
-        } catch (e) {}
+        } catch (e) { /* ignore */ }
       }
     }
   }
