@@ -3,6 +3,7 @@ import { Api } from 'teleproto';
 import fs from 'fs';
 import path from 'path';
 import { Jimp } from 'jimp';
+import { escapeHtml } from '../../../utils/richMessage.js';
 const EMOJIS = [
     "☕", "🤡", "🙂", "🤔", "🔪", "😂", "💀", "🔥", "❤️", "✨",
     "💯", "👍", "🎉", "😎", "😭", "🥺", "😱", "🤯", "😴", "🤪",
@@ -54,7 +55,7 @@ export default {
                         continue;
                     }
                     await message.edit({
-                        text: `<blockquote>📥 <b>Mencuri (kang) media...</b> [${i + 1}/${total}]</blockquote>`,
+                        text: `<blockquote>📥 <b>Mencuri (kang) media...</b> [${escapeHtml(String(i + 1))}/${escapeHtml(String(total))}]</blockquote>`,
                         parseMode: 'html'
                     });
                     // Download media
@@ -94,7 +95,7 @@ export default {
                         });
                         const packSuffix = me.username ? `_by_${me.username}` : `_by_user_${me.id}`;
                         const shortName = `kang_${me.id}_1${packSuffix}`.toLowerCase();
-                        const title = `${me.firstName || 'User'}'s Kang Pack`;
+                        const title = `${escapeHtml(me.firstName || 'User')}'s Kang Pack`;
                         lastShortName = shortName;
                         let createNew = false;
                         let stickerSet = null;
@@ -158,7 +159,7 @@ export default {
                 if (successCount > 0) {
                     const packUrl = `https://t.me/addstickers/${lastShortName}`;
                     await message.edit({
-                        text: `<blockquote>✅ <b>Berhasil!</b>\nBerhasil mencuri (kang) ${successCount} stiker.\n\n👉 <a href="${packUrl}">Lihat Pack Stiker Anda</a></blockquote>`,
+                        text: `<blockquote>✅ <b>Berhasil!</b>\nBerhasil mencuri (kang) ${escapeHtml(String(successCount))} stiker.\n\n👉 <a href="${escapeHtml(packUrl)}">Lihat Pack Stiker Anda</a></blockquote>`,
                         parseMode: 'html'
                     });
                 }
@@ -172,7 +173,7 @@ export default {
             catch (err) {
                 console.error('Error in kang plugin:', err);
                 await message.edit({
-                    text: `<blockquote>❌ <b>Terjadi kesalahan saat memproses kang:</b>\n<i>${err.message}</i></blockquote>`,
+                    text: `<blockquote>❌ <b>Terjadi kesalahan saat memproses kang:</b>\n<i>${escapeHtml(err.message)}</i></blockquote>`,
                     parseMode: 'html'
                 });
             }

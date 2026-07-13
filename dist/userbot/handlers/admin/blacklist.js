@@ -1,4 +1,5 @@
 import { addBroadcastBlacklist, removeBroadcastBlacklist, getBroadcastBlacklist } from '../../../infrastructure/database.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 export default {
     name: 'blacklist',
     help: {
@@ -42,7 +43,7 @@ export default {
             const success = await removeBroadcastBlacklist(telegramId, chatId);
             if (success) {
                 await message.edit({
-                    text: `<blockquote>🗑 <b>Grup Dihapus dari Blacklist!</b>\nGrup ini akan kembali menerima pesan Broadcast Anda.</blockquote>`,
+                    text: `<blockquote>✅ <b>Grup Dihapus dari Blacklist!</b>\nGrup ini akan kembali menerima pesan Broadcast Anda.</blockquote>`,
                     parseMode: 'html'
                 });
             }
@@ -50,13 +51,10 @@ export default {
         else if (cmd === '.listbl') {
             const list = getBroadcastBlacklist(telegramId);
             if (list.length === 0) {
-                await message.edit({
-                    text: `<blockquote>📝 <b>Daftar Blacklist Kosong.</b>\nSemua grup saat ini akan menerima pesan Broadcast Anda.</blockquote>`,
-                    parseMode: 'html'
-                });
+                await message.edit({ text: `<blockquote>📝 <b>Daftar Blacklist Kosong.</b>\nSemua grup saat ini akan menerima pesan Broadcast Anda.</blockquote>`, parseMode: 'html' });
             }
             else {
-                const listText = list.map(id => `• <code>${id}</code>`).join('\n');
+                const listText = list.map(id => `• <code>${escapeHtml(String(id))}</code>`).join('\n');
                 await message.edit({
                     text: `<blockquote>🛡️ <b>Daftar Grup Blacklist (Diabaikan oleh Gcast):</b>\n\n${listText}</blockquote>`,
                     parseMode: 'html'

@@ -1,4 +1,6 @@
 import { getChatSettings, updateChatSettings } from '../../../infrastructure/database.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
+import { isTestEnv } from '../../../utils/env.js';
 export default {
     name: 'welcome',
     help: {
@@ -13,8 +15,7 @@ export default {
         // --- 1. Handle Event Join / Leave ---
         if (message.action) {
             const chatSettings = getChatSettings(telegramId, chatKey);
-            const isTest = process.env.NODE_ENV === 'test' || process.argv[1]?.includes('runner.js');
-            const welcomeEnabled = chatSettings.welcome !== undefined ? chatSettings.welcome : isTest;
+            const welcomeEnabled = chatSettings.welcome !== undefined ? chatSettings.welcome : isTestEnv;
             if (!welcomeEnabled)
                 return;
             const isJoin = message.action.className === 'MessageActionChatAddUser' ||
@@ -124,11 +125,3 @@ export default {
         }
     }
 };
-function escapeHtml(text) {
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}

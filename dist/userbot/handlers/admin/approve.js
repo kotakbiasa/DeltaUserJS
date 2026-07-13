@@ -1,4 +1,5 @@
 import { addApprovedUser, removeApprovedUser, getApprovedUsers } from '../../../infrastructure/database.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 export default {
     name: 'approve',
     async execute(client, message, settings, telegramId) {
@@ -22,7 +23,7 @@ export default {
             const success = await addApprovedUser(telegramId, targetId);
             if (success) {
                 await message.edit({
-                    text: `<blockquote>✅ <b>Pengguna Diizinkan (Approved)!</b>\nPengguna dengan ID <code>${targetId}</code> tidak akan diblokir oleh Anti-PM.</blockquote>`,
+                    text: `<blockquote>✅ <b>Pengguna Diizinkan (Approved)!</b>\nPengguna dengan ID <code>${escapeHtml(String(targetId))}</code> tidak akan diblokir oleh Anti-PM.</blockquote>`,
                     parseMode: 'html'
                 });
             }
@@ -42,7 +43,7 @@ export default {
             const success = await removeApprovedUser(telegramId, targetId);
             if (success) {
                 await message.edit({
-                    text: `<blockquote>❌ <b>Pengguna Dihapus (Disapproved)!</b>\nPengguna dengan ID <code>${targetId}</code> telah dihapus dari daftar aman Anti-PM.</blockquote>`,
+                    text: `<blockquote>❌ <b>Pengguna Dihapus (Disapproved)!</b>\nPengguna dengan ID <code>${escapeHtml(String(targetId))}</code> telah dihapus dari daftar aman Anti-PM.</blockquote>`,
                     parseMode: 'html'
                 });
             }
@@ -56,7 +57,7 @@ export default {
                 });
             }
             else {
-                const listText = list.map(id => `• <code>${id}</code>`).join('\n');
+                const listText = list.map(id => `• <code>${escapeHtml(String(id))}</code>`).join('\n');
                 await message.edit({
                     text: `<blockquote>🛡️ <b>Daftar Pengguna Aman (Approved):</b>\n\n${listText}</blockquote>`,
                     parseMode: 'html'

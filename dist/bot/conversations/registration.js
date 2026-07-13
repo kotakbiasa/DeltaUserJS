@@ -747,11 +747,9 @@ export async function manageVarsConv(conversation, ctx) {
                         await db.setUserVar(telegramId, key, value);
                         await db.updateUserbotFeature(telegramId, 'inline_bot_token', value);
                         await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
-                        const inlineBotManager = (await import('../../services/inlineBotManager.js')).default;
-                        await inlineBotManager.stopInlineBot(telegramId);
-                        await inlineBotManager.startInlineBot(telegramId, value);
+                        // Inline bot manager removed; settings are still persisted for .help flow.
                     });
-                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
+                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
                 }
                 else {
                     await conversation.external(async () => {
@@ -819,8 +817,7 @@ export async function manageVarsConv(conversation, ctx) {
                         if (keyToDelete === 'INLINE_BOT_TOKEN') {
                             await db.updateUserbotFeature(telegramId, 'inline_bot_token', null);
                             await db.updateUserbotFeature(telegramId, 'inline_bot_username', null);
-                            const inlineBotManager = (await import('../../services/inlineBotManager.js')).default;
-                            await inlineBotManager.stopInlineBot(telegramId);
+                            // Inline bot manager removed; only clear stored token/username.
                         }
                     });
                     await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${keyToDelete}</b> berhasil dihapus.</blockquote>`);

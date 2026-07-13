@@ -1,5 +1,12 @@
 import { Api } from 'teleproto';
 
+// Monotonic message-ID generator. Random IDs (Math.random) can collide across
+// the suite, making getReplyMessage/editedMessages lookups by ID nondeterministic.
+let __msgIdCounter = 1000;
+function nextMsgId() {
+  return ++__msgIdCounter;
+}
+
 export class MockTelegramClient {
   constructor(telegramId) {
     this.telegramId = Number(telegramId);
@@ -86,7 +93,7 @@ export class MockTelegramClient {
   }
 
   async sendMessage(peerId, options) {
-    const msgId = Math.floor(Math.random() * 1000000);
+    const msgId = nextMsgId();
     let peerNum = 99999;
     if (peerId) {
       if (typeof peerId === 'number') peerNum = peerId;
@@ -184,7 +191,7 @@ export class MockTelegramClient {
   // --- E2E Simulation Hooks ---
 
   async simulateNewMessage({ senderId, chatId, text, replyToMsgId, out = false, action = null }) {
-    const msgId = Math.floor(Math.random() * 1000000);
+    const msgId = nextMsgId();
     const peerId = { userId: senderId };
     
     const msg = {

@@ -47,11 +47,23 @@ export function registerLegacyCallbacks(bot) {
 
   bot.callbackQuery('reg_otp', async (ctx) => {
     await ctx.answerCallbackQuery();
+    // Same approval gate as ubot_register_menu — otherwise these aliases let
+    // any user bypass the subscription/approval system and register a userbot.
+    const id = ctx.from.id;
+    if (Number(id) !== Number(config.ownerId) && !global.approvedUsers.has(id)) {
+      await sendAccessDeniedRich(ctx);
+      return;
+    }
     await ctx.conversation.enter('otp-reg');
   });
 
   bot.callbackQuery('reg_qr', async (ctx) => {
     await ctx.answerCallbackQuery();
+    const id = ctx.from.id;
+    if (Number(id) !== Number(config.ownerId) && !global.approvedUsers.has(id)) {
+      await sendAccessDeniedRich(ctx);
+      return;
+    }
     await ctx.conversation.enter('qr-reg');
   });
 
@@ -83,19 +95,32 @@ export function registerLegacyCallbacks(bot) {
   });
 
   bot.callbackQuery(/^approve_reg:(\d+)$/, async (ctx) => {
+    // Only the owner may approve registrations. Callback data can be forged by
+    // any user, so authorize on ctx.from.id — never on the callback payload.
+    if (Number(ctx.from.id) !== Number(config.ownerId)) {
+      await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang boleh menyetujui.', show_alert: true });
+      return;
+    }
+    await ctx.answerCallbackQuery();
     const targetId = Number(ctx.match[1]);
     global.approvedUsers.add(targetId);
     saveApprovals();
     await editRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Pendaftaran <code>${targetId}</code> disetujui.</blockquote>`);
-    try { await ctx.api.sendMessage(targetId, '🎉 Pendaftaran disetujui. Kirim /menu untuk mulai.'); } catch (_) {}
+    try { await ctx.api.sendMessage(targetId, '🎉 Pendaftaran disetujui. Kirim /menu untuk mulai.'); } catch (_) { /* user may have blocked the bot */ }
   });
 
   bot.callbackQuery(/^reject_reg:(\d+)$/, async (ctx) => {
+    // Owner-only — see approve_reg above.
+    if (Number(ctx.from.id) !== Number(config.ownerId)) {
+      await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang boleh menolak.', show_alert: true });
+      return;
+    }
+    await ctx.answerCallbackQuery();
     const targetId = Number(ctx.match[1]);
     global.approvedUsers.delete(targetId);
     saveApprovals();
     await editRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran <code>${targetId}</code> ditolak.</blockquote>`);
-    try { await ctx.api.sendMessage(targetId, '❌ Pendaftaran userbot ditolak oleh owner.'); } catch (_) {}
+    try { await ctx.api.sendMessage(targetId, '❌ Pendaftaran userbot ditolak oleh owner.'); } catch (_) { /* user may have blocked the bot */ }
   });
 
   bot.callbackQuery('cancel_reg', async (ctx) => {

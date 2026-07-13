@@ -1,4 +1,4 @@
-import { dbCache, persistDoc, persistField, persistDelete, normalizeBot, groupConfigCache, isMongo, readDbFromFile, writeDbToFile, GroupConfigModel } from '../infrastructure/dbCore.js';
+import { dbCache, persistDoc, persistField, persistDelete, normalizeBot, groupConfigCache, isMongo, readDbFromFile, writeDbToFile, GroupConfigModel, withKeyLock, withWriteLock } from '../infrastructure/dbCore.js';
 import { encrypt, decrypt, isEncrypted } from '../utils/crypto.js';
 
 
@@ -77,32 +77,36 @@ export async function deleteUserbot(telegramId) {
 
 export async function addApprovedUser(telegramId, targetUserId) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
 
-  session.approved_users = session.approved_users || [];
-  // Prevent duplicate — use strict equality
-  if (!session.approved_users.includes(targetUserId)) {
-    session.approved_users.push(targetUserId);
-    await persistField(idNum, 'approved_users', [...session.approved_users]);
-  }
+    session.approved_users = session.approved_users || [];
+    // Prevent duplicate — use strict equality
+    if (!session.approved_users.includes(targetUserId)) {
+      session.approved_users.push(targetUserId);
+      await persistField(idNum, 'approved_users', [...session.approved_users]);
+    }
 
-  return true;
+    return true;
+  });
 }
 
 export async function removeApprovedUser(telegramId, targetUserId) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
-  if (!session.approved_users) return true;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
+    if (!session.approved_users) return true;
 
-  const index = session.approved_users.indexOf(targetUserId);
-  if (index > -1) {
-    session.approved_users.splice(index, 1);
-    await persistField(idNum, 'approved_users', [...session.approved_users]);
-  }
+    const index = session.approved_users.indexOf(targetUserId);
+    if (index > -1) {
+      session.approved_users.splice(index, 1);
+      await persistField(idNum, 'approved_users', [...session.approved_users]);
+    }
 
-  return true;
+    return true;
+  });
 }
 
 export function getApprovedUsers(telegramId) {
@@ -112,33 +116,37 @@ export function getApprovedUsers(telegramId) {
 
 export async function addBroadcastBlacklist(telegramId, chatId) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
 
-  session.broadcast_blacklist = session.broadcast_blacklist || [];
-  const chatStr = String(chatId);
-  if (!session.broadcast_blacklist.includes(chatStr)) {
-    session.broadcast_blacklist.push(chatStr);
-    await persistField(idNum, 'broadcast_blacklist', [...session.broadcast_blacklist]);
-  }
+    session.broadcast_blacklist = session.broadcast_blacklist || [];
+    const chatStr = String(chatId);
+    if (!session.broadcast_blacklist.includes(chatStr)) {
+      session.broadcast_blacklist.push(chatStr);
+      await persistField(idNum, 'broadcast_blacklist', [...session.broadcast_blacklist]);
+    }
 
-  return true;
+    return true;
+  });
 }
 
 export async function removeBroadcastBlacklist(telegramId, chatId) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
-  if (!session.broadcast_blacklist) return true;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
+    if (!session.broadcast_blacklist) return true;
 
-  const chatStr = String(chatId);
-  const index = session.broadcast_blacklist.indexOf(chatStr);
-  if (index > -1) {
-    session.broadcast_blacklist.splice(index, 1);
-    await persistField(idNum, 'broadcast_blacklist', [...session.broadcast_blacklist]);
-  }
+    const chatStr = String(chatId);
+    const index = session.broadcast_blacklist.indexOf(chatStr);
+    if (index > -1) {
+      session.broadcast_blacklist.splice(index, 1);
+      await persistField(idNum, 'broadcast_blacklist', [...session.broadcast_blacklist]);
+    }
 
-  return true;
+    return true;
+  });
 }
 
 export function getBroadcastBlacklist(telegramId) {
@@ -148,33 +156,37 @@ export function getBroadcastBlacklist(telegramId) {
 
 export async function disablePlugin(telegramId, pluginName) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
 
-  const name = String(pluginName || '').toLowerCase();
-  session.disabled_plugins = session.disabled_plugins || [];
-  if (!session.disabled_plugins.includes(name)) {
-    session.disabled_plugins.push(name);
-    await persistField(idNum, 'disabled_plugins', [...session.disabled_plugins]);
-  }
+    const name = String(pluginName || '').toLowerCase();
+    session.disabled_plugins = session.disabled_plugins || [];
+    if (!session.disabled_plugins.includes(name)) {
+      session.disabled_plugins.push(name);
+      await persistField(idNum, 'disabled_plugins', [...session.disabled_plugins]);
+    }
 
-  return true;
+    return true;
+  });
 }
 
 export async function enablePlugin(telegramId, pluginName) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
-  if (!session.disabled_plugins) return true;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
+    if (!session.disabled_plugins) return true;
 
-  const name = String(pluginName || '').toLowerCase();
-  const index = session.disabled_plugins.indexOf(name);
-  if (index > -1) {
-    session.disabled_plugins.splice(index, 1);
-    await persistField(idNum, 'disabled_plugins', [...session.disabled_plugins]);
-  }
+    const name = String(pluginName || '').toLowerCase();
+    const index = session.disabled_plugins.indexOf(name);
+    if (index > -1) {
+      session.disabled_plugins.splice(index, 1);
+      await persistField(idNum, 'disabled_plugins', [...session.disabled_plugins]);
+    }
 
-  return true;
+    return true;
+  });
 }
 
 export function getDisabledPlugins(telegramId) {
@@ -190,17 +202,19 @@ export function getChatSettings(telegramId, chatId) {
 
 export async function updateChatSettings(telegramId, chatId, key, value) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
 
-  if (!session.chat_settings) session.chat_settings = {};
-  const chatKey = String(chatId);
-  if (!session.chat_settings[chatKey]) session.chat_settings[chatKey] = {};
+    if (!session.chat_settings) session.chat_settings = {};
+    const chatKey = String(chatId);
+    if (!session.chat_settings[chatKey]) session.chat_settings[chatKey] = {};
 
-  session.chat_settings[chatKey][key] = value;
-  // Deep clone chat_settings before persist to avoid reference mutation
-  await persistField(idNum, 'chat_settings', JSON.parse(JSON.stringify(session.chat_settings)));
-  return session.chat_settings[chatKey];
+    session.chat_settings[chatKey][key] = value;
+    // Deep clone chat_settings before persist to avoid reference mutation
+    await persistField(idNum, 'chat_settings', JSON.parse(JSON.stringify(session.chat_settings)));
+    return session.chat_settings[chatKey];
+  });
 }
 
 export function getSchedules(telegramId) {
@@ -229,87 +243,97 @@ export function getChatLocks(telegramId, chatId) {
 
 export async function saveSchedule(telegramId, chatId, type, value, message) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
 
-  session.schedules = session.schedules || [];
-  const chatKey = String(chatId);
-  session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
+    session.schedules = session.schedules || [];
+    const chatKey = String(chatId);
+    session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
 
-  session.schedules.push({
-    chatKey,
-    type,
-    value,
-    message
+    session.schedules.push({
+      chatKey,
+      type,
+      value,
+      message
+    });
+
+    await persistField(idNum, 'schedules', session.schedules);
+    return true;
   });
-
-  await persistField(idNum, 'schedules', session.schedules);
-  return true;
 }
 
 export async function deleteSchedule(telegramId, chatId, type) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
 
-  session.schedules = session.schedules || [];
-  const chatKey = String(chatId);
-  session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
+    session.schedules = session.schedules || [];
+    const chatKey = String(chatId);
+    session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
 
-  await persistField(idNum, 'schedules', session.schedules);
-  return true;
+    await persistField(idNum, 'schedules', session.schedules);
+    return true;
+  });
 }
 
 export async function updateReputation(telegramId, targetUserId, points) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return false;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return false;
 
-  session.reputation_data = session.reputation_data || {};
-  session.reputation_data[String(targetUserId)] = points;
-  // Deep clone to avoid reference mutation
-  await persistField(idNum, 'reputation_data', JSON.parse(JSON.stringify(session.reputation_data)));
-  return true;
+    session.reputation_data = session.reputation_data || {};
+    session.reputation_data[String(targetUserId)] = points;
+    // Deep clone to avoid reference mutation
+    await persistField(idNum, 'reputation_data', JSON.parse(JSON.stringify(session.reputation_data)));
+    return true;
+  });
 }
 
 export async function addWarn(telegramId, chatId, targetUserId, reason = '') {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return { count: 0 };
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return { count: 0 };
 
-  if (!session.warn_data) session.warn_data = {};
-  const chatKey = String(chatId);
-  if (!session.warn_data[chatKey]) session.warn_data[chatKey] = {};
-  const userKey = String(targetUserId);
-  const existing = session.warn_data[chatKey][userKey] || { count: 0, reasons: [] };
+    if (!session.warn_data) session.warn_data = {};
+    const chatKey = String(chatId);
+    if (!session.warn_data[chatKey]) session.warn_data[chatKey] = {};
+    const userKey = String(targetUserId);
+    const existing = session.warn_data[chatKey][userKey] || { count: 0, reasons: [] };
 
-  const newCount = existing.count + 1;
-  session.warn_data[chatKey][userKey] = {
-    count: newCount,
-    reasons: [...(existing.reasons || []), reason]
-  };
+    const newCount = existing.count + 1;
+    session.warn_data[chatKey][userKey] = {
+      count: newCount,
+      reasons: [...(existing.reasons || []), reason]
+    };
 
-  // Deep clone to avoid reference mutation
-  await persistField(idNum, 'warn_data', JSON.parse(JSON.stringify(session.warn_data)));
-  return session.warn_data[chatKey][userKey];
+    // Deep clone to avoid reference mutation
+    await persistField(idNum, 'warn_data', JSON.parse(JSON.stringify(session.warn_data)));
+    return session.warn_data[chatKey][userKey];
+  });
 }
 
 export async function resetWarns(telegramId, chatId, targetUserId) {
   const idNum = Number(telegramId);
-  const session = dbCache.get(idNum);
-  if (!session) return true;
+  return withKeyLock(idNum, async () => {
+    const session = dbCache.get(idNum);
+    if (!session) return true;
 
-  if (!session.warn_data) return true;
-  const chatKey = String(chatId);
-  if (!session.warn_data[chatKey]) return true;
-  const userKey = String(targetUserId);
+    if (!session.warn_data) return true;
+    const chatKey = String(chatId);
+    if (!session.warn_data[chatKey]) return true;
+    const userKey = String(targetUserId);
 
-  if (session.warn_data[chatKey][userKey]) {
-    delete session.warn_data[chatKey][userKey];
-    // Deep clone to avoid reference mutation
-    await persistField(idNum, 'warn_data', JSON.parse(JSON.stringify(session.warn_data)));
-  }
-  return true;
+    if (session.warn_data[chatKey][userKey]) {
+      delete session.warn_data[chatKey][userKey];
+      // Deep clone to avoid reference mutation
+      await persistField(idNum, 'warn_data', JSON.parse(JSON.stringify(session.warn_data)));
+    }
+    return true;
+  });
 }
 
 export function getGroupConfig(chatId) {
@@ -332,29 +356,36 @@ export function getGroupConfig(chatId) {
 
 export async function updateGroupConfig(chatId, updates) {
   const chatKey = String(chatId);
-  const existing = getGroupConfig(chatId);
-  const newData = { ...existing, ...updates, chat_id: chatKey };
-  
-  groupConfigCache.set(chatKey, newData);
+  // Serialize per-chat get-mutate-persist, and share the same file-write lock
+  // as every other database.json writer to avoid interleaved file writes.
+  return withKeyLock(`group:${chatKey}`, async () => {
+    const existing = getGroupConfig(chatId);
+    const newData = { ...existing, ...updates, chat_id: chatKey };
 
-  if (isMongo) {
-    try {
-      await (GroupConfigModel as any).findOneAndUpdate(
-        { chat_id: chatKey },
-        newData,
-        { upsert: true, returnDocument: 'after' }
-      );
-    } catch (e) {
-      console.error('❌ MongoDB GroupConfig error:', e.message);
+    groupConfigCache.set(chatKey, newData);
+
+    if (isMongo) {
+      try {
+        // $set so partial updates don't wipe unspecified fields.
+        await (GroupConfigModel as any).findOneAndUpdate(
+          { chat_id: chatKey },
+          { $set: newData },
+          { upsert: true, returnDocument: 'after' }
+        );
+      } catch (e) {
+        console.error('❌ MongoDB GroupConfig error:', e.message);
+      }
+    } else {
+      await withWriteLock(async () => {
+        const data = readDbFromFile();
+        if (!data.groups) data.groups = {};
+        data.groups[chatKey] = newData;
+        writeDbToFile(data);
+      });
     }
-  } else {
-    const data = readDbFromFile();
-    if (!data.groups) data.groups = {};
-    data.groups[chatKey] = newData;
-    writeDbToFile(data);
-  }
-  
-  return newData;
+
+    return newData;
+  });
 }
 
 export function getAllGroupConfigs() {

@@ -1,7 +1,6 @@
 import { UserbotClient } from './client.js';
 import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../../infrastructure/database.js';
 import { dbCache } from '../../infrastructure/dbCore.js';
-import inlineBotManager from '../../services/inlineBotManager.js';
 import { Logger } from '../../utils/logger.js';
 
 function sleep(ms) {
@@ -50,6 +49,15 @@ class UserbotManager {
     try {
       if (!sessionString) throw new Error(`session string kosong untuk ${id}`);
 
+      // Re-validate inside the lock: if the userbot was just deactivated (e.g.
+      // by the expiration checker between the watchdog's decision and here),
+      // do not resurrect it. Closes the watchdog-vs-expiration TOCTOU window.
+      const cached = dbCache.get(id);
+      if (cached && cached.is_active === 0) {
+        console.warn(`⚠️ Userbot [${id}] sudah dinonaktifkan, batal start.`);
+        return false;
+      }
+
       // Guard: pastikan tidak ada duplikasi client untuk telegram ID yang sama
       if (this.clients.has(id)) {
         const existing = this.clients.get(id);
@@ -66,7 +74,6 @@ class UserbotManager {
 
       try {
         await userbot.start();
-        await this.startInlineBotFor(id);
         return true;
       } catch (err) {
         this.clients.delete(id);
@@ -75,13 +82,6 @@ class UserbotManager {
     } finally {
       release();
     }
-  }
-
-  async startInlineBotFor(telegramId) {
-    const session = getUserbotSession(telegramId);
-    const token = session?.inline_bot_token || session?.vars?.INLINE_BOT_TOKEN;
-    if (!token) return;
-    await inlineBotManager.startInlineBot(telegramId, token);
   }
 
   async stopUserbot(telegramId) {
@@ -95,7 +95,6 @@ class UserbotManager {
         this.clients.delete(id);
       }
 
-      await inlineBotManager.stopInlineBot(id);
       return Boolean(userbot);
     } finally {
       release();
@@ -114,14 +113,12 @@ class UserbotManager {
         await userbot.stop();
         this.clients.delete(id);
       }
-      await inlineBotManager.stopInlineBot(id);
 
       // Inline start logic directly — don't call startUserbot() to avoid double-lock
       const newUserbot = new UserbotClient(id, session.session_string);
       this.clients.set(id, newUserbot);
       try {
         await newUserbot.start();
-        await this.startInlineBotFor(id);
         return true;
       } catch (err) {
         this.clients.delete(id);

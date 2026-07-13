@@ -1,5 +1,7 @@
 import { getChatSettings, updateChatSettings, getReputation, updateReputation } from '../../../infrastructure/database.js';
 import { Api } from 'teleproto';
+import { escapeHtml } from '../../../utils/richMessage.js';
+import { isTestEnv } from '../../../utils/env.js';
 
 // Key: telegramId_chatId_voterId_targetId -> last voted timestamp
 const cooldownMap = new Map();
@@ -41,7 +43,7 @@ export default {
         const floor = parseInt(args[1]);
         if (isNaN(floor)) return;
         await updateChatSettings(telegramId, chatId, 'rep_floor', floor);
-        await message.edit({ text: `✅ <b>Berhasil:</b> Batas bawah reputasi diubah menjadi: <b>${floor}</b>`, parseMode: 'html' });
+        await message.edit({ text: `✅ <b>Berhasil:</b> Batas bawah reputasi diubah menjadi: <b>${escapeHtml(String(floor))}</b>`, parseMode: 'html' });
         return;
       }
 
@@ -49,7 +51,7 @@ export default {
         if (args.length < 2) return;
         const logChannel = args[1];
         await updateChatSettings(telegramId, chatId, 'log_channel', logChannel);
-        await message.edit({ text: `✅ <b>Berhasil:</b> Channel log diubah menjadi: <code>${logChannel}</code>`, parseMode: 'html' });
+        await message.edit({ text: `✅ <b>Berhasil:</b> Channel log diubah menjadi: <code>${escapeHtml(logChannel)}</code>`, parseMode: 'html' });
         return;
       }
 
@@ -123,7 +125,7 @@ export default {
             const userEntity = await client.getEntity(entry.userId);
             name = userEntity.firstName || userEntity.username || `User_${entry.userId}`;
           } catch (e) { /* ignore: use default name */ }
-          textList += `${i}. <b>${name}</b> (ID: <code>${entry.userId}</code>) — <b>${entry.score} rep</b>\n`;
+          textList += `${i}. <b>${escapeHtml(name)}</b> (ID: <code>${escapeHtml(String(entry.userId))}</code>) — <b>${entry.score} rep</b>\n`;
           i++;
         }
 
@@ -140,8 +142,7 @@ export default {
 
     if (isUpvote || isDownvote) {
       const chatSettings = getChatSettings(telegramId, chatId);
-      const isTest = process.env.NODE_ENV === 'test' || process.argv[1]?.includes('runner.js');
-      const repEnabled = chatSettings.reputation !== undefined ? chatSettings.reputation : isTest;
+      const repEnabled = chatSettings.reputation !== undefined ? chatSettings.reputation : isTestEnv;
       if (!repEnabled) return;
 
       const replied = await message.getReplyMessage();

@@ -103,7 +103,9 @@ export function escapeHtml(text) {
     return String(text ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 export const b = (t) => `<b>${t}</b>`;
 export const i = (t) => `<i>${t}</i>`;

@@ -124,11 +124,13 @@ export async function editRich(
 // ---------------------------------------------------------------------------
 
 /** Escape text for safe inclusion in HTML rich content. */
-export function escapeHtml(text) {
+export function escapeHtml(text: string): string {
   return String(text ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 export const b = (t) => `<b>${t}</b>`;

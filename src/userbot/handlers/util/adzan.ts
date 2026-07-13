@@ -1,4 +1,5 @@
 import config from '../../../config.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 
 export default {
   name: 'adzan',
@@ -55,17 +56,17 @@ export default {
       }
 
       const item = result.items[0];
-      const catResult = `🕌 <b>Jadwal Shalat Hari Ini</b>
-            
-<b>📆 Tanggal :</b> <code>${item.date_for}</code>
-<b>📍 Kota :</b> <code>${result.query}</code> | <code>${result.country}</code>
-
-<b>Terbit  :</b> <code>${item.shurooq}</code>
-<b>Subuh  :</b> <code>${item.fajr}</code>
-<b>Zuhur   :</b> <code>${item.dhuhr}</code>
-<b>Ashar   :</b> <code>${item.asr}</code>
-<b>Maghrib :</b> <code>${item.maghrib}</code>
-<b>Isya    :</b> <code>${item.isha}</code>`;
+      const catResult = `🕌 <b>Jadwal Shalat Hari Ini</b>\n` +
+        `\n` +
+        `<b>📆 Tanggal :</b> <code>${escapeHtml(item.date_for)}</code>\n` +
+        `<b>📍 Kota :</b> <code>${escapeHtml(result.query)}</code> | <code>${escapeHtml(result.country)}</code>\n` +
+        `\n` +
+        `<b>Terbit  :</b> <code>${escapeHtml(item.shurooq)}</code>\n` +
+        `<b>Subuh  :</b> <code>${escapeHtml(item.fajr)}</code>\n` +
+        `<b>Zuhur   :</b> <code>${escapeHtml(item.dhuhr)}</code>\n` +
+        `<b>Ashar   :</b> <code>${escapeHtml(item.asr)}</code>\n` +
+        `<b>Maghrib :</b> <code>${escapeHtml(item.maghrib)}</code>\n` +
+        `<b>Isya    :</b> <code>${escapeHtml(item.isha)}</code>`;
 
       await message.edit({
         text: catResult,
@@ -74,7 +75,7 @@ export default {
 
     } catch (err) {
       await message.edit({
-        text: `<blockquote>❌ <b>Terjadi kesalahan:</b> ${err.message}</blockquote>`,
+        text: `<blockquote>❌ <b>Terjadi kesalahan:</b> ${escapeHtml(err.message)}</blockquote>`,
         parseMode: 'html'
       });
     }

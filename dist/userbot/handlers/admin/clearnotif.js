@@ -1,4 +1,5 @@
 import { Api } from 'teleproto';
+import { escapeHtml } from '../../../utils/richMessage.js';
 export default {
     name: 'clearnotif',
     version: '1.0.0',
@@ -38,12 +39,12 @@ export default {
                         counter++;
                         // Update pesan hanya per 5 pembersihan & beri jeda agar TIDAK terkena FloodWait
                         if (counter % 5 === 0) {
-                            await message.edit({ text: `⏳ <b>Menyapu bersih semua mention (tag)...</b>\n\n✅ <b>Dibersihkan:</b> <code>${counter}</code> chat`, parseMode: 'html' }).catch(() => { });
+                            await message.edit({ text: `⏳ <b>Menyapu bersih semua mention (tag)...</b>\n\n✅ <b>Dibersihkan:</b> <code>${escapeHtml(String(counter))}</code> chat`, parseMode: 'html' }).catch(() => { });
                             await sleep(1500);
                         }
                     }
                 }
-                await message.edit({ text: `<blockquote>🧹 <b>Selesai!</b> ${counter} grup/chat dengan mention telah dibersihkan.</blockquote>`, parseMode: 'html' });
+                await message.edit({ text: `<blockquote>🧹 <b>Selesai!</b> ${escapeHtml(String(counter))} grup/chat dengan mention telah dibersihkan.</blockquote>`, parseMode: 'html' });
             }
             else if (cmd === '.clear_all_reacts') {
                 let counter = 0;
@@ -56,7 +57,7 @@ export default {
                             await client.invoke(new Api.messages.ReadReactions({ peer: dialog.entity || dialog.id }));
                             counter++;
                             if (counter % 5 === 0) {
-                                await message.edit({ text: `⏳ <b>Menyapu bersih semua reaksi...</b>\n\n✅ <b>Dibersihkan:</b> <code>${counter}</code> chat`, parseMode: 'html' }).catch(() => { });
+                                await message.edit({ text: `⏳ <b>Menyapu bersih semua reaksi...</b>\n\n✅ <b>Dibersihkan:</b> <code>${escapeHtml(String(counter))}</code> chat`, parseMode: 'html' }).catch(() => { });
                                 await sleep(1500);
                             }
                         }
@@ -65,11 +66,11 @@ export default {
                         }
                     }
                 }
-                await message.edit({ text: `<blockquote>🧹 <b>Selesai!</b> ${counter} grup/chat dengan reaksi telah dibersihkan.</blockquote>`, parseMode: 'html' });
+                await message.edit({ text: `<blockquote>🧹 <b>Selesai!</b> ${escapeHtml(String(counter))} grup/chat dengan reaksi telah dibersihkan.</blockquote>`, parseMode: 'html' });
             }
         }
         catch (err) {
-            await message.edit({ text: `<blockquote>❌ <b>Terjadi kesalahan:</b> ${err.message}</blockquote>`, parseMode: 'html' });
+            await message.edit({ text: `<blockquote>❌ <b>Terjadi kesalahan:</b> ${escapeHtml(err.message)}</blockquote>`, parseMode: 'html' });
         }
     }
 };

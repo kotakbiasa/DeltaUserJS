@@ -86,31 +86,39 @@ export default {
                 const parts = message.message.trim().split(' ');
                 const replyToMsgId = getReplyToForTopic(message);
                 if (parts.length === 1) {
-                    // --- .help → Coba panggil Master Bot via Inline Query ---
+                    // --- .help → Coba panggil Inline Bot via Inline Query ---
                     try {
-                        // Cek apakah user memiliki custom inline bot
-                        const botUsername = settings.inline_bot_username || global.MASTER_BOT_USERNAME || 'DeltaUbot_bot';
-                        const results = await Promise.race([
-                            client.inlineQuery(botUsername, 'help_ubot'),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout (3s): Inline bot tidak merespon. Pastikan Inline Mode aktif di @BotFather.")), 3000))
-                        ]);
-                        if (results && results.length > 0) {
-                            // Kirim hasil inline query menggunakan method .click()
+                        const botUsername = settings.inline_bot_username || global.MASTER_BOT_USERNAME;
+                        if (!botUsername) {
+                            throw new Error('Inline bot username belum diset di settings.');
+                        }
+                        let results;
+                        try {
+                            results = await Promise.race([
+                                client.inlineQuery(botUsername, 'help_ubot'),
+                                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout (8s): Inline bot tidak merespon. Pastikan Inline Mode aktif dan username benar.')), 8000)),
+                            ]);
+                        }
+                        catch (queryErr) {
+                            throw new Error(`Gagal memanggil inline query: ${queryErr.message}`);
+                        }
+                        if (!results || results.length === 0) {
+                            throw new Error('Tidak ada hasil inline dari bot.');
+                        }
+                        try {
                             await results[0].click(message.peerId, replyToMsgId);
-                            // Hapus pesan .help asli agar rapi
-                            try {
-                                await message.delete();
-                            }
-                            catch (e) { /* ignore */ }
-                            return;
                         }
-                        else {
-                            throw new Error("No inline result from bot (Inline mode mungkin belum diaktifkan di @BotFather)");
+                        catch (clickErr) {
+                            throw new Error(`Gagal mengklik hasil inline: ${clickErr.message}`);
                         }
+                        try {
+                            await message.delete();
+                        }
+                        catch (_) { }
+                        return;
                     }
                     catch (inlineErr) {
-                        console.log("Inline help fallback:", inlineErr.message);
-                        // Fallback: Tampilkan menu teks biasa jika inline gagal
+                        console.log('Inline help fallback:', inlineErr.message);
                         const text = buildHelpMenuText(settings);
                         await message.edit({ text, parseMode: 'html' });
                     }

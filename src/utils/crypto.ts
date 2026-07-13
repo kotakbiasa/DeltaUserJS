@@ -15,8 +15,9 @@ if (!ENCRYPTION_KEY) {
 
 let keyBuffer: Buffer;
 try {
-  // Gunakan unique salt dari ENCRYPTION_KEY itu sendiri untuk menghindari rainbow table
-  const salt = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest().subarray(0, 16);
+  // Gunakan salt yang tetap diturunkan dari ENCRYPTION_KEY,
+  // tapi tidak sama persis dengan kunci itu sendiri agar scrypt tetap meaningful.
+  const salt = crypto.createHash('sha256').update(`${ENCRYPTION_KEY}::salt`).digest().subarray(0, 16);
   keyBuffer = crypto.scryptSync(ENCRYPTION_KEY, salt, 32);
 } catch {
   keyBuffer = crypto.randomBytes(32);

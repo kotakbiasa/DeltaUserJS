@@ -9,54 +9,31 @@ import { decrypt, isEncrypted } from '../utils/crypto.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, '../../database.json');
 
-// Per-key async lock to prevent read-modify-write races on dbCache
-// Maps key -> queue of pending promises for that key
+// Per-key async lock to serialize read-modify-write operations on the same
+// cache key. Each key's operations run strictly in order; a rejected op does
+// not block later ops for that key (the lock pointer swallows settle state).
 const keyLocks = new Map();
 
-function getLock(key) {
-  if (!keyLocks.has(key)) {
-    keyLocks.set(key, { queue: [], pending: null });
-  }
-  return keyLocks.get(key);
-}
-
 /**
- * Acquire a per-key async lock. Ensures read-modify-write operations
- * on the same cache key are serialized.
+ * Run `fn` while holding a per-key lock. All calls with the same `key` are
+ * serialized in submission order. Returns fn's actual resolved value.
  * Usage:
- *   const release = await acquireCacheLock(key);
- *   try { /* modify dbCache *\/ } finally { release(); }
+ *   await withKeyLock(idNum, async () => { /* read-modify-write dbCache *\/ });
  */
-async function acquireCacheLock(key) {
-  const lock = getLock(key);
-  return new Promise((resolve) => {
-    const task = async () => {
-      const release = () => {
-        lock.pending = null;
-        const next = lock.queue.shift();
-        if (next) next();
-      };
-      resolve(release);
-    };
-    if (!lock.pending) {
-      lock.pending = task();
-      task().catch(() => { lock.pending = null; lock.queue.shift(); const next = lock.queue.shift(); if (next) next(); });
-    } else {
-      lock.queue.push(task);
-    }
-  });
+export function withKeyLock<T>(key, fn: () => Promise<T>): Promise<T> {
+  const prev = keyLocks.get(key) || Promise.resolve();
+  const run = prev.then(fn, fn);
+  keyLocks.set(key, run.then(() => undefined, () => undefined));
+  return run;
 }
 
 export async function updateCacheField(idNum, field, value) {
-  const release = await acquireCacheLock(idNum);
-  try {
+  return withKeyLock(idNum, async () => {
     const existing = dbCache.get(idNum) || {};
     const updated = { ...existing, [field]: value };
     dbCache.set(idNum, updated);
     return persistDoc(idNum, updated);
-  } finally {
-    release();
-  }
+  });
 }
 
 export function getFromCache(idNum) {
@@ -188,19 +165,15 @@ export function writeDbToFile(data) {
   }
 }
 
-// File-based DB write lock to prevent race conditions
-let writeLock = Promise.resolve();
+// Global file-DB write lock to prevent interleaved read-modify-write cycles
+// on database.json. Serializes every writeDbToFile() path. Returns fn's real
+// resolved value, and a failed op never deadlocks the chain.
+let writeLock: Promise<unknown> = Promise.resolve();
 
-function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
-  let next: () => void;
-  const chain = writeLock.then(fn).then((result) => {
-    next();
-    return result;
-  });
-  // eslint-disable-next-line promise/catch-or-return
-  chain.catch(() => { next(); });
-  writeLock = chain;
-  return new Promise((resolve) => { next = resolve; });
+export function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = writeLock.then(fn, fn);
+  writeLock = run.then(() => undefined, () => undefined);
+  return run;
 }
 
 export async function persistField(idNum, field, value) {
@@ -231,9 +204,11 @@ export async function persistField(idNum, field, value) {
 export async function persistDoc(idNum, doc) {
   if (isMongo) {
     try {
+      // Use $set so fields absent from `doc` are preserved instead of the
+      // whole document being replaced (prevents field loss on restart).
       await UserbotModel.findOneAndUpdate(
         { telegram_id: idNum },
-        doc,
+        { $set: doc },
         { upsert: true, returnDocument: 'after' }
       );
       return true;

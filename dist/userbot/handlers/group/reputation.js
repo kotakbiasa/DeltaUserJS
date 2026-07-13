@@ -1,4 +1,6 @@
 import { getChatSettings, updateChatSettings, getReputation, updateReputation } from '../../../infrastructure/database.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
+import { isTestEnv } from '../../../utils/env.js';
 // Key: telegramId_chatId_voterId_targetId -> last voted timestamp
 const cooldownMap = new Map();
 // Periodic cleanup: remove stale cooldown entries (> 24 hours old) every 10 minutes
@@ -38,7 +40,7 @@ export default {
                 if (isNaN(floor))
                     return;
                 await updateChatSettings(telegramId, chatId, 'rep_floor', floor);
-                await message.edit({ text: `✅ <b>Berhasil:</b> Batas bawah reputasi diubah menjadi: <b>${floor}</b>`, parseMode: 'html' });
+                await message.edit({ text: `✅ <b>Berhasil:</b> Batas bawah reputasi diubah menjadi: <b>${escapeHtml(String(floor))}</b>`, parseMode: 'html' });
                 return;
             }
             else if (cmd === '.setlogchannel') {
@@ -46,7 +48,7 @@ export default {
                     return;
                 const logChannel = args[1];
                 await updateChatSettings(telegramId, chatId, 'log_channel', logChannel);
-                await message.edit({ text: `✅ <b>Berhasil:</b> Channel log diubah menjadi: <code>${logChannel}</code>`, parseMode: 'html' });
+                await message.edit({ text: `✅ <b>Berhasil:</b> Channel log diubah menjadi: <code>${escapeHtml(logChannel)}</code>`, parseMode: 'html' });
                 return;
             }
             else if (cmd === '.reputation') {
@@ -113,7 +115,7 @@ export default {
                         name = userEntity.firstName || userEntity.username || `User_${entry.userId}`;
                     }
                     catch (e) { /* ignore: use default name */ }
-                    textList += `${i}. <b>${name}</b> (ID: <code>${entry.userId}</code>) — <b>${entry.score} rep</b>\n`;
+                    textList += `${i}. <b>${escapeHtml(name)}</b> (ID: <code>${escapeHtml(String(entry.userId))}</code>) — <b>${entry.score} rep</b>\n`;
                     i++;
                 }
                 await message.edit({ text: textList, parseMode: 'html' });
@@ -128,8 +130,7 @@ export default {
         const isDownvote = text === '-' || text.startsWith('-rep');
         if (isUpvote || isDownvote) {
             const chatSettings = getChatSettings(telegramId, chatId);
-            const isTest = process.env.NODE_ENV === 'test' || process.argv[1]?.includes('runner.js');
-            const repEnabled = chatSettings.reputation !== undefined ? chatSettings.reputation : isTest;
+            const repEnabled = chatSettings.reputation !== undefined ? chatSettings.reputation : isTestEnv;
             if (!repEnabled)
                 return;
             const replied = await message.getReplyMessage();

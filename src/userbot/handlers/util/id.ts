@@ -13,12 +13,15 @@ export default {
         
         if (replied) {
           const sender = await replied.getSender();
+          const targetName = sender
+            ? escapeHtml([sender.firstName, sender.lastName].filter(Boolean).join(' ') || 'Tidak Dikenal')
+            : 'Tidak Dikenal';
           await message.edit({
             text: `🌐 <b>Info Chat & User</b>\n\n` +
                   `<blockquote>` +
                   `• <b>ID Chat</b>: <code>${message.chatId}</code>\n` +
                   `• <b>ID Target</b>: <code>${replied.senderId}</code>\n` +
-                  `• <b>Nama Target</b>: <code>${sender ? (sender.firstName + (sender.lastName ? ' ' + sender.lastName : '')) : 'Tidak Dikenal'}</code>` +
+                  `• <b>Nama Target</b>: <code>${targetName}</code>` +
                   `</blockquote>\n\n` +
                   ``,
             parseMode: 'html'
@@ -40,3 +43,12 @@ export default {
     }
   }
 };
+
+function escapeHtml(text: string): string {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}

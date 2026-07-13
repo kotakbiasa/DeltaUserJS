@@ -1,4 +1,5 @@
 import { Api } from 'teleproto';
+import { escapeHtml } from '../../../utils/richMessage.js';
 export default {
     name: 'admin',
     help: {
@@ -15,7 +16,7 @@ export default {
             const replied = await message.getReplyMessage();
             if (!replied) {
                 await message.edit({
-                    text: `<blockquote>❌ <b>Balas (reply) pesan pengguna untuk melakukan ${cmd}!</b></blockquote>`,
+                    text: `<blockquote>❌ <b>Balas (reply) pesan pengguna untuk melakukan ${escapeHtml(cmd)}!</b></blockquote>`,
                     parseMode: 'html'
                 });
                 return;
@@ -55,28 +56,28 @@ export default {
                     const unbanRights = new Api.ChatBannedRights({ untilDate: 0, viewMessages: false, sendMessages: false });
                     await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights: unbanRights }));
                     await message.edit({
-                        text: `<blockquote>👢 <b>Berhasil mengeluarkan (kick) user:</b> <code>${targetId}</code></blockquote>`,
+                        text: `<blockquote>👢 <b>Berhasil mengeluarkan (kick) user:</b> <code>${escapeHtml(String(targetId))}</code></blockquote>`,
                         parseMode: 'html'
                     });
                 }
                 else if (cmd === '.ban') {
                     await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights }));
                     await message.edit({
-                        text: `<blockquote>🔨 <b>Berhasil memblokir (ban) user:</b> <code>${targetId}</code></blockquote>`,
+                        text: `<blockquote>🔨 <b>Berhasil memblokir (ban) user:</b> <code>${escapeHtml(String(targetId))}</code></blockquote>`,
                         parseMode: 'html'
                     });
                 }
                 else if (cmd === '.mute') {
                     await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights }));
                     await message.edit({
-                        text: `<blockquote>🔇 <b>Berhasil membisukan (mute) user:</b> <code>${targetId}</code></blockquote>`,
+                        text: `<blockquote>🔇 <b>Berhasil membisukan (mute) user:</b> <code>${escapeHtml(String(targetId))}</code></blockquote>`,
                         parseMode: 'html'
                     });
                 }
                 else if (cmd === '.unmute') {
                     await client.invoke(new Api.channels.EditBanned({ channel: message.chatId, participant: targetId, bannedRights }));
                     await message.edit({
-                        text: `<blockquote>🔊 <b>Bisu telah dicabut (unmute) untuk user:</b> <code>${targetId}</code></blockquote>`,
+                        text: `<blockquote>🔊 <b>Bisu telah dicabut (unmute) untuk user:</b> <code>${escapeHtml(String(targetId))}</code></blockquote>`,
                         parseMode: 'html'
                     });
                 }
@@ -84,7 +85,7 @@ export default {
             catch (err) {
                 console.error(`Error in admin plugin (${cmd}):`, err.message);
                 await message.edit({
-                    text: `<blockquote>❌ <b>Gagal melakukan ${cmd}:</b>\n<i>${err.message}</i>\n\n(Pastikan Anda adalah Admin dengan hak yang cukup)</blockquote>`,
+                    text: `<blockquote>❌ <b>Gagal melakukan ${escapeHtml(cmd)}:</b>\n<i>${escapeHtml(err.message)}</i>\n\n(Pastikan Anda adalah Admin dengan hak yang cukup)</blockquote>`,
                     parseMode: 'html'
                 });
             }

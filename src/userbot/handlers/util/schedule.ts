@@ -1,4 +1,5 @@
 import { saveSchedule, deleteSchedule } from '../../../infrastructure/database.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 
 // Map untuk menyimpan status loop per akun telegram
 // Struktur: telegramId -> Map<chatId, { intervalId, message, minutes, startedAt }>
@@ -126,7 +127,7 @@ export default {
       await saveSchedule(telegramId, chatId, 'loop', minutes, loopMessage);
 
       await message.edit({ 
-        text: `<blockquote>🔁 <b>Loop Aktif!</b>\n\nBot akan otomatis mengirimkan pesan setiap <b>${minutes} menit</b> di obrolan ini.\n\nKetik <code>.rmloop</code> untuk menghentikan.</blockquote>`, 
+        text: `<blockquote>🔁 <b>Loop Aktif!</b>\n\nBot akan otomatis mengirimkan pesan setiap <b>${escapeHtml(String(minutes))} menit</b> di obrolan ini.\n\nKetik <code>.rmloop</code> untuk menghentikan.</blockquote>`, 
         parseMode: 'html' 
       });
     }
@@ -160,9 +161,9 @@ export default {
       let i = 1;
       for (const [id, data] of myLoops.entries()) {
         const shortMsg = data.message.length > 20 ? data.message.substring(0, 20) + '...' : data.message;
-        listText += `<b>${i}. Chat ID:</b> <code>${id}</code>\n`;
-        listText += `├ Interval: ${data.minutes} menit\n`;
-        listText += `└ Pesan: <i>"${shortMsg}"</i>\n\n`;
+        listText += `<b>${i}. Chat ID:</b> <code>${escapeHtml(String(id))}</code>\n`;
+        listText += `├ Interval: ${escapeHtml(String(data.minutes))} menit\n`;
+        listText += `└ Pesan: <i>"${escapeHtml(shortMsg)}"</i>\n\n`;
         i++;
       }
       listText += `</blockquote>`;

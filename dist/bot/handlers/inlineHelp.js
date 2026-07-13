@@ -99,17 +99,20 @@ export function helpKeyboard(page = 1, target = 'main', isInline = false) {
     }
     return { inline_keyboard: rows };
 }
-async function sendHelpRich(ctx, html, keyboard, deleteOld = false) {
+async function sendHelpRich(ctx, richHtml, classicHtml, keyboard, deleteOld = false) {
     if (ctx.inlineMessageId) {
-        await ctx.api.editMessageTextInline(ctx.inlineMessageId, html, { parse_mode: 'HTML', reply_markup: keyboard }).catch(() => { });
+        // Inline messages MUST use classic Bot API HTML. The rich builders emit
+        // <h1>/<table>/<caption> which classic HTML rejects (400 can't parse
+        // entities) — previously swallowed by .catch(), so the menu never updated.
+        await ctx.api.editMessageTextInline(ctx.inlineMessageId, classicHtml, { parse_mode: 'HTML', reply_markup: keyboard }).catch(() => { });
     }
     else {
-        await replyRich(ctx, html, { reply_markup: keyboard });
+        await replyRich(ctx, richHtml, { reply_markup: keyboard });
         if (deleteOld) {
             try {
                 await ctx.deleteMessage();
             }
-            catch (_) { }
+            catch (_) { /* message may already be gone */ }
         }
     }
 }
@@ -132,11 +135,8 @@ export function registerInlineHelpHandlers(bot) {
                 return;
             }
             const registry = getRegistry(target);
+            // Note: help content is not user-specific, so we don't gate on session.
             const session = getUserbotSession(ctx.from.id);
-            if (!session) {
-                await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
-                return;
-            }
             await ctx.answerInlineQuery([{
                     type: 'article',
                     id: `help-module-${moduleName}-rich-v2`,
@@ -167,9 +167,10 @@ export function registerInlineHelpHandlers(bot) {
         if (query !== 'help' && query !== 'help_ubot')
             return next();
         const target = query === 'help_ubot' ? 'ubot' : 'main';
+        // Help content is generic (module list/usage), not user-specific — do not
+        // gate on session, otherwise .help silently returns nothing for users
+        // without a registered userbot. This was the root cause of ".help kosong".
         const session = getUserbotSession(ctx.from.id);
-        if (!session)
-            return next();
         await ctx.answerInlineQuery([{
                 type: 'article',
                 id: `help-menu-rich-v2-${target}`,
@@ -208,7 +209,7 @@ export function registerInlineHelpHandlers(bot) {
         const session = getUserbotSession(ctx.from.id);
         const isInline = !!ctx.inlineMessageId;
         await ctx.answerCallbackQuery();
-        await sendHelpRich(ctx, buildHelpMenuRichHtml(session, page, target), helpKeyboard(page, target, isInline), true);
+        await sendHelpRich(ctx, buildHelpMenuRichHtml(session, page, target), buildHelpMenuClassicHtml(session, page, target), helpKeyboard(page, target, isInline), true);
     });
     bot.callbackQuery(/^help:module:([^:]+)(?::(.+))?$/, async (ctx) => {
         const moduleName = ctx.match[1];
@@ -216,7 +217,7 @@ export function registerInlineHelpHandlers(bot) {
         const session = getUserbotSession(ctx.from.id);
         await ctx.answerCallbackQuery();
         const backKeyboard = { inline_keyboard: [[{ text: '🔙 Module Library', callback_data: `help:page:1:${target}` }]] };
-        await sendHelpRich(ctx, buildModuleRichHtml(moduleName, session, target), backKeyboard, true);
+        await sendHelpRich(ctx, buildModuleRichHtml(moduleName, session, target), buildModuleClassicHtml(moduleName, session, target), backKeyboard, true);
     });
     bot.callbackQuery('help:noop', async (ctx) => {
         await ctx.answerCallbackQuery();

@@ -1,4 +1,5 @@
 import { getChatSettings, updateChatSettings, updateUserbotFeature } from '../../../infrastructure/database.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 export default {
     name: 'settings',
     help: {
@@ -24,7 +25,7 @@ export default {
                 return;
             }
             await updateChatSettings(telegramId, chatId, 'prefix', newPrefix);
-            await message.edit({ text: `✅ <b>Berhasil:</b> Prefix chat ini diubah menjadi: <code>${newPrefix}</code>`, parseMode: 'html' });
+            await message.edit({ text: `✅ <b>Berhasil:</b> Prefix chat ini diubah menjadi: <code>${escapeHtml(newPrefix)}</code>`, parseMode: 'html' });
         }
         else if (cmd === '.setlang') {
             if (args.length < 2)
@@ -35,7 +36,7 @@ export default {
                 return;
             }
             await updateChatSettings(telegramId, chatId, 'lang', lang);
-            await message.edit({ text: `✅ <b>Berhasil:</b> Bahasa chat ini diubah menjadi: <code>${lang}</code>`, parseMode: 'html' });
+            await message.edit({ text: `✅ <b>Berhasil:</b> Bahasa chat ini diubah menjadi: <code>${escapeHtml(lang)}</code>`, parseMode: 'html' });
         }
         else if (cmd === '.logging') {
             if (args.length < 2)
@@ -49,7 +50,7 @@ export default {
                 return;
             const name = args.slice(1).join(' ');
             await updateUserbotFeature(telegramId, 'custom_name', name);
-            await message.edit({ text: `✅ <b>Berhasil:</b> Nama kustom userbot Anda diubah menjadi: <b>${name}</b>`, parseMode: 'html' });
+            await message.edit({ text: `✅ <b>Berhasil:</b> Nama kustom userbot Anda diubah menjadi: <b>${escapeHtml(name)}</b>`, parseMode: 'html' });
         }
         else if (cmd === '.addadmin') {
             if (args.length < 2)
@@ -63,7 +64,7 @@ export default {
                 admins.push(targetId);
                 await updateChatSettings(telegramId, chatId, 'admins', admins);
             }
-            await message.edit({ text: `✅ User <code>${targetId}</code> ditambahkan sebagai admin grup.`, parseMode: 'html' });
+            await message.edit({ text: `✅ User <code>${escapeHtml(String(targetId))}</code> ditambahkan sebagai admin grup.`, parseMode: 'html' });
         }
     }
 };

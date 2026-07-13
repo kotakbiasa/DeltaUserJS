@@ -34,9 +34,12 @@ async function runSuite() {
   console.log(`📋 Total registered test cases: ${tests.length}`);
   console.log('============================================================\n');
 
-  // Start the userbot instance for testing
+  // Start the userbot instance for testing.
+  // Must await: saveUserbotSession is async and populates dbCache; starting the
+  // userbot (and the first tests reading settings) before it resolves races the
+  // cache and produces intermittent empty-settings failures.
   const testBotId = 12345;
-  saveUserbotSession(testBotId, '00000', 'mock_session_string_12345');
+  await saveUserbotSession(testBotId, '00000', 'mock_session_string_12345');
   await userbotManager.startUserbot(testBotId, 'mock_session_string_12345');
   const ubot = userbotManager.clients.get(testBotId);
 

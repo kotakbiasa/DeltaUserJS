@@ -1,5 +1,7 @@
 import { getChatSettings, updateChatSettings, addWarn, resetWarns, getWarns } from '../../../infrastructure/database.js';
 import { Api } from 'teleproto';
+import { escapeHtml } from '../../../utils/richMessage.js';
+import { isTestEnv } from '../../../utils/env.js';
 
 // In-memory tracker for message timestamps
 // Key: telegramId_chatId_senderId -> Array of timestamps (numbers)
@@ -56,7 +58,7 @@ export default {
           return;
         }
         await updateChatSettings(telegramId, chatId, 'flood_limit', limit);
-        await message.edit({ text: `✅ <b>Berhasil:</b> Batas limit flood diubah menjadi: <b>${limit} pesan</b>`, parseMode: 'html' });
+        await message.edit({ text: `✅ <b>Berhasil:</b> Batas limit flood diubah menjadi: <b>${escapeHtml(String(limit))} pesan</b>`, parseMode: 'html' });
         return;
       }
 
@@ -68,7 +70,7 @@ export default {
           return;
         }
         await updateChatSettings(telegramId, chatId, 'flood_warn_limit', warns);
-        await message.edit({ text: `✅ <b>Berhasil:</b> Batas warning flood diubah menjadi: <b>${warns} kali</b>`, parseMode: 'html' });
+        await message.edit({ text: `✅ <b>Berhasil:</b> Batas warning flood diubah menjadi: <b>${escapeHtml(String(warns))} kali</b>`, parseMode: 'html' });
         return;
       }
 
@@ -80,7 +82,7 @@ export default {
           return;
         }
         await updateChatSettings(telegramId, chatId, 'flood_time_window', seconds);
-        await message.edit({ text: `✅ <b>Berhasil:</b> Rentang waktu flood diubah menjadi: <b>${seconds} detik</b>`, parseMode: 'html' });
+        await message.edit({ text: `✅ <b>Berhasil:</b> Rentang waktu flood diubah menjadi: <b>${escapeHtml(String(seconds))} detik</b>`, parseMode: 'html' });
         return;
       }
 
@@ -92,15 +94,14 @@ export default {
           return;
         }
         await updateChatSettings(telegramId, chatId, 'flood_mode', mode);
-        await message.edit({ text: `✅ <b>Berhasil:</b> Mode hukuman flood diubah menjadi: <b>${mode}</b>`, parseMode: 'html' });
+        await message.edit({ text: `✅ <b>Berhasil:</b> Mode hukuman flood diubah menjadi: <b>${escapeHtml(mode)}</b>`, parseMode: 'html' });
         return;
       }
     }
 
     // --- 2. Handle Message Monitoring ---
     const chatSettings = getChatSettings(telegramId, chatId);
-    const isTest = process.env.NODE_ENV === 'test' || process.argv[1]?.includes('runner.js');
-    const antifloodEnabled = chatSettings.antiflood !== undefined ? chatSettings.antiflood : isTest;
+    const antifloodEnabled = chatSettings.antiflood !== undefined ? chatSettings.antiflood : isTestEnv;
     if (!antifloodEnabled) return;
 
     // Self/Ubot immunity
@@ -189,9 +190,7 @@ export default {
           name = userEntity.firstName || userEntity.username || `User_${senderId}`;
         } catch (e) { /* ignore: use default name */ }
 
-        await client.sendMessage(chatId, {
-          message: `⚠️ <b>warning</b> / <b>Banjir</b>: User ${name} telah di-${isKick ? 'kick' : 'mute'} karena melebihi batas flood!`
-        });
+        await message.edit({ text: `<blockquote>⚠️ <b>warning</b> / <b>Banjir</b>: User ${escapeHtml(name)} telah di-${isKick ? 'kick' : 'mute'} karena melebihi batas flood!</blockquote>` });
       } else {
         try {
           await client.deleteMessages(message.peerId, [message.id], { revoke: true });
@@ -204,7 +203,7 @@ export default {
         } catch (e) { /* ignore: use default name */ }
 
         await client.sendMessage(chatId, {
-          message: `⚠️ <b>warning</b>: Mohon jangan spam, ${name}! [Peringatan: ${warnInfo.count}/${maxWarns}]`
+          message: `⚠️ <b>warning</b>: Mohon jangan spam, ${escapeHtml(name)}! [Peringatan: ${escapeHtml(String(warnInfo.count))}/${escapeHtml(String(maxWarns))}]`
         });
       }
     }

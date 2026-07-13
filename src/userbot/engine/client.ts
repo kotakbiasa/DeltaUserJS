@@ -13,8 +13,11 @@ function disabledSet(settings) {
   return new Set((settings?.disabled_plugins || []).map(normalizePluginName));
 }
 
-// Flag untuk memastikan plugin hanya di-load sekali di seluruh proses
-let pluginsLoaded = false;
+// Load-once memoization: the FIRST caller kicks off loadAllPlugins() and every
+// concurrent starter awaits the same promise. A bare boolean flag was racy —
+// two userbots starting at once could both enter loadAllPlugins() and clobber
+// the registry mid-clear.
+let pluginLoadPromise: Promise<void> | null = null;
 
 export class UserbotClient {
   public telegramId: number;
@@ -37,10 +40,17 @@ export class UserbotClient {
    */
   async start() {
     try {
-      // Load plugins sekali saja saat userbot pertama kali start
-      if (!pluginsLoaded) {
-        await loadAllPlugins();
-        pluginsLoaded = true;
+      // Load plugins exactly once across the whole process. Concurrent starts
+      // all await the same in-flight promise instead of each triggering a load.
+      if (!pluginLoadPromise) {
+        pluginLoadPromise = loadAllPlugins();
+      }
+      try {
+        await pluginLoadPromise;
+      } catch (err) {
+        // Allow a later start to retry if the initial load failed.
+        pluginLoadPromise = null;
+        throw err;
       }
 
       const stringSession = new StringSession(this.sessionString);

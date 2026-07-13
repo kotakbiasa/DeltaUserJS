@@ -3,6 +3,7 @@ import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import { formatUptimeStats, formatBytes } from '../../../utils/format.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 
 export default {
   name: 'stats',
@@ -35,13 +36,13 @@ export default {
 
         const text = `📊 <b>USERBOT STATS</b>\n\n` +
           `<blockquote>` +
-          `🤖 <b>Modul Aktif:</b> <code>${pluginCount}</code>\n` +
-          `⏳ <b>Uptime:</b> <code>${uptimeStr}</code>\n` +
+          `🤖 <b>Modul Aktif:</b> <code>${escapeHtml(String(pluginCount))}</code>\n` +
+          `⏳ <b>Uptime:</b> <code>${escapeHtml(uptimeStr)}</code>\n` +
           `💾 <b>RAM:</b> <code>${rssMB} MB</code> (Heap: <code>${heapMB} MB</code>)\n` +
-          `🌐 <b>Node.js:</b> <code>${process.version}</code>\n` +
-          `📦 <b>grammY:</b> <code>v${grammyVer}</code>\n` +
-          `📦 <b>Teleproto:</b> <code>v${teleprotoVer}</code>\n` +
-          `💻 <b>OS:</b> <code>${os.type()} ${os.release()} (${os.arch()})</code>` +
+          `🌐 <b>Node.js:</b> <code>${escapeHtml(process.version)}</code>\n` +
+          `📦 <b>grammY:</b> <code>v${escapeHtml(grammyVer)}</code>\n` +
+          `📦 <b>Teleproto:</b> <code>v${escapeHtml(teleprotoVer)}</code>\n` +
+          `💻 <b>OS:</b> <code>${escapeHtml(os.type())} ${escapeHtml(os.release())} (${escapeHtml(os.arch())})</code>` +
           `</blockquote>`;
 
         await message.edit({

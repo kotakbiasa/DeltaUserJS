@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import util from 'util';
 import config from '../../../config.js';
 import { formatUptimeAlt, formatBytes } from '../../../utils/format.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 const execAsync = util.promisify(exec);
 function getCpuUsage() {
     const cpus = os.cpus();
@@ -81,10 +82,9 @@ export default {
             const text = `🖥️ <b>SYSTEM INFORMATION</b>\n\n` +
                 `<b>── CPU ──</b>\n` +
                 `<blockquote>` +
-                `📛 <b>Model:</b> <code>${cpuModel}</code>\n` +
-                `🧠 <b>Cores:</b> <code>${cpuCores}</code>\n` +
-                `📈 <b>Usage:</b> <code>${cpuUsage}%</code>\n` +
-                `⚡ <b>Load Avg:</b> <code>${loadAvg}</code>` +
+                `📛 <b>Model:</b> <code>${escapeHtml(cpuModel)}</code>\n` +
+                `🧠 <b>Cores:</b> <code>${escapeHtml(String(cpus.length))}</code>\n` +
+                `📈 <b>Usage:</b> <code>${escapeHtml(cpuUsage)}%</code>\n` +
                 `</blockquote>\n\n` +
                 `<b>── MEMORY ──</b>\n` +
                 `<blockquote>` +
@@ -96,16 +96,16 @@ export default {
                 `</blockquote>\n\n` +
                 `<b>── DISK ──</b>\n` +
                 `<blockquote>` +
-                `💿 <b>Root (/):</b> <code>${diskInfo}</code>` +
+                `💿 <b>Root (/):</b> <code>${escapeHtml(diskInfo)}</code>` +
                 `</blockquote>\n\n` +
                 `<b>── SYSTEM ──</b>\n` +
                 `<blockquote>` +
-                `🏷️ <b>Hostname:</b> <code>${hostname}</code>\n` +
-                `🐧 <b>OS:</b> <code>${platform} ${release}</code>\n` +
-                `🏗️ <b>Arch:</b> <code>${arch}</code>\n` +
-                `🌐 <b>Node.js:</b> <code>${process.version}</code>\n` +
-                `⏳ <b>OS Uptime:</b> <code>${osUptime}</code>\n` +
-                `🤖 <b>Bot Uptime:</b> <code>${processUptime}</code>` +
+                `🏷️ <b>Hostname:</b> <code>${escapeHtml(hostname)}</code>\n` +
+                `🐧 <b>OS:</b> <code>${escapeHtml(platform)} ${escapeHtml(release)}</code>\n` +
+                `🏗️ <b>Arch:</b> <code>${escapeHtml(arch)}</code>\n` +
+                `🌐 <b>Node.js:</b> <code>${escapeHtml(process.version)}</code>\n` +
+                `⏳ <b>OS Uptime:</b> <code>${escapeHtml(osUptime)}</code>\n` +
+                `🤖 <b>Bot Uptime:</b> <code>${escapeHtml(processUptime)}</code>` +
                 `</blockquote>`;
             await message.edit({
                 text: text,
@@ -115,7 +115,7 @@ export default {
         catch (err) {
             console.error('Error in sysinfo plugin:', err);
             await message.edit({
-                text: `❌ <b>Gagal mengambil informasi sistem:</b>\n<code>${err.message}</code>`,
+                text: `❌ <b>Gagal mengambil informasi sistem:</b>\n<code>${escapeHtml(err.message)}</code>`,
                 parseMode: 'html'
             });
         }

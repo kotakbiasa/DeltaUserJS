@@ -288,7 +288,7 @@ registerTest('AF-T1-16', 'Anti-Flood', 'Anti-Flood - Messages exceeding threshol
     await ubot.client.simulateNewMessage({ senderId: spammer, chatId, text: `Spam ${i}`, out: false });
   }
   
-  const warnMsg = ubot.client.sentMessages.find(m => m.chatId === chatId && m.message.includes('warning') || m.message.includes('Banjir'));
+  const warnMsg = ubot.client.sentMessages.find(m => m.chatId === chatId && (m.message.includes('warning') || m.message.includes('Banjir')));
   if (!warnMsg) {
     throw new Error('Expected anti-flood warning message');
   }
@@ -447,7 +447,7 @@ registerTest('RP-T1-24', 'Reputation', 'Reputation - Leaderboard command .reps s
   });
   
   const lastEdit = ubot.client.editedMessages.find(m => m.messageId === msg.id);
-  if (!lastEdit || !lastEdit.text.includes('Leaderboard') && !lastEdit.text.includes('Reputasi Teratas')) {
+  if (!lastEdit || (!lastEdit.text.includes('Leaderboard') && !lastEdit.text.includes('Reputasi Teratas'))) {
     throw new Error('Reputation leaderboard did not format properly');
   }
 });
@@ -540,7 +540,7 @@ registerTest('TS-T2-05', 'Scheduler', 'Scheduler - .rmloop in a chat without act
   });
   
   const lastEdit = ubot.client.editedMessages.find(m => m.messageId === msg.id);
-  if (!lastEdit || !lastEdit.text.includes('Tidak ada loop') && !lastEdit.text.includes('No active loop')) {
+  if (!lastEdit || (!lastEdit.text.includes('Tidak ada loop') && !lastEdit.text.includes('No active loop'))) {
     throw new Error('Expected info message when removing non-existent loop');
   }
 });
@@ -555,7 +555,7 @@ registerTest('CS-T2-06', 'Settings', 'Settings - Multi-character prefix or space
   });
   
   const lastEdit = ubot.client.editedMessages.find(m => m.messageId === msg.id);
-  if (!lastEdit || !lastEdit.text.includes('Gagal') && !lastEdit.text.includes('Tidak Valid')) {
+  if (!lastEdit || (!lastEdit.text.includes('Gagal') && !lastEdit.text.includes('Tidak Valid'))) {
     throw new Error('Multi-character prefix should be rejected');
   }
 });
@@ -581,7 +581,7 @@ registerTest('CS-T2-08', 'Settings', 'Settings - Setting values not matching con
   });
   
   const lastEdit = ubot.client.editedMessages.find(m => m.messageId === msg.id);
-  if (!lastEdit || !lastEdit.text.includes('Gagal') && !lastEdit.text.includes('Invalid')) {
+  if (!lastEdit || (!lastEdit.text.includes('Gagal') && !lastEdit.text.includes('Invalid'))) {
     throw new Error('Invalid setting constraint check did not trigger rejection');
   }
 });
@@ -724,7 +724,7 @@ registerTest('AF-T2-17', 'Anti-Flood', 'Anti-Flood - Invalid threshold configura
   });
   
   const lastEdit = ubot.client.editedMessages.find(m => m.messageId === msg.id);
-  if (!lastEdit || !lastEdit.text.includes('default') && !lastEdit.text.includes('Batal')) {
+  if (!lastEdit || (!lastEdit.text.includes('default') && !lastEdit.text.includes('Batal'))) {
     throw new Error('Negative flood limit must fallback to default or throw rejection');
   }
 });

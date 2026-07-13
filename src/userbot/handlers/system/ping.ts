@@ -1,4 +1,5 @@
 import { formatUptime } from '../../../utils/format.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 
 export default {
   name: 'ping',
@@ -25,8 +26,8 @@ export default {
 
         const newDesign = `🏓 <b>PING！</b>\n` +
           `<blockquote>` +
-          `🚀 <b>Speed</b> : <code>${rawLatency} ms</code>\n` +
-          `⏱️ <b>Uptime</b> : <code>${uptimeStr}</code>\n` +
+          `🚀 <b>Speed</b> : <code>${escapeHtml(String(rawLatency))} ms</code>\n` +
+          `⏱️ <b>Uptime</b> : <code>${escapeHtml(uptimeStr)}</code>\n` +
           `🛡️ <b>Status</b> : <code>Online</code></blockquote>`;
 
         await message.edit({

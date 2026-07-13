@@ -1,4 +1,5 @@
 import { saveGroupNote, deleteGroupNote, getAllGroupNotes } from '../../../infrastructure/database.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 export default {
     name: 'gnotes',
     help: {
@@ -77,7 +78,7 @@ export default {
                 }
                 let replyText = `📝 <b>Daftar Catatan Grup:</b>\n\n`;
                 notes.forEach(note => {
-                    replyText += `• <code>#${note}</code>\n`;
+                    replyText += `• <code>#${escapeHtml(note)}</code>\n`;
                 });
                 await message.edit({ text: replyText, parseMode: 'html' });
             }

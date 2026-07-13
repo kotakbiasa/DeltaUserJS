@@ -1,3 +1,7 @@
+// @ts-nocheck
+import { Api } from 'teleproto';
+import { escapeHtml } from '../../../utils/richMessage.js';
+
 export default {
   name: 'stalk',
   help: {
@@ -67,8 +71,8 @@ export default {
       const userId = entity ? entity.id : targetUser;
 
       let report = `<blockquote>🕵️ <b>Laporan Deep Stalking</b>\n\n`;
-      report += `👤 <b>Target:</b> <a href="tg://user?id=${userId}">${fullName}</a> (<code>${userId}</code>)\n`;
-      report += `📊 <b>Aktivitas (100 Pesan Terakhir):</b> Ditemukan ${totalFound} pesan.\n`;
+      report += `👤 <b>Target:</b> <a href="tg://user?id=${userId}">${escapeHtml(fullName)}</a> (<code>${escapeHtml(String(userId))}</code>)\n`;
+      report += `📊 <b>Aktivitas (100 Pesan Terakhir):</b> Ditemukan ${escapeHtml(String(totalFound))} pesan.\n`;
       report += `🕒 <b>Jejak Paling Awal Terdeteksi:</b> ${new Date(firstSeenDate * 1000).toLocaleString()}\n\n`;
       
       report += `💬 <b>Cuplikan Pesan Terakhir:</b>\n`;
@@ -81,7 +85,7 @@ export default {
           if (excerpt.length > 50) excerpt = excerpt.substring(0, 50) + '...';
           
           const dateStr = new Date(msg.date * 1000).toLocaleDateString();
-          report += `• <i>"${excerpt}"</i> (${dateStr})\n`;
+          report += `• <i>"${escapeHtml(excerpt)}"</i> (${escapeHtml(dateStr)})\n`;
           
           textMessagesFound++;
           if (textMessagesFound >= 3) break;
@@ -102,7 +106,7 @@ export default {
     } catch (err) {
       console.error('Stalk Error:', err);
       await message.edit({ 
-        text: `<blockquote>❌ <b>Gagal Menggali Pesan:</b>\n<i>${err.message}</i></blockquote>`, 
+        text: `<blockquote>❌ <b>Gagal Menggali Pesan:</b>\n<i>${escapeHtml(err.message)}</i></blockquote>`, 
         parseMode: 'html' 
       });
     }

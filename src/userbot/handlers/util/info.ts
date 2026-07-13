@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { Api } from 'teleproto';
+import { escapeHtml } from '../../../utils/richMessage.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -88,11 +89,11 @@ export default {
 
         captionText = `<blockquote>👤 <b>USER INFORMATION</b>\n` +
                       `───────────────────────\n` +
-                      `📛 <b>Nama:</b> ${pName}\n` +
-                      `👤 <b>Username:</b> ${pUser}\n` +
-                      `🆔 <b>User ID:</b> <code>${pId}</code>\n` +
+                      `📛 <b>Nama:</b> ${escapeHtml(pName)}\n` +
+                      `👤 <b>Username:</b> ${escapeHtml(pUser)}\n` +
+                      `🆔 <b>User ID:</b> <code>${escapeHtml(pId)}</code>\n` +
                       `📸 <b>Total Foto Profil:</b> ${photoCount}\n` +
-                      `📝 <b>Bio:</b> \n<i>${pBio}</i>\n` +
+                      `📝 <b>Bio:</b> \n<i>${escapeHtml(pBio)}</i>\n` +
                       `───────────────────────\n` +
                       `🔖 <b>Status:</b> ${tags.length > 0 ? tags.join(' | ') : 'Normal User'}</blockquote>\n\n` +
                       ``;
@@ -112,11 +113,11 @@ export default {
 
           captionText = `<blockquote>👥 <b>GROUP INFORMATION</b>\n` +
                         `───────────────────────\n` +
-                        `📌 <b>Nama Grup:</b> ${cName}\n` +
-                        `🔗 <b>Username:</b> ${cUser}\n` +
-                        `🆔 <b>Group ID:</b> <code>-100${cId}</code>\n` +
+                        `📌 <b>Nama Grup:</b> ${escapeHtml(cName)}\n` +
+                        `🔗 <b>Username:</b> ${escapeHtml(cUser)}\n` +
+                        `🆔 <b>Group ID:</b> <code>${escapeHtml(cId)}</code>\n` +
                         `👥 <b>Total Member:</b> ${cMembers}\n` +
-                        `📝 <b>Deskripsi:</b> \n<i>${cBio}</i>\n` +
+                        `📝 <b>Deskripsi:</b> \n<i>${escapeHtml(cBio)}</i>\n` +
                         `───────────────────────</blockquote>\n\n` +
                         ``;
         } catch (chanErr) {
@@ -125,8 +126,8 @@ export default {
           const cId = targetEntity.id.toString();
           captionText = `<blockquote>👥 <b>BASIC GROUP INFO</b>\n` +
                         `───────────────────────\n` +
-                        `📌 <b>Nama:</b> ${cName}\n` +
-                        `🆔 <b>ID:</b> <code>-${cId}</code>\n` +
+                        `📌 <b>Nama:</b> ${escapeHtml(cName)}\n` +
+                        `🆔 <b>ID:</b> <code>-${escapeHtml(cId)}</code>\n` +
                         `───────────────────────</blockquote>\n\n` +
                         ``;
         }

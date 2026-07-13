@@ -1,4 +1,5 @@
 import { getBroadcastBlacklist } from '../../../infrastructure/database.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 // Rate limiting: max 1 gcast per 60 seconds per user
 const LAST_GCAST = new Map();
 const GCAST_COOLDOWN_MS = 60_000; // 60 seconds
@@ -25,7 +26,7 @@ export default {
         if (elapsed < GCAST_COOLDOWN_MS) {
             const remaining = Math.ceil((GCAST_COOLDOWN_MS - elapsed) / 1000);
             await message.edit({
-                text: `<blockquote>❌ <b>Rate Limit!</b> Tunggu <code>${remaining} detik</code> sebelum mengirim gcast lagi.</blockquote>`,
+                text: `<blockquote>❌ <b>Rate Limit!</b> Tunggu <code>${escapeHtml(String(remaining))}</code> detik sebelum mengirim gcast lagi.</blockquote>`,
                 parseMode: 'html'
             });
             return;
@@ -57,7 +58,7 @@ export default {
                 targetGroups = targetGroups.slice(0, MAX_GCAST_TARGETS);
             }
             await message.edit({
-                text: `<blockquote>🚀 <b>Memulai Global Broadcast!</b>\\nTarget: ${targetGroups.length} Grup (maks ${MAX_GCAST_TARGETS}).\\nMengirim secara perlahan agar aman dari batas Spam Telegram.</blockquote>`,
+                text: `<blockquote>🚀 <b>Memulai Global Broadcast!</b>\nTarget: ${escapeHtml(String(targetGroups.length))} Grup (maks ${escapeHtml(String(MAX_GCAST_TARGETS))}).\nMengirim secara perlahan agar aman dari batas Spam Telegram.</blockquote>`,
                 parseMode: 'html'
             });
             for (let i = 0; i < targetGroups.length; i++) {
@@ -69,14 +70,20 @@ export default {
                 }
                 try {
                     if (repliedMsg) {
-                        const sendOpts = {
-                            message: broadcastMsg ? broadcastMsg : repliedMsg.message,
-                        };
-                        // Only attach file if media actually exists
                         if (repliedMsg.media) {
-                            sendOpts.message = ''; // If media, don't send text message
+                            // Forward media with its caption (or the override text) so the
+                            // broadcast isn't an empty message. Passing the replied message
+                            // as `file` lets GramJS resend the media payload correctly.
+                            await client.sendFile(group.id, {
+                                file: repliedMsg.media,
+                                caption: broadcastMsg || repliedMsg.message || '',
+                            });
                         }
-                        await client.sendMessage(group.id, sendOpts);
+                        else {
+                            await client.sendMessage(group.id, {
+                                message: broadcastMsg || repliedMsg.message,
+                            });
+                        }
                     }
                     else {
                         await client.sendMessage(group.id, { message: broadcastMsg });
@@ -93,10 +100,10 @@ export default {
             // Update last gcast timestamp
             LAST_GCAST.set(userId, Date.now());
             await message.edit({
-                text: `<blockquote>✅ <b>Global Broadcast Selesai!</b>\\n\\n` +
-                    `📢 Terkirim ke: <b>${successCount} Grup</b>\\n` +
-                    `🛡️ Diabaikan (Blacklist): <b>${skippedCount} Grup</b>\\n` +
-                    `❌ Gagal kirim: <b>${failCount} Grup</b></blockquote>`,
+                text: `<blockquote>✅ <b>Global Broadcast Selesai!</b>\n\n` +
+                    `📢 Terkirim ke: <b>${escapeHtml(String(successCount))} Grup</b>\n` +
+                    `🛡️ Diabaikan (Blacklist): <b>${escapeHtml(String(skippedCount))} Grup</b>\n` +
+                    `❌ Gagal kirim: <b>${escapeHtml(String(failCount))} Grup</b></blockquote>`,
                 parseMode: 'html'
             });
         }

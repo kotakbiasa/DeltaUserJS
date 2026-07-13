@@ -1,4 +1,5 @@
 import speedTest from 'speedtest-net';
+import { escapeHtml } from '../../../utils/richMessage.js';
 
 export default {
   name: 'speedtest',
@@ -39,16 +40,16 @@ export default {
       const serverCountry = result.server.country;
       const resultUrl = result.result.url;
 
-      const output = `🚀 <b>SPEEDTEST HASIL</b>
-      
-🌐 <b>ISP:</b> <code>${isp}</code>
-🏢 <b>Server:</b> <code>${serverName} - ${serverLoc}, ${serverCountry}</code>
-
-🔻 <b>Download:</b> <code>${download} Mbps</code>
-🔺 <b>Upload:</b> <code>${upload} Mbps</code>
-🏓 <b>Ping:</b> <code>${ping} ms</code> (Jitter: <code>${jitter} ms</code>)
-
-📊 <a href="${resultUrl}">[Lihat Hasil di Web]</a>`;
+      const output = `🚀 <b>SPEEDTEST HASIL</b>\n` +
+        `\n` +
+        `🌐 <b>ISP:</b> <code>${escapeHtml(isp)}</code>\n` +
+        `🏢 <b>Server:</b> <code>${escapeHtml(serverName)} - ${escapeHtml(serverLoc)}, ${escapeHtml(serverCountry)}</code>\n` +
+        `\n` +
+        `🔻 <b>Download:</b> <code>${download} Mbps</code>\n` +
+        `🔺 <b>Upload:</b> <code>${upload} Mbps</code>\n` +
+        `🏓 <b>Ping:</b> <code>${ping} ms</code> (Jitter: <code>${jitter} ms</code>)\n` +
+        `\n` +
+        `📊 <a href="${resultUrl}">[Lihat Hasil di Web]</a>`;
 
       await message.edit({
         text: output,

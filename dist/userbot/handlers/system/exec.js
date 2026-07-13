@@ -1,6 +1,7 @@
 import util from 'util';
 import { exec } from 'child_process';
 import config from '../../../config.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 const execAsync = util.promisify(exec);
 // Safety: exec/sh commands disabled by default. Set EXEC_ALLOWED=true to enable.
 const EXEC_ALLOWED = process.env.EXEC_ALLOWED === 'true';
@@ -33,7 +34,7 @@ export default {
     help: {
         title: 'Eval / Exec (.eval, .exec, .sh)',
         description: 'Mengeksekusi kode JavaScript (sandboxed) atau perintah shell (whitelist). Hanya bisa digunakan oleh Owner.',
-        usage: '• `.eval <kode JS>`\\n• `.exec <perintah>` (whitelist only)\\n• `.sh <perintah>` (whitelist only)',
+        usage: '• `.eval <kode JS>`\n• `.exec <perintah>` (whitelist only)\n• `.sh <perintah>` (whitelist only)',
         detail: '⚠️ .eval berjalan dalam sandbox — akses ke client, message tersedia tapi tidak ada require/import/process/global.'
     },
     onLoad: () => {
@@ -48,14 +49,14 @@ export default {
         if (Number(telegramId) !== Number(config.ownerId))
             return;
         const text = message.message || '';
-        const match = text.match(/^\\.(eval|exec|sh)(?:\\s+([\\s\\S]+))?$/i);
+        const match = text.match(/^\.(eval|exec|sh)(?:\s+([\s\S]+))?$/i);
         if (!match)
             return;
         const command = match[1].toLowerCase();
         const code = match[2];
         if (!code) {
             await message.edit({
-                text: `❌ Masukkan kode yang ingin dieksekusi!\\nContoh: <code>.eval Math.PI</code>`,
+                text: `❌ Masukkan kode yang ingin dieksekusi!\nContoh: <code>.eval Math.PI</code>`,
                 parseMode: 'html'
             });
             return;
@@ -131,20 +132,13 @@ export default {
         if (output.length > 3800) {
             output = output.substring(0, 3800) + '\n\n... (Output terpotong karena terlalu panjang)';
         }
-        const finalMessage = `💻 <b>Terminal / Eval (Sandboxed)</b>\\n` +
-            `⏱️ <b>Waktu:</b> ${duration}ms\\n\\n` +
-            `<b>Input:</b>\\n<pre><code class="language-javascript">${escapeHtml(code)}</code></pre>\\n` +
-            `<b>Output:</b>\\n<pre><code>${escapeHtml(output)}</code></pre>`;
+        const finalMessage = `💻 <b>Terminal / Eval (Sandboxed)</b>\n` +
+            `⏱️ <b>Waktu:</b> ${duration}ms\n\n` +
+            `<b>Input:</b>\n<pre><code class="language-javascript">${escapeHtml(code)}</code></pre>\n` +
+            `<b>Output:</b>\n<pre><code>${escapeHtml(output)}</code></pre>`;
         await message.edit({
             text: finalMessage,
             parseMode: 'html'
         });
     }
 };
-function escapeHtml(text) {
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
