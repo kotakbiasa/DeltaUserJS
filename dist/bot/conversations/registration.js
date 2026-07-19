@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { InputFile, InlineKeyboard } from 'grammy';
 import { replyRich } from '../../utils/richMessage.js';
+import { Logger } from '../../utils/logger.js';
 import { TelegramClient, Api } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
 import qrcode from 'qrcode';
@@ -147,15 +148,15 @@ export async function otpRegistrationConversation(conversation, ctx) {
                 // 🔒 Idempotency guard: jika sudah ada pending state dari eksekusi sebelumnya, pakai itu
                 const existing = pendingOtpState.get(telegramId);
                 if (existing && activeRegClients.has(telegramId)) {
-                    console.log(`[OTP] Menggunakan hash yang sudah ada (resume dari checkpoint)`);
+                    Logger.logUser(telegramId, '[OTP] Menggunakan hash yang sudah ada (resume dari checkpoint)', 'INFO');
                     return { phoneCodeHash: existing.phoneCodeHash, isCodeViaApp: existing.isCodeViaApp };
                 }
                 // Buat client dan connect
                 const client = getOrCreateClient(telegramId, phoneNumber);
                 await ensureConnected(client);
-                console.log(`[OTP] Mengirim kode ke ${phoneNumber}...`);
+                Logger.logUser(telegramId, `[OTP] Mengirim kode ke ${phoneNumber}...`, 'INFO');
                 const result = await client.sendCode({ apiId: config.apiId, apiHash: config.apiHash }, phoneNumber);
-                console.log(`[OTP] Kode terkirim. isCodeViaApp=${result.isCodeViaApp}, hash=${result.phoneCodeHash?.slice(0, 8)}...`);
+                Logger.logUser(telegramId, `[OTP] Kode terkirim. isCodeViaApp=${result.isCodeViaApp}, hash=${result.phoneCodeHash?.slice(0, 8)}...`, 'INFO');
                 // Simpan ke pendingOtpState agar replay tidak membuat client baru
                 const state = { phoneCodeHash: result.phoneCodeHash, isCodeViaApp: result.isCodeViaApp };
                 pendingOtpState.set(telegramId, state);
@@ -166,7 +167,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
             isCodeViaApp = initResult.isCodeViaApp;
         }
         catch (err) {
-            console.error(`[OTP] Error saat init/sendCode:`, err);
+            Logger.logUser(telegramId, `[OTP] Error saat init/sendCode: ${err.message}`, 'ERROR');
             await replyRich(ctx, `❌ <b>Gagal mengirim OTP:</b>\n<blockquote>${err.message}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
             return;
         }
@@ -221,10 +222,10 @@ export async function otpRegistrationConversation(conversation, ctx) {
                             if (!activeClient)
                                 throw new Error('Client tidak ditemukan. Ulangi /daftar.');
                             await ensureConnected(activeClient);
-                            console.log(`[OTP] Resend via SMS ke ${phoneNumber}...`);
+                            Logger.logUser(telegramId, `[OTP] Resend via SMS ke ${phoneNumber}...`, 'INFO');
                             const r = await activeClient.sendCode({ apiId: config.apiId, apiHash: config.apiHash }, phoneNumber, true // forceSMS
                             );
-                            console.log(`[OTP] SMS terkirim. phoneCodeHash=${r.phoneCodeHash?.slice(0, 8)}...`);
+                            Logger.logUser(telegramId, `[OTP] SMS terkirim. phoneCodeHash=${r.phoneCodeHash?.slice(0, 8)}...`, 'INFO');
                             // Update pending state
                             pendingOtpState.set(telegramId, { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: r.isCodeViaApp });
                             return { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: r.isCodeViaApp };
@@ -232,7 +233,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
                         phoneCodeHash = resendResult.phoneCodeHash;
                     }
                     catch (e) {
-                        console.error('[OTP] Gagal resend SMS:', e);
+                        Logger.logUser(telegramId, `[OTP] Gagal resend SMS: ${e.message}`, 'ERROR');
                         await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Gagal mengirim ulang via SMS: ${e.message}</blockquote>`);
                     }
                     await replyRich(ctx, '💬 <b>Kode OTP dikirim ulang via SMS.</b>\n\n<blockquote>Cek SMS masuk di nomor <code>' + phoneNumber + '</code>.\n⏱️ Segera masukkan kode di sini (berlaku 2 menit).</blockquote>\n\n🛡️ <b>PENTING:</b> Ketik kode dengan <b>spasi</b> antar digit.\n<i>Contoh: <code>12345</code> → ketik <code>1 2 3 4 5</code></i>', { reply_markup: buildOtpKeyboard(false) });
@@ -254,7 +255,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
                     return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };
                 // Reconnect jika koneksi terputus selama user menunggu
                 await ensureConnected(activeClient);
-                console.log(`[OTP] Mencoba signIn... (percobaan ${attemptCount}/${MAX_ATTEMPTS})`);
+                Logger.logUser(telegramId, `[OTP] Mencoba signIn... (percobaan ${attemptCount}/${MAX_ATTEMPTS})`, 'INFO');
                 try {
                     await activeClient.signIn({
                         phoneNumber,
@@ -267,7 +268,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
                 }
                 catch (err) {
                     const errMsg = err.errorMessage || err.message || '';
-                    console.error(`[OTP] signIn error (percobaan ${attemptCount}):`, errMsg);
+                    Logger.logUser(telegramId, `[OTP] signIn error (percobaan ${attemptCount}): ${errMsg}`, 'ERROR');
                     // Klasifikasi error dan return sebagai plain object
                     if (errMsg.includes('SESSION_PASSWORD_NEEDED') || err.name === 'SessionPasswordNeededError') {
                         return { status: '2fa_needed' };
@@ -298,9 +299,9 @@ export async function otpRegistrationConversation(conversation, ctx) {
                             if (!activeClient)
                                 throw new Error('Client tidak ditemukan. Ulangi /daftar.');
                             await ensureConnected(activeClient);
-                            console.log(`[OTP] Resend kode baru karena expired...`);
+                            Logger.logUser(telegramId, '[OTP] Resend kode baru karena expired...', 'INFO');
                             const r = await activeClient.sendCode({ apiId: config.apiId, apiHash: config.apiHash }, phoneNumber);
-                            console.log(`[OTP] Kode baru terkirim. hash=${r.phoneCodeHash?.slice(0, 8)}...`);
+                            Logger.logUser(telegramId, `[OTP] Kode baru terkirim. hash=${r.phoneCodeHash?.slice(0, 8)}...`, 'INFO');
                             pendingOtpState.set(telegramId, { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: r.isCodeViaApp });
                             return { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: r.isCodeViaApp };
                         });
@@ -309,7 +310,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
                         await showOtpPrompt(isCodeViaApp, true);
                     }
                     catch (resendErr) {
-                        console.error('[OTP] Gagal resend setelah expired:', resendErr);
+                        Logger.logUser(telegramId, `[OTP] Gagal resend setelah expired: ${resendErr.message}`, 'ERROR');
                         await replyRich(ctx, `❌ <b>Gagal mengirim kode baru:</b>\n<blockquote>${resendErr.message}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
                         return;
                     }
@@ -392,7 +393,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
             error.message?.includes('Closed') ||
             error.message?.includes('connection');
         if (!isCancelled) {
-            console.error('Error in OTP registration conversation:', error);
+            Logger.logUser(telegramId, `Error in OTP registration conversation: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem saat pendaftaran. Silakan coba lagi nanti.</blockquote>`);
         }
     }
@@ -459,12 +460,12 @@ export async function qrRegistrationConversation(conversation, ctx) {
                             qrImageMessageId = qrMsg.message_id;
                         }
                         catch (qrErr) {
-                            console.error('Error generating/sending QR:', qrErr);
+                            Logger.logUser(telegramId, `Error generating/sending QR: ${qrErr.message}`, 'ERROR');
                         }
                     },
                     onError: (err) => {
                         if (!isScanned) {
-                            console.error('QR Sign-in Error:', err);
+                            Logger.logUser(telegramId, `QR Sign-in Error: ${err.message}`, 'ERROR');
                         }
                     }
                 });
@@ -569,7 +570,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
                 await replyRich(ctx, `<blockquote>⏰ <b>Waktu pendaftaran habis (2 menit tanpa pemindaian).</b>\n\nSilakan ulangi <code>/daftar</code>.</blockquote>`);
             }
             else {
-                console.error('Error in QR registration conversation:', error);
+                Logger.logUser(telegramId, `Error in QR registration conversation: ${error.message}`, 'ERROR');
                 await replyRich(ctx, `❌ <b>Login QR Code gagal:</b>\n<blockquote>${error.message}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
             }
         }
@@ -606,7 +607,7 @@ export async function afkReasonConversation(conversation, ctx) {
     }
     catch (error) {
         if (error.message !== 'USER_CANCELLED') {
-            console.error('Error in AFK reason conversation:', error);
+            Logger.logUser(telegramId, `Error in AFK reason conversation: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem. Gagal mengubah alasan AFK.</blockquote>`);
         }
     }
@@ -660,7 +661,7 @@ export async function broadcastConversation(conversation, ctx) {
     }
     catch (error) {
         if (error.message !== 'USER_CANCELLED') {
-            console.error('Error in Broadcast Conversation:', error);
+            Logger.logUser(telegramId, `Error in Broadcast Conversation: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem saat memproses broadcast.</blockquote>`);
         }
     }
@@ -749,7 +750,7 @@ export async function manageVarsConv(conversation, ctx) {
                         await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
                         // Inline bot manager removed; settings are still persisted for .help flow.
                     });
-                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
+                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
                 }
                 else {
                     await conversation.external(async () => {
@@ -828,7 +829,7 @@ export async function manageVarsConv(conversation, ctx) {
     }
     catch (error) {
         if (error.message !== 'USER_CANCELLED') {
-            console.error('Error in manageVarsConv:', error);
+            Logger.logUser(telegramId, `Error in manageVarsConv: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</blockquote>`);
         }
     }
@@ -883,7 +884,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
     }
     catch (error) {
         if (error.message !== 'USER_CANCELLED') {
-            console.error('Error in manageSystemVarsConv:', error);
+            Logger.logUser(telegramId, `Error in manageSystemVarsConv: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</blockquote>`);
         }
     }
@@ -916,7 +917,7 @@ export async function customNameConversation(conversation, ctx) {
     }
     catch (error) {
         if (error.message !== 'USER_CANCELLED') {
-            console.error('Error in custom name conversation:', error);
+            Logger.logUser(telegramId, `Error in custom name conversation: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem. Gagal mengubah nama ubot.</blockquote>`);
         }
     }

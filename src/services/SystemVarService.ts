@@ -60,9 +60,9 @@ export async function setSystemVar(key, value) {
         { upsert: true }
       );
     } else {
-      const data = readDbFromFile();
+      const data = await readDbFromFile();
       data.systemConfig = systemConfigCache;
-      writeDbToFile(data);
+      await writeDbToFile(data);
     }
     return true;
   });
@@ -80,9 +80,9 @@ export async function deleteSystemVar(key) {
         { upsert: true }
       );
     } else {
-      const data = readDbFromFile();
+      const data = await readDbFromFile();
       data.systemConfig = systemConfigCache;
-      writeDbToFile(data);
+      await writeDbToFile(data);
     }
     return true;
   });
@@ -114,9 +114,9 @@ export async function setTrialClaimed(telegramId) {
         { upsert: true }
       );
     } else {
-      const data = readDbFromFile();
+      const data = await readDbFromFile();
       data.systemConfig = systemConfigCache;
-      writeDbToFile(data);
+      await writeDbToFile(data);
     }
     return true;
   });

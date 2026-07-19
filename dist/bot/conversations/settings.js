@@ -6,6 +6,7 @@
 import { InlineKeyboard } from 'grammy';
 import config from '../../config.js';
 import { replyRich } from '../../utils/richMessage.js';
+import { Logger } from '../../utils/logger.js';
 import { cancelKeyboard } from './registration.js';
 /**
  * Helper: tunggu input teks atau tombol batal.
@@ -58,7 +59,7 @@ export async function afkReasonConversation(conversation, ctx) {
     }
     catch (error) {
         if (error.message !== 'USER_CANCELLED') {
-            console.error('Error in AFK reason conversation:', error);
+            Logger.logUser(telegramId, `Error in AFK reason conversation: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem. Gagal mengubah alasan AFK.</blockquote>`);
         }
     }
@@ -147,7 +148,7 @@ export async function manageVarsConv(conversation, ctx) {
                         await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
                         // Inline bot manager removed; settings are still persisted for .help flow.
                     });
-                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
+                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
                 }
                 else {
                     await conversation.external(async () => {
@@ -159,7 +160,7 @@ export async function manageVarsConv(conversation, ctx) {
                 continue;
             }
             if (data === 'var:custom') {
-                await replyRich(ctx, `📝 <b>Variabel Kustom Baru</b>\\n\\nSilakan kirimkan <b>NAMA (KUNCI)</b> variabel baru Anda (gunakan huruf besar, contoh: <code>MY_VAR</code>):`, { reply_markup: cancelKeyboard });
+                await replyRich(ctx, `📝 <b>Variabel Kustom Baru</b>\n\nSilakan kirimkan <b>NAMA (KUNCI)</b> variabel baru Anda (gunakan huruf besar, contoh: <code>MY_VAR</code>):`, { reply_markup: cancelKeyboard });
                 let key;
                 try {
                     key = await waitForInput(conversation, ctx);
@@ -183,6 +184,18 @@ export async function manageVarsConv(conversation, ctx) {
                     if (err.message === 'USER_CANCELLED')
                         continue;
                     throw err;
+                }
+                // Validate value: limit length to prevent database bloat
+                const MAX_VAR_VALUE_LENGTH = 4096;
+                if (value && value.length > MAX_VAR_VALUE_LENGTH) {
+                    await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Nilai variabel terlalu panjang! Maksimum ${MAX_VAR_VALUE_LENGTH} karakter.</blockquote>`);
+                    continue;
+                }
+                // Restrict sensitive variable names that could be exploited
+                const RESTRICTED_VARS = ['BOT_TOKEN', 'API_ID', 'API_HASH', 'MONGO_URI', 'ENCRYPTION_KEY', 'OWNER_ID'];
+                if (RESTRICTED_VARS.includes(key)) {
+                    await replyRich(ctx, `<blockquote><b>❌ DITOLAK</b><br>Variabel <code>${key}</code> adalah sistem reserved dan tidak boleh diubah melalui menu ini.</blockquote>`);
+                    continue;
                 }
                 await conversation.external(async () => {
                     const db = await import('../../infrastructure/database.js');
@@ -226,7 +239,7 @@ export async function manageVarsConv(conversation, ctx) {
     }
     catch (error) {
         if (error.message !== 'USER_CANCELLED') {
-            console.error('Error in manageVarsConv:', error);
+            Logger.logUser(telegramId, `Error in manageVarsConv: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</blockquote>`);
         }
     }
@@ -281,7 +294,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
     }
     catch (error) {
         if (error.message !== 'USER_CANCELLED') {
-            console.error('Error in manageSystemVarsConv:', error);
+            Logger.logUser(telegramId, `Error in manageSystemVarsConv: ${error.message}`, 'ERROR');
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</blockquote>`);
         }
     }

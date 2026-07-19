@@ -2,6 +2,7 @@ import { UserbotClient } from './client.js';
 import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../../infrastructure/database.js';
 import { dbCache } from '../../infrastructure/dbCore.js';
 import { Logger } from '../../utils/logger.js';
+import { stopAllLoops } from '../handlers/util/schedule.js';
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -49,14 +50,14 @@ class UserbotManager {
             // do not resurrect it. Closes the watchdog-vs-expiration TOCTOU window.
             const cached = dbCache.get(id);
             if (cached && cached.is_active === 0) {
-                console.warn(`⚠️ Userbot [${id}] sudah dinonaktifkan, batal start.`);
+                Logger.logUser(id, `⚠️ Userbot [${id}] sudah dinonaktifkan, batal start.`, 'WARN');
                 return false;
             }
             // Guard: pastikan tidak ada duplikasi client untuk telegram ID yang sama
             if (this.clients.has(id)) {
                 const existing = this.clients.get(id);
                 if (existing && existing.isConnected()) {
-                    console.warn(`⚠️ Userbot [${id}] sudah berjalan, skip start.`);
+                    Logger.logUser(id, `⚠️ Userbot [${id}] sudah berjalan, skip start.`, 'WARN');
                     return true;
                 }
                 // Stop existing userbot (will be locked by stopUserbot)
@@ -84,6 +85,9 @@ class UserbotManager {
             const userbot = this.clients.get(id);
             if (userbot) {
                 await userbot.stop();
+                const cleared = stopAllLoops(id);
+                if (cleared > 0)
+                    Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on stop.`, 'INFO');
                 this.clients.delete(id);
             }
             return Boolean(userbot);
@@ -103,6 +107,9 @@ class UserbotManager {
             const userbot = this.clients.get(id);
             if (userbot) {
                 await userbot.stop();
+                const cleared = stopAllLoops(id);
+                if (cleared > 0)
+                    Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on restart.`, 'INFO');
                 this.clients.delete(id);
             }
             // Inline start logic directly — don't call startUserbot() to avoid double-lock
@@ -122,13 +129,13 @@ class UserbotManager {
         }
     }
     async restartAllActive() {
-        console.log('🚀 Starting active DeltaUserJS userbots...');
+        Logger.logSystem('🚀 Starting active DeltaUserJS userbots...', 'INFO');
         const activeBots = getAllActiveUserbots();
-        console.log(`found ${activeBots.length} active userbots to start.`);
+        Logger.logSystem(`found ${activeBots.length} active userbots to start.`, 'INFO');
         for (const bot of activeBots) {
             try {
                 const delayMs = Math.floor(Math.random() * 3000) + 2000;
-                console.log(`⏳ Waiting ${delayMs}ms before starting userbot [${bot.telegram_id}]...`);
+                Logger.logUser(bot.telegram_id, `⏳ Waiting ${delayMs}ms before starting userbot [${bot.telegram_id}]...`, 'INFO');
                 await sleep(delayMs);
                 await this.startUserbot(bot.telegram_id, bot.session_string);
             }
@@ -140,14 +147,14 @@ class UserbotManager {
     startWatchdog(intervalMs = 120000) {
         if (this.watchdogInterval)
             return;
-        console.log(`🛡️ Userbot Watchdog started (${intervalMs}ms interval).`);
+        Logger.logSystem(`🛡️ Userbot Watchdog started (${intervalMs}ms interval).`, 'INFO');
         this.watchdogInterval = setInterval(() => {
             // Cegah siklus tumpang-tindih bila pengecekan sebelumnya belum selesai
             if (this.watchdogRunning)
                 return;
             this.watchdogRunning = true;
             this.checkAndReconnect()
-                .catch(err => console.error('Watchdog error:', err.message || err))
+                .catch(err => Logger.logSystem(`Watchdog error: ${err.message || err}`, 'ERROR'))
                 .finally(() => { this.watchdogRunning = false; });
         }, intervalMs);
     }
@@ -156,7 +163,7 @@ class UserbotManager {
             return;
         clearInterval(this.watchdogInterval);
         this.watchdogInterval = null;
-        console.log('🛡️ Userbot Watchdog stopped.');
+        Logger.logSystem('🛡️ Userbot Watchdog stopped.', 'INFO');
     }
     async checkAndReconnect() {
         // Snapshot aktif bots agar tidak terpengaruh perubahan saat iterasi
@@ -177,9 +184,9 @@ class UserbotManager {
                 continue;
             this.reconnecting.add(id);
             try {
-                console.log(`🛡️ Watchdog reconnecting userbot [${id}]...`);
+                Logger.logUser(id, `🛡️ Watchdog reconnecting userbot [${id}]...`, 'INFO');
                 await this.startUserbot(id, bot.session_string);
-                console.log(`✓ Watchdog reconnected userbot [${id}].`);
+                Logger.logUser(id, `✓ Watchdog reconnected userbot [${id}].`, 'SUCCESS');
                 await sleep(1500);
             }
             catch (err) {

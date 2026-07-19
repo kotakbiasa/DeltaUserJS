@@ -1,5 +1,6 @@
 import { formatUptime } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 
 export default {
   name: 'ping',
@@ -35,7 +36,7 @@ export default {
           parseMode: 'html'
         });
       } catch (err) {
-        console.error('Error in ping plugin:', err.message);
+        Logger.logUser(telegramId, `Error in ping plugin: ${err.message}`, 'ERROR');
       }
     }
   }

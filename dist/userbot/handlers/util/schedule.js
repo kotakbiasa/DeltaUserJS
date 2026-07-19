@@ -1,5 +1,6 @@
 import { saveSchedule, deleteSchedule } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 // Map untuk menyimpan status loop per akun telegram
 // Struktur: telegramId -> Map<chatId, { intervalId, message, minutes, startedAt }>
 export const loopStore = new Map();
@@ -19,7 +20,7 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
     }
     // Kirim pesan pertama kali secara langsung agar instan
     client.sendMessage(chatId, { message: loopMessage }).catch(err => {
-        console.error(`Failed to send initial loop message:`, err.message);
+        Logger.logUser(idNum, `Failed to send initial loop message: ${err.message}`, 'ERROR');
     });
     // Mulai interval baru
     const ms = minutes * 60 * 1000;
@@ -30,7 +31,7 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
             });
         }
         catch (err) {
-            console.error(`Loop Error [${chatKey}]:`, err.message);
+            Logger.logUser(idNum, `Loop Error [${chatKey}]: ${err.message}`, 'ERROR');
         }
     }, ms);
     myLoops.set(chatKey, {
@@ -41,7 +42,7 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
     });
     if (saveToDb) {
         saveSchedule(idNum, chatKey, 'loop', minutes, loopMessage).catch(err => {
-            console.error('Failed to save schedule to DB:', err.message);
+            Logger.logUser(idNum, `Failed to save schedule to DB: ${err.message}`, 'ERROR');
         });
     }
 }
@@ -59,12 +60,30 @@ export function stopLoop(telegramId, chatId, deleteFromDb = false) {
         myLoops.delete(chatKey);
         if (deleteFromDb) {
             deleteSchedule(idNum, chatKey, 'loop').catch(err => {
-                console.error('Failed to delete schedule from DB:', err.message);
+                Logger.logUser(idNum, `Failed to delete schedule from DB: ${err.message}`, 'ERROR');
             });
         }
         return true;
     }
     return false;
+}
+/**
+ * Menghentikan semua loop untuk akun tertentu. Dipanggil saat userbot
+ * disconnect/stop/crash agar tidak ada interval yang bocor.
+ */
+export function stopAllLoops(telegramId) {
+    const idNum = Number(telegramId);
+    const myLoops = loopStore.get(idNum);
+    if (!myLoops)
+        return 0;
+    let count = 0;
+    for (const [chatKey, data] of myLoops.entries()) {
+        clearInterval(data.intervalId);
+        myLoops.delete(chatKey);
+        count++;
+    }
+    loopStore.delete(idNum);
+    return count;
 }
 export default {
     name: 'schedule',

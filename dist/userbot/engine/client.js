@@ -8,6 +8,8 @@ import { getUserbotSession } from '../../infrastructure/database.js';
 import { loadAllPlugins } from './pluginLoader.js';
 import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
+import { checkRateLimit } from './rateLimiter.js';
+import { isTestEnv } from '../../utils/env.js';
 function disabledSet(settings) {
     return new Set((settings?.disabled_plugins || []).map(normalizePluginName));
 }
@@ -61,14 +63,14 @@ export class UserbotClient {
             await this.client.connect();
             this.client.setParseMode('html');
             this.isActive = true;
-            console.log(`🤖 DeltaUbotJS [${this.telegramId}] connected successfully.`);
+            Logger.logUser(this.telegramId, `🤖 DeltaUbotJS [${this.telegramId}] connected successfully.`, 'SUCCESS');
             // Register handlers
             this.registerHandlers();
             // Restart persistent schedules on startup
             await this.restartSchedules();
         }
         catch (error) {
-            console.error(`❌ Failed to start DeltaUbotJS for user ${this.telegramId}:`, error);
+            Logger.logUser(this.telegramId, `❌ Failed to start DeltaUbotJS for user ${this.telegramId}: ${error}`, 'ERROR');
             this.isActive = false;
             throw error;
         }
@@ -86,10 +88,10 @@ export class UserbotClient {
                     startLoop(this.client, this.telegramId, s.chatKey, s.value, s.message, false);
                 }
             }
-            console.log(`🔁 Restored ${schedules.length} loop schedules for [${this.telegramId}].`);
+            Logger.logUser(this.telegramId, `🔁 Restored ${schedules.length} loop schedules for [${this.telegramId}].`, 'INFO');
         }
         catch (err) {
-            console.error(`❌ Failed to restart schedules for [${this.telegramId}]:`, err.message);
+            Logger.logUser(this.telegramId, `❌ Failed to restart schedules for [${this.telegramId}]: ${err.message}`, 'ERROR');
         }
     }
     /**
@@ -107,22 +109,24 @@ export class UserbotClient {
             const { loopStore } = await import('../handlers/util/schedule.js');
             const loops = loopStore.get(Number(this.telegramId));
             if (loops) {
+                const loopCount = loops.size;
                 for (const [chatKey, loopData] of loops.entries()) {
                     clearInterval(loopData.intervalId);
                 }
                 loops.clear();
                 loopStore.delete(Number(this.telegramId));
-                console.log(`🧹 Cleaned up ${[...loops?.values() || []].length} active loops for [${this.telegramId}]`);
+                if (loopCount > 0)
+                    Logger.logUser(this.telegramId, `🧹 Cleaned up ${loopCount} active loops for [${this.telegramId}]`, 'INFO');
             }
         }
         catch (e) { /* ignore: schedule module may not be loaded */ }
         if (this.client) {
             try {
                 await this.client.disconnect();
-                console.log(`🔌 DeltaUbotJS [${this.telegramId}] disconnected.`);
+                Logger.logUser(this.telegramId, `🔌 DeltaUbotJS [${this.telegramId}] disconnected.`, 'INFO');
             }
             catch (err) {
-                console.error(`❌ Error disconnecting DeltaUbotJS [${this.telegramId}]:`, err);
+                Logger.logUser(this.telegramId, `❌ Error disconnecting DeltaUbotJS [${this.telegramId}]: ${err}`, 'ERROR');
             }
         }
         this.isActive = false;
@@ -176,7 +180,14 @@ export class UserbotClient {
             //   if (options.message !== undefined) options.message = text;
             //   return originalEdit(options);
             // };
-            // 2. Jalankan seluruh plugin secara sekuensial
+            // 2. Rate limit check — prevent command spam (e.g., rapid .exec/.gcast)
+            // Skip in test environment to avoid breaking E2E tests that send many
+            // messages in rapid succession.
+            if (!isTestEnv && !checkRateLimit(Number(this.telegramId))) {
+                Logger.logUser(this.telegramId, '⚠️ Rate limit exceeded — ignoring command.', 'WARN');
+                return;
+            }
+            // 3. Jalankan seluruh plugin secara sekuensial
             const disabled = disabledSet(settings);
             for (const plugin of loadedPlugins) {
                 if (disabled.has(normalizePluginName(plugin.name)))
@@ -198,14 +209,33 @@ export class UserbotClient {
             // Objek event yang kompatibel dengan plugin
             const callbackEvent = {
                 data: update.data,
+                peer: update.peer,
+                msgId: update.msgId,
+                message: null,
                 getMessage: async () => {
                     try {
                         const msgs = await this.client.getMessages(update.peer, { ids: [update.msgId] });
+                        callbackEvent.message = msgs[0] || null;
                         return msgs[0] || null;
                     }
                     catch (err) {
-                        console.error(`❌ Error fetching callback message for [${this.telegramId}]:`, err.message);
+                        Logger.logUser(this.telegramId, `❌ Error fetching callback message for [${this.telegramId}]: ${err.message}`, 'ERROR');
                         return null;
+                    }
+                },
+                editMessage: async (text, options = {}) => {
+                    try {
+                        await this.client.editMessage(update.peer, {
+                            message: update.msgId,
+                            text,
+                            parseMode: options.parseMode || 'html',
+                            buttons: options.buttons,
+                        });
+                    }
+                    catch (err) {
+                        if (!String(err).includes('not modified')) {
+                            Logger.logUser(this.telegramId, `❌ Error editing callback message: ${err.message}`, 'ERROR');
+                        }
                     }
                 },
                 answer: async (options = {}) => {
@@ -217,7 +247,7 @@ export class UserbotClient {
                         }));
                     }
                     catch (err) {
-                        console.error(`❌ Error answering callback for [${this.telegramId}]:`, err.message);
+                        Logger.logUser(this.telegramId, `❌ Error answering callback for [${this.telegramId}]: ${err.message}`, 'ERROR');
                     }
                 }
             };

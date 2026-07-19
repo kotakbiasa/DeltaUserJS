@@ -3,6 +3,7 @@ import fs from 'fs';
 import { InputFile } from 'grammy';
 import config from '../../config.js';
 import { UserbotModel } from '../../infrastructure/database.js';
+import { Logger } from '../../utils/logger.js';
 export function registerOwnerHandlers(bot) {
     // --- Owner utility commands ---
     bot.command('backup', async (ctx) => {
@@ -48,7 +49,7 @@ export function registerOwnerHandlers(bot) {
         if (Number(ctx.from.id) !== Number(config.ownerId))
             return;
         await ctx.replyWithRichMessage({ html: `<h1>🔄 Restarting Bot</h1><blockquote>Sistem sedang dimuat ulang. Harap tunggu beberapa saat hingga bot menyala kembali.</blockquote>` });
-        console.log('🔄 Restart command received from owner. Exiting process...');
+        await Logger.logSystem('🔄 Restart command received from owner. Exiting process...', 'INFO');
         setTimeout(() => {
             // Use exit code 0 for graceful restart (PM2/systemd will restart it)
             process.exit(0);

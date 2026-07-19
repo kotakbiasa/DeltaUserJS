@@ -1,10 +1,12 @@
 // @ts-nocheck
 import fs from 'fs';
+import fsp from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import config from '../config.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
+import { Logger } from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, '../../database.json');
@@ -137,30 +139,33 @@ export function normalizeBot(raw: any = {}, id?: any) {
   };
 }
 
-export function readDbFromFile() {
+export async function readDbFromFile() {
   try {
-    if (!fs.existsSync(dbPath)) {
-      fs.writeFileSync(dbPath, JSON.stringify({ userbots: {}, systemConfig: { vars: {} }, groups: {} }, null, 2));
+    try {
+      await fsp.access(dbPath);
+    } catch {
+      // File doesn't exist — create with empty schema
+      await fsp.writeFile(dbPath, JSON.stringify({ userbots: {}, systemConfig: { vars: {} }, groups: {} }, null, 2));
       return { userbots: {}, systemConfig: { vars: {} }, groups: {} };
     }
 
-    const data = fs.readFileSync(dbPath, 'utf8');
+    const data = await fsp.readFile(dbPath, 'utf8');
     const parsed = JSON.parse(data || '{"userbots":{}, "systemConfig": {"vars": {}}, "groups": {}}');
     if (!parsed.systemConfig) parsed.systemConfig = { vars: {} };
     if (!parsed.groups) parsed.groups = {};
     return parsed;
   } catch (err) {
-    console.error('❌ Error reading database file:', err);
+    Logger.logSystem(`❌ Error reading database file: ${err}`, 'ERROR');
     return { userbots: {}, systemConfig: { vars: {} }, groups: {} };
   }
 }
 
-export function writeDbToFile(data) {
+export async function writeDbToFile(data) {
   try {
-    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+    await fsp.writeFile(dbPath, JSON.stringify(data, null, 2));
     return true;
   } catch (err) {
-    console.error('❌ Error writing database file:', err);
+    Logger.logSystem(`❌ Error writing database file: ${err}`, 'ERROR');
     return false;
   }
 }
@@ -188,13 +193,13 @@ export async function persistField(idNum, field, value) {
       );
       return true;
     } catch (err) {
-      console.error(`❌ MongoDB update error (${field}):`, err.message);
+      Logger.logSystem(`❌ MongoDB update error (${field}): ${err.message}`, 'ERROR');
       return false;
     }
   }
 
   return withWriteLock(async () => {
-    const data = readDbFromFile();
+    const data = await readDbFromFile();
     if (!data.userbots[idNum]) return false;
     data.userbots[idNum][field] = value;
     return writeDbToFile(data);
@@ -213,13 +218,13 @@ export async function persistDoc(idNum, doc) {
       );
       return true;
     } catch (err) {
-      console.error('❌ MongoDB save error:', err.message);
+      Logger.logSystem(`❌ MongoDB save error: ${err.message}`, 'ERROR');
       return false;
     }
   }
 
   return withWriteLock(async () => {
-    const data = readDbFromFile();
+    const data = await readDbFromFile();
     data.userbots[idNum] = doc;
     return writeDbToFile(data);
   });
@@ -231,13 +236,13 @@ export async function persistDelete(idNum) {
       await UserbotModel.deleteOne({ telegram_id: idNum });
       return true;
     } catch (err) {
-      console.error('❌ MongoDB delete error:', err.message);
+      Logger.logSystem(`❌ MongoDB delete error: ${err.message}`, 'ERROR');
       return false;
     }
   }
 
   return withWriteLock(async () => {
-    const data = readDbFromFile();
+    const data = await readDbFromFile();
     if (!data.userbots[idNum]) return false;
     delete data.userbots[idNum];
     return writeDbToFile(data);
@@ -249,13 +254,13 @@ export async function initDatabaseAndCache() {
 
   if (MONGO_URI && MONGO_URI !== 'YOUR_MONGO_URI') {
     try {
-      console.log('🔌 Connecting to MongoDB Cluster...');
+      Logger.logSystem('🔌 Connecting to MongoDB Cluster...', 'INFO');
       await mongoose.connect(MONGO_URI, {
         dbName: DB_NAME,
         serverSelectionTimeoutMS: 15000
       });
       isMongo = true;
-      console.log(`✅ Connected successfully to MongoDB: "${mongoose.connection.name}"`);
+      Logger.logSystem(`✅ Connected successfully to MongoDB: "${mongoose.connection.name}"`, 'SUCCESS');
 
       const bots = await UserbotModel.find({});
       for (const bot of bots) {
@@ -270,16 +275,16 @@ export async function initDatabaseAndCache() {
         groupConfigCache.set(group.chat_id, group.toObject());
       }
 
-      console.log(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`);
+      Logger.logSystem(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`, 'INFO');
       return;
     } catch (err) {
-      console.error('❌ Failed to connect to MongoDB:', err.message);
-      console.error('🛑 MONGO_URI is configured, so DeltaUbotJS will stop instead of falling back to empty local JSON database.');
+      Logger.logSystem(`❌ Failed to connect to MongoDB: ${err.message}`, 'ERROR');
+      Logger.logSystem('🛑 MONGO_URI is configured, so DeltaUbotJS will stop instead of falling back to empty local JSON database.', 'ERROR');
       throw err;
     }
   }
 
-  const data = readDbFromFile();
+  const data = await readDbFromFile();
   for (const [id, bot] of Object.entries(data.userbots)) {
     dbCache.set(Number(id), normalizeBot(bot, id));
   }
@@ -292,8 +297,8 @@ export async function initDatabaseAndCache() {
     }
   }
 
-  console.log('📦 DeltaUbotJS Local JSON Database initialized.');
-  console.log(`⚡ In-memory cache loaded with ${dbCache.size} userbot sessions.`);
+  Logger.logSystem('📦 DeltaUbotJS Local JSON Database initialized.', 'INFO');
+  Logger.logSystem(`⚡ In-memory cache loaded with ${dbCache.size} userbot sessions.`, 'INFO');
 }
 
 // Module-level initialization: do NOT use top-level await.

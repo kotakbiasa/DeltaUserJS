@@ -6,20 +6,8 @@ import config from '../../config.js';
 import { activeRegClients } from '../conversations/registration.js';
 import { sendAccessDeniedRich, panelMain, keyboardMain } from '../ui/keyboards/dashboard.js';
 import { replyRich, editRich } from '../../utils/richMessage.js';
-
-// --- Registration approval state ---
-const approvalsFile = path.join(process.cwd(), 'approvals.json');
-if (!global.approvedUsers) {
-  global.approvedUsers = new Set();
-  try {
-    if (fs.existsSync(approvalsFile)) {
-      global.approvedUsers = new Set(JSON.parse(fs.readFileSync(approvalsFile, 'utf8')));
-    }
-  } catch (_) {}
-}
-function saveApprovals() {
-  try { fs.writeFileSync(approvalsFile, JSON.stringify([...global.approvedUsers])); } catch (_) {}
-}
+import { Logger } from '../../utils/logger.js';
+import { isApproved, approveUser, revokeUser } from '../state/approvedUsers.js';
 
 async function sendMainRich(ctx, deleteOld = false) {
   await replyRich(ctx, panelMain(ctx), { reply_markup: keyboardMain(ctx) });
@@ -38,7 +26,7 @@ export function registerLegacyCallbacks(bot) {
   bot.callbackQuery('ubot_register_menu', async (ctx) => {
     await ctx.answerCallbackQuery();
     const id = ctx.from.id;
-    if (Number(id) !== Number(config.ownerId) && !global.approvedUsers.has(id)) {
+    if (Number(id) !== Number(config.ownerId) && !isApproved(Number(id))) {
       await sendAccessDeniedRich(ctx);
       return;
     }
@@ -50,7 +38,7 @@ export function registerLegacyCallbacks(bot) {
     // Same approval gate as ubot_register_menu — otherwise these aliases let
     // any user bypass the subscription/approval system and register a userbot.
     const id = ctx.from.id;
-    if (Number(id) !== Number(config.ownerId) && !global.approvedUsers.has(id)) {
+    if (Number(id) !== Number(config.ownerId) && !isApproved(Number(id))) {
       await sendAccessDeniedRich(ctx);
       return;
     }
@@ -60,7 +48,7 @@ export function registerLegacyCallbacks(bot) {
   bot.callbackQuery('reg_qr', async (ctx) => {
     await ctx.answerCallbackQuery();
     const id = ctx.from.id;
-    if (Number(id) !== Number(config.ownerId) && !global.approvedUsers.has(id)) {
+    if (Number(id) !== Number(config.ownerId) && !isApproved(Number(id))) {
       await sendAccessDeniedRich(ctx);
       return;
     }
@@ -89,7 +77,7 @@ export function registerLegacyCallbacks(bot) {
         reply_markup: new InlineKeyboard().text('Dashboard', 'back_to_main'),
       });
     } catch (err) {
-      console.error(err);
+      Logger.logUser(ctx.from.id, `request_approval error: ${err.message}`, 'ERROR');
       await ctx.answerCallbackQuery({ text: 'Gagal mengirim permintaan approval.', show_alert: true });
     }
   });
@@ -103,8 +91,7 @@ export function registerLegacyCallbacks(bot) {
     }
     await ctx.answerCallbackQuery();
     const targetId = Number(ctx.match[1]);
-    global.approvedUsers.add(targetId);
-    saveApprovals();
+    approveUser(targetId);
     await editRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Pendaftaran <code>${targetId}</code> disetujui.</blockquote>`);
     try { await ctx.api.sendMessage(targetId, '🎉 Pendaftaran disetujui. Kirim /menu untuk mulai.'); } catch (_) { /* user may have blocked the bot */ }
   });
@@ -117,8 +104,7 @@ export function registerLegacyCallbacks(bot) {
     }
     await ctx.answerCallbackQuery();
     const targetId = Number(ctx.match[1]);
-    global.approvedUsers.delete(targetId);
-    saveApprovals();
+    revokeUser(targetId);
     await editRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran <code>${targetId}</code> ditolak.</blockquote>`);
     try { await ctx.api.sendMessage(targetId, '❌ Pendaftaran userbot ditolak oleh owner.'); } catch (_) { /* user may have blocked the bot */ }
   });

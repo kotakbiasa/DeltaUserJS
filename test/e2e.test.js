@@ -1,10 +1,11 @@
 import { Api } from 'teleproto';
-import { 
-  getSchedules, 
-  getChatSettings, 
+import {
+  getSchedules,
+  getChatSettings,
   getReputation,
   getWarns,
-  getChatLocks
+  getChatLocks,
+  getUserbotSession,
 } from '../dist/infrastructure/database.js';
 
 export const tests = [];
@@ -586,14 +587,16 @@ registerTest('CS-T2-08', 'Settings', 'Settings - Setting values not matching con
   }
 });
 
-registerTest('CS-T2-09', 'Settings', 'Settings - Custom name changes reflected in footer signature', async (ubot) => {
+registerTest('CS-T2-09', 'Settings', 'Settings - Custom name is stored (watermark disabled)', async (ubot) => {
   const chatId = 999223;
   await ubot.client.simulateNewMessage({ senderId: ubot.telegramId, chatId, text: '.setname SuperBot', out: true });
-  
-  const msg = await ubot.client.simulateNewMessage({ senderId: ubot.telegramId, chatId, text: '.ping', out: true });
-  const lastEdit = ubot.client.editedMessages.find(m => m.messageId === msg.id);
-  if (!lastEdit || !lastEdit.text.includes('SuperBot')) {
-    throw new Error('Custom name not reflected in footer signature');
+
+  // Watermark/footer signature is disabled (commit a1678ae) — custom_name is
+  // stored in settings but no longer injected into message edits. Verify the
+  // name was saved correctly instead of checking for it in output.
+  const session = getUserbotSession(ubot.telegramId);
+  if (!session || session.custom_name !== 'SuperBot') {
+    throw new Error('Custom name was not stored in session settings');
   }
 });
 

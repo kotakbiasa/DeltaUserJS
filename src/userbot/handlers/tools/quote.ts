@@ -1,3 +1,5 @@
+import { Logger } from '../../../utils/logger.js';
+
 export default {
   name: 'quote',
   help: {
@@ -64,7 +66,7 @@ export default {
         }
 
       } catch (err) {
-        console.error('Error in quote plugin:', err);
+        Logger.logUser(telegramId, `Error in quote plugin: ${err.message}`, 'ERROR');
         await message.edit({ 
           text: `<blockquote>❌ <b>Gagal membuat quote:</b>\n<i>${err.message}</i></blockquote>`, 
           parseMode: 'html' 

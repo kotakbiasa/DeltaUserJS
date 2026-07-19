@@ -2,6 +2,7 @@ import { readdir, stat } from 'fs/promises';
 import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
 import { clearRegistry, loadedPlugins, registerPlugin, validatePlugin } from './pluginRegistry.js';
+import { Logger } from '../../utils/logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginsDir = path.join(__dirname, '../handlers');
 function helpIsComplete(help) {
@@ -39,30 +40,30 @@ export async function loadAllPlugins({ reload = true } = {}) {
         files.sort();
     }
     catch (err) {
-        console.error('Failed to read plugin directory:', err.message);
+        Logger.logSystem(`Failed to read plugin directory: ${err.message}`, 'ERROR');
         return loadedPlugins;
     }
-    console.log(`📦 Found ${files.length} plugin file(s) in handlers/ directory.`);
+    Logger.logSystem(`📦 Found ${files.length} plugin file(s) in handlers/ directory.`, 'INFO');
     for (const filePath of files) {
         const fileRelPath = path.relative(pluginsDir, filePath);
         try {
             const plugin = await importPlugin(filePath);
             const validationError = validatePlugin(plugin);
             if (validationError) {
-                console.warn(`  ⚠️ Skipped ${fileRelPath}: ${validationError}`);
+                Logger.logSystem(`  ⚠️ Skipped ${fileRelPath}: ${validationError}`, 'WARN');
                 continue;
             }
             if (plugin.help && !helpIsComplete(plugin.help)) {
-                console.warn(`  ⚠️ ${plugin.name} help metadata incomplete; hiding from module library.`);
+                Logger.logSystem(`  ⚠️ ${plugin.name} help metadata incomplete; hiding from module library.`, 'WARN');
                 delete plugin.help;
             }
             const registered = registerPlugin(plugin, { file: fileRelPath });
-            console.log(`  ✓ ${registered.name}${registered.help ? ' · help' : ''}`);
+            Logger.logSystem(`  ✓ ${registered.name}${registered.help ? ' · help' : ''}`, 'INFO');
         }
         catch (err) {
-            console.error(`  ✗ Failed to load ${fileRelPath}:`, err.message);
+            Logger.logSystem(`  ✗ Failed to load ${fileRelPath}: ${err.message}`, 'ERROR');
         }
     }
-    console.log(`📦 Total plugins loaded: ${loadedPlugins.length}`);
+    Logger.logSystem(`📦 Total plugins loaded: ${loadedPlugins.length}`, 'INFO');
     return loadedPlugins;
 }

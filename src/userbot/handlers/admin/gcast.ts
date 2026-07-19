@@ -1,6 +1,7 @@
 import { Api } from 'teleproto';
 import { getBroadcastBlacklist } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 
 // Rate limiting: max 1 gcast per 60 seconds per user
 const LAST_GCAST = new Map();
@@ -8,12 +9,26 @@ const GCAST_COOLDOWN_MS = 60_000; // 60 seconds
 const MAX_GCAST_TARGETS = 50; // Max groups per broadcast
 const MAX_MESSAGES_PER_MINUTE = 20; // Telegram API flood limit safety
 
+// Periodic cleanup: remove stale entries (> 10 minutes old) every 5 minutes
+// Since cooldown is 60s, entries older than 10 min are definitively stale.
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [uid, ts] of LAST_GCAST.entries()) {
+    if (now - ts > 600_000) {
+      LAST_GCAST.delete(uid);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) Logger.logSystem(`🧹 LAST_GCAST cleanup: removed ${cleaned} stale entries`, 'INFO');
+}, 300_000).unref();
+
 export default {
   name: 'gcast',
   help: {
     title: 'Global Broadcast (.gcast)',
     description: 'Mengirim pesan promosi atau pengumuman ke seluruh grup yang Anda ikuti secara otomatis.',
-    usage: '• `.gcast <teks>`\\n• Atau balas (reply) sebuah pesan/foto lalu ketik `.gcast`',
+    usage: '• `.gcast <teks>`\n• Atau balas (reply) sebuah pesan/foto lalu ketik `.gcast`',
     detail: 'Modul ini akan mengabaikan grup yang ada di daftar Blacklist Anda. Sistem dilengkapi dengan Anti-Spam Delay untuk melindungi akun.'
   },
   async execute(client, message, settings, telegramId) {
@@ -48,7 +63,7 @@ export default {
     }
 
     await message.edit({ 
-      text: `<blockquote>⏳ <b>Mempersiapkan Global Broadcast...</b>\\nSedang mengumpulkan data grup.</blockquote>`, 
+      text: `<blockquote>⏳ <b>Mempersiapkan Global Broadcast...</b>\nSedang mengumpulkan data grup.</blockquote>`,
       parseMode: 'html' 
     });
 
@@ -123,10 +138,10 @@ export default {
       });
 
     } catch (err) {
-      console.error('Error in Gcast plugin:', err);
-      await message.edit({ 
-        text: `<blockquote>❌ <b>Gagal melakukan Broadcast:</b>\\n<i>${err.message}</i></blockquote>`, 
-        parseMode: 'html' 
+      Logger.logUser(telegramId, `Error in Gcast plugin: ${err}`, 'ERROR');
+      await message.edit({
+        text: `<blockquote>❌ <b>Gagal melakukan Broadcast:</b>\n<i>${err.message}</i></blockquote>`,
+        parseMode: 'html'
       });
     }
   }

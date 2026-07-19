@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 
 export default {
   name: 'stalk',
@@ -104,7 +105,7 @@ export default {
       });
 
     } catch (err) {
-      console.error('Stalk Error:', err);
+      Logger.logUser(telegramId, `Stalk Error: ${err.message}`, 'ERROR');
       await message.edit({ 
         text: `<blockquote>❌ <b>Gagal Menggali Pesan:</b>\n<i>${escapeHtml(err.message)}</i></blockquote>`, 
         parseMode: 'html' 

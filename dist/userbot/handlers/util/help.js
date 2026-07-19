@@ -1,4 +1,5 @@
 import { helpRegistry } from '../../engine/pluginRegistry.js';
+import { Logger } from '../../../utils/logger.js';
 /**
  * Format nama modul agar rapi
  */
@@ -10,19 +11,20 @@ function formatModuleName(name) {
     return name.charAt(0).toUpperCase() + name.slice(1);
 }
 /**
- * Helper: Teks menu utama help (Fallback jika inline bot gagal)
+ * Escape HTML untuk konten aman
  */
-function buildHelpMenuText(settings) {
-    const plugins = Object.keys(helpRegistry);
-    const total = plugins.length;
-    const formattedPlugins = plugins.map(p => `• <code>${formatModuleName(p)}</code>`).join('\n');
-    return (`⚡ <b>USERBOT — DAFTAR MODUL</b>\n` +
-        `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
-        `ℹ️ <i>Gunakan custom inline bot untuk tampilan tombol interaktif.</i>\n\n` +
-        `📦 <b>Modul Aktif (${total}):</b>\n` +
-        `${formattedPlugins}\n\n` +
-        `📖 <b>Petunjuk Penggunaan:</b>\n` +
-        `<blockquote>Ketik <code>.help [nama_modul]</code> untuk melihat cara penggunaan dan detail modul.</blockquote>`);
+function escapeHtml(text) {
+    return String(text ?? '')
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"');
+}
+/**
+ * Strip HTML tags untuk preview singkat
+ */
+function stripHtml(text) {
+    return String(text ?? '').replace(/<[^>]+>/g, '');
 }
 /**
  * Konversi Markdown sederhana ke HTML
@@ -30,35 +32,104 @@ function buildHelpMenuText(settings) {
 function markdownToHtml(text) {
     if (!text)
         return '';
-    // Escape raw HTML characters to prevent parsing issues
-    const escaped = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+    const escaped = escapeHtml(text);
     return escaped
         .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
         .replace(/__(.*?)__/g, '<i>$1</i>')
         .replace(/\*(.*?)\*/g, '<i>$1</i>')
-        .replace(/_(.*?)_/g, '<i>$1</i>')
         .replace(/`(.*?)`/g, '<code>$1</code>');
 }
+// ============================================================
+// HELP MENU — Inline Keyboard via GramJS
+// ============================================================
+const MODULES_PER_PAGE = 8;
+function getModuleNames() {
+    return Object.keys(helpRegistry).sort();
+}
 /**
- * Helper: Teks detail modul
+ * Bangun teks HTML untuk halaman menu utama
  */
-function buildModuleDetailText(moduleName, settings) {
+function buildMenuText(page = 1) {
+    const names = getModuleNames();
+    const totalPages = Math.max(1, Math.ceil(names.length / MODULES_PER_PAGE));
+    const currentPage = Math.min(Math.max(1, page), totalPages);
+    const start = (currentPage - 1) * MODULES_PER_PAGE;
+    const items = names.slice(start, start + MODULES_PER_PAGE);
+    const moduleList = items
+        .map((name, i) => {
+        const mod = helpRegistry[name];
+        const num = start + i + 1;
+        const title = mod?.title || formatModuleName(name);
+        const desc = mod ? stripHtml(mod.description).slice(0, 60) : '';
+        return `<b>${num}.</b> <code>${escapeHtml(name)}</code> — ${escapeHtml(title)}${desc ? `\n    <i>${escapeHtml(desc)}…</i>` : ''}`;
+    })
+        .join('\n\n');
+    return (`📖 <b>HELP MENU — DAFTAR MODUL</b>\n` +
+        `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n` +
+        `📦 <b>Total Modul:</b> ${names.length}\n` +
+        `📄 <b>Halaman:</b> ${currentPage}/${totalPages}\n\n` +
+        `${moduleList}\n\n` +
+        `💡 Ketik <code>.help [nama_modul]</code> untuk detail, atau klik tombol di bawah.`);
+}
+/**
+ * Bangun inline keyboard untuk halaman menu utama (GramJS format)
+ */
+function buildMenuKeyboard(page = 1) {
+    const names = getModuleNames();
+    const totalPages = Math.max(1, Math.ceil(names.length / MODULES_PER_PAGE));
+    const currentPage = Math.min(Math.max(1, page), totalPages);
+    const start = (currentPage - 1) * MODULES_PER_PAGE;
+    const items = names.slice(start, start + MODULES_PER_PAGE);
+    const rows = [];
+    // Module buttons — 2 per row
+    for (let i = 0; i < items.length; i += 2) {
+        const row = [];
+        for (let j = i; j < Math.min(i + 2, items.length); j++) {
+            const name = items[j];
+            row.push({
+                text: formatModuleName(name),
+                data: `help:mod:${name}`,
+            });
+        }
+        rows.push(row);
+    }
+    // Navigation row
+    const nav = [];
+    if (currentPage > 1) {
+        nav.push({ text: '⬅️ Prev', data: `help:page:${currentPage - 1}` });
+    }
+    nav.push({ text: `📄 ${currentPage}/${totalPages}`, data: 'help:noop' });
+    if (currentPage < totalPages) {
+        nav.push({ text: 'Next ➡️', data: `help:page:${currentPage + 1}` });
+    }
+    rows.push(nav);
+    // Close button
+    rows.push([{ text: '✖️ Tutup', data: 'help:close' }]);
+    return rows;
+}
+/**
+ * Bangun teks HTML untuk detail modul
+ */
+function buildModuleDetail(moduleName) {
     const mod = helpRegistry[moduleName];
     if (!mod)
         return null;
-    return (`📦 <b>MODUL: ${mod.title.toUpperCase()}</b>\n` +
+    return (`📦 <b>MODUL: ${escapeHtml(mod.title?.toUpperCase() || formatModuleName(moduleName).toUpperCase())}</b>\n` +
         `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n` +
         `📝 <b>Deskripsi:</b>\n` +
         `<blockquote>${markdownToHtml(mod.description)}</blockquote>\n\n` +
         `🚀 <b>Penggunaan:</b>\n` +
-        `<blockquote><code>${markdownToHtml(mod.usage)}</code></blockquote>\n\n` +
-        `💡 <b>Detail Tambahan:</b>\n` +
-        `<blockquote>${markdownToHtml(mod.detail)}</blockquote>\n\n` +
-        `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
-        `🔙 <i>Ketik <code>.help</code> untuk kembali ke daftar modul.</i>`);
+        `<blockquote>${markdownToHtml(mod.usage)}</blockquote>` +
+        (mod.detail ? `\n\n💡 <b>Detail Tambahan:</b>\n<blockquote>${markdownToHtml(mod.detail)}</blockquote>` : ''));
+}
+/**
+ * Bangun keyboard untuk halaman detail modul
+ */
+function buildModuleKeyboard(moduleName, fromPage = 1) {
+    return [
+        [{ text: '🔙 Kembali ke Menu', data: `help:page:${fromPage}` }],
+        [{ text: '✖️ Tutup', data: 'help:close' }],
+    ];
 }
 /**
  * Helper: Dapatkan replyTo untuk forum topic
@@ -75,80 +146,104 @@ export default {
         title: 'Help Menu',
         description: 'Menampilkan panduan penggunaan dan daftar modul yang tersedia di userbot Anda.',
         usage: 'Ketik `.help` untuk menu utama atau `.help [nama_modul]` untuk detail spesifik.',
-        detail: '• `.help` akan memunculkan menu inline jika Anda sudah mengatur Custom Inline Bot.\n• Jika belum, menu text biasa akan dimunculkan.'
+        detail: 'Menu help sekarang menggunakan inline keyboard interaktif. Klik tombol modul untuk melihat detail.'
     },
-    /**
-     * Handler untuk pesan .help dan .help <modul>
-     */
     async execute(client, message, settings, telegramId) {
-        if (message.out && message.message && message.message.toLowerCase().startsWith('.help')) {
-            try {
-                const parts = message.message.trim().split(' ');
-                const replyToMsgId = getReplyToForTopic(message);
-                if (parts.length === 1) {
-                    // --- .help → Coba panggil Inline Bot via Inline Query ---
-                    try {
-                        const botUsername = settings.inline_bot_username || global.MASTER_BOT_USERNAME;
-                        if (!botUsername) {
-                            throw new Error('Inline bot username belum diset di settings.');
-                        }
-                        let results;
-                        try {
-                            results = await Promise.race([
-                                client.inlineQuery(botUsername, 'help_ubot'),
-                                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout (8s): Inline bot tidak merespon. Pastikan Inline Mode aktif dan username benar.')), 8000)),
-                            ]);
-                        }
-                        catch (queryErr) {
-                            throw new Error(`Gagal memanggil inline query: ${queryErr.message}`);
-                        }
-                        if (!results || results.length === 0) {
-                            throw new Error('Tidak ada hasil inline dari bot.');
-                        }
-                        try {
-                            await results[0].click(message.peerId, replyToMsgId);
-                        }
-                        catch (clickErr) {
-                            throw new Error(`Gagal mengklik hasil inline: ${clickErr.message}`);
-                        }
-                        try {
-                            await message.delete();
-                        }
-                        catch (_) { }
-                        return;
-                    }
-                    catch (inlineErr) {
-                        console.log('Inline help fallback:', inlineErr.message);
-                        const text = buildHelpMenuText(settings);
-                        await message.edit({ text, parseMode: 'html' });
-                    }
+        if (!message.out || !message.message)
+            return;
+        if (!message.message.toLowerCase().startsWith('.help'))
+            return;
+        try {
+            const parts = message.message.trim().split(/\s+/);
+            const replyToMsgId = getReplyToForTopic(message);
+            if (parts.length === 1) {
+                // --- .help → Menu utama dengan inline keyboard ---
+                const text = buildMenuText(1);
+                const buttons = buildMenuKeyboard(1);
+                await message.edit({
+                    text,
+                    parseMode: 'html',
+                    buttons,
+                });
+                return;
+            }
+            else {
+                // --- .help <nama_modul> → Detail modul ---
+                const moduleName = parts[1].toLowerCase();
+                const targetModule = helpRegistry[moduleName];
+                if (targetModule) {
+                    const text = buildModuleDetail(moduleName);
+                    const buttons = buildModuleKeyboard(moduleName, 1);
+                    await message.edit({
+                        text,
+                        parseMode: 'html',
+                        buttons,
+                    });
                 }
                 else {
-                    // --- .help <nama_modul> → Tampilkan detail modul ---
-                    const moduleName = parts[1].toLowerCase();
-                    const targetModule = helpRegistry[moduleName];
-                    if (targetModule) {
-                        const text = buildModuleDetailText(moduleName, settings);
-                        await message.edit({ text, parseMode: 'html' });
-                    }
-                    else {
-                        // Modul tidak ditemukan
-                        const available = Object.keys(helpRegistry).join(', ');
-                        const safeName = parts[1].replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        await message.edit({
-                            text: `<blockquote>❌ Modul "<b>${safeName}</b>" tidak ditemukan!</blockquote>\n\nModul tersedia: <code>${available}</code>\n\nKetik <code>.help</code> untuk melihat daftar modul.`,
-                            parseMode: 'html'
-                        });
-                    }
+                    const available = Object.keys(helpRegistry).join(', ');
+                    const safeName = escapeHtml(parts[1]);
+                    await message.edit({
+                        text: `❌ Modul "<b>${safeName}</b>" tidak ditemukan!\n\nModul tersedia: <code>${available}</code>\n\nKetik <code>.help</code> untuk melihat daftar modul.`,
+                        parseMode: 'html',
+                    });
                 }
-            }
-            catch (err) {
-                console.error('Error in help plugin:', err);
-                try {
-                    await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
-                }
-                catch (e) { /* ignore */ }
             }
         }
-    }
+        catch (err) {
+            Logger.logUser(telegramId, `Error in help plugin: ${err}`, 'ERROR');
+            try {
+                await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
+            }
+            catch (e) { /* ignore */ }
+        }
+    },
+    // ============================================================
+    // CALLBACK HANDLER — Dipanggil saat user klik tombol inline
+    // ============================================================
+    async onCallbackQuery(client, callbackEvent, settings, telegramId) {
+        if (!callbackEvent)
+            return;
+        const data = callbackEvent.data || '';
+        // Parse callback data
+        if (data === 'help:noop') {
+            await callbackEvent.answer({ message: '', alert: false });
+            return true;
+        }
+        if (data === 'help:close') {
+            await callbackEvent.answer({ message: '', alert: false });
+            try {
+                const msg = await callbackEvent.getMessage();
+                if (msg)
+                    await msg.delete({ revoke: true });
+            }
+            catch (_) { /* ignore */ }
+            return true;
+        }
+        // Page navigation
+        const pageMatch = data.match(/^help:page:(\d+)$/);
+        if (pageMatch) {
+            const page = Number(pageMatch[1]);
+            const text = buildMenuText(page);
+            const buttons = buildMenuKeyboard(page);
+            await callbackEvent.answer({ message: '', alert: false });
+            await callbackEvent.editMessage(text, { parseMode: 'html', buttons });
+            return true;
+        }
+        // Module detail
+        const modMatch = data.match(/^help:mod:(.+)$/);
+        if (modMatch) {
+            const moduleName = modMatch[1].toLowerCase();
+            const text = buildModuleDetail(moduleName);
+            if (!text) {
+                await callbackEvent.answer({ message: 'Modul tidak ditemukan', alert: true });
+                return true;
+            }
+            const buttons = buildModuleKeyboard(moduleName, 1);
+            await callbackEvent.answer({ message: '', alert: false });
+            await callbackEvent.editMessage(text, { parseMode: 'html', buttons });
+            return true;
+        }
+        return false;
+    },
 };

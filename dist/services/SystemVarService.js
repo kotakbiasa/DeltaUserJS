@@ -50,9 +50,9 @@ export async function setSystemVar(key, value) {
             await SystemConfigModel.updateOne({ _id: 'system' }, { $set: { vars: systemConfigCache.vars } }, { upsert: true });
         }
         else {
-            const data = readDbFromFile();
+            const data = await readDbFromFile();
             data.systemConfig = systemConfigCache;
-            writeDbToFile(data);
+            await writeDbToFile(data);
         }
         return true;
     });
@@ -66,9 +66,9 @@ export async function deleteSystemVar(key) {
             await SystemConfigModel.updateOne({ _id: 'system' }, { $unset: { [`vars.${key}`]: '' } }, { upsert: true });
         }
         else {
-            const data = readDbFromFile();
+            const data = await readDbFromFile();
             data.systemConfig = systemConfigCache;
-            writeDbToFile(data);
+            await writeDbToFile(data);
         }
         return true;
     });
@@ -96,9 +96,9 @@ export async function setTrialClaimed(telegramId) {
             await SystemConfigModel.updateOne({ _id: 'system' }, { $set: { 'vars.trial_claims': claims } }, { upsert: true });
         }
         else {
-            const data = readDbFromFile();
+            const data = await readDbFromFile();
             data.systemConfig = systemConfigCache;
-            writeDbToFile(data);
+            await writeDbToFile(data);
         }
         return true;
     });

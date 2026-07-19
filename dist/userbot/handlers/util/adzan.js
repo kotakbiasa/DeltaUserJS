@@ -8,7 +8,7 @@ export default {
         title: 'Adzan / Jadwal Sholat',
         description: 'Menampilkan jadwal sholat 5 waktu secara lengkap menggunakan API muslimsalat.com.',
         usage: '`.adzan <nama kota>`',
-        detail: 'Contoh: `.adzan Bandung`\\nJika kota tidak disebutkan, secara default akan menampilkan jadwal untuk Jakarta.'
+        detail: 'Contoh: `.adzan Bandung`\nJika kota tidak disebutkan, secara default akan menampilkan jadwal untuk Jakarta.'
     },
     async execute(client, message, settings, telegramId) {
         if (!message.out || !message.message)

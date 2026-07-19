@@ -1,5 +1,7 @@
 import { dbCache, persistDoc, persistField, persistDelete, normalizeBot, groupConfigCache, isMongo, readDbFromFile, writeDbToFile, GroupConfigModel, withKeyLock, withWriteLock } from '../infrastructure/dbCore.js';
 import { encrypt } from '../utils/crypto.js';
+import { deepClone } from '../utils/deepClone.js';
+import { Logger } from '../utils/logger.js';
 export async function saveUserbotSession(telegramId, phone, sessionString) {
     const idNum = Number(telegramId);
     const existing = dbCache.get(idNum) || {};
@@ -37,9 +39,9 @@ export async function updateObjectField(telegramId, field, value) {
     const idNum = Number(telegramId);
     const cached = dbCache.get(idNum);
     if (cached) {
-        cached[field] = JSON.parse(JSON.stringify(value));
+        cached[field] = deepClone(value);
     }
-    return persistField(idNum, field, JSON.parse(JSON.stringify(value)));
+    return persistField(idNum, field, deepClone(value));
 }
 export async function updateUserbotFeature(telegramId, featureName, value) {
     const idNum = Number(telegramId);
@@ -186,7 +188,7 @@ export async function updateChatSettings(telegramId, chatId, key, value) {
             session.chat_settings[chatKey] = {};
         session.chat_settings[chatKey][key] = value;
         // Deep clone chat_settings before persist to avoid reference mutation
-        await persistField(idNum, 'chat_settings', JSON.parse(JSON.stringify(session.chat_settings)));
+        await persistField(idNum, 'chat_settings', deepClone(session.chat_settings));
         return session.chat_settings[chatKey];
     });
 }
@@ -254,7 +256,7 @@ export async function updateReputation(telegramId, targetUserId, points) {
         session.reputation_data = session.reputation_data || {};
         session.reputation_data[String(targetUserId)] = points;
         // Deep clone to avoid reference mutation
-        await persistField(idNum, 'reputation_data', JSON.parse(JSON.stringify(session.reputation_data)));
+        await persistField(idNum, 'reputation_data', deepClone(session.reputation_data));
         return true;
     });
 }
@@ -277,7 +279,7 @@ export async function addWarn(telegramId, chatId, targetUserId, reason = '') {
             reasons: [...(existing.reasons || []), reason]
         };
         // Deep clone to avoid reference mutation
-        await persistField(idNum, 'warn_data', JSON.parse(JSON.stringify(session.warn_data)));
+        await persistField(idNum, 'warn_data', deepClone(session.warn_data));
         return session.warn_data[chatKey][userKey];
     });
 }
@@ -296,7 +298,7 @@ export async function resetWarns(telegramId, chatId, targetUserId) {
         if (session.warn_data[chatKey][userKey]) {
             delete session.warn_data[chatKey][userKey];
             // Deep clone to avoid reference mutation
-            await persistField(idNum, 'warn_data', JSON.parse(JSON.stringify(session.warn_data)));
+            await persistField(idNum, 'warn_data', deepClone(session.warn_data));
         }
         return true;
     });
@@ -332,16 +334,16 @@ export async function updateGroupConfig(chatId, updates) {
                 await GroupConfigModel.findOneAndUpdate({ chat_id: chatKey }, { $set: newData }, { upsert: true, returnDocument: 'after' });
             }
             catch (e) {
-                console.error('❌ MongoDB GroupConfig error:', e.message);
+                Logger.logSystem(`❌ MongoDB GroupConfig error: ${e.message}`, 'ERROR');
             }
         }
         else {
             await withWriteLock(async () => {
-                const data = readDbFromFile();
+                const data = await readDbFromFile();
                 if (!data.groups)
                     data.groups = {};
                 data.groups[chatKey] = newData;
-                writeDbToFile(data);
+                await writeDbToFile(data);
             });
         }
         return newData;

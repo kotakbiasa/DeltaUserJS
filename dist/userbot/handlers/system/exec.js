@@ -2,6 +2,7 @@ import util from 'util';
 import { exec } from 'child_process';
 import config from '../../../config.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 const execAsync = util.promisify(exec);
 // Safety: exec/sh commands disabled by default. Set EXEC_ALLOWED=true to enable.
 const EXEC_ALLOWED = process.env.EXEC_ALLOWED === 'true';
@@ -39,10 +40,10 @@ export default {
     },
     onLoad: () => {
         if (!EXEC_ALLOWED) {
-            console.log('⚠️  Plugin Exec/Eval loaded (EXEC mode DISABLED — .exec/.sh akan ditolak)');
+            Logger.logSystem('⚠️  Plugin Exec/Eval loaded (EXEC mode DISABLED — .exec/.sh akan ditolak)', 'WARN');
         }
         else {
-            console.log('🔌 Plugin Exec/Eval loaded (EXEC mode ENABLED — whitelist only)');
+            Logger.logSystem('🔌 Plugin Exec/Eval loaded (EXEC mode ENABLED — whitelist only)', 'INFO');
         }
     },
     execute: async (client, message, settings, telegramId) => {

@@ -3,6 +3,7 @@ import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import fs from 'fs';
 import path from 'path';
+import { Logger } from '../../../utils/logger.js';
 
 export default {
   name: 'info',
@@ -53,7 +54,7 @@ export default {
       try {
         profilePhotoBuffer = await client.downloadProfilePhoto(targetEntity);
       } catch (e) {
-        console.error('Gagal download foto profil:', e.message);
+        Logger.logUser(telegramId, `Gagal download foto profil: ${e.message}`, 'ERROR');
       }
 
       // 2. Ambil Full Info (Bio, dll)
@@ -151,7 +152,7 @@ export default {
       }
 
     } catch (err) {
-      console.error('Info Error:', err);
+      Logger.logUser(telegramId, `Info Error: ${err}`, 'ERROR');
       let errMsg = err.message;
       if (errMsg.includes('Cannot read properties of undefined')) {
         errMsg = 'Username/ID tidak ditemukan.';

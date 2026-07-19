@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { formatUptimeStats, formatBytes } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 
 export default {
   name: 'stats',
@@ -50,7 +51,7 @@ export default {
           parseMode: 'html'
         });
       } catch (err) {
-        console.error('Error in stats plugin:', err);
+        Logger.logUser(telegramId, `Error in stats plugin: ${err}`, 'ERROR');
       }
     }
   }

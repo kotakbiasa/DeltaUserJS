@@ -2,6 +2,7 @@ import './config.js';
 import bot from './bot/index.js';
 import userbotManager from './userbot/engine/manager.js';
 import { getAllRegisteredUsers, updateUserbotStatus, initDatabaseAndCache } from './infrastructure/database.js';
+import { setMasterBotUsername } from './bot/state/botUsername.js';
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 // --- Helper Logger dengan Style ANSI ---
 function getTimestamp() {
@@ -96,7 +97,7 @@ async function main() {
         logInfo('Starting Master Bot...');
         await bot.start({
             onStart: async (info) => {
-                global.MASTER_BOT_USERNAME = info.username;
+                setMasterBotUsername(info.username);
                 logSuccess(`Master Bot [@${info.username}] is running successfully!`);
                 // 4. Restart all active userbots from database as the final step
                 logInfo('Starting all active userbots...');

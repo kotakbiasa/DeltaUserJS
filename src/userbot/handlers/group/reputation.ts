@@ -2,6 +2,7 @@ import { getChatSettings, updateChatSettings, getReputation, updateReputation } 
 import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
+import { Logger } from '../../../utils/logger.js';
 
 // Key: telegramId_chatId_voterId_targetId -> last voted timestamp
 const cooldownMap = new Map();
@@ -17,7 +18,7 @@ setInterval(() => {
       cleaned++;
     }
   }
-  if (cleaned > 0) console.log(`🧹 CooldownMap cleanup: removed ${cleaned} stale entries`);
+  if (cleaned > 0) Logger.logSystem(`🧹 CooldownMap cleanup: removed ${cleaned} stale entries`, 'INFO');
 }, 10 * 60 * 1000); // every 10 minutes
 
 export default {
@@ -209,7 +210,7 @@ export default {
                      `</blockquote>`
           });
         } catch (err) {
-          console.error(`❌ Failed to send Reputation log to channel ${chatSettings.log_channel}:`, err.message);
+          Logger.logUser(telegramId, `❌ Failed to send Reputation log to channel ${chatSettings.log_channel}: ${err.message}`, 'ERROR');
         }
       }
     }

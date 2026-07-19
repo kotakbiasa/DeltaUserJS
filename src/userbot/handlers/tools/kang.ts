@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { Jimp } from 'jimp';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 
 const EMOJIS = [
     "☕", "🤡", "🙂", "🤔", "🔪", "😂", "💀", "🔥", "❤️", "✨",
@@ -86,7 +87,7 @@ export default {
                 image.scaleToFit({ w: 512, h: 512 });
                 await image.write(tmpPath);
               } catch (e) {
-                console.log('Jimp error:', e.message);
+                Logger.logUser(telegramId, `Jimp resize error: ${e.message}`, 'WARN');
               }
             }
             
@@ -185,11 +186,11 @@ export default {
         }
         
       } catch (err) {
-        console.error('Error in kang plugin:', err);
-        await message.edit({ 
-          text: `<blockquote>❌ <b>Terjadi kesalahan saat memproses kang:</b>\n<i>${escapeHtml(err.message)}</i></blockquote>`, 
-          parseMode: 'html' 
+        await message.edit({
+          text: `<blockquote>❌ <b>Terjadi kesalahan saat memproses kang:</b>\n<i>${escapeHtml(err.message)}</i></blockquote>`,
+          parseMode: 'html'
         });
+        Logger.logSystem(`❌ Error in kang plugin: ${err.message}`, 'ERROR');
       }
     }
   }

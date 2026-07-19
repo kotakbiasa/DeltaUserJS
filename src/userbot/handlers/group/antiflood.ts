@@ -2,6 +2,7 @@ import { getChatSettings, updateChatSettings, addWarn, resetWarns, getWarns } fr
 import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
+import { Logger } from '../../../utils/logger.js';
 
 // In-memory tracker for message timestamps
 // Key: telegramId_chatId_senderId -> Array of timestamps (numbers)
@@ -21,7 +22,7 @@ setInterval(() => {
       floodTracker.set(key, recent);
     }
   }
-  if (cleaned > 0) console.log(`🧹 FloodTracker cleanup: removed ${cleaned} stale entries`);
+  if (cleaned > 0) Logger.logSystem(`🧹 FloodTracker cleanup: removed ${cleaned} stale entries`, 'INFO');
 }, 10 * 60 * 1000); // every 10 minutes
 
 export default {

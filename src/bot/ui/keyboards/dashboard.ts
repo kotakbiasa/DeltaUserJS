@@ -1,14 +1,12 @@
 // @ts-nocheck
 /**
  * DeltaUbotJS — Dashboard (UI builders + rich handlers)
- *
- * Gabungan dari modul UI (panel/keyboard) dan handler dashboard "rich".
- * Sebelumnya terpisah di richUi.js + richHandlers.js; disatukan di sini
- * karena keduanya saling terikat & dipakai oleh Master Bot.
+ * Redesigned layout — cleaner panels, organized keyboards, consistent navigation.
  */
 import { Api } from 'teleproto';
 import config from '../../../config.js';
 import { replyRich } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 import {
   getUserbotSession,
   getAllRegisteredUsers,
@@ -25,7 +23,7 @@ import { loadedPlugins, helpRegistry } from '../../../userbot/engine/pluginRegis
 import userbotManager from '../../../userbot/engine/manager.js';
 
 // ==========================================================================
-// SECTION 1 — UI BUILDERS (panels & keyboards)  [ex richUi.js]
+// SECTION 1 — UI BUILDERS
 // ==========================================================================
 
 const PROTECTED_PLUGINS = ['admin', 'pluginmanager'];
@@ -49,10 +47,10 @@ export function pluginPageInfo(page = 1) {
 
 export function escapeHtml(value) {
   return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"');
 }
 
 function stripHtml(value) {
@@ -68,101 +66,76 @@ function daysLeftText(dateValue) {
     : `${expDate.toLocaleDateString()} · kedaluwarsa`;
 }
 
-function badge(condition, yes = 'Online', no = 'Offline') {
-  return condition ? `✓ ${yes}` : `— ${no}`;
+function badge(condition, yes = '✅', no = '❌') {
+  return condition ? yes : no;
 }
 
-function escapeMarkdown(value) {
-  return String(value ?? '')
-    .replace(/\\/g, '\\\\')
-    .replace(/\|/g, '\\|')
-    .replace(/`/g, '\\`')
-    .replace(/\*/g, '\\*')
-    .replace(/_/g, '\\_')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]');
-}
-
-export function hero(icon, title, subtitle) {
-  return `<h1>${icon} ${escapeHtml(title)}</h1>` +
-    `<blockquote>${escapeHtml(subtitle)}</blockquote>`;
-}
-
-export function kpi(caption, items) {
-  return `<table bordered><caption>${escapeHtml(caption)}</caption><tr>` +
-    items.map(([label, value]) =>
-      `<td align="center"><b>${escapeHtml(label)}</b><br>${escapeHtml(stripHtml(value))}</td>`
-    ).join('') +
-    `</tr></table>`;
-}
-
-export function table(caption, rows, firstHeader = 'Area', secondHeader = 'Detail') {
-  return `<table bordered striped><caption>${escapeHtml(caption)}</caption>` +
-    `<tr><th align="center">${escapeHtml(firstHeader)}</th><th align="center">${escapeHtml(secondHeader)}</th></tr>` +
-    rows.map(([key, value]) =>
-      `<tr><td>${escapeHtml(key)}</td><td align="center">${escapeHtml(stripHtml(value))}</td></tr>`
-    ).join('') +
-    `</table>`;
-}
-
-export function note(text, title = 'Catatan') {
-  return `<details><summary>${escapeHtml(title)}</summary><p>${escapeHtml(text)}</p></details>`;
-}
-function pluginStatusTable(caption, plugins, disabledSet) {
-  const rows = plugins.map(plugin => {
-    const name = String(plugin.name);
-    const lower = name.toLowerCase();
-    const isActive = !disabledSet.has(lower);
-    const isProtected = PROTECTED_PLUGINS.includes(lower);
-    return `<tr>` +
-      `<td>${escapeHtml(name)}</td>` +
-      `<td align="center">${isActive ? 'Aktif' : 'Nonaktif'}</td>` +
-      `<td align="center">${isProtected ? 'Protected' : '—'}</td>` +
-      `</tr>`;
-  }).join('') || '<tr><td colspan="3" align="center">Tidak ada plugin</td></tr>';
-
-  return `<table bordered striped>` +
-    `<caption>${escapeHtml(caption)}</caption>` +
-    `<tr><th align="left">Plugin</th><th align="center">Status</th><th align="center">Guard</th></tr>` +
-    rows +
-    `</table>`;
-}
-
+// --- Panel builders ---
 
 export function isOwner(ctx) {
   return Number(ctx.from?.id) === Number(config.ownerId);
 }
 
-export function panelMain(ctx) {
-  const firstName = ctx.from.first_name || 'User';
+function userInfo(ctx) {
+  const firstName = ctx.from?.first_name || 'User';
   const botName = ctx.me?.first_name || 'Bot';
-  return hero('👋', `Halo ${escapeHtml(firstName)}!`, `Saya adalah ${escapeHtml(botName)}, manager untuk mengelola userbot Telegram Anda.`) +
-    note('Gunakan menu di bawah untuk mengatur userbot Anda.');
+  return { firstName, botName };
+}
+
+export function panelMain(ctx) {
+  const { firstName, botName } = userInfo(ctx);
+  return `<h1>👋 Selamat Datang!</h1>` +
+    `<blockquote>Halo <b>${escapeHtml(firstName)}</b>! Saya <b>${escapeHtml(botName)}</b>, ` +
+    `manajer untuk mengelola userbot Telegram Anda.</blockquote>` +
+    `<p>Gunakan tombol di bawah untuk navigasi.</p>`;
 }
 
 export function panelMenuList(ctx) {
-  return hero('🎛️', 'Panel Menu', 'Silakan masuk ke ruang kontrol yang sesuai.') +
-    note('Akses Admin Command Center hanya terbuka untuk Owner.');
+  const session = getUserbotSession(ctx.from.id);
+  const hasBot = !!session;
+  const running = hasBot && userbotManager.isRunning(ctx.from.id);
+
+  let statusLine;
+  if (!hasBot) {
+    statusLine = '🔴 Belum terdaftar';
+  } else if (running) {
+    statusLine = '🟢 Bot aktif & berjalan';
+  } else {
+    statusLine = '🟡 Terdaftar, bot mati';
+  }
+
+  return `<h1>🎛️ Panel Menu</h1>` +
+    `<blockquote>Status: <b>${statusLine}</b></blockquote>` +
+    `<p>Pilih menu di bawah untuk mengelola userbot Anda.</p>`;
 }
 
 export function panelUserbot(ctx) {
   const session = getUserbotSession(ctx.from.id);
   const running = userbotManager.isRunning(ctx.from.id);
   const botName = session?.custom_name || ctx.me?.first_name || 'Bot';
-  
+
+  const featureRows = [
+    ['Koneksi', running ? '🟢 Online' : '🔴 Offline'],
+    ['Anti-PM', badge(session?.anti_pm === 1, '🟢 ON', '🔴 OFF')],
+    ['AFK / Auto-Reply', badge(session?.auto_reply === 1, '🟢 ON', '🔴 OFF')],
+  ];
+
+  const sessionRows = [
+    ['ID Akun', `<code>${ctx.from.id}</code>`],
+    ['Telepon', session?.phone ? `+${session.phone}` : 'Disembunyikan'],
+    ['Masa Aktif', daysLeftText(session?.expired_at)],
+  ];
+
   return `<h1>🤖 Dashboard ${escapeHtml(botName)}</h1>` +
-    `<blockquote>Panel kendali cerdas untuk mengatur sesi Userbot Anda. Pantau status koneksi dan fitur aktif secara <i>real-time</i>.</blockquote>` +
-    kpi('Status Integrasi', [
-      ['Koneksi', badge(running, 'Online', 'Offline')],
-      ['Anti-PM', badge(session?.anti_pm === 1, 'ON', 'OFF')],
-      ['AFK', badge(session?.auto_reply === 1, 'ON', 'OFF')],
-    ]) +
-    table('Informasi Sesi', [
-      ['ID Akun', `<code>${ctx.from.id}</code>`],
-      ['Telepon', session?.phone ? `+${session.phone}` : 'Disembunyikan'],
-      ['Masa Aktif', daysLeftText(session?.expired_at)],
-    ]) +
-    `<details><summary>🛡️ Tips Keamanan</summary><p>Halaman ini terenkripsi. Jangan pernah membagikan <i>screenshot</i> area ini kepada pihak mana pun untuk mencegah pencurian sesi Telegram Anda.</p></details>`;
+    `<blockquote>Panel kendali untuk sesi userbot Anda.</blockquote>` +
+    `<table bordered><caption>📊 Status</caption>` +
+    `<tr><th>Fitur</th><th>Status</th></tr>` +
+    featureRows.map(([k, v]) => `<tr><td>${k}</td><td align="center">${v}</td></tr>`).join('') +
+    `</table>` +
+    `<table bordered><caption>ℹ️ Info Sesi</caption>` +
+    `<tr><th>Detail</th><th>Nilai</th></tr>` +
+    sessionRows.map(([k, v]) => `<tr><td>${k}</td><td align="center">${v}</td></tr>`).join('') +
+    `</table>`;
 }
 
 export function panelPlugins(ctx, page = 1, notice = '') {
@@ -170,164 +143,188 @@ export function panelPlugins(ctx, page = 1, notice = '') {
   const disabledSet = new Set(disabled);
   const { plugins, page: currentPage, totalPages, total } = pluginPageInfo(page);
   const active = sortedPlugins().filter(p => !disabledSet.has(String(p.name).toLowerCase())).length;
-  return hero('🧩', 'Plugin Studio', notice || 'Kelola modul bot langsung dari dashboard utama.') +
-    kpi('Plugin State', [
-      ['Total', total],
-      ['Aktif', active],
-      ['Nonaktif', Math.max(0, total - active)],
-    ]) +
-    pluginStatusTable(`Plugin List · Page ${currentPage}/${totalPages}`, plugins, disabledSet) +
-    note('Tabel daftar plugin. Tekan tombol di bawah untuk menyalakan/mematikan plugin. Plugin protected tidak bisa dimatikan.');
+
+  const rows = plugins.map(plugin => {
+    const name = String(plugin.name);
+    const lower = name.toLowerCase();
+    const isActive = !disabledSet.has(lower);
+    const isProtected = PROTECTED_PLUGINS.includes(lower);
+    return `<tr><td>${escapeHtml(name)}</td><td align="center">${isActive ? '✅' : '❌'}</td><td align="center">${isProtected ? '🔒' : '—'}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" align="center">Tidak ada plugin</td></tr>';
+
+  return `<h1>🧩 Plugin Studio</h1>` +
+    (notice ? `<blockquote>${escapeHtml(notice)}</blockquote>` : '<blockquote>Kelola modul bot Anda.</blockquote>') +
+    `<table bordered><caption>📊 Statistik</caption><tr>` +
+    `<td align="center"><b>Total</b><br>${total}</td>` +
+    `<td align="center"><b>Aktif</b><br>${active}</td>` +
+    `<td align="center"><b>Nonaktif</b><br>${Math.max(0, total - active)}</td>` +
+    `</tr></table>` +
+    `<table bordered striped><caption>📋 Plugin · Hal ${currentPage}/${totalPages}</caption>` +
+    `<tr><th>Plugin</th><th>Status</th><th>Guard</th></tr>` +
+    rows +
+    `</table>`;
 }
 
 export function panelSettings(ctx) {
   const session = getUserbotSession(ctx.from.id);
-  return hero('⚙️', 'Settings Center', 'Pusat preferensi bot dan identitas panel.') +
-    kpi('Feature Switch', [
-      ['Anti-PM', badge(session?.anti_pm === 1, 'ON', 'OFF')],
-      ['AFK', badge(session?.auto_reply === 1, 'ON', 'OFF')],
-      ['Session', session ? '✅ Ada' : '🔴 Tidak ada'],
-    ]) +
-    table('Identity', [
-      ['Inline Bot', session?.inline_bot_username ? `@${session.inline_bot_username}` : 'Belum diset'],
-      ['Danger Zone', 'Hapus sesi permanen'],
-    ]);
+  return `<h1>⚙️ Settings</h1>` +
+    `<blockquote>Atur preferensi bot dan identitas.</blockquote>` +
+    `<table bordered><caption>🔀 Feature Switch</caption><tr>` +
+    `<td align="center"><b>Anti-PM</b><br>${badge(session?.anti_pm === 1, '🟢 ON', '🔴 OFF')}</td>` +
+    `<td align="center"><b>AFK</b><br>${badge(session?.auto_reply === 1, '🟢 ON', '🔴 OFF')}</td>` +
+    `<td align="center"><b>Sesi</b><br>${session ? '✅ Ada' : '🔴 Tidak ada'}</td>` +
+    `</tr></table>` +
+    `<table bordered><caption>🆔 Identity</caption>` +
+    `<tr><th>Item</th><th>Detail</th></tr>` +
+    `<tr><td>Inline Bot</td><td align="center">${session?.inline_bot_username ? `@${session.inline_bot_username}` : 'Belum diset'}</td></tr>` +
+    `</table>`;
 }
 
 export function panelRegister(ctx) {
-  return hero('🚀', 'Metode Login', `Halo, ${ctx.from.first_name || 'User'}. Pilih metode login yang paling nyaman.`) +
-    kpi('Login Options', [
-      ['OTP', 'Nomor HP'],
-      ['QR', 'Scan Device'],
-      ['Security', 'Private'],
-    ]) +
-    table('Perbandingan', [
-      ['OTP', 'Kode Telegram via aplikasi/SMS'],
-      ['QR', 'Scan dari Telegram > Devices'],
-      ['Rekomendasi', 'Gunakan akun milik sendiri'],
-    ]) +
-    note('Jangan bagikan OTP, password 2FA, atau session string kepada siapa pun.', 'Keamanan');
+  return `<h1>🚀 Pilih Metode Login</h1>` +
+    `<blockquote>Halo, ${escapeHtml(ctx.from.first_name || 'User')}. Pilih metode login yang paling nyaman.</blockquote>` +
+    `<table bordered><caption>📋 Perbandingan</caption>` +
+    `<tr><th>Metode</th><th>Detail</th></tr>` +
+    `<tr><td>📱 OTP</td><td>Kode Telegram via aplikasi/SMS</td></tr>` +
+    `<tr><td>🔍 QR</td><td>Scan dari Telegram > Devices</td></tr>` +
+    `</table>` +
+    `<p>⚠️ Jangan bagikan OTP, password 2FA, atau session string kepada siapa pun.</p>`;
 }
 
 export function panelSubscription(ctx) {
-  return hero('💎', 'Pilih Paket Langganan', `Halo, ${ctx.from.first_name || 'User'}. Dapatkan akses penuh ke fitur premium.`) +
-    table('Paket Tersedia', [
-      ['🎁 Coba Gratis', '7 Hari (1x klaim per akun)'],
-      ['💎 Premium', '30 Hari - Coming Soon'],
-    ]) +
-    note('Pilih Coba Gratis untuk langsung membuat bot Anda hari ini juga.');
+  return `<h1>💎 Pilih Paket Langganan</h1>` +
+    `<blockquote>Dapatkan akses penuh ke fitur premium.</blockquote>` +
+    `<table bordered><caption>📋 Paket</caption>` +
+    `<tr><th>Paket</th><th>Durasi</th></tr>` +
+    `<tr><td>🎁 Coba Gratis</td><td align="center">7 Hari (1x klaim)</td></tr>` +
+    `<tr><td>💎 Premium</td><td align="center">30 Hari — Soon</td></tr>` +
+    `</table>`;
 }
 
 export function panelAccessDenied(ctx) {
-  return hero('🔒', 'Akses Belum Dibuka', 'Registrasi bot membutuhkan persetujuan owner.') +
-    table('Status Registrasi', [
-      ['Akun', ctx.from.id],
-      ['Status', 'Menunggu approval'],
-      ['Langkah', 'Ajukan permintaan ke owner'],
-    ]);
+  return `<h1>🔒 Akses Belum Dibuka</h1>` +
+    `<blockquote>Registrasi bot membutuhkan persetujuan owner.</blockquote>` +
+    `<table bordered><caption>📋 Status</caption>` +
+    `<tr><th>Item</th><th>Detail</th></tr>` +
+    `<tr><td>Akun</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
+    `<tr><td>Status</td><td align="center">Menunggu approval</td></tr>` +
+    `</table>`;
 }
 
 export function panelAdmin(ctx) {
   const users = getAllRegisteredUsers();
-  return hero('👑', 'Admin Command Center', 'Panel owner untuk operasi server, bot, dan maintenance.') +
-    kpi('Server Snapshot', [
-      ['Bot', users.length],
-      ['Running', userbotManager.clients.size],
-      ['Plugins', loadedPlugins.length],
-    ]) +
-    table('Owner Tools', [
-      ['User Directory', 'Manajemen akun terdaftar'],
-      ['Health', 'Runtime & database status'],
-      ['Backup', 'Export data dan maintenance'],
-    ]) +
-    note('Aksi admin dapat memengaruhi semua userbot. Gunakan dengan hati-hati.');
+  return `<h1>👑 Admin Command Center</h1>` +
+    `<blockquote>Panel owner untuk operasi server dan maintenance.</blockquote>` +
+    `<table bordered><caption>📊 Snapshot</caption><tr>` +
+    `<td align="center"><b>User</b><br>${users.length}</td>` +
+    `<td align="center"><b>Running</b><br>${userbotManager.clients.size}</td>` +
+    `<td align="center"><b>Plugins</b><br>${loadedPlugins.length}</td>` +
+    `</tr></table>`;
 }
 
 export function panelStats(ctx) {
   const users = getAllRegisteredUsers();
-  return hero('📊', 'System Analytics', `Ringkasan performa layanan ${ctx.me?.first_name || 'Bot'}.`) +
-    kpi('Metrics', [
-      ['Bot', users.length],
-      ['Running', userbotManager.clients.size],
-      ['Uptime', `${Math.round(process.uptime() / 60)}m`],
-    ]) +
-    table('Service', [
-      ['Plugins', loadedPlugins.length],
-      ['Mode', 'Modern Dashboard'],
-      ['RAM', 'Disembunyikan'],
-    ]);
+  return `<h1>📊 System Analytics</h1>` +
+    `<blockquote>Ringkasan performa layanan.</blockquote>` +
+    `<table bordered><caption>📊 Metrics</caption><tr>` +
+    `<td align="center"><b>User</b><br>${users.length}</td>` +
+    `<td align="center"><b>Running</b><br>${userbotManager.clients.size}</td>` +
+    `<td align="center"><b>Uptime</b><br>${Math.round(process.uptime() / 60)}m</td>` +
+    `</tr></table>`;
 }
 
 export function panelQuickHelp(ctx) {
-  return hero('❓', 'Quick Guide', 'Panduan singkat navigasi dashboard baru.') +
-    table('Navigasi', [
-      ['Dashboard', 'Kontrol userbot pribadi'],
-      ['Plugin Studio', 'Ringkasan modul'],
-      ['Settings', 'Preferensi & identitas'],
-      ['Health', 'Cek layanan server'],
-    ]) +
-    note('Jika pesan lama masih terlihat, kirim /menu baru agar bot memperbarui tampilan panel utama.');
+  return `<h1>❓ Quick Guide</h1>` +
+    `<blockquote>Panduan singkat navigasi dashboard.</blockquote>` +
+    `<table bordered><caption>📋 Navigasi</caption>` +
+    `<tr><th>Menu</th><th>Fungsi</th></tr>` +
+    `<tr><td>🤖 Dashboard</td><td>Kontrol userbot pribadi</td></tr>` +
+    `<tr><td>🧩 Plugin Studio</td><td>Kelola modul</td></tr>` +
+    `<tr><td>⚙️ Settings</td><td>Preferensi & identitas</td></tr>` +
+    `<tr><td>🩺 Health</td><td>Cek layanan server</td></tr>` +
+    `</table>`;
 }
 
 export function panelDonate(ctx) {
-  return hero('💰', 'Support Project', 'Dukungan membantu pengembangan dan maintenance server.') +
-    table('Channel Donasi', [
-      ['e-Wallet', '0821-xxxx-xxxx'],
-      ['Transfer Bank', '883xxxxxxx'],
-      ['Status', 'Opsional'],
-    ]);
+  return `<h1>💰 Support Project</h1>` +
+    `<blockquote>Dukungan membantu pengembangan dan maintenance server.</blockquote>` +
+    `<table bordered><caption>💳 Channel Donasi</caption>` +
+    `<tr><th>Metode</th><th>Detail</th></tr>` +
+    `<tr><td>e-Wallet</td><td align="center">0821-xxxx-xxxx</td></tr>` +
+    `<tr><td>Transfer Bank</td><td align="center">883xxxxxxx</td></tr>` +
+    `</table>`;
 }
 
 export function panelHealth(mongoStatus = 'Unknown') {
   const users = getAllRegisteredUsers();
   const rows = users.slice(0, 10).map(user => {
-    const running = userbotManager.isRunning(user.telegram_id) ? '🟢 Running' : '🔴 Stopped';
+    const running = userbotManager.isRunning(user.telegram_id) ? '🟢' : '🔴';
     return `<tr><td>${escapeHtml(user.telegram_id)}</td><td align="center">${running}</td><td align="center">${user.is_active === 1 ? 'active' : 'inactive'}</td></tr>`;
-  }).join('') || '<tr><td colspan="3" align="center">Belum ada userbot terdaftar</td></tr>';
+  }).join('') || '<tr><td colspan="3" align="center">Belum ada userbot</td></tr>';
 
-  return hero('🩺', 'Server Health', 'Status runtime, database, dan userbot aktif.') +
-    kpi('Core Status', [
-      ['MongoDB', mongoStatus],
-      ['Running', userbotManager.clients.size],
-      ['Uptime', `${Math.round(process.uptime() / 60)}m`],
-    ]) +
-    table('Runtime', [
-      ['Node', process.version],
-      ['Platform', `${process.platform} ${process.arch}`],
-      ['Plugins', loadedPlugins.length],
-    ]) +
+  return `<h1>🩺 Server Health</h1>` +
+    `<blockquote>Status runtime, database, dan userbot aktif.</blockquote>` +
+    `<table bordered><caption>📊 Core</caption><tr>` +
+    `<td align="center"><b>MongoDB</b><br>${mongoStatus}</td>` +
+    `<td align="center"><b>Running</b><br>${userbotManager.clients.size}</td>` +
+    `<td align="center"><b>Uptime</b><br>${Math.round(process.uptime() / 60)}m</td>` +
+    `</tr></table>` +
+    `<table bordered><caption>⚙️ Runtime</caption>` +
+    `<tr><th>Item</th><th>Detail</th></tr>` +
+    `<tr><td>Node</td><td align="center">${process.version}</td></tr>` +
+    `<tr><td>Platform</td><td align="center">${process.platform} ${process.arch}</td></tr>` +
+    `<tr><td>Plugins</td><td align="center">${loadedPlugins.length}</td></tr>` +
+    `</table>` +
     `<details><summary>Userbot Snapshot</summary>` +
     `<table bordered striped>` +
-    `<tr><th align="center">ID</th><th align="center">Koneksi</th><th align="center">Status</th></tr>` +
+    `<tr><th>ID</th><th>Status</th><th>Aktif</th></tr>` +
     rows +
-    `</table>` +
-    `</details>`;
+    `</table></details>`;
 }
 
+// ==========================================================================
+// SECTION 2 — KEYBOARDS
+// ==========================================================================
+
 export function keyboardMain(ctx) {
-  const botName = ctx.me?.first_name || 'Bot';
-  const rows = [
-    [{ text: '🤖 Userbot', callback_data: 'rich:panel_menu', style: 'primary' }],
-    [{ text: '💰 Donasi', callback_data: 'rich:donate' }]
-  ];
+  const session = getUserbotSession(ctx.from.id);
+  const rows = [];
+
+  if (session) {
+    rows.push([{ text: '🤖 Dashboard Userbot', callback_data: 'rich:ubot', style: 'primary' }]);
+  } else {
+    rows.push([{ text: '🚀 Daftar Sekarang', callback_data: 'rich:subscription', style: 'success' }]);
+  }
+
+  rows.push([
+    { text: '📊 Stats', callback_data: 'rich:stats' },
+    { text: '❓ Bantuan', callback_data: 'rich:guide' },
+  ]);
+
+  if (isOwner(ctx)) {
+    rows.push([{ text: '👑 Panel Admin', callback_data: 'rich:admin', style: 'danger' }]);
+  }
+
+  rows.push([{ text: '💰 Donasi', callback_data: 'rich:donate' }]);
+
   return { inline_keyboard: rows };
 }
 
 export function keyboardPanelMenu(ctx) {
   const session = getUserbotSession(ctx.from.id);
   const rows = [];
-  
+
   if (session) {
     rows.push([{ text: '🤖 Panel Userbot', callback_data: 'rich:ubot' }]);
   } else {
-    rows.push([{ text: '🚀 Register Panel', callback_data: 'rich:subscription' }]);
+    rows.push([{ text: '🚀 Register', callback_data: 'rich:subscription' }]);
   }
-  
+
   if (isOwner(ctx)) {
     rows.push([{ text: '👑 Panel Admin', callback_data: 'rich:admin', style: 'danger' }]);
   }
-  
-  rows.push([{ text: '🔙 Dashboard Utama', callback_data: 'rich:main' }]);
+
+  rows.push([{ text: '🔙 Kembali', callback_data: 'rich:main' }]);
   return { inline_keyboard: rows };
 }
 
@@ -335,8 +332,11 @@ export function keyboardUserbot(ctx) {
   const isRunning = userbotManager.isRunning(ctx.from.id);
   return { inline_keyboard: [
     [{ text: isRunning ? '🔌 Matikan Bot' : '⚡ Hidupkan Bot', callback_data: 'rich:toggle_power' }],
-    [{ text: '🧩 Plugin Studio', callback_data: 'rich:plugin_page:1' }, { text: '⚙️ Settings', callback_data: 'rich:settings' }],
-    [{ text: '🔙 Dashboard Utama', callback_data: 'rich:main' }],
+    [
+      { text: '🧩 Plugin', callback_data: 'rich:plugin_page:1' },
+      { text: '⚙️ Settings', callback_data: 'rich:settings' },
+    ],
+    [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
 
@@ -349,20 +349,20 @@ export function keyboardPluginStudio(ctx, page = 1) {
     const lower = name.toLowerCase();
     const isDisabled = disabledSet.has(lower);
     const protectedPlugin = PROTECTED_PLUGINS.includes(lower);
-    const action = isDisabled ? 'Aktifkan' : 'Nonaktifkan';
-    const label = protectedPlugin ? `${name} · protected` : `${action} ${name}`;
+    const action = isDisabled ? '✅' : '❌';
+    const label = protectedPlugin ? `🔒 ${name}` : `${action} ${name}`;
     return [{ text: label, callback_data: `rich:plugin_toggle:${encodeURIComponent(lower)}:${currentPage}` }];
   });
 
   const nav = [];
-  if (currentPage > 1) nav.push({ text: '⬅️ Prev', callback_data: `rich:plugin_page:${currentPage - 1}` });
-  nav.push({ text: `📄 ${currentPage}/${totalPages}`, callback_data: `rich:plugin_page:${currentPage}` });
-  if (currentPage < totalPages) nav.push({ text: 'Next ➡️', callback_data: `rich:plugin_page:${currentPage + 1}` });
+  if (currentPage > 1) nav.push({ text: '⬅️', callback_data: `rich:plugin_page:${currentPage - 1}` });
+  nav.push({ text: `${currentPage}/${totalPages}`, callback_data: 'rich:noop' });
+  if (currentPage < totalPages) nav.push({ text: '➡️', callback_data: `rich:plugin_page:${currentPage + 1}` });
   rows.push(nav);
+
   rows.push([{ text: '🔙 Dashboard Bot', callback_data: 'rich:ubot' }]);
   return { inline_keyboard: rows };
 }
-
 
 export function keyboardSettings(ctx) {
   const session = getUserbotSession(ctx.from.id);
@@ -371,23 +371,26 @@ export function keyboardSettings(ctx) {
 
   return { inline_keyboard: [
     [{ text: isAntiPm ? '🚫 Anti-PM: 🟢 ON' : '🚫 Anti-PM: 🔴 OFF', callback_data: 'rich:toggle_anti_pm' }],
-    [{ text: isAfk ? '🤖 Auto-Reply (AFK): 🟢 ON' : '🤖 Auto-Reply (AFK): 🔴 OFF', callback_data: 'rich:toggle_afk' }],
-    [{ text: '📝 Ubah Pesan AFK', callback_data: 'rich:edit_afk' }, { text: '⚙️ Vars Config', callback_data: 'rich:edit_vars' }],
-    [{ text: '⚠️ Danger Zone: Hapus Sesi', callback_data: 'rich:danger_delete_session' }],
-    [{ text: '🔙 Kembali', callback_data: 'rich:ubot' }],
+    [{ text: isAfk ? '🤖 AFK: 🟢 ON' : '🤖 AFK: 🔴 OFF', callback_data: 'rich:toggle_afk' }],
+    [
+      { text: '📝 Pesan AFK', callback_data: 'rich:edit_afk' },
+      { text: '⚙️ Vars', callback_data: 'rich:edit_vars' },
+    ],
+    [{ text: '🗑️ Hapus Sesi', callback_data: 'rich:danger_delete_session', style: 'danger' }],
+    [{ text: '🔙 Dashboard Bot', callback_data: 'rich:ubot' }],
   ] };
 }
 
 export function keyboardDangerDelete() {
   return { inline_keyboard: [
-    [{ text: '🗑️ Ya, Hapus Sesi Ini', callback_data: 'rich:confirm_delete_session' }],
+    [{ text: '🗑️ Ya, Hapus Permanen', callback_data: 'rich:confirm_delete_session', style: 'danger' }],
     [{ text: '❌ Batal', callback_data: 'rich:settings' }],
   ] };
 }
 
 export function keyboardRegister() {
   return { inline_keyboard: [
-    [{ text: '📱 Login via OTP', callback_data: 'rich:otp', style: 'success' }, { text: '🔍 Scan QR', callback_data: 'rich:qr', style: 'success' }],
+    [{ text: '📱 Login OTP', callback_data: 'rich:otp', style: 'success' }, { text: '🔍 Scan QR', callback_data: 'rich:qr', style: 'success' }],
     [{ text: '🔙 Kembali', callback_data: 'rich:subscription' }],
   ] };
 }
@@ -395,34 +398,38 @@ export function keyboardRegister() {
 export function keyboardSubscription() {
   return { inline_keyboard: [
     [{ text: '🎁 Coba Gratis (7 Hari)', callback_data: 'rich:claim_trial', style: 'success' }],
-    [{ text: '💎 Beli Premium (Coming Soon)', callback_data: 'rich:buy_premium' }],
-    [{ text: '🔙 Dashboard', callback_data: 'rich:main' }],
+    [{ text: '💎 Premium — Coming Soon', callback_data: 'rich:buy_premium' }],
+    [{ text: '🔙 Menu', callback_data: 'rich:main' }],
   ] };
 }
 
 export function keyboardAdmin() {
   return { inline_keyboard: [
-    [{ text: '👥 User Directory', callback_data: 'rich:admin_users' }],
-    [{ text: '📢 Broadcast', callback_data: 'rich:broadcast' }, { text: '🩺 Health', callback_data: 'rich:health' }],
-    [{ text: '⚙️ System Vars', callback_data: 'rich:edit_system_vars' }, { text: '📦 Backup', callback_data: 'rich:backup' }],
-    [{ text: '🔙 Dashboard', callback_data: 'rich:main' }],
+    [
+      { text: '👥 User Directory', callback_data: 'rich:admin_users' },
+      { text: '🩺 Health', callback_data: 'rich:health' },
+    ],
+    [
+      { text: '⚙️ System Vars', callback_data: 'rich:edit_system_vars' },
+      { text: '📦 Backup', callback_data: 'rich:backup' },
+    ],
+    [{ text: '🔙 Menu', callback_data: 'rich:main' }],
   ] };
 }
 
 export function keyboardBack(target = 'main') {
-  return { inline_keyboard: [[{ text: '🔙 Back', callback_data: `rich:${target}` }]] };
+  return { inline_keyboard: [[{ text: '🔙 Kembali', callback_data: `rich:${target}` }]] };
 }
 
-
 // ==========================================================================
-// SECTION 2 — DASHBOARD HANDLERS  [ex richHandlers.js]
+// SECTION 3 — DASHBOARD HANDLERS
 // ==========================================================================
 
 function styleForButtonText(text = '') {
   const label = String(text).trim();
-  if (label.includes('Mulai') || label.includes('Login')) return 'success';
-  if (label.includes('Dashboard') || label.includes('Command Center')) return 'primary';
-  if (label.includes('Hapus') || label.includes('Cancel') || label.includes('Danger')) return 'danger';
+  if (label.includes('Login') || label.includes('Daftar') || label.includes('Gratis')) return 'success';
+  if (label.includes('Dashboard') || label.includes('Menu')) return 'primary';
+  if (label.includes('Hapus') || label.includes('Danger')) return 'danger';
   return undefined;
 }
 
@@ -454,22 +461,19 @@ async function mongoStatusLabel() {
 async function sendRich(ctx, rich, reply_markup, { deleteOld = false } = {}) {
   if (ctx.inlineMessageId) {
     if (ctx.answerCallbackQuery) {
-      await ctx.answerCallbackQuery({ text: '⚠️ Silakan akses menu ini melalui Private Chat (DM) bot.', show_alert: true }).catch(()=>{});
+      await ctx.answerCallbackQuery({ text: '⚠️ Akses menu ini melalui Private Chat (DM) bot.', show_alert: true }).catch(()=>{});
     }
     return;
   }
   const rich_message = typeof rich === 'string' ? { html: rich } : rich;
   try {
-    await ctx.replyWithRichMessage(
-      rich_message,
-      { reply_markup }
-    );
+    await ctx.replyWithRichMessage(rich_message, { reply_markup });
     if (deleteOld) {
       try { await ctx.deleteMessage(); } catch (_) {}
     }
   } catch (err) {
-    console.warn('sendRichMessage failed:', err.message);
-    await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Rich message gagal dikirim. Coba update Telegram atau kirim /menu lagi.</blockquote>` });
+    Logger.logSystem(`sendRichMessage failed: ${err.message}`, 'WARN');
+    await ctx.replyWithRichMessage({ html: `<blockquote><b>❌</b> Gagal kirim rich message. Kirim /menu lagi.</blockquote>` });
   }
 }
 
@@ -501,9 +505,9 @@ export function registerRichHandlers(bot) {
 
   bot.command(['start', 'menu'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
-      await replyRich(ctx, `🤖 <b>${ctx.me.first_name} Aktif!</b>\n\nSilakan kirim pesan secara privat (PM) kepada saya untuk mengelola Bot Anda.`, {
+      await replyRich(ctx, `🤖 <b>${ctx.me.first_name} Aktif!</b>\n\nSilakan kirim pesan secara privat (PM) untuk mengelola bot Anda.`, {
         reply_markup: {
-          inline_keyboard: [[{ text: 'Buka Private Chat', url: `https://t.me/${ctx.me.username}?start=true` }]]
+          inline_keyboard: [[{ text: '💬 Buka Private Chat', url: `https://t.me/${ctx.me.username}?start=true` }]]
         }
       });
       return;
@@ -520,28 +524,24 @@ export function registerRichHandlers(bot) {
     const telegramId = ctx.from.id;
     const session = getUserbotSession(telegramId);
     if (!session) {
-      return ctx.reply('❌ Anda belum memiliki sesi bot yang aktif di sistem.');
+      return ctx.reply('❌ Anda belum memiliki sesi bot yang aktif.');
     }
-    
-    await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Memproses penghapusan sesi dan logout dari Telegram...</blockquote>` });
-    
-    // Attempt remote logout
+
+    await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Menghapus sesi dan logout...</blockquote>` });
+
     try {
       const ubot = userbotManager.clients.get(telegramId);
       if (ubot && ubot.client) {
         await ubot.client.call({ _: 'auth.logOut' });
       }
     } catch (e) {
-      console.log(`Failed to logout remotely for ${telegramId}:`, e.message);
+      Logger.logUser(telegramId, `Failed to logout remotely: ${e.message}`, 'WARN');
     }
 
-    // Stop bot locally
     await userbotManager.stopUserbot(telegramId);
-    
-    // Delete from database
     await deleteUserbot(telegramId);
-    
-    await ctx.replyWithRichMessage({ html: `<blockquote><b>✅ BERHASIL</b><br>Sesi Anda telah berhasil dihapus sepenuhnya (Revoked).\n\nKetik /daftar kembali jika ingin mendaftar ulang.</blockquote>` });
+
+    await ctx.replyWithRichMessage({ html: `<blockquote><b>✅ Berhasil</b>\nSesi dihapus sepenuhnya. Ketik /menu untuk mendaftar ulang.</blockquote>` });
   });
 
   bot.callbackQuery(/^rich:(.+)$/, async (ctx) => {
@@ -549,17 +549,19 @@ export function registerRichHandlers(bot) {
     try { await ctx.answerCallbackQuery(); } catch (_) {}
 
     if (action === 'main') return openMain(ctx, { deleteOld: true });
+    if (action === 'noop') return;
+
     if (action === 'panel_menu') return sendRich(ctx, panelMenuList(ctx), keyboardPanelMenu(ctx), { deleteOld: true });
-    
+
     if (action === 'ubot') {
       try {
-        const thinking = await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Mengambil data sensor Userbot...</blockquote>` });
+        const thinking = await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Memuat data...</blockquote>` });
         await sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { deleteOld: true });
         if (thinking && thinking.message_id) {
           await ctx.api.deleteMessage(ctx.chat?.id || ctx.callbackQuery?.message?.chat?.id, thinking.message_id).catch(()=>{});
         }
       } catch (err) {
-        console.warn('Thinking error:', err.message);
+        Logger.logSystem(`Thinking error: ${err.message}`, 'WARN');
         await sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { deleteOld: true });
       }
       return;
@@ -574,23 +576,24 @@ export function registerRichHandlers(bot) {
       if (isRunning) {
         await ctx.answerCallbackQuery('Mematikan Bot...');
         await userbotManager.stopUserbot(telegramId);
-        updateUserbotStatus(telegramId, false); // Optional: if status is tracked
+        updateUserbotStatus(telegramId, false);
       } else {
         await ctx.answerCallbackQuery('Menghidupkan Bot...');
         try {
           await userbotManager.startUserbot(telegramId, session.session_string);
           updateUserbotStatus(telegramId, true);
         } catch (err) {
-          return ctx.reply(`❌ Gagal menghidupkan Bot: ${err.message}`);
+          return ctx.reply(`❌ Gagal menghidupkan: ${err.message}`);
         }
       }
       return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { deleteOld: true });
     }
-    if (action === 'plugins') return openPluginStudio(ctx, 1, '', { deleteOld: true });
+
     if (action.startsWith('plugin_page:')) {
       const page = Number(action.split(':')[1] || 1);
       return openPluginStudio(ctx, page, '', { deleteOld: true });
     }
+
     if (action.startsWith('plugin_toggle:')) {
       const [, rawName, rawPage] = action.split(':');
       const page = Number(rawPage || 1);
@@ -605,7 +608,7 @@ export function registerRichHandlers(bot) {
       const isDisabled = disabled.includes(lower);
 
       if (!isDisabled && protectedPlugins.includes(lower)) {
-        return openPluginStudio(ctx, page, `Plugin protected tidak bisa dimatikan: ${pluginName}`, { deleteOld: true });
+        return openPluginStudio(ctx, page, `Plugin protected: ${pluginName}`, { deleteOld: true });
       }
 
       if (isDisabled) {
@@ -616,81 +619,79 @@ export function registerRichHandlers(bot) {
       await disablePlugin(ctx.from.id, pluginName);
       return openPluginStudio(ctx, page, pluginNotice(pluginName, false), { deleteOld: true });
     }
-        if (action === 'settings') return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });
-    
+
+    if (action === 'settings') return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });
+
     if (action === 'toggle_anti_pm') {
       const session = getUserbotSession(ctx.from.id);
       if (!session) return ctx.answerCallbackQuery('Sesi tidak ditemukan.');
       const newStatus = session.anti_pm === 1 ? 0 : 1;
       await updateUserbotFeature(ctx.from.id, 'anti_pm', newStatus);
-      await ctx.answerCallbackQuery(`Anti-PM diubah menjadi ${newStatus === 1 ? 'ON' : 'OFF'}`);
+      await ctx.answerCallbackQuery(`Anti-PM: ${newStatus === 1 ? 'ON' : 'OFF'}`);
       return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });
     }
-    
+
     if (action === 'toggle_afk') {
       const session = getUserbotSession(ctx.from.id);
       if (!session) return ctx.answerCallbackQuery('Sesi tidak ditemukan.');
       const newStatus = session.auto_reply === 1 ? 0 : 1;
       await updateUserbotFeature(ctx.from.id, 'auto_reply', newStatus);
-      await ctx.answerCallbackQuery(`Auto-Reply (AFK) diubah menjadi ${newStatus === 1 ? 'ON' : 'OFF'}`);
+      await ctx.answerCallbackQuery(`AFK: ${newStatus === 1 ? 'ON' : 'OFF'}`);
       return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });
     }
-    
+
     if (action === 'edit_afk') {
       await ctx.answerCallbackQuery();
       return ctx.conversation.enter('afk-reason-conv');
     }
-    
+
     if (action === 'edit_vars') {
       await ctx.answerCallbackQuery();
       return ctx.conversation.enter('manage-vars-conv');
     }
-    
+
     if (action === 'danger_delete_session') {
       await ctx.answerCallbackQuery();
-      const text = `🔺 <b>U S E R B O T</b> 🔺\n────────────────────────\n⚠️ <b>KONFIRMASI PENGHAPUSAN SESI</b>\n\nTindakan ini akan mematikan bot dan menghapus session string dari database.\n\nJika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Bot</b>, bukan hapus sesi.`;
+      const text = `🔺 <b>KONFIRMASI HAPUS SESI</b>\n\nTindakan ini akan mematikan bot dan menghapus session string dari database.\n\nJika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Bot</b>.`;
       return sendRich(ctx, text, keyboardDangerDelete(), { deleteOld: true });
     }
-    
+
     if (action === 'confirm_delete_session') {
       await ctx.answerCallbackQuery('Menghapus sesi...');
       const telegramId = ctx.from.id;
-      
+
       try {
         const ubot = userbotManager.clients.get(telegramId);
         if (ubot && ubot.client) {
           await ubot.client.invoke(new Api.auth.LogOut());
         }
       } catch (e) {
-        console.log(`Failed to logout remotely for ${telegramId}:`, e.message);
+        Logger.logUser(telegramId, `Failed to logout: ${e.message}`, 'WARN');
       }
 
       if (userbotManager.isRunning(telegramId)) {
         await userbotManager.stopUserbot(telegramId);
       }
       await deleteUserbot(telegramId);
-      await ctx.replyWithRichMessage({ html: `<blockquote>🗑️ <b>Sesi berhasil dihapus secara permanen dari server Telegram dan database.</b></blockquote>` });
+      await ctx.replyWithRichMessage({ html: `<blockquote>🗑️ <b>Sesi dihapus permanen.</b></blockquote>` });
       return openMain(ctx, { deleteOld: true });
     }
 
     if (action === 'subscription') return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(), { deleteOld: true });
     if (action === 'register') return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { deleteOld: true });
-    
+
     if (action === 'claim_trial') {
       await ctx.answerCallbackQuery();
       const claimed = hasClaimedTrial(ctx.from.id);
       if (claimed) {
-        return ctx.reply('❌ Anda sudah pernah menggunakan batas percobaan gratis (Trial 7 Hari). Silakan tunggu hingga paket Premium dirilis untuk memperpanjang sesi Anda.');
+        return ctx.reply('❌ Anda sudah pernah klaim trial gratis.');
       }
       setTrialClaimed(ctx.from.id);
       return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { deleteOld: true });
     }
-    
+
     if (action === 'buy_premium') {
-      return ctx.answerCallbackQuery({
-        text: '⏳ Fitur ini masih dalam tahap pengembangan (Coming Soon).',
-        show_alert: true
-      });
+      return ctx.answerCallbackQuery({ text: '⏳ Coming Soon.', show_alert: true });
     }
 
     if (action === 'stats') return sendRich(ctx, panelStats(ctx), keyboardBack('main'), { deleteOld: true });
@@ -713,12 +714,12 @@ export function registerRichHandlers(bot) {
     if (action === 'admin_users') {
       if (!isOwner(ctx)) return;
       const users = getAllRegisteredUsers();
-      const rows = users.slice(0, 10).map(u => `${u.telegram_id} · ${u.is_active === 1 ? 'active' : 'inactive'}`).join('\n') || 'Belum ada user.';
+      const rows = users.slice(0, 10).map(u => `${u.telegram_id} · ${u.is_active === 1 ? '✅' : '❌'}`).join('\n') || 'Belum ada user.';
       return ctx.reply(`👥 User Directory\n\n${rows}`);
     }
     if (action === 'backup') {
       if (!isOwner(ctx)) return;
-      return ctx.reply('Gunakan command owner:\\n/backup — backup database\\n/stats_db — statistik database');
+      return ctx.reply('Gunakan: /backup — backup database\n/stats_db — statistik database');
     }
     if (action === 'otp') return ctx.conversation.enter('otp-reg');
     if (action === 'qr') return ctx.conversation.enter('qr-reg');

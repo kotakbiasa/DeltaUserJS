@@ -1,3 +1,5 @@
+import { Logger } from '../../../utils/logger.js';
+
 export default {
   name: 'id',
   help: {
@@ -38,7 +40,7 @@ export default {
           });
         }
       } catch (err) {
-        console.error('Error in id plugin:', err);
+        Logger.logUser(telegramId, `Error in id plugin: ${err}`, 'ERROR');
       }
     }
   }

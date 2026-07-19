@@ -1,5 +1,6 @@
 import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 
 export default {
   name: 'admin',
@@ -87,10 +88,10 @@ export default {
           });
         }
       } catch (err) {
-        console.error(`Error in admin plugin (${cmd}):`, err.message);
-        await message.edit({ 
-          text: `<blockquote>❌ <b>Gagal melakukan ${escapeHtml(cmd)}:</b>\n<i>${escapeHtml(err.message)}</i>\n\n(Pastikan Anda adalah Admin dengan hak yang cukup)</blockquote>`, 
-          parseMode: 'html' 
+        Logger.logUser(telegramId, `Error in admin plugin (${cmd}): ${err.message}`, 'ERROR');
+        await message.edit({
+          text: `<blockquote>❌ <b>Gagal melakukan ${escapeHtml(cmd)}:</b>\n<i>${escapeHtml(err.message)}</i>\n\n(Pastikan Anda adalah Admin dengan hak yang cukup)</blockquote>`,
+          parseMode: 'html'
         });
       }
     }

@@ -4,6 +4,7 @@ import util from 'util';
 import config from '../../../config.js';
 import { formatUptimeAlt, formatBytes } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { Logger } from '../../../utils/logger.js';
 
 const execAsync = util.promisify(exec);
 
@@ -125,7 +126,7 @@ export default {
         parseMode: 'html'
       });
     } catch (err) {
-      console.error('Error in sysinfo plugin:', err);
+      Logger.logUser(telegramId, `Error in sysinfo plugin: ${err}`, 'ERROR');
       await message.edit({
         text: `❌ <b>Gagal mengambil informasi sistem:</b>\n<code>${escapeHtml(err.message)}</code>`,
         parseMode: 'html'
