@@ -65,6 +65,14 @@ export async function afkReasonConversation(conversation, ctx) {
     }
 }
 /**
+ * User Vars — template var yang tersedia (tabel panduan).
+ */
+const USER_VAR_TEMPLATE = [
+    { key: 'INLINE_BOT_TOKEN', desc: 'Token bot inline (validasi via getMe)' },
+    { key: 'LOG_CHAT_ID', desc: 'Chat ID tujuan log userbot' },
+    { key: 'PREFIX', desc: 'Prefix perintah (default: .)' },
+];
+/**
  * Conversation to manage generic user vars (Vars Config)
  */
 export async function manageVarsConv(conversation, ctx) {
@@ -91,15 +99,27 @@ export async function manageVarsConv(conversation, ctx) {
                 const db = await import('../../infrastructure/database.js');
                 return db.getAllUserVars(telegramId);
             });
-            // Tabel rapi + spoiler nilai
+            // Tabel nilai aktif + spoiler
             const varRows = Object.entries(currentVars)
                 .map(([k, v], i) => `<tr><td align="center">${i + 1}</td><td><code>${k}</code></td><td align="center"><tg-spoiler><code>${String(v)}</code></tg-spoiler></td></tr>`)
                 .join('');
             const varTable = varRows
                 ? `<table bordered striped><caption>📋 Variabel Aktif</caption><tr><th>#</th><th>Kunci</th><th>Nilai</th></tr>${varRows}</table>`
                 : `<blockquote><i>Belum ada variabel yang diatur.</i></blockquote>`;
+            // Tabel template yang tersedia
+            const tplRows = USER_VAR_TEMPLATE.map((v, i) => {
+                const hasValue = currentVars[v.key] !== undefined && String(currentVars[v.key]) !== '';
+                return `<tr><td align="center">${i + 1}</td><td>${hasValue ? '🟢' : '⚪'} <code>${v.key}</code></td><td>${v.desc}</td></tr>`;
+            }).join('');
             // Kirim menu utama vars
-            const menuMsg = await replyRich(ctx, `<h1>⚙️ Pengaturan Variabel (Vars)</h1><blockquote>Daftar variabel Anda saat ini — nilai tersembunyi, tap untuk melihat.</blockquote>${varTable}\n\nPilih tombol di bawah untuk menambah, mengubah, atau menghapus variabel.`, { reply_markup: buildVarsKeyboard(currentVars) });
+            const menuMsg = await replyRich(ctx, `<h1>⚙️ Pengaturan Variabel (Vars)</h1>` +
+                `<blockquote>Kelola variabel khusus untuk userbot Anda. Nilai tersembunyi (spoiler) — tap untuk melihat.</blockquote>` +
+                `<table bordered striped><caption>📋 Template Variabel</caption>` +
+                `<tr><th>#</th><th>Variabel</th><th>Fungsi</th></tr>` +
+                tplRows +
+                `</table>` +
+                varTable +
+                `<p>Pilih tombol di bawah untuk menambah, mengubah, atau menghapus variabel.</p>`, { reply_markup: buildVarsKeyboard(currentVars) });
             // Tunggu input callback_query
             const result = await conversation.waitFor('callback_query:data');
             const data = result.callbackQuery.data;
