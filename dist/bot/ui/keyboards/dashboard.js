@@ -7,6 +7,7 @@ import config from '../../../config.js';
 import { replyRich, escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { getUserbotSession, getAllRegisteredUsers, getDisabledPlugins, updateUserbotStatus, disablePlugin, enablePlugin, deleteUserbot, updateUserbotFeature, hasClaimedTrial, setTrialClaimed, } from '../../../infrastructure/database.js';
+import { systemConfigCache } from '../../../infrastructure/dbCore.js';
 import { loadedPlugins } from '../../../userbot/engine/pluginRegistry.js';
 import userbotManager from '../../../userbot/engine/manager.js';
 // ==========================================================================
@@ -149,6 +150,7 @@ export function panelPlugins(ctx, page = 1, notice = '') {
 }
 export function panelSettings(ctx) {
     const session = getUserbotSession(ctx.from.id);
+    const afkReason = session?.afk_reason || 'AFK (default)';
     return `<h1>⚙️ Settings</h1>` +
         `<blockquote>Atur preferensi bot dan identitas.</blockquote>` +
         `<table bordered striped><caption>🔀 Feature Switch</caption><tr>` +
@@ -160,6 +162,7 @@ export function panelSettings(ctx) {
         `<tr><th>Item</th><th>Detail</th></tr>` +
         `<tr><td>Nama Bot</td><td align="center">${escapeHtml(session?.custom_name || '—')}</td></tr>` +
         `<tr><td>Inline Bot</td><td align="center">${session?.inline_bot_username ? `@${session.inline_bot_username}` : 'Belum diset'}</td></tr>` +
+        `<tr><td>💬 AFK Reason</td><td align="center"><tg-spoiler><code>${escapeHtml(afkReason)}</code></tg-spoiler></td></tr>` +
         `</table>`;
 }
 export function panelRegister(ctx) {
@@ -172,13 +175,21 @@ export function panelRegister(ctx) {
         `</table>` +
         `<blockquote>⚠️ <b>Peringatan:</b> Jangan bagikan OTP, password 2FA, atau session string kepada siapa pun.</blockquote>`;
 }
+function getSystemVarValue(key, fallback) {
+    return String(systemConfigCache.vars?.[key] ?? '') || fallback;
+}
+function getSystemVarNum(key, fallback) {
+    return Number(systemConfigCache.vars?.[key]) || fallback;
+}
 export function panelSubscription(_ctx) {
+    const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
+    const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
     return `<h1>💎 Pilih Paket Langganan</h1>` +
         `<blockquote>Dapatkan akses penuh ke fitur premium.</blockquote>` +
         `<table bordered striped><caption>📋 Paket</caption>` +
         `<tr><th>Paket</th><th>Durasi</th></tr>` +
-        `<tr><td>🎁 Coba Gratis</td><td align="center">7 Hari (1x klaim)</td></tr>` +
-        `<tr><td>💎 Premium</td><td align="center">30 Hari — Soon</td></tr>` +
+        `<tr><td>🎁 Coba Gratis</td><td align="center">${trialDays} Hari (1x klaim)</td></tr>` +
+        `<tr><td>💎 Premium</td><td align="center">${premiumDays} Hari — Soon</td></tr>` +
         `</table>`;
 }
 export function panelAccessDenied(ctx) {
@@ -288,23 +299,23 @@ export function keyboardMain(ctx) {
         rows.push([{ text: '🚀 Daftar Sekarang', callback_data: 'rich:subscription', style: 'success' }]);
     }
     rows.push([
-        { text: '📊 Stats', callback_data: 'rich:stats' },
-        { text: '❓ Bantuan', callback_data: 'rich:guide' },
+        { text: '📊 Stats', callback_data: 'rich:stats', style: 'primary' },
+        { text: '❓ Bantuan', callback_data: 'rich:guide', style: 'primary' },
     ]);
     if (isOwner(ctx)) {
         rows.push([{ text: '👑 Panel Admin', callback_data: 'rich:admin', style: 'danger' }]);
     }
-    rows.push([{ text: '💰 Donasi', callback_data: 'rich:donate' }]);
+    rows.push([{ text: '💰 Donasi', callback_data: 'rich:donate', style: 'primary' }]);
     return { inline_keyboard: rows };
 }
 export function keyboardPanelMenu(ctx) {
     const session = getUserbotSession(ctx.from.id);
     const rows = [];
     if (session) {
-        rows.push([{ text: '🤖 Panel Userbot', callback_data: 'rich:ubot' }]);
+        rows.push([{ text: '🤖 Panel Userbot', callback_data: 'rich:ubot', style: 'primary' }]);
     }
     else {
-        rows.push([{ text: '🚀 Register', callback_data: 'rich:subscription' }]);
+        rows.push([{ text: '🚀 Register', callback_data: 'rich:subscription', style: 'success' }]);
     }
     if (isOwner(ctx)) {
         rows.push([{ text: '👑 Panel Admin', callback_data: 'rich:admin', style: 'danger' }]);
@@ -315,7 +326,7 @@ export function keyboardPanelMenu(ctx) {
 export function keyboardUserbot(ctx) {
     const isRunning = userbotManager.isRunning(ctx.from.id);
     return { inline_keyboard: [
-            [{ text: isRunning ? '🔌 Matikan Bot' : '⚡ Hidupkan Bot', callback_data: 'rich:toggle_power' }],
+            [{ text: isRunning ? '🔌 Matikan Bot' : '⚡ Hidupkan Bot', callback_data: 'rich:toggle_power', style: isRunning ? 'danger' : 'success' }],
             [
                 { text: '🧩 Plugin', callback_data: 'rich:plugin_page:1' },
                 { text: '⚙️ Settings', callback_data: 'rich:settings' },
@@ -353,8 +364,8 @@ export function keyboardSettings(ctx) {
     const isAntiPm = session?.anti_pm === 1;
     const isAfk = session?.auto_reply === 1;
     return { inline_keyboard: [
-            [{ text: isAntiPm ? '🚫 Anti-PM: 🟢 ON' : '🚫 Anti-PM: 🔴 OFF', callback_data: 'rich:toggle_anti_pm' }],
-            [{ text: isAfk ? '🤖 AFK: 🟢 ON' : '🤖 AFK: 🔴 OFF', callback_data: 'rich:toggle_afk' }],
+            [{ text: isAntiPm ? '🚫 Anti-PM: 🟢 ON' : '🚫 Anti-PM: 🔴 OFF', callback_data: 'rich:toggle_anti_pm', style: isAntiPm ? 'primary' : 'default' }],
+            [{ text: isAfk ? '🤖 AFK: 🟢 ON' : '🤖 AFK: 🔴 OFF', callback_data: 'rich:toggle_afk', style: isAfk ? 'primary' : 'default' }],
             [
                 { text: '📝 Pesan AFK', callback_data: 'rich:edit_afk' },
                 { text: '⚙️ Vars', callback_data: 'rich:edit_vars' },
@@ -366,7 +377,7 @@ export function keyboardSettings(ctx) {
 export function keyboardDangerDelete() {
     return { inline_keyboard: [
             [{ text: '🗑️ Ya, Hapus Permanen', callback_data: 'rich:confirm_delete_session', style: 'danger' }],
-            [{ text: '❌ Batal', callback_data: 'rich:settings' }],
+            [{ text: '❌ Batal', callback_data: 'rich:settings', style: 'primary' }],
         ] };
 }
 export function keyboardRegister() {
@@ -376,21 +387,22 @@ export function keyboardRegister() {
         ] };
 }
 export function keyboardSubscription() {
+    const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
     return { inline_keyboard: [
             [{ text: '🎁 Coba Gratis (7 Hari)', callback_data: 'rich:claim_trial', style: 'success' }],
-            [{ text: '💎 Premium — Coming Soon', callback_data: 'rich:buy_premium' }],
+            [{ text: `💎 Premium ${premiumDays} Hari`, callback_data: 'rich:buy_premium', style: 'primary' }],
             [{ text: '🔙 Menu', callback_data: 'rich:main' }],
         ] };
 }
 export function keyboardAdmin() {
     return { inline_keyboard: [
             [
-                { text: '👥 User Directory', callback_data: 'rich:admin_users' },
-                { text: '🩺 Health', callback_data: 'rich:health' },
+                { text: '👥 User Directory', callback_data: 'rich:admin_users', style: 'primary' },
+                { text: '🩺 Health', callback_data: 'rich:health', style: 'primary' },
             ],
             [
-                { text: '⚙️ System Vars', callback_data: 'rich:edit_system_vars' },
-                { text: '📦 Backup', callback_data: 'rich:backup' },
+                { text: '⚙️ System Vars', callback_data: 'rich:edit_system_vars', style: 'primary' },
+                { text: '📦 Backup', callback_data: 'rich:backup', style: 'primary' },
             ],
             [{ text: '🔙 Menu', callback_data: 'rich:main' }],
         ] };
@@ -711,8 +723,13 @@ export function registerRichHandlers(bot) {
                 return;
             }
             const users = getAllRegisteredUsers();
-            const rows = users.slice(0, 10).map(u => `<tr><td><code>${u.telegram_id}</code></td><td align="center">${u.is_active === 1 ? '✅' : '❌'}</td></tr>`).join('') || '<tr><td colspan="2" align="center">Belum ada user.</td></tr>';
-            return ctx.replyWithRichMessage({ html: `<h1>👥 User Directory</h1><table bordered striped><tr><th>ID</th><th>Aktif</th></tr>${rows}</table>` });
+            const rows = users.slice(0, 20).map(u => {
+                const running = userbotManager.isRunning(u.telegram_id);
+                const status = running ? '🟢' : (u.is_active === 1 ? '🟡' : '🔴');
+                const expiry = u.expired_at ? new Date(u.expired_at).toLocaleDateString() : '♾️';
+                return `<tr><td align="center">${status}</td><td><code>${u.telegram_id}</code></td><td align="center">${u.is_active === 1 ? '✅' : '❌'}</td><td align="center">${u.custom_name || '—'}</td><td align="center">${expiry}</td></tr>`;
+            }).join('') || '<tr><td colspan="5" align="center">Belum ada user</td></tr>';
+            return ctx.replyWithRichMessage({ html: `<h1>👥 User Directory</h1><blockquote>Total: ${users.length} user terdaftar</blockquote><table bordered striped><tr><th>St</th><th>ID</th><th>Aktif</th><th>Nama</th><th>Expired</th></tr>${rows}</table>` });
         }
         if (action === 'backup') {
             if (!isOwner(ctx)) {
