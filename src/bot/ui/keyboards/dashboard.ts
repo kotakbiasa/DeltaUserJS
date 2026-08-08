@@ -511,7 +511,7 @@ export function registerRichHandlers(bot) {
     const telegramId = ctx.from.id;
     const session = getUserbotSession(telegramId);
     if (!session) {
-      return ctx.reply('❌ Anda belum memiliki sesi bot yang aktif.');
+      return ctx.replyWithRichMessage({ html: `<blockquote>❌ Anda belum memiliki sesi bot yang aktif.</blockquote>` });
     }
 
     await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Menghapus sesi dan logout...</blockquote>` });
@@ -570,7 +570,7 @@ export function registerRichHandlers(bot) {
           await userbotManager.startUserbot(telegramId, session.session_string);
           updateUserbotStatus(telegramId, true);
         } catch (err) {
-          return ctx.reply(`❌ Gagal menghidupkan: ${err.message}`);
+          return ctx.replyWithRichMessage({ html: `<blockquote>❌ <b>Gagal menghidupkan:</b> ${escapeHtml(err.message)}</blockquote>` });
         }
       }
       return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { deleteOld: true });
@@ -671,7 +671,7 @@ export function registerRichHandlers(bot) {
       await ctx.answerCallbackQuery();
       const claimed = hasClaimedTrial(ctx.from.id);
       if (claimed) {
-        return ctx.reply('❌ Anda sudah pernah klaim trial gratis.');
+        return ctx.replyWithRichMessage({ html: `<blockquote>❌ Anda sudah pernah klaim trial gratis.</blockquote>` });
       }
       setTrialClaimed(ctx.from.id);
       return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { deleteOld: true });
@@ -701,12 +701,12 @@ export function registerRichHandlers(bot) {
     if (action === 'admin_users') {
       if (!isOwner(ctx)) {return;}
       const users = getAllRegisteredUsers();
-      const rows = users.slice(0, 10).map(u => `${u.telegram_id} · ${u.is_active === 1 ? '✅' : '❌'}`).join('\n') || 'Belum ada user.';
-      return ctx.reply(`👥 User Directory\n\n${rows}`);
+      const rows = users.slice(0, 10).map(u => `<tr><td><code>${u.telegram_id}</code></td><td align="center">${u.is_active === 1 ? '✅' : '❌'}</td></tr>`).join('') || '<tr><td colspan="2" align="center">Belum ada user.</td></tr>';
+      return ctx.replyWithRichMessage({ html: `<h1>👥 User Directory</h1><table bordered striped><tr><th>ID</th><th>Aktif</th></tr>${rows}</table>` });
     }
     if (action === 'backup') {
       if (!isOwner(ctx)) {return;}
-      return ctx.reply('Gunakan: /backup — backup database\n/stats_db — statistik database');
+      return ctx.replyWithRichMessage({ html: `<blockquote>Gunakan: <code>/backup</code> — backup database\n<code>/stats_db</code> — statistik database</blockquote>` });
     }
     if (action === 'otp') {return ctx.conversation.enter('otp-reg');}
     if (action === 'qr') {return ctx.conversation.enter('qr-reg');}
