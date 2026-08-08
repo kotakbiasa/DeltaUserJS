@@ -147,7 +147,14 @@ export async function otpRegistrationConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
 
   try {
-    await replyRich(ctx, `<h1>📱 Pendaftaran via OTP dimulai.</h1><blockquote>Silakan kirimkan nomor HP Anda dalam format internasional (contoh: <code>+628123456789</code>).</blockquote>`, { reply_markup: cancelKeyboard, });
+    await replyRich(ctx, `<h1>📱 Pendaftaran via OTP</h1>` +
+      `<table bordered striped><caption>📋 Langkah</caption>` +
+      `<tr><th>#</th><th>Aksi</th></tr>` +
+      `<tr><td align="center">1</td><td>Kirim nomor HP (format internasional)</td></tr>` +
+      `<tr><td align="center">2</td><td>Masukkan kode OTP yang diterima</td></tr>` +
+      `<tr><td align="center">3</td><td>Selesai — userbot aktif 🎉</td></tr>` +
+      `</table>` +
+      `<blockquote>Silakan kirimkan nomor HP Anda dalam format internasional, contoh: <code>+628123456789</code></blockquote>`, { reply_markup: cancelKeyboard, });
 
     // Step 1: Wait for phone number
     let phoneNumber;
@@ -225,8 +232,19 @@ export async function otpRegistrationConversation(conversation, ctx) {
       const prefix = isRetry ? '🔄 <b>Kode baru telah dikirim!</b>\n\n' : '';
       const antiShareTip = '\n\n🛡️ <b>PENTING:</b> Ketik kode dengan <b>spasi</b> antar digit agar tidak diblokir Telegram.\n<i>Contoh: kode <code>12345</code> → ketik <code>1 2 3 4 5</code></i>';
       const info = viaApp
-        ? '📱 <b>Kode dikirim via Aplikasi Telegram</b>\n\n<blockquote>Buka aplikasi <b>Telegram</b> di HP Anda → cari chat <b>"Telegram"</b> (✓ centang biru).\n\n⚠️ <i>Kode berlaku <b>2 menit</b>. Jika tidak muncul, klik "Kirim Ulang via SMS".</i></blockquote>'
-        : '💬 <b>Kode dikirim via SMS</b>\n\n<blockquote>Cek SMS di nomor <code>' + phoneNumber + '</code>.\n\n⚠️ <i>Kode berlaku <b>2 menit</b>. Segera masukkan!</i></blockquote>';
+        ? `<table bordered striped><caption>📱 Kode via Aplikasi Telegram</caption>` +
+          `<tr><th>Langkah</th><th>Aksi</th></tr>` +
+          `<tr><td>1</td><td>Buka aplikasi <b>Telegram</b> di HP</td></tr>` +
+          `<tr><td>2</td><td>Cari chat <b>"Telegram"</b> (✓ centang biru)</td></tr>` +
+          `<tr><td>3</td><td>Salin kode 5 digit dari chat tsb</td></tr>` +
+          `</table>` +
+          `<blockquote>⚠️ Kode berlaku <b>2 menit</b>. Jika tidak muncul, klik "Kirim Ulang via SMS".</blockquote>`
+        : `<table bordered striped><caption>💬 Kode via SMS</caption>` +
+          `<tr><th>Langkah</th><th>Aksi</th></tr>` +
+          `<tr><td>1</td><td>Cek SMS di nomor <code>${phoneNumber}</code></td></tr>` +
+          `<tr><td>2</td><td>Salin kode 5 digit dari SMS</td></tr>` +
+          `</table>` +
+          `<blockquote>⚠️ Kode berlaku <b>2 menit</b>. Segera masukkan!</blockquote>`;
       await replyRich(ctx, prefix + info + antiShareTip + '\n\nKirimkan kode OTP di sini:', { reply_markup: buildOtpKeyboard(viaApp) });
     };
 
@@ -417,14 +435,20 @@ export async function otpRegistrationConversation(conversation, ctx) {
     // Session string sudah didapat dari dalam external() di atas
     await saveUserbotSession(telegramId, phoneNumber, sessionString);
 
-    await replyRich(ctx, `<h1>✨ Selamat! Pendaftaran Userbot Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
+    await replyRich(ctx, `<h1>✨ Pendaftaran Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
       await userbotManager.startUserbot(telegramId, sessionString);
     });
 
-    await replyRich(ctx, `<h1>🟢 Userbot Anda sekarang AKTIF!</h1><blockquote>Coba kirimkan pesan <code>.ping</code> di chat mana pun menggunakan akun Telegram Anda, userbot akan otomatis membalasnya dengan <b>Pong</b>.</blockquote>`, {  });
+    await replyRich(ctx, `<h1>🟢 Userbot AKTIF!</h1>` +
+      `<table bordered striped><caption>🎉 Akun Berhasil Didaftarkan</caption>` +
+      `<tr><th>Item</th><th>Detail</th></tr>` +
+      `<tr><td>Status</td><td align="center">🟢 Aktif</td></tr>` +
+      `<tr><td>ID</td><td align="center"><code>${telegramId}</code></td></tr>` +
+      `</table>` +
+      `<blockquote>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</blockquote>`, {  });
 
   } catch (error) {
     const isCancelled = error.message === 'USER_CANCELLED' || 
@@ -455,7 +479,14 @@ export async function qrRegistrationConversation(conversation, ctx) {
   const chatId = ctx.chat.id;
 
   try {
-    await replyRich(ctx, `<h1>🔍 Pendaftaran via Scan QR Code dimulai.</h1><blockquote>Menghubungkan ke server Telegram untuk membuat QR Code...\n\n⏱️ QR Code akan muncul dalam beberapa detik. Anda punya waktu <b>2 menit</b> untuk memindai.</blockquote>`, { reply_markup: cancelKeyboard, });
+    await replyRich(ctx, `<h1>🔍 Pendaftaran via Scan QR Code</h1>` +
+      `<table bordered striped><caption>📋 Langkah</caption>` +
+      `<tr><th>#</th><th>Aksi</th></tr>` +
+      `<tr><td align="center">1</td><td>QR Code muncul di bawah</td></tr>` +
+      `<tr><td align="center">2</td><td>Buka Telegram → Settings → Devices</td></tr>` +
+      `<tr><td align="center">3</td><td>Scan QR → userbot aktif 🎉</td></tr>` +
+      `</table>` +
+      `<blockquote>⏱️ Anda punya waktu <b>2 menit</b> untuk memindai.</blockquote>`, { reply_markup: cancelKeyboard, });
 
     // Seluruh proses QR login dilakukan dalam satu external() call
     // karena signInUserWithQrCode adalah operasi blocking yang harus selesai sebelum kita bisa lanjut
@@ -604,14 +635,21 @@ export async function qrRegistrationConversation(conversation, ctx) {
     // Save to Database
     await saveUserbotSession(telegramId, null, qrResult.sessionString);
 
-    await replyRich(ctx, `<h1>✨ Selamat! Pendaftaran via QR Code Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
+    await replyRich(ctx, `<h1>✨ Pendaftaran Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
       await userbotManager.startUserbot(telegramId, qrResult.sessionString);
     });
 
-    await replyRich(ctx, `<h1>🟢 Userbot Anda sekarang AKTIF!</h1><blockquote>Coba kirimkan pesan <code>.ping</code> di chat mana pun menggunakan akun Telegram Anda, userbot akan otomatis membalasnya dengan <b>Pong</b>.</blockquote>`, {  });
+    await replyRich(ctx, `<h1>🟢 Userbot AKTIF!</h1>` +
+      `<table bordered striped><caption>🎉 Akun Berhasil Didaftarkan</caption>` +
+      `<tr><th>Item</th><th>Detail</th></tr>` +
+      `<tr><td>Metode</td><td align="center">🔍 QR Code</td></tr>` +
+      `<tr><td>Status</td><td align="center">🟢 Aktif</td></tr>` +
+      `<tr><td>ID</td><td align="center"><code>${telegramId}</code></td></tr>` +
+      `</table>` +
+      `<blockquote>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</blockquote>`, {  });
 
   } catch (error) {
     const isCancelled = error.message === 'USER_CANCELLED' || 
