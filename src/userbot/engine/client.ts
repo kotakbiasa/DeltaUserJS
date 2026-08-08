@@ -1,7 +1,7 @@
 import { TelegramClient } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
 import { NewMessage, Raw } from 'teleproto/events/index.js';
-import { Api, Rich } from 'teleproto';
+import { Api } from 'teleproto';
 import config from '../../config.js';
 import { getUserbotSession } from '../../infrastructure/database.js';
 import { loadAllPlugins } from './pluginLoader.js';
@@ -70,10 +70,6 @@ export class UserbotClient {
       this.isActive = true;
       Logger.logUser(this.telegramId, `🤖 DeltaUbotJS [${this.telegramId}] connected successfully.`, 'SUCCESS');
 
-      // Upgrade classic HTML sends to rich messages (Layer 228 / API 10.2).
-      // Fallback ke classic HTML jika server/klien tidak mendukung.
-      this.patchRichSend();
-
       // Register handlers
       this.registerHandlers();
 
@@ -84,31 +80,6 @@ export class UserbotClient {
       this.isActive = false;
       throw error;
     }
-  }
-
-  /**
-   * Patch client.sendMessage so classic HTML sends are upgraded to
-   * rich messages (Layer 228 / API 10.2), falling back to classic HTML
-   * when the server or client doesn't support them.
-   */
-  patchRichSend() {
-    if (!this.client) {return;}
-    const client = this.client;
-    const originalSend = client.sendMessage.bind(client);
-
-    // Override method at runtime (sendMessage params are strongly typed).
-    client.sendMessage = async (entity: unknown, params: Record<string, unknown> = {}) => {
-      const text = params.message;
-      if (typeof text === 'string' && params.parseMode === 'html' && !params.richMessage) {
-        try {
-          const { richMessage: _richMessage, ...rest } = params;
-          return await originalSend(entity, { ...rest, richMessage: Rich.html(text) });
-        } catch {
-          return originalSend(entity, params);
-        }
-      }
-      return originalSend(entity, params);
-    };
   }
 
   /**
@@ -180,24 +151,6 @@ export class UserbotClient {
     this.client.addEventHandler(async (event) => {
       const message = event.message;
       if (!message) {return;}
-
-      // Patch message.edit so classic HTML edits are upgraded to rich
-      // messages (Layer 228 / API 10.2), with classic HTML fallback.
-      const originalEdit = message.edit?.bind ? message.edit.bind(message) : message.edit;
-      if (originalEdit && typeof originalEdit === 'function') {
-        message.edit = async (params: Record<string, unknown> = {}) => {
-          const text = params.text;
-          if (typeof text === 'string' && params.parseMode === 'html' && !params.richMessage) {
-            try {
-              const { richMessage: _richMessage, ...rest } = params;
-              return await originalEdit({ ...rest, richMessage: Rich.html(text) });
-            } catch {
-              return originalEdit(params);
-            }
-          }
-          return originalEdit(params);
-        };
-      }
 
       // 1. Ambil setelan terkini dari in-memory cache (0ms)
       const settings = getUserbotSession(this.telegramId);
