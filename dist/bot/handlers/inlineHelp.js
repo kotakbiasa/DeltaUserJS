@@ -8,6 +8,7 @@
 import { helpRegistry as userbotHelpRegistry } from '../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../utils/richMessage.js';
 import { editRich } from '../../utils/richMessage.js';
+import { replyRich } from '../../utils/richMessage.js';
 // Registry modul Master Bot (kosong sejak fitur group management dihapus;
 // tetap disediakan agar mudah diperluas kembali di masa depan).
 export const masterHelpRegistry = {};
@@ -115,6 +116,23 @@ export function helpKeyboardExported(page = 1, target = 'main') {
 }
 // --- Register callback handlers (no inline_query needed) ---
 export function registerInlineHelpHandlers(bot) {
+    // Pesan "help_ubot" / "help_ubot:<module>" dari userbot (dikirim via DM ke
+    // Master Bot oleh plugin .help userbot — userbot tidak bisa render tombol).
+    bot.on('message:text', async (ctx) => {
+        const text = (ctx.message.text || '').trim();
+        if (!text.startsWith('help_ubot')) {
+            return;
+        }
+        const moduleArg = text.split(':')[1]?.toLowerCase() || '';
+        if (moduleArg) {
+            const html = buildModuleHtml(moduleArg, 'ubot');
+            await replyRich(ctx, html, { reply_markup: moduleBackKeyboard('ubot') });
+            return;
+        }
+        await replyRich(ctx, buildHelpMenuHtml(1, 'ubot'), {
+            reply_markup: helpKeyboard(1, 'ubot'),
+        });
+    });
     bot.callbackQuery(/^help:page:(\d+)(?::(.+))?$/, async (ctx) => {
         const page = Number(ctx.match[1]);
         const target = ctx.match[2] || 'main';

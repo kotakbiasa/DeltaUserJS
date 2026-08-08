@@ -1,6 +1,7 @@
 import { helpRegistry } from '../../engine/pluginRegistry.js';
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { getMasterBotUsername } from '../../../bot/state/botUsername.js';
 
 /**
  * Format nama modul agar rapi
@@ -10,10 +11,6 @@ function formatModuleName(name) {
   if (name.length <= 3) {return name.toUpperCase();}
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
-
-/**
- * Escape HTML untuk konten aman
- */
 
 /**
  * Strip HTML tags untuk preview singkat
@@ -36,8 +33,16 @@ function markdownToHtml(text) {
 }
 
 // ============================================================
-// HELP MENU — Inline Keyboard via GramJS
+// HELP MENU — Inline Keyboard via Master Bot
 // ============================================================
+//
+// CATATAN PENTING: Userbot (akun user) TIDAK BISA menampilkan
+// inline keyboard — parameter `buttons` di teleproto hanya bekerja
+// untuk akun BOT. Jadi alurnya:
+//   1. User ketik `.help` di chat userbot
+//   2. Userbot kirim request "help_ubot" ke Master Bot (via DM)
+//   3. Master Bot balas dengan rich message + inline keyboard
+//      yang bisa diklik (page nav, detail modul, tutup)
 
 const MODULES_PER_PAGE = 8;
 
@@ -71,50 +76,8 @@ function buildMenuText(page = 1) {
     `📦 <b>Total Modul:</b> ${names.length}\n` +
     `📄 <b>Halaman:</b> ${currentPage}/${totalPages}\n\n` +
     `${moduleList}\n\n` +
-    `💡 Ketik <code>.help [nama_modul]</code> untuk detail, atau klik tombol di bawah.`
+    `💡 Menu interaktif dengan tombol sudah dikirim ke chat Master Bot. Klik tombol di sana untuk navigasi.`
   );
-}
-
-/**
- * Bangun inline keyboard untuk halaman menu utama (GramJS format)
- */
-function buildMenuKeyboard(page = 1) {
-  const names = getModuleNames();
-  const totalPages = Math.max(1, Math.ceil(names.length / MODULES_PER_PAGE));
-  const currentPage = Math.min(Math.max(1, page), totalPages);
-  const start = (currentPage - 1) * MODULES_PER_PAGE;
-  const items = names.slice(start, start + MODULES_PER_PAGE);
-
-  const rows = [];
-
-  // Module buttons — 2 per row
-  for (let i = 0; i < items.length; i += 2) {
-    const row = [];
-    for (let j = i; j < Math.min(i + 2, items.length); j++) {
-      const name = items[j];
-      row.push({
-        text: formatModuleName(name),
-        data: `help:mod:${name}`,
-      });
-    }
-    rows.push(row);
-  }
-
-  // Navigation row
-  const nav = [];
-  if (currentPage > 1) {
-    nav.push({ text: '⬅️ Prev', data: `help:page:${currentPage - 1}` });
-  }
-  nav.push({ text: `📄 ${currentPage}/${totalPages}`, data: 'help:noop' });
-  if (currentPage < totalPages) {
-    nav.push({ text: 'Next ➡️', data: `help:page:${currentPage + 1}` });
-  }
-  rows.push(nav);
-
-  // Close button
-  rows.push([{ text: '✖️ Tutup', data: 'help:close' }]);
-
-  return rows;
 }
 
 /**
@@ -135,33 +98,13 @@ function buildModuleDetail(moduleName) {
   );
 }
 
-/**
- * Bangun keyboard untuk halaman detail modul
- */
-function buildModuleKeyboard(moduleName, fromPage = 1) {
-  return [
-    [{ text: '🔙 Kembali ke Menu', data: `help:page:${fromPage}` }],
-    [{ text: '✖️ Tutup', data: 'help:close' }],
-  ];
-}
-
-/**
- * Helper: Dapatkan replyTo untuk forum topic
- */
-function getReplyToForTopic(message) {
-  if (message.replyTo) {
-    return message.replyTo.replyToTopId || message.replyTo.replyToMsgId || message.id;
-  }
-  return message.id;
-}
-
 export default {
   name: 'help',
   help: {
     title: 'Help Menu',
     description: 'Menampilkan panduan penggunaan dan daftar modul yang tersedia di userbot Anda.',
     usage: 'Ketik `.help` untuk menu utama atau `.help [nama_modul]` untuk detail spesifik.',
-    detail: 'Menu help sekarang menggunakan inline keyboard interaktif. Klik tombol modul untuk melihat detail.'
+    detail: 'Menu help interaktif ditampilkan oleh Master Bot dengan tombol yang bisa diklik (navigasi halaman, detail modul, tutup).'
   },
 
   async execute(client, message, _settings, telegramId) {
@@ -170,32 +113,27 @@ export default {
 
     try {
       const parts = message.message.trim().split(/\s+/);
-      const _replyToMsgId = getReplyToForTopic(message);
+      const masterBot = getMasterBotUsername();
 
-      if (parts.length === 1) {
-        // --- .help → Menu utama dengan inline keyboard ---
+      if (!masterBot) {
+        // Fallback: Master Bot belum siap — tampilkan teks statis
         const text = buildMenuText(1);
-        const buttons = buildMenuKeyboard(1);
-
-        await message.edit({
-          text,
-          parseMode: 'html',
-          buttons,
-        });
+        await message.edit({ text, parseMode: 'html' });
         return;
-      } else {
-        // --- .help <nama_modul> → Detail modul ---
-        const moduleName = parts[1].toLowerCase();
-        const targetModule = helpRegistry[moduleName];
+      }
 
+      const moduleArg = parts.length > 1 ? parts[1].toLowerCase() : '';
+      const helpTarget = moduleArg ? `help_ubot:${moduleArg}` : 'help_ubot';
+
+      // Kirim request ke Master Bot — dia yang render inline keyboard
+      await client.sendMessage(masterBot, { message: helpTarget });
+
+      // Update pesan userbot di chat asal dengan konfirmasi
+      if (moduleArg) {
+        const targetModule = helpRegistry[moduleArg];
         if (targetModule) {
-          const text = buildModuleDetail(moduleName);
-          const buttons = buildModuleKeyboard(moduleName, 1);
-          await message.edit({
-            text,
-            parseMode: 'html',
-            buttons,
-          });
+          const text = buildModuleDetail(moduleArg);
+          await message.edit({ text, parseMode: 'html' });
         } else {
           const available = Object.keys(helpRegistry).join(', ');
           const safeName = escapeHtml(parts[1]);
@@ -204,64 +142,19 @@ export default {
             parseMode: 'html',
           });
         }
+        return;
       }
+
+      const text = buildMenuText(1);
+      await message.edit({
+        text,
+        parseMode: 'html',
+      });
     } catch (err) {
       Logger.logUser(telegramId, `Error in help plugin: ${err}`, 'ERROR');
       try {
         await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
       } catch (_e) { /* ignore */ }
     }
-  },
-
-  // ============================================================
-  // CALLBACK HANDLER — Dipanggil saat user klik tombol inline
-  // ============================================================
-  async onCallbackQuery(client, callbackEvent, _settings, _telegramId) {
-    if (!callbackEvent) {return;}
-
-    const data = callbackEvent.data || '';
-
-    // Parse callback data
-    if (data === 'help:noop') {
-      await callbackEvent.answer({ message: '', alert: false });
-      return true;
-    }
-
-    if (data === 'help:close') {
-      await callbackEvent.answer({ message: '', alert: false });
-      try {
-        const msg = await callbackEvent.getMessage();
-        if (msg) {await msg.delete({ revoke: true });}
-      } catch (_) { /* ignore */ }
-      return true;
-    }
-
-    // Page navigation
-    const pageMatch = data.match(/^help:page:(\d+)$/);
-    if (pageMatch) {
-      const page = Number(pageMatch[1]);
-      const text = buildMenuText(page);
-      const buttons = buildMenuKeyboard(page);
-      await callbackEvent.answer({ message: '', alert: false });
-      await callbackEvent.editMessage(text, { parseMode: 'html', buttons });
-      return true;
-    }
-
-    // Module detail
-    const modMatch = data.match(/^help:mod:(.+)$/);
-    if (modMatch) {
-      const moduleName = modMatch[1].toLowerCase();
-      const text = buildModuleDetail(moduleName);
-      if (!text) {
-        await callbackEvent.answer({ message: 'Modul tidak ditemukan', alert: true });
-        return true;
-      }
-      const buttons = buildModuleKeyboard(moduleName, 1);
-      await callbackEvent.answer({ message: '', alert: false });
-      await callbackEvent.editMessage(text, { parseMode: 'html', buttons });
-      return true;
-    }
-
-    return false;
   },
 };
