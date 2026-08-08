@@ -11,7 +11,7 @@ export default {
     detail: '• `.kick`: Mengeluarkan anggota.\n• `.ban`: Memblokir permanen.\n• `.mute`: Membisukan.\n• `.unmute`: Membuka bisu.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+    if (!message.out || !message.message) {return;}
     
     const cmd = message.message.toLowerCase().trim();
     if (['.kick', '.ban', '.mute', '.unmute'].includes(cmd)) {

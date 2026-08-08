@@ -1,6 +1,3 @@
-// @ts-nocheck
-import fs from 'fs';
-import path from 'path';
 import { InlineKeyboard } from 'grammy';
 import config from '../../config.js';
 import { activeRegClients } from '../conversations/registration.js';
@@ -12,7 +9,7 @@ import { isApproved, approveUser, revokeUser } from '../state/approvedUsers.js';
 async function sendMainRich(ctx, deleteOld = false) {
   await replyRich(ctx, panelMain(ctx), { reply_markup: keyboardMain(ctx) });
   if (deleteOld) {
-    try { await ctx.deleteMessage(); } catch (_) {}
+    try { await ctx.deleteMessage(); } catch (_) { /* empty */ }
   }
 }
 
@@ -61,13 +58,13 @@ export function registerLegacyCallbacks(bot) {
     const username = ctx.from.username ? `@${ctx.from.username}` : 'Tanpa Username';
     try {
       const targetChat = config.logGroupId || config.ownerId;
-      const extraParams = {
+      const extraParams: Record<string, unknown> = {
         parse_mode: 'HTML',
         reply_markup: new InlineKeyboard()
           .text('✅ Setujui', `approve_reg:${telegramId}`)
           .text('❌ Tolak', `reject_reg:${telegramId}`),
       };
-      if (config.logGroupId && config.logTopicId) extraParams.message_thread_id = config.logTopicId;
+      if (config.logGroupId && config.logTopicId) {extraParams.message_thread_id = config.logTopicId;}
       await ctx.api.sendMessage(targetChat,
         `🔔 <b>Permintaan Registrasi</b>\n\n` +
         `<pre>Nama      ${name}\nUsername  ${username}\nID        ${telegramId}</pre>`,
@@ -113,12 +110,12 @@ export function registerLegacyCallbacks(bot) {
     const userId = ctx.from.id;
     const client = activeRegClients.get(userId);
     if (client) {
-      try { await client.disconnect(); } catch (_) {}
+      try { await client.disconnect(); } catch (_) { /* empty */ }
       activeRegClients.delete(userId);
     }
-    try { await ctx.answerCallbackQuery('Pendaftaran dibatalkan.'); } catch (_) {}
+    try { await ctx.answerCallbackQuery('Pendaftaran dibatalkan.'); } catch (_) { /* empty */ }
     await ctx.conversation.exitAll();
-    try { await ctx.deleteMessage(); } catch (_) {}
+    try { await ctx.deleteMessage(); } catch (_) { /* empty */ }
     await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
     await sendMainRich(ctx);
   });

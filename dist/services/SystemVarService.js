@@ -14,10 +14,12 @@ export async function setUserVar(telegramId, key, value) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
-        if (!session.vars)
+        }
+        if (!session.vars) {
             session.vars = {};
+        }
         session.vars[key] = value;
         await persistField(idNum, 'vars', session.vars);
         return true;
@@ -27,8 +29,9 @@ export async function deleteUserVar(telegramId, key) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session || !session.vars)
+        if (!session || !session.vars) {
             return false;
+        }
         delete session.vars[key];
         await persistField(idNum, 'vars', session.vars);
         return true;
@@ -43,8 +46,9 @@ export function getAllSystemVars() {
 export async function setSystemVar(key, value) {
     return withKeyLock(SYS_LOCK_KEY, async () => {
         // Mutate cache inside the lock so concurrent writers don't clobber it.
-        if (!systemConfigCache.vars)
+        if (!systemConfigCache.vars) {
             systemConfigCache.vars = {};
+        }
         systemConfigCache.vars[key] = value;
         if (isMongo) {
             await SystemConfigModel.updateOne({ _id: 'system' }, { $set: { vars: systemConfigCache.vars } }, { upsert: true });
@@ -59,8 +63,9 @@ export async function setSystemVar(key, value) {
 }
 export async function deleteSystemVar(key) {
     return withKeyLock(SYS_LOCK_KEY, async () => {
-        if (!systemConfigCache.vars)
+        if (!systemConfigCache.vars) {
             return false;
+        }
         delete systemConfigCache.vars[key];
         if (isMongo) {
             await SystemConfigModel.updateOne({ _id: 'system' }, { $unset: { [`vars.${key}`]: '' } }, { upsert: true });
@@ -84,12 +89,14 @@ export function hasClaimedTrial(telegramId) {
  */
 export async function setTrialClaimed(telegramId) {
     return withKeyLock(SYS_LOCK_KEY, async () => {
-        if (!systemConfigCache.vars)
+        if (!systemConfigCache.vars) {
             systemConfigCache.vars = {};
+        }
         const vars = systemConfigCache.vars;
         const claims = { ...(vars.trial_claims || {}) };
-        if (claims[telegramId])
+        if (claims[telegramId]) {
             return false;
+        }
         claims[telegramId] = true;
         vars.trial_claims = claims;
         if (isMongo) {

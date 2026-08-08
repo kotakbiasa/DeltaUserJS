@@ -27,7 +27,7 @@ try {
  * Enkripsi plaintext → hex string: <nonce>:<authTag>:<ciphertext>
  */
 export function encrypt(plaintext: string): string {
-  if (!plaintext) return '';
+  if (!plaintext) {return '';}
   const nonce = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(ALGORITHM, keyBuffer, nonce);
   let ct = cipher.update(plaintext, 'utf8', 'hex');
@@ -40,15 +40,15 @@ export function encrypt(plaintext: string): string {
  * Throws if decryption fails.
  */
 export function decrypt(encrypted: string): string {
-  if (!encrypted) return '';
+  if (!encrypted) {return '';}
   const parts = encrypted.split(':');
-  if (parts.length !== 3) return encrypted; // not encrypted, return as-is
+  if (parts.length !== 3) {return encrypted;} // not encrypted, return as-is
   const nonce = Buffer.from(parts[0], 'hex');
   const authTag = Buffer.from(parts[1], 'hex');
   const ct = Buffer.from(parts[2], 'hex');
   const decipher = crypto.createDecipheriv(ALGORITHM, keyBuffer, nonce);
   decipher.setAuthTag(authTag);
-  let pt = decipher.update(ct, 'hex', 'utf8');
+  const pt = decipher.update(ct, 'hex', 'utf8');
   return pt + decipher.final('utf8');
 }
 

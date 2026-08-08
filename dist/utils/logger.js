@@ -21,8 +21,9 @@ export class Logger {
             levelTag = `\x1b[32m[SUCCESS]\x1b[0m`;
         }
         console.log(`${time} ${levelTag} ${message}`);
-        if (!masterBot)
+        if (!masterBot) {
             return;
+        }
         const logChatId = getSystemVar('SYSTEM_LOG_CHAT_ID');
         if (logChatId) {
             try {
@@ -46,8 +47,9 @@ export class Logger {
             levelTag = `\x1b[32m[SUCCESS:${telegramId}]\x1b[0m`;
         }
         console.log(`${time} ${levelTag} ${message}`);
-        if (!masterBot)
+        if (!masterBot) {
             return;
+        }
         const logChatId = getUserVar(telegramId, 'LOG_CHAT_ID');
         if (logChatId) {
             try {

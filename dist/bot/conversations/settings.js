@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Settings conversations — AFK reason, user vars (Vars Config), dan system vars.
  * Dipulihkan setelah terhapus pada refactor besar.
@@ -18,18 +17,18 @@ async function waitForInput(conversation, ctx) {
         try {
             await result.answerCallbackQuery('Dibatalkan.');
         }
-        catch (e) { /* ignore: already answered */ }
+        catch (_e) { /* ignore: already answered */ }
         try {
             await result.deleteMessage();
         }
-        catch (e) { /* ignore: already deleted */ }
+        catch (_e) { /* ignore: already deleted */ }
         await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Aksi dibatalkan.</blockquote>`);
         throw new Error('USER_CANCELLED');
     }
     try {
         await result.react('👍');
     }
-    catch (e) { /* ignore: reaction may fail */ }
+    catch (_e) { /* ignore: reaction may fail */ }
     return result.message.text.trim();
 }
 /**
@@ -44,8 +43,9 @@ export async function afkReasonConversation(conversation, ctx) {
             newReason = await waitForInput(conversation, ctx);
         }
         catch (err) {
-            if (err.message === 'USER_CANCELLED')
+            if (err.message === 'USER_CANCELLED') {
                 return;
+            }
             throw err;
         }
         if (newReason.length > 200) {
@@ -94,8 +94,9 @@ export async function manageVarsConv(conversation, ctx) {
             let varList = Object.entries(currentVars)
                 .map(([k, v]) => `• <b>${k}</b>: <code>${v}</code>`)
                 .join('\n');
-            if (!varList)
+            if (!varList) {
                 varList = '<i>Belum ada variabel yang diatur.</i>';
+            }
             // Kirim menu utama vars
             const menuMsg = await replyRich(ctx, `<h1>⚙️ Pengaturan Variabel (Vars)</h1><blockquote>Daftar Variabel Anda saat ini:</blockquote>\n<blockquote>${varList}</blockquote>\n\nPilih tombol di bawah untuk menambah, mengubah, atau menghapus variabel.`, { reply_markup: buildVarsKeyboard(currentVars) });
             // Tunggu input callback_query
@@ -106,7 +107,7 @@ export async function manageVarsConv(conversation, ctx) {
             try {
                 await ctx.api.deleteMessage(ctx.chat.id, menuMsg.message_id);
             }
-            catch (_) { }
+            catch (_) { /* empty */ }
             if (data === 'var:cancel') {
                 await replyRich(ctx, `<blockquote><b>🚪 Selesai</b><br>Keluar dari pengaturan variabel. Gunakan /menu untuk membuka menu utama.</blockquote>`);
                 loop = false;
@@ -120,8 +121,9 @@ export async function manageVarsConv(conversation, ctx) {
                     value = await waitForInput(conversation, ctx);
                 }
                 catch (err) {
-                    if (err.message === 'USER_CANCELLED')
+                    if (err.message === 'USER_CANCELLED') {
                         continue;
+                    }
                     throw err;
                 }
                 // Simpan nilai
@@ -166,8 +168,9 @@ export async function manageVarsConv(conversation, ctx) {
                     key = await waitForInput(conversation, ctx);
                 }
                 catch (err) {
-                    if (err.message === 'USER_CANCELLED')
+                    if (err.message === 'USER_CANCELLED') {
                         continue;
+                    }
                     throw err;
                 }
                 key = key.toUpperCase().replace(/[^A-Z0-9_]/g, '');
@@ -181,8 +184,9 @@ export async function manageVarsConv(conversation, ctx) {
                     value = await waitForInput(conversation, ctx);
                 }
                 catch (err) {
-                    if (err.message === 'USER_CANCELLED')
+                    if (err.message === 'USER_CANCELLED') {
                         continue;
+                    }
                     throw err;
                 }
                 // Validate value: limit length to prevent database bloat
@@ -217,9 +221,10 @@ export async function manageVarsConv(conversation, ctx) {
                 try {
                     await ctx.api.deleteMessage(ctx.chat.id, delMenuMsg.message_id);
                 }
-                catch (_) { }
-                if (delData === 'var:del_cancel')
+                catch (_) { /* empty */ }
+                if (delData === 'var:del_cancel') {
                     continue;
+                }
                 if (delData.startsWith('var:del:')) {
                     const keyToDelete = delData.split('var:del:')[1];
                     await conversation.external(async () => {
@@ -249,24 +254,27 @@ export async function manageVarsConv(conversation, ctx) {
  */
 export async function manageSystemVarsConv(conversation, ctx) {
     const telegramId = ctx.from.id;
-    if (Number(telegramId) !== Number(config.ownerId))
+    if (Number(telegramId) !== Number(config.ownerId)) {
         return;
+    }
     try {
         const currentVars = await conversation.external(async () => {
             const db = await import('../../infrastructure/database.js');
             return db.getAllSystemVars();
         });
         let varList = Object.entries(currentVars).map(([k, v]) => `<code>${k}</code> = <code>${v}</code>`).join('\n');
-        if (!varList)
+        if (!varList) {
             varList = '<i>Belum ada variabel sistem.</i>';
+        }
         await replyRich(ctx, `<h1>⚙️ System Vars Config</h1><blockquote>${varList}</blockquote>\n\nSilakan kirimkan dengan format: <code>KUNCI NILAI</code>\nContoh: <code>SYSTEM_LOG_CHAT_ID -100123456</code>\nAtau ketik <code>HAPUS KUNCI</code> untuk menghapus.`, { reply_markup: cancelKeyboard });
         let input;
         try {
             input = await waitForInput(conversation, ctx);
         }
         catch (err) {
-            if (err.message === 'USER_CANCELLED')
+            if (err.message === 'USER_CANCELLED') {
                 return;
+            }
             throw err;
         }
         const parts = input.trim().split(/\s+/);

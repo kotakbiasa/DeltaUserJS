@@ -11,7 +11,7 @@ async function sendMainRich(ctx, deleteOld = false) {
         try {
             await ctx.deleteMessage();
         }
-        catch (_) { }
+        catch (_) { /* empty */ }
     }
 }
 export function registerLegacyCallbacks(bot) {
@@ -61,8 +61,9 @@ export function registerLegacyCallbacks(bot) {
                     .text('✅ Setujui', `approve_reg:${telegramId}`)
                     .text('❌ Tolak', `reject_reg:${telegramId}`),
             };
-            if (config.logGroupId && config.logTopicId)
+            if (config.logGroupId && config.logTopicId) {
                 extraParams.message_thread_id = config.logTopicId;
+            }
             await ctx.api.sendMessage(targetChat, `🔔 <b>Permintaan Registrasi</b>\n\n` +
                 `<pre>Nama      ${name}\nUsername  ${username}\nID        ${telegramId}</pre>`, extraParams);
             await ctx.editMessageText('✅ Permintaan terkirim. Tunggu persetujuan owner.', {
@@ -112,18 +113,18 @@ export function registerLegacyCallbacks(bot) {
             try {
                 await client.disconnect();
             }
-            catch (_) { }
+            catch (_) { /* empty */ }
             activeRegClients.delete(userId);
         }
         try {
             await ctx.answerCallbackQuery('Pendaftaran dibatalkan.');
         }
-        catch (_) { }
+        catch (_) { /* empty */ }
         await ctx.conversation.exitAll();
         try {
             await ctx.deleteMessage();
         }
-        catch (_) { }
+        catch (_) { /* empty */ }
         await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
         await sendMainRich(ctx);
     });

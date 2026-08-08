@@ -12,11 +12,11 @@ export default {
     detail: 'Menampilkan Ping, Jitter, Download, Upload, dan informasi ISP server.'
   },
   
-  async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+  async execute(client, message, _settings, _telegramId) {
+    if (!message.out || !message.message) {return;}
 
     const match = message.message.match(/^\.(speedtest|testspeed)$/i);
-    if (!match) return;
+    if (!match) {return;}
 
     await message.edit({
       text: `🚀 <b>Menjalankan Speedtest Ookla...</b>\n<i>Mohon tunggu sebentar, ini mungkin memakan waktu hingga 20 detik.</i>`,

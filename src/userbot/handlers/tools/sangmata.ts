@@ -8,11 +8,11 @@ export default {
     usage: 'Balas pesan pengguna dengan `.sgm` atau ketik `.sgm <username/ID>`',
     detail: 'Bot SangMata akan membalas dengan histori semua perubahan nama dan username yang pernah dilakukan oleh pengguna tersebut.'
   },
-  async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+  async execute(client, message, _settings, _telegramId) {
+    if (!message.out || !message.message) {return;}
 
     const match = message.message.match(/^\.sgm(?:\s+([\s\S]+))?$/i);
-    if (!match) return;
+    if (!match) {return;}
 
     let target = match[1];
 
@@ -62,7 +62,7 @@ export default {
 
       if (foundMessages.length > 0) {
         // Hapus status 'loading'
-        try { await message.delete(); } catch(e) {}
+        try { await message.delete(); } catch(_e) { /* empty */ }
         
         // Forward balasan SangMata ke chat saat ini
         for (const msg of foundMessages) {

@@ -1,8 +1,6 @@
-// @ts-nocheck
 import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import fs from 'fs';
-import path from 'path';
 import { Logger } from '../../../utils/logger.js';
 
 export default {
@@ -14,13 +12,13 @@ export default {
     detail: 'Menampilkan foto profil utama, bio, status akun, dan data detail lainnya dengan tampilan elegan.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+    if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
     const args = text.split(/\s+/);
     const cmd = args[0].toLowerCase();
     
-    if (cmd !== '.info') return;
+    if (cmd !== '.info') {return;}
 
     await message.edit({ 
       text: `<blockquote>🔍 <b>Mengekstrak informasi target...</b></blockquote>`, 
@@ -28,7 +26,7 @@ export default {
     });
 
     let targetEntity;
-    let isGroup = false;
+    let _isGroup = false;
 
     try {
       const repliedMsg = await message.getReplyMessage();
@@ -45,7 +43,7 @@ export default {
           targetEntity = await client.getEntity('me');
         } else {
           targetEntity = await client.getEntity(message.chatId);
-          isGroup = true;
+          _isGroup = true;
         }
       }
 
@@ -71,22 +69,22 @@ export default {
         const pBio = f.about || 'Tidak ada deskripsi / bio';
         
         const tags = [];
-        if (u.premium) tags.push('💎 Premium');
-        if (u.bot) tags.push('🤖 Bot');
-        if (u.verified) tags.push('✅ Verified');
-        if (u.scam) tags.push('⚠️ Scam');
-        if (u.fake) tags.push('🎭 Fake');
+        if (u.premium) {tags.push('💎 Premium');}
+        if (u.bot) {tags.push('🤖 Bot');}
+        if (u.verified) {tags.push('✅ Verified');}
+        if (u.scam) {tags.push('⚠️ Scam');}
+        if (u.fake) {tags.push('🎭 Fake');}
 
         let photoCount = 0;
         try {
           const userPhotos = await client.invoke(new Api.photos.GetUserPhotos({
             userId: targetEntity,
             offset: 0,
-            maxId: 0,
+            maxId: 0 as unknown as import('big-integer').BigInteger,
             limit: 1
           }));
           photoCount = userPhotos.count || userPhotos.photos.length || 0;
-        } catch (e) { /* ignore */ }
+        } catch (_e) { /* ignore */ }
 
         captionText = `<blockquote>👤 <b>USER INFORMATION</b>\n` +
                       `───────────────────────\n` +
@@ -121,7 +119,7 @@ export default {
                         `📝 <b>Deskripsi:</b> \n<i>${escapeHtml(cBio)}</i>\n` +
                         `───────────────────────</blockquote>\n\n` +
                         ``;
-        } catch (chanErr) {
+        } catch (_chanErr) {
           // Jika Basic Chat
           const cName = targetEntity.title;
           const cId = targetEntity.id.toString();

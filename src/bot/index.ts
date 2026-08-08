@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Bot, session } from 'grammy';
 import { conversations, createConversation } from '@grammyjs/conversations';
 import { limit } from '@grammyjs/ratelimiter';
@@ -27,7 +26,7 @@ bot.use(limit({
   limit: 3,
   keyGenerator: (ctx) => ctx.from?.id?.toString(),
   onLimitExceeded: async (ctx) => {
-    try { await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Terlalu cepat. Tunggu beberapa detik dulu.</blockquote>` }); } catch (_) {}
+    try { await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Terlalu cepat. Tunggu beberapa detik dulu.</blockquote>` }); } catch (_) { /* empty */ }
   },
 }));
 
@@ -50,8 +49,9 @@ registerInlineHelpHandlers(bot);
 registerAllHandlers(bot);
 
 bot.catch((err) => {
-  const message = err.error?.description || err.error?.message || '';
-  if (message.includes('message is not modified')) return;
+  const e = err.error as { description?: string; message?: string } | undefined;
+  const message = e?.description || e?.message || '';
+  if (message.includes('message is not modified')) {return;}
   console.error(`❌ Bot middleware error ${err.ctx?.update?.update_id}:`, err.error);
 });
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import fs from 'fs';
 import { InputFile } from 'grammy';
 import config from '../../config.js';
@@ -8,7 +7,7 @@ import { Logger } from '../../utils/logger.js';
 export function registerOwnerHandlers(bot) {
   // --- Owner utility commands ---
   bot.command('backup', async (ctx) => {
-    if (Number(ctx.from.id) !== Number(config.ownerId)) return;
+    if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Menyiapkan backup database...</blockquote>` });
     try {
       const users = await UserbotModel.find({}).lean();
@@ -19,14 +18,14 @@ export function registerOwnerHandlers(bot) {
         caption: `📦 Backup MongoDB Userbots\n${new Date().toLocaleString()}`,
       });
       // Clean up temp file after sending
-      setTimeout(() => { try { fs.unlinkSync(filename); } catch (_) {} }, 60000);
+      setTimeout(() => { try { fs.unlinkSync(filename); } catch (_) { /* empty */ } }, 60000);
     } catch (err) {
       await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal backup: ${err.message}</blockquote>` });
     }
   });
 
   bot.command('stats_db', async (ctx) => {
-    if (Number(ctx.from.id) !== Number(config.ownerId)) return;
+    if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     try {
       const totalUsers = await UserbotModel.countDocuments();
       const activeUsers = await UserbotModel.countDocuments({ is_active: 1 });
@@ -37,12 +36,12 @@ export function registerOwnerHandlers(bot) {
   });
 
   bot.command('setup_topic', async (ctx) => {
-    if (Number(ctx.from.id) !== Number(config.ownerId)) return;
+    if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     await ctx.replyWithRichMessage({ html: `<blockquote>Forum topic setup tidak dipakai di rich dashboard baru. Gunakan LOG_GROUP_ID/LOG_TOPIC_ID di config jika perlu.</blockquote>` });
   });
 
   bot.command('restart', async (ctx) => {
-    if (Number(ctx.from.id) !== Number(config.ownerId)) return;
+    if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     await ctx.replyWithRichMessage({ html: `<h1>🔄 Restarting Bot</h1><blockquote>Sistem sedang dimuat ulang. Harap tunggu beberapa saat hingga bot menyala kembali.</blockquote>` });
     await Logger.logSystem('🔄 Restart command received from owner. Exiting process...', 'INFO');
     setTimeout(() => {

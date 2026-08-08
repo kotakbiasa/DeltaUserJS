@@ -30,8 +30,9 @@ export async function updateUserbotStatus(telegramId, isActive) {
     const idNum = Number(telegramId);
     const statusVal = isActive ? 1 : 0;
     const cached = dbCache.get(idNum);
-    if (cached)
+    if (cached) {
         cached.is_active = statusVal;
+    }
     return persistField(idNum, 'is_active', statusVal);
 }
 // Helper: safely update a complex object field in DB (deep clone before persist)
@@ -66,8 +67,9 @@ export async function addApprovedUser(telegramId, targetUserId) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
+        }
         session.approved_users = session.approved_users || [];
         // Prevent duplicate — use strict equality
         if (!session.approved_users.includes(targetUserId)) {
@@ -81,10 +83,12 @@ export async function removeApprovedUser(telegramId, targetUserId) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
-        if (!session.approved_users)
+        }
+        if (!session.approved_users) {
             return true;
+        }
         const index = session.approved_users.indexOf(targetUserId);
         if (index > -1) {
             session.approved_users.splice(index, 1);
@@ -101,8 +105,9 @@ export async function addBroadcastBlacklist(telegramId, chatId) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
+        }
         session.broadcast_blacklist = session.broadcast_blacklist || [];
         const chatStr = String(chatId);
         if (!session.broadcast_blacklist.includes(chatStr)) {
@@ -116,10 +121,12 @@ export async function removeBroadcastBlacklist(telegramId, chatId) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
-        if (!session.broadcast_blacklist)
+        }
+        if (!session.broadcast_blacklist) {
             return true;
+        }
         const chatStr = String(chatId);
         const index = session.broadcast_blacklist.indexOf(chatStr);
         if (index > -1) {
@@ -137,8 +144,9 @@ export async function disablePlugin(telegramId, pluginName) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
+        }
         const name = String(pluginName || '').toLowerCase();
         session.disabled_plugins = session.disabled_plugins || [];
         if (!session.disabled_plugins.includes(name)) {
@@ -152,10 +160,12 @@ export async function enablePlugin(telegramId, pluginName) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
-        if (!session.disabled_plugins)
+        }
+        if (!session.disabled_plugins) {
             return true;
+        }
         const name = String(pluginName || '').toLowerCase();
         const index = session.disabled_plugins.indexOf(name);
         if (index > -1) {
@@ -171,21 +181,25 @@ export function getDisabledPlugins(telegramId) {
 }
 export function getChatSettings(telegramId, chatId) {
     const session = dbCache.get(Number(telegramId));
-    if (!session)
+    if (!session) {
         return {};
+    }
     return (session.chat_settings || {})[String(chatId)] || {};
 }
 export async function updateChatSettings(telegramId, chatId, key, value) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
-        if (!session.chat_settings)
+        }
+        if (!session.chat_settings) {
             session.chat_settings = {};
+        }
         const chatKey = String(chatId);
-        if (!session.chat_settings[chatKey])
+        if (!session.chat_settings[chatKey]) {
             session.chat_settings[chatKey] = {};
+        }
         session.chat_settings[chatKey][key] = value;
         // Deep clone chat_settings before persist to avoid reference mutation
         await persistField(idNum, 'chat_settings', deepClone(session.chat_settings));
@@ -198,29 +212,33 @@ export function getSchedules(telegramId) {
 }
 export function getReputation(telegramId, targetUserId) {
     const session = dbCache.get(Number(telegramId));
-    if (!session)
+    if (!session) {
         return 0;
+    }
     return (session.reputation_data || {})[String(targetUserId)] || 0;
 }
 export function getWarns(telegramId, chatId, targetUserId) {
     const session = dbCache.get(Number(telegramId));
-    if (!session)
+    if (!session) {
         return { count: 0 };
+    }
     const chatWarns = (session.warn_data || {})[String(chatId)] || {};
     return chatWarns[String(targetUserId)] || { count: 0 };
 }
 export function getChatLocks(telegramId, chatId) {
     const session = dbCache.get(Number(telegramId));
-    if (!session)
+    if (!session) {
         return {};
+    }
     return (session.lock_config || {})[String(chatId)] || {};
 }
 export async function saveSchedule(telegramId, chatId, type, value, message) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
+        }
         session.schedules = session.schedules || [];
         const chatKey = String(chatId);
         session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
@@ -238,8 +256,9 @@ export async function deleteSchedule(telegramId, chatId, type) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
+        }
         session.schedules = session.schedules || [];
         const chatKey = String(chatId);
         session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
@@ -251,8 +270,9 @@ export async function updateReputation(telegramId, targetUserId, points) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return false;
+        }
         session.reputation_data = session.reputation_data || {};
         session.reputation_data[String(targetUserId)] = points;
         // Deep clone to avoid reference mutation
@@ -264,13 +284,16 @@ export async function addWarn(telegramId, chatId, targetUserId, reason = '') {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return { count: 0 };
-        if (!session.warn_data)
+        }
+        if (!session.warn_data) {
             session.warn_data = {};
+        }
         const chatKey = String(chatId);
-        if (!session.warn_data[chatKey])
+        if (!session.warn_data[chatKey]) {
             session.warn_data[chatKey] = {};
+        }
         const userKey = String(targetUserId);
         const existing = session.warn_data[chatKey][userKey] || { count: 0, reasons: [] };
         const newCount = existing.count + 1;
@@ -287,13 +310,16 @@ export async function resetWarns(telegramId, chatId, targetUserId) {
     const idNum = Number(telegramId);
     return withKeyLock(idNum, async () => {
         const session = dbCache.get(idNum);
-        if (!session)
+        if (!session) {
             return true;
-        if (!session.warn_data)
+        }
+        if (!session.warn_data) {
             return true;
+        }
         const chatKey = String(chatId);
-        if (!session.warn_data[chatKey])
+        if (!session.warn_data[chatKey]) {
             return true;
+        }
         const userKey = String(targetUserId);
         if (session.warn_data[chatKey][userKey]) {
             delete session.warn_data[chatKey][userKey];
@@ -340,8 +366,9 @@ export async function updateGroupConfig(chatId, updates) {
         else {
             await withWriteLock(async () => {
                 const data = await readDbFromFile();
-                if (!data.groups)
+                if (!data.groups) {
                     data.groups = {};
+                }
                 data.groups[chatKey] = newData;
                 await writeDbToFile(data);
             });
@@ -355,8 +382,9 @@ export function getAllGroupConfigs() {
 export async function saveGroupNote(chatId, noteName, text) {
     const config = getGroupConfig(chatId);
     const name = String(noteName).toLowerCase();
-    if (!config.notes)
+    if (!config.notes) {
         config.notes = {};
+    }
     config.notes[name] = text;
     await updateGroupConfig(chatId, { notes: config.notes });
     return true;
@@ -364,8 +392,9 @@ export async function saveGroupNote(chatId, noteName, text) {
 export async function deleteGroupNote(chatId, noteName) {
     const config = getGroupConfig(chatId);
     const name = String(noteName).toLowerCase();
-    if (!config.notes || !config.notes[name])
+    if (!config.notes || !config.notes[name]) {
         return false;
+    }
     delete config.notes[name];
     await updateGroupConfig(chatId, { notes: config.notes });
     return true;
@@ -373,13 +402,15 @@ export async function deleteGroupNote(chatId, noteName) {
 export function getGroupNote(chatId, noteName) {
     const config = getGroupConfig(chatId);
     const name = String(noteName).toLowerCase();
-    if (!config.notes)
+    if (!config.notes) {
         return null;
+    }
     return config.notes[name] || null;
 }
 export function getAllGroupNotes(chatId) {
     const config = getGroupConfig(chatId);
-    if (!config.notes)
+    if (!config.notes) {
         return [];
+    }
     return Object.keys(config.notes);
 }

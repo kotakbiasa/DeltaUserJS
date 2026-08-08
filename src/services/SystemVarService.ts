@@ -18,9 +18,9 @@ export async function setUserVar(telegramId, key, value) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
-    if (!session) return false;
+    if (!session) {return false;}
 
-    if (!session.vars) session.vars = {};
+    if (!session.vars) {session.vars = {};}
     session.vars[key] = value;
     await persistField(idNum, 'vars', session.vars);
     return true;
@@ -31,7 +31,7 @@ export async function deleteUserVar(telegramId, key) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
-    if (!session || !session.vars) return false;
+    if (!session || !session.vars) {return false;}
 
     delete session.vars[key];
     await persistField(idNum, 'vars', session.vars);
@@ -50,7 +50,7 @@ export function getAllSystemVars() {
 export async function setSystemVar(key, value) {
   return withKeyLock(SYS_LOCK_KEY, async () => {
     // Mutate cache inside the lock so concurrent writers don't clobber it.
-    if (!systemConfigCache.vars) systemConfigCache.vars = {};
+    if (!systemConfigCache.vars) {systemConfigCache.vars = {};}
     systemConfigCache.vars[key] = value;
 
     if (isMongo) {
@@ -70,7 +70,7 @@ export async function setSystemVar(key, value) {
 
 export async function deleteSystemVar(key) {
   return withKeyLock(SYS_LOCK_KEY, async () => {
-    if (!systemConfigCache.vars) return false;
+    if (!systemConfigCache.vars) {return false;}
     delete systemConfigCache.vars[key];
 
     if (isMongo) {
@@ -100,10 +100,10 @@ export function hasClaimedTrial(telegramId) {
  */
 export async function setTrialClaimed(telegramId) {
   return withKeyLock(SYS_LOCK_KEY, async () => {
-    if (!systemConfigCache.vars) systemConfigCache.vars = {};
+    if (!systemConfigCache.vars) {systemConfigCache.vars = {};}
     const vars = systemConfigCache.vars as Record<string, any>;
     const claims = { ...(vars.trial_claims || {}) };
-    if (claims[telegramId]) return false;
+    if (claims[telegramId]) {return false;}
     claims[telegramId] = true;
     vars.trial_claims = claims;
 

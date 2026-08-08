@@ -1,66 +1,59 @@
 /**
- * Utility untuk memformat uptime dalam format human-readable.
- * Contoh: "3j 15m 42d" (jam, menit, detik).
+ * Utility untuk memformat durasi/uptime dalam format human-readable.
  */
+/** Suffix per style: compact → j/m/d, full → d/h/m/s, stats → h/j/m/d */
+const SUFFIX = {
+    compact: { days: '', hours: 'j', minutes: 'm', seconds: 'd' }, // "3j 15m 42d"
+    full: { days: 'd', hours: 'h', minutes: 'm', seconds: 's' }, // "3d 4h 15m 42s"
+    stats: { days: 'h', hours: 'j', minutes: 'm', seconds: 'd' }, // "3h 4j 15m 42d"
+};
 /**
- * Format detik menjadi string human-readable.
- * Suffix: j (jam), m (menit), d (detik).
+ * Format detik menjadi string human-readable dengan gaya tertentu.
  * @param totalSeconds - Total detik
- * @returns String seperti "3j 15m 42d"
+ * @param style - compact: "3j 15m 42d" | full: "3d 4h 15m 42s" | stats: "3h 4j 15m 42d"
+ */
+export function formatUptimeStyled(totalSeconds, style = 'compact') {
+    if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+        return '0d';
+    }
+    const s = SUFFIX[style];
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    let str = '';
+    if (days > 0) {
+        str += `${days}${s.days} `;
+    }
+    if (hours > 0) {
+        str += `${hours}${s.hours} `;
+    }
+    if (minutes > 0) {
+        str += `${minutes}${s.minutes} `;
+    }
+    str += `${seconds}${s.seconds}`;
+    return str;
+}
+/**
+ * Format detik menjadi string human-readable (gaya compact).
+ * Suffix: j (jam), m (menit), d (detik). Contoh: "3j 15m 42d"
  */
 export function formatUptime(totalSeconds) {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    let str = '';
-    if (hours > 0)
-        str += `${hours}j `;
-    if (minutes > 0)
-        str += `${minutes}m `;
-    str += `${seconds}d`;
-    return str;
+    return formatUptimeStyled(totalSeconds, 'compact');
 }
 /**
- * Format detik menjadi string human-readable (format alternatif).
- * Suffix: d (hari), h (jam), m (menit), s (detik).
- * @param totalSeconds - Total detik
- * @returns String seperti "3h 15m 42s"
+ * Format detik menjadi string human-readable (gaya full).
+ * Suffix: d (hari), h (jam), m (menit), s (detik). Contoh: "3d 4h 15m 42s"
  */
 export function formatUptimeAlt(totalSeconds) {
-    const d = Math.floor(totalSeconds / 86400);
-    const h = Math.floor((totalSeconds % 86400) / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = Math.floor(totalSeconds % 60);
-    let str = '';
-    if (d > 0)
-        str += `${d}d `;
-    if (h > 0)
-        str += `${h}h `;
-    if (m > 0)
-        str += `${m}m `;
-    str += `${s}s`;
-    return str;
+    return formatUptimeStyled(totalSeconds, 'full');
 }
 /**
- * Format detik menjadi string human-readable (format stats).
- * Suffix: h (hari), j (jam), m (menit), d (detik).
- * @param totalSeconds - Total detik
- * @returns String seperti "3h 15j 42m 5d"
+ * Format detik menjadi string human-readable (gaya stats).
+ * Suffix: h (hari), j (jam), m (menit), d (detik). Contoh: "3h 4j 15m 42d"
  */
 export function formatUptimeStats(totalSeconds) {
-    const days = Math.floor(totalSeconds / (3600 * 24));
-    const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    let str = '';
-    if (days > 0)
-        str += `${days}h `;
-    if (hours > 0)
-        str += `${hours}j `;
-    if (minutes > 0)
-        str += `${minutes}m `;
-    str += `${seconds}d`;
-    return str;
+    return formatUptimeStyled(totalSeconds, 'stats');
 }
 /**
  * Format bytes menjadi string human-readable (B, KB, MB, GB, TB).
@@ -68,8 +61,9 @@ export function formatUptimeStats(totalSeconds) {
  * @returns String seperti "1.25 GB"
  */
 export function formatBytes(bytes) {
-    if (bytes === 0)
+    if (bytes === 0) {
         return '0 B';
+    }
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));

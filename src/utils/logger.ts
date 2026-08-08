@@ -25,7 +25,7 @@ export class Logger {
 
     console.log(`${time} ${levelTag} ${message}`);
 
-    if (!masterBot) return;
+    if (!masterBot) {return;}
 
     const logChatId = getSystemVar('SYSTEM_LOG_CHAT_ID');
     if (logChatId) {
@@ -50,7 +50,7 @@ export class Logger {
 
     console.log(`${time} ${levelTag} ${message}`);
 
-    if (!masterBot) return;
+    if (!masterBot) {return;}
 
     const logChatId = getUserVar(telegramId, 'LOG_CHAT_ID');
     if (logChatId) {

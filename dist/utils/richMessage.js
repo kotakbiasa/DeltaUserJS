@@ -28,10 +28,12 @@ export function buildRich(content, opts) {
     const rich = (opts?.markdown
         ? { markdown: String(content ?? '') }
         : { html: String(content ?? '') });
-    if (opts?.isRtl)
+    if (opts?.isRtl) {
         rich.is_rtl = true;
-    if (opts?.skipEntityDetection)
+    }
+    if (opts?.skipEntityDetection) {
         rich.skip_entity_detection = true;
+    }
     return rich;
 }
 /**
@@ -58,7 +60,7 @@ export async function replyRich(ctx, content, options) {
     try {
         return await ctx.replyWithRichMessage(buildRich(content, richOpts), sendOptions);
     }
-    catch (err) {
+    catch (_err) {
         return ctx.reply(String(content ?? ''), {
             parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
             ...sendOptions,
@@ -73,7 +75,7 @@ export async function sendRich(api, chatId, content, options) {
     try {
         return await api.sendRichMessage(chatId, buildRich(content, richOpts), sendOptions);
     }
-    catch (err) {
+    catch (_err) {
         return api.sendMessage(chatId, String(content ?? ''), {
             parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
             ...sendOptions,
@@ -88,7 +90,7 @@ export async function editRich(ctx, content, options) {
     try {
         return await ctx.editMessageText(buildRich(content, richOpts), sendOptions);
     }
-    catch (err) {
+    catch (_err) {
         return ctx.editMessageText(String(content ?? ''), {
             parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
             ...sendOptions,

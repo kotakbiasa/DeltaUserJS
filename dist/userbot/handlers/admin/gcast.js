@@ -17,8 +17,9 @@ setInterval(() => {
             cleaned++;
         }
     }
-    if (cleaned > 0)
+    if (cleaned > 0) {
         Logger.logSystem(`🧹 LAST_GCAST cleanup: removed ${cleaned} stale entries`, 'INFO');
+    }
 }, 300_000).unref();
 export default {
     name: 'gcast',
@@ -29,11 +30,13 @@ export default {
         detail: 'Modul ini akan mengabaikan grup yang ada di daftar Blacklist Anda. Sistem dilengkapi dengan Anti-Spam Delay untuk melindungi akun.'
     },
     async execute(client, message, settings, telegramId) {
-        if (!message.out || !message.message)
+        if (!message.out || !message.message) {
             return;
+        }
         const text = message.message.trim();
-        if (!text.toLowerCase().startsWith('.gcast'))
+        if (!text.toLowerCase().startsWith('.gcast')) {
             return;
+        }
         const userId = Number(telegramId);
         // Rate limit: prevent spam gcast
         const lastGcast = LAST_GCAST.get(userId) || 0;
@@ -46,8 +49,8 @@ export default {
             });
             return;
         }
-        let broadcastMsg = text.substring(6).trim();
-        let repliedMsg = await message.getReplyMessage();
+        const broadcastMsg = text.substring(6).trim();
+        const repliedMsg = await message.getReplyMessage();
         if (!broadcastMsg && !repliedMsg) {
             await message.edit({
                 text: `<blockquote>❌ <b>Gagal:</b> Harap masukkan teks pesan atau balas sebuah pesan untuk di-broadcast!</blockquote>`,
@@ -108,7 +111,7 @@ export default {
                     const delay = i >= MAX_MESSAGES_PER_MINUTE ? 5000 : 2000;
                     await new Promise(r => setTimeout(r, delay));
                 }
-                catch (err) {
+                catch (_err) {
                     failCount++;
                 }
             }

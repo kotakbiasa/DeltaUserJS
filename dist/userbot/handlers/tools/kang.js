@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Api } from 'teleproto';
 import fs from 'fs';
 import path from 'path';
@@ -61,8 +60,9 @@ export default {
                     });
                     // Download media
                     const buffer = await client.downloadMedia(currentMsg.media, { workers: 1 });
-                    if (!buffer)
+                    if (!buffer) {
                         continue;
+                    }
                     let tmpPath = path.join(process.cwd(), `kang_${Date.now()}`);
                     let sentMsgId = null;
                     try {
@@ -138,8 +138,9 @@ export default {
                         }
                         successCount++;
                         // Kasih jeda sedikit agar tidak flood API Telegram
-                        if (i < total - 1)
+                        if (i < total - 1) {
                             await new Promise(r => setTimeout(r, 1000));
+                        }
                     }
                     finally {
                         // Cleanup
@@ -147,14 +148,14 @@ export default {
                             try {
                                 await client.deleteMessages('me', [sentMsgId], { revoke: true });
                             }
-                            catch (e) { /* ignore */ }
+                            catch (_e) { /* ignore */ }
                         }
                         try {
                             if (fs.existsSync(tmpPath)) {
                                 fs.unlinkSync(tmpPath);
                             }
                         }
-                        catch (e) { /* ignore */ }
+                        catch (_e) { /* ignore */ }
                     }
                 }
                 if (successCount > 0) {

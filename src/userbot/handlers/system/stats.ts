@@ -2,7 +2,7 @@ import { helpRegistry } from '../../engine/pluginRegistry.js';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
-import { formatUptimeStats, formatBytes } from '../../../utils/format.js';
+import { formatUptimeStats } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -33,7 +33,7 @@ export default {
            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
            grammyVer = (pkg.dependencies['grammy'] || 'N/A').replace(/^[\^~>=]+/, '');
            teleprotoVer = (pkg.dependencies['teleproto'] || 'N/A').replace(/^[\^~>=]+/, '');
-        } catch (e) { /* ignore */ }
+        } catch (_e) { /* ignore */ }
 
         const text = `📊 <b>USERBOT STATS</b>\n\n` +
           `<blockquote>` +

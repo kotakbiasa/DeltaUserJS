@@ -1,5 +1,4 @@
 import { getChatSettings, updateChatSettings } from '../../../infrastructure/database.js';
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
 
@@ -19,7 +18,7 @@ export default {
     if (message.action) {
       const chatSettings = getChatSettings(telegramId, chatKey);
       const welcomeEnabled = chatSettings.welcome !== undefined ? chatSettings.welcome : isTestEnv;
-      if (!welcomeEnabled) return;
+      if (!welcomeEnabled) {return;}
 
       const isJoin = message.action.className === 'MessageActionChatAddUser' || 
                      message.action.className === 'MessageActionChatJoinedByLink';
@@ -31,11 +30,11 @@ export default {
         if (chatSettings.cleanservice !== false) {
           try {
             await client.deleteMessages(message.peerId, [message.id], { revoke: true });
-          } catch (e) { /* ignore */ }
+          } catch (_e) { /* ignore */ }
         }
 
         // Dapatkan user baru
-        let userIds = [];
+        let userIds;
         if (message.action.className === 'MessageActionChatAddUser') {
           userIds = message.action.users || [];
         } else {
@@ -47,13 +46,13 @@ export default {
           try {
             const userEntity = await client.getEntity(uId);
             name = userEntity.firstName || userEntity.username || `User_${uId}`;
-          } catch (e) { /* ignore */ }
+          } catch (_e) { /* ignore */ }
           
           let title = String(chatId);
           try {
             const chatEntity = await client.getEntity(chatId);
             title = chatEntity.title || String(chatId);
-          } catch (e) { /* ignore */ }
+          } catch (_e) { /* ignore */ }
 
           let welcomeTemplate = chatSettings.welcome_msg;
           if (welcomeTemplate === undefined || welcomeTemplate === null || String(welcomeTemplate).trim() === '') {
@@ -79,13 +78,13 @@ export default {
         try {
           const userEntity = await client.getEntity(uId);
           name = userEntity.firstName || userEntity.username || `User_${uId}`;
-        } catch (e) { /* ignore */ }
+        } catch (_e) { /* ignore */ }
 
         let title = String(chatId);
         try {
           const chatEntity = await client.getEntity(chatId);
           title = chatEntity.title || String(chatId);
-        } catch (e) { /* ignore */ }
+        } catch (_e) { /* ignore */ }
 
         let goodbyeTemplate = chatSettings.goodbye_msg;
         if (goodbyeTemplate === undefined || goodbyeTemplate === null || String(goodbyeTemplate).trim() === '') {
@@ -107,13 +106,13 @@ export default {
     }
 
     // --- 2. Handle Settings Commands ---
-    if (!message.out || !message.message) return;
+    if (!message.out || !message.message) {return;}
     const text = message.message.trim();
     const args = text.split(/\s+/);
     const cmd = args[0].toLowerCase();
 
     if (cmd === '.welcome') {
-      if (args.length < 2) return;
+      if (args.length < 2) {return;}
       const val = args[1].toLowerCase() === 'on';
       await updateChatSettings(telegramId, chatId, 'welcome', val);
       await message.edit({ text: `✅ Fitur Welcome di chat ini diubah menjadi: <b>${val ? 'ON' : 'OFF'}</b>`, parseMode: 'html' });
@@ -132,7 +131,7 @@ export default {
     }
 
     else if (cmd === '.cleanservice') {
-      if (args.length < 2) return;
+      if (args.length < 2) {return;}
       const val = args[1].toLowerCase() === 'on';
       await updateChatSettings(telegramId, chatId, 'cleanservice', val);
       await message.edit({ text: `✅ CleanService di chat ini diubah menjadi: <b>${val ? 'ON' : 'OFF'}</b>`, parseMode: 'html' });

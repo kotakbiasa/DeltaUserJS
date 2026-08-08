@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import fs from 'fs';
@@ -12,19 +11,21 @@ export default {
         detail: 'Menampilkan foto profil utama, bio, status akun, dan data detail lainnya dengan tampilan elegan.'
     },
     async execute(client, message, settings, telegramId) {
-        if (!message.out || !message.message)
+        if (!message.out || !message.message) {
             return;
+        }
         const text = message.message.trim();
         const args = text.split(/\s+/);
         const cmd = args[0].toLowerCase();
-        if (cmd !== '.info')
+        if (cmd !== '.info') {
             return;
+        }
         await message.edit({
             text: `<blockquote>🔍 <b>Mengekstrak informasi target...</b></blockquote>`,
             parseMode: 'html'
         });
         let targetEntity;
-        let isGroup = false;
+        let _isGroup = false;
         try {
             const repliedMsg = await message.getReplyMessage();
             if (repliedMsg) {
@@ -44,7 +45,7 @@ export default {
                 }
                 else {
                     targetEntity = await client.getEntity(message.chatId);
-                    isGroup = true;
+                    _isGroup = true;
                 }
             }
             // 1. Ambil Foto Profil Target
@@ -66,16 +67,21 @@ export default {
                 const pId = u.id.toString();
                 const pBio = f.about || 'Tidak ada deskripsi / bio';
                 const tags = [];
-                if (u.premium)
+                if (u.premium) {
                     tags.push('💎 Premium');
-                if (u.bot)
+                }
+                if (u.bot) {
                     tags.push('🤖 Bot');
-                if (u.verified)
+                }
+                if (u.verified) {
                     tags.push('✅ Verified');
-                if (u.scam)
+                }
+                if (u.scam) {
                     tags.push('⚠️ Scam');
-                if (u.fake)
+                }
+                if (u.fake) {
                     tags.push('🎭 Fake');
+                }
                 let photoCount = 0;
                 try {
                     const userPhotos = await client.invoke(new Api.photos.GetUserPhotos({
@@ -86,7 +92,7 @@ export default {
                     }));
                     photoCount = userPhotos.count || userPhotos.photos.length || 0;
                 }
-                catch (e) { /* ignore */ }
+                catch (_e) { /* ignore */ }
                 captionText = `<blockquote>👤 <b>USER INFORMATION</b>\n` +
                     `───────────────────────\n` +
                     `📛 <b>Nama:</b> ${escapeHtml(pName)}\n` +
@@ -120,7 +126,7 @@ export default {
                         `───────────────────────</blockquote>\n\n` +
                         ``;
                 }
-                catch (chanErr) {
+                catch (_chanErr) {
                     // Jika Basic Chat
                     const cName = targetEntity.title;
                     const cId = targetEntity.id.toString();

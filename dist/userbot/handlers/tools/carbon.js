@@ -1,4 +1,3 @@
-// @ts-nocheck
 const THEMES = [
     "3024-night", "a11y-dark", "blackboard", "base16-dark", "base16-light",
     "cobalt", "dracula", "duotone-dark", "hopscotch", "lucario", "material",
@@ -51,17 +50,19 @@ export default {
         usage: '`.carbon [-tema] <teks>` atau balas pesan dengan `.carbon [-tema]`',
         detail: 'Contoh: \n`.carbon -dracula console.log()`\n`.carbon -random test`\nDaftar tema yang bisa dipakai: material, nord, dracula, seti, vscode, one-dark, synthwave-84, dll.'
     },
-    async execute(client, message, settings, telegramId) {
-        if (!message.out || !message.message)
+    async execute(client, message, _settings, _telegramId) {
+        if (!message.out || !message.message) {
             return;
-        if (!message.message.toLowerCase().startsWith('.carbon'))
+        }
+        if (!message.message.toLowerCase().startsWith('.carbon')) {
             return;
+        }
         let textCode = message.message.substring(7).trim();
         let theme = "seti"; // Default theme
         // Cek apakah ada flag tema (dimulai dengan '-')
         if (textCode.startsWith('-')) {
             const spaceIndex = textCode.indexOf(' ');
-            let possibleTheme = '';
+            let possibleTheme;
             if (spaceIndex !== -1) {
                 possibleTheme = textCode.substring(1, spaceIndex).toLowerCase();
             }
@@ -113,7 +114,7 @@ export default {
             try {
                 await message.delete();
             }
-            catch (e) { }
+            catch (_e) { /* empty */ }
         }
         catch (err) {
             await message.edit({

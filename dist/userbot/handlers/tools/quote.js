@@ -8,8 +8,9 @@ export default {
         detail: 'Modul ini akan meneruskan pesan ke @QuotLyBot dan mengirimkan hasil stikernya kembali ke obrolan Anda.'
     },
     async execute(client, message, settings, telegramId) {
-        if (!message.out || !message.message)
+        if (!message.out || !message.message) {
             return;
+        }
         const cmd = message.message.toLowerCase().trim();
         if (cmd === '.q' || cmd === '.quote') {
             const replied = await message.getReplyMessage();
@@ -55,7 +56,7 @@ export default {
                     try {
                         await message.delete();
                     }
-                    catch (e) { /* ignore */ }
+                    catch (_e) { /* ignore */ }
                 }
                 else {
                     await message.edit({

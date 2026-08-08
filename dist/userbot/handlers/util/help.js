@@ -1,25 +1,21 @@
 import { helpRegistry } from '../../engine/pluginRegistry.js';
 import { Logger } from '../../../utils/logger.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 /**
  * Format nama modul agar rapi
  */
 function formatModuleName(name) {
-    if (name.toLowerCase() === 'antipm')
+    if (name.toLowerCase() === 'antipm') {
         return 'AntiPM';
-    if (name.length <= 3)
+    }
+    if (name.length <= 3) {
         return name.toUpperCase();
+    }
     return name.charAt(0).toUpperCase() + name.slice(1);
 }
 /**
  * Escape HTML untuk konten aman
  */
-function escapeHtml(text) {
-    return String(text ?? '')
-        .replace(/&/g, '&')
-        .replace(/</g, '<')
-        .replace(/>/g, '>')
-        .replace(/"/g, '"');
-}
 /**
  * Strip HTML tags untuk preview singkat
  */
@@ -30,8 +26,9 @@ function stripHtml(text) {
  * Konversi Markdown sederhana ke HTML
  */
 function markdownToHtml(text) {
-    if (!text)
+    if (!text) {
         return '';
+    }
     const escaped = escapeHtml(text);
     return escaped
         .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
@@ -112,8 +109,9 @@ function buildMenuKeyboard(page = 1) {
  */
 function buildModuleDetail(moduleName) {
     const mod = helpRegistry[moduleName];
-    if (!mod)
+    if (!mod) {
         return null;
+    }
     return (`📦 <b>MODUL: ${escapeHtml(mod.title?.toUpperCase() || formatModuleName(moduleName).toUpperCase())}</b>\n` +
         `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n` +
         `📝 <b>Deskripsi:</b>\n` +
@@ -148,14 +146,16 @@ export default {
         usage: 'Ketik `.help` untuk menu utama atau `.help [nama_modul]` untuk detail spesifik.',
         detail: 'Menu help sekarang menggunakan inline keyboard interaktif. Klik tombol modul untuk melihat detail.'
     },
-    async execute(client, message, settings, telegramId) {
-        if (!message.out || !message.message)
+    async execute(client, message, _settings, telegramId) {
+        if (!message.out || !message.message) {
             return;
-        if (!message.message.toLowerCase().startsWith('.help'))
+        }
+        if (!message.message.toLowerCase().startsWith('.help')) {
             return;
+        }
         try {
             const parts = message.message.trim().split(/\s+/);
-            const replyToMsgId = getReplyToForTopic(message);
+            const _replyToMsgId = getReplyToForTopic(message);
             if (parts.length === 1) {
                 // --- .help → Menu utama dengan inline keyboard ---
                 const text = buildMenuText(1);
@@ -195,15 +195,16 @@ export default {
             try {
                 await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
             }
-            catch (e) { /* ignore */ }
+            catch (_e) { /* ignore */ }
         }
     },
     // ============================================================
     // CALLBACK HANDLER — Dipanggil saat user klik tombol inline
     // ============================================================
-    async onCallbackQuery(client, callbackEvent, settings, telegramId) {
-        if (!callbackEvent)
+    async onCallbackQuery(client, callbackEvent, _settings, _telegramId) {
+        if (!callbackEvent) {
             return;
+        }
         const data = callbackEvent.data || '';
         // Parse callback data
         if (data === 'help:noop') {
@@ -214,8 +215,9 @@ export default {
             await callbackEvent.answer({ message: '', alert: false });
             try {
                 const msg = await callbackEvent.getMessage();
-                if (msg)
+                if (msg) {
                     await msg.delete({ revoke: true });
+                }
             }
             catch (_) { /* ignore */ }
             return true;

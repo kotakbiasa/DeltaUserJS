@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginsDir = path.join(__dirname, '../handlers');
 
 function helpIsComplete(help) {
-  if (!help) return true;
+  if (!help) {return true;}
   return ['title', 'description', 'usage', 'detail'].every(key => Boolean(help[key]));
 }
 
@@ -35,9 +35,9 @@ async function getJsFilesRecursively(dir) {
 }
 
 export async function loadAllPlugins({ reload = true } = {}) {
-  if (reload) clearRegistry();
+  if (reload) {clearRegistry();}
 
-  let files = [];
+  let files;
   try {
     files = await getJsFilesRecursively(pluginsDir);
     files.sort();

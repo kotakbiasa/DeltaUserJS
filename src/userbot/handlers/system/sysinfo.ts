@@ -30,11 +30,11 @@ export default {
     detail: 'Menampilkan detail CPU, RAM, Disk, Network, OS kernel, hostname, dan load average dari server.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
-    if (message.message.toLowerCase() !== '.sysinfo') return;
+    if (!message.out || !message.message) {return;}
+    if (message.message.toLowerCase() !== '.sysinfo') {return;}
 
     // Proteksi: hanya owner
-    if (Number(telegramId) !== Number(config.ownerId)) return;
+    if (Number(telegramId) !== Number(config.ownerId)) {return;}
 
     try {
       await message.edit({
@@ -45,7 +45,7 @@ export default {
       // CPU Info
       const cpus = os.cpus();
       const cpuModel = cpus[0]?.model || 'Unknown';
-      const cpuCores = cpus.length;
+      const _cpuCores = cpus.length;
       const cpuUsage = getCpuUsage();
 
       // Memory Info
@@ -66,14 +66,14 @@ export default {
       const processUptime = formatUptimeAlt(process.uptime());
 
       // Load Average (Linux/Mac)
-      const loadAvg = os.loadavg().map(l => l.toFixed(2)).join(' / ');
+      const _loadAvg = os.loadavg().map(l => l.toFixed(2)).join(' / ');
 
       // Disk Info (Linux)
       let diskInfo = 'N/A';
       try {
         const { stdout } = await execAsync("df -h / | tail -1 | awk '{print $2 \" total, \" $3 \" used, \" $4 \" free (\" $5 \" used)\"}'", { timeout: 5000 });
         diskInfo = stdout.trim() || 'N/A';
-      } catch (e) { /* ignore */ }
+      } catch (_e) { /* ignore */ }
 
       // Network interfaces
       const nets = os.networkInterfaces();
@@ -85,7 +85,7 @@ export default {
             break;
           }
         }
-        if (ipAddr !== 'N/A') break;
+        if (ipAddr !== 'N/A') {break;}
       }
 
       const text = `🖥️ <b>SYSTEM INFORMATION</b>\n\n` +

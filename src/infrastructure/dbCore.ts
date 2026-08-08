@@ -1,5 +1,3 @@
-// @ts-nocheck
-import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -76,15 +74,15 @@ const systemConfigSchema = new mongoose.Schema({
   vars: { type: Map, of: String, default: {} },
 }, { _id: false });
 
-export const UserbotModel = mongoose.models.Userbot || mongoose.model('Userbot', userbotSchema);
-export const SystemConfigModel = mongoose.models.SystemConfig || mongoose.model('SystemConfig', systemConfigSchema);
+export const UserbotModel: mongoose.Model<any> = (mongoose.models.Userbot || mongoose.model('Userbot', userbotSchema)) as mongoose.Model<any>;
+export const SystemConfigModel: mongoose.Model<any> = (mongoose.models.SystemConfig || mongoose.model('SystemConfig', systemConfigSchema)) as mongoose.Model<any>;
 
 const groupConfigSchema = new mongoose.Schema({
   chat_id: { type: String, required: true, unique: true, index: true },
   notes: { type: Map, of: String, default: {} }
 }, { strict: false });
 
-export const GroupConfigModel = mongoose.models.GroupConfig || mongoose.model('GroupConfig', groupConfigSchema);
+export const GroupConfigModel: mongoose.Model<any> = (mongoose.models.GroupConfig || mongoose.model('GroupConfig', groupConfigSchema)) as mongoose.Model<any>;
 
 export const dbCache = new Map();
 export let isMongo = false;
@@ -151,8 +149,8 @@ export async function readDbFromFile() {
 
     const data = await fsp.readFile(dbPath, 'utf8');
     const parsed = JSON.parse(data || '{"userbots":{}, "systemConfig": {"vars": {}}, "groups": {}}');
-    if (!parsed.systemConfig) parsed.systemConfig = { vars: {} };
-    if (!parsed.groups) parsed.groups = {};
+    if (!parsed.systemConfig) {parsed.systemConfig = { vars: {} };}
+    if (!parsed.groups) {parsed.groups = {};}
     return parsed;
   } catch (err) {
     Logger.logSystem(`❌ Error reading database file: ${err}`, 'ERROR');
@@ -200,7 +198,7 @@ export async function persistField(idNum, field, value) {
 
   return withWriteLock(async () => {
     const data = await readDbFromFile();
-    if (!data.userbots[idNum]) return false;
+    if (!data.userbots[idNum]) {return false;}
     data.userbots[idNum][field] = value;
     return writeDbToFile(data);
   });
@@ -243,7 +241,7 @@ export async function persistDelete(idNum) {
 
   return withWriteLock(async () => {
     const data = await readDbFromFile();
-    if (!data.userbots[idNum]) return false;
+    if (!data.userbots[idNum]) {return false;}
     delete data.userbots[idNum];
     return writeDbToFile(data);
   });
@@ -268,7 +266,7 @@ export async function initDatabaseAndCache() {
       }
 
       const sysConf = await SystemConfigModel.findById('system');
-      if (sysConf) systemConfigCache = sysConf.toObject();
+      if (sysConf) {systemConfigCache = sysConf.toObject();}
 
       const groups = await GroupConfigModel.find({});
       for (const group of groups) {

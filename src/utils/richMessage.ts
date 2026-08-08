@@ -39,8 +39,8 @@ export function buildRich(content: string, opts?: { markdown?: boolean; isRtl?: 
   const rich = (opts?.markdown
     ? { markdown: String(content ?? '') }
     : { html: String(content ?? '') }) as InputRichMessage;
-  if (opts?.isRtl) rich.is_rtl = true;
-  if (opts?.skipEntityDetection) rich.skip_entity_detection = true;
+  if (opts?.isRtl) {rich.is_rtl = true;}
+  if (opts?.skipEntityDetection) {rich.skip_entity_detection = true;}
   return rich;
 }
 
@@ -72,7 +72,7 @@ export async function replyRich(
   const { richOpts, sendOptions } = splitOptions(options);
   try {
     return await ctx.replyWithRichMessage(buildRich(content, richOpts), sendOptions as Record<string, unknown>);
-  } catch (err) {
+  } catch (_err) {
     return ctx.reply(String(content ?? ''), {
       parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
       ...sendOptions,
@@ -92,7 +92,7 @@ export async function sendRich(
   const { richOpts, sendOptions } = splitOptions(options);
   try {
     return await api.sendRichMessage(chatId, buildRich(content, richOpts), sendOptions as Record<string, unknown>);
-  } catch (err) {
+  } catch (_err) {
     return api.sendMessage(chatId, String(content ?? ''), {
       parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
       ...sendOptions,
@@ -111,7 +111,7 @@ export async function editRich(
   const { richOpts, sendOptions } = splitOptions(options);
   try {
     return await ctx.editMessageText(buildRich(content, richOpts), sendOptions as Record<string, unknown>);
-  } catch (err) {
+  } catch (_err) {
     return ctx.editMessageText(String(content ?? ''), {
       parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
       ...sendOptions,

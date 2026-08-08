@@ -16,8 +16,9 @@ export default {
         if (message.action) {
             const chatSettings = getChatSettings(telegramId, chatKey);
             const welcomeEnabled = chatSettings.welcome !== undefined ? chatSettings.welcome : isTestEnv;
-            if (!welcomeEnabled)
+            if (!welcomeEnabled) {
                 return;
+            }
             const isJoin = message.action.className === 'MessageActionChatAddUser' ||
                 message.action.className === 'MessageActionChatJoinedByLink';
             const isLeave = message.action.className === 'MessageActionChatDeleteUser';
@@ -27,10 +28,10 @@ export default {
                     try {
                         await client.deleteMessages(message.peerId, [message.id], { revoke: true });
                     }
-                    catch (e) { /* ignore */ }
+                    catch (_e) { /* ignore */ }
                 }
                 // Dapatkan user baru
-                let userIds = [];
+                let userIds;
                 if (message.action.className === 'MessageActionChatAddUser') {
                     userIds = message.action.users || [];
                 }
@@ -43,13 +44,13 @@ export default {
                         const userEntity = await client.getEntity(uId);
                         name = userEntity.firstName || userEntity.username || `User_${uId}`;
                     }
-                    catch (e) { /* ignore */ }
+                    catch (_e) { /* ignore */ }
                     let title = String(chatId);
                     try {
                         const chatEntity = await client.getEntity(chatId);
                         title = chatEntity.title || String(chatId);
                     }
-                    catch (e) { /* ignore */ }
+                    catch (_e) { /* ignore */ }
                     let welcomeTemplate = chatSettings.welcome_msg;
                     if (welcomeTemplate === undefined || welcomeTemplate === null || String(welcomeTemplate).trim() === '') {
                         welcomeTemplate = 'Welcome / Selamat datang {name} ke {title}!';
@@ -71,13 +72,13 @@ export default {
                     const userEntity = await client.getEntity(uId);
                     name = userEntity.firstName || userEntity.username || `User_${uId}`;
                 }
-                catch (e) { /* ignore */ }
+                catch (_e) { /* ignore */ }
                 let title = String(chatId);
                 try {
                     const chatEntity = await client.getEntity(chatId);
                     title = chatEntity.title || String(chatId);
                 }
-                catch (e) { /* ignore */ }
+                catch (_e) { /* ignore */ }
                 let goodbyeTemplate = chatSettings.goodbye_msg;
                 if (goodbyeTemplate === undefined || goodbyeTemplate === null || String(goodbyeTemplate).trim() === '') {
                     goodbyeTemplate = 'Goodbye {name} dari {title}!';
@@ -94,14 +95,16 @@ export default {
             return;
         }
         // --- 2. Handle Settings Commands ---
-        if (!message.out || !message.message)
+        if (!message.out || !message.message) {
             return;
+        }
         const text = message.message.trim();
         const args = text.split(/\s+/);
         const cmd = args[0].toLowerCase();
         if (cmd === '.welcome') {
-            if (args.length < 2)
+            if (args.length < 2) {
                 return;
+            }
             const val = args[1].toLowerCase() === 'on';
             await updateChatSettings(telegramId, chatId, 'welcome', val);
             await message.edit({ text: `✅ Fitur Welcome di chat ini diubah menjadi: <b>${val ? 'ON' : 'OFF'}</b>`, parseMode: 'html' });
@@ -117,8 +120,9 @@ export default {
             await message.edit({ text: `✅ Pesan Goodbye berhasil diatur.`, parseMode: 'html' });
         }
         else if (cmd === '.cleanservice') {
-            if (args.length < 2)
+            if (args.length < 2) {
                 return;
+            }
             const val = args[1].toLowerCase() === 'on';
             await updateChatSettings(telegramId, chatId, 'cleanservice', val);
             await message.edit({ text: `✅ CleanService di chat ini diubah menjadi: <b>${val ? 'ON' : 'OFF'}</b>`, parseMode: 'html' });

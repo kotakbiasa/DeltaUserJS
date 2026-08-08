@@ -48,7 +48,7 @@ class UserbotManager {
     const id = Number(telegramId);
     const release = await acquireLock(id);
     try {
-      if (!sessionString) throw new Error(`session string kosong untuk ${id}`);
+      if (!sessionString) {throw new Error(`session string kosong untuk ${id}`);}
 
       // Re-validate inside the lock: if the userbot was just deactivated (e.g.
       // by the expiration checker between the watchdog's decision and here),
@@ -94,7 +94,7 @@ class UserbotManager {
       if (userbot) {
         await userbot.stop();
         const cleared = stopAllLoops(id);
-        if (cleared > 0) Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on stop.`, 'INFO');
+        if (cleared > 0) {Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on stop.`, 'INFO');}
         this.clients.delete(id);
       }
 
@@ -107,7 +107,7 @@ class UserbotManager {
   async restartUserbot(telegramId) {
     const id = Number(telegramId);
     const session = getUserbotSession(telegramId);
-    if (!session?.session_string) throw new Error(`session tidak ditemukan untuk ${id}`);
+    if (!session?.session_string) {throw new Error(`session tidak ditemukan untuk ${id}`);}
     const release = await acquireLock(id);
     try {
       // Inline stop logic directly — don't call stopUserbot() to avoid double-lock
@@ -115,7 +115,7 @@ class UserbotManager {
       if (userbot) {
         await userbot.stop();
         const cleared = stopAllLoops(id);
-        if (cleared > 0) Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on restart.`, 'INFO');
+        if (cleared > 0) {Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on restart.`, 'INFO');}
         this.clients.delete(id);
       }
 
@@ -152,11 +152,11 @@ class UserbotManager {
   }
 
   startWatchdog(intervalMs = 120000) {
-    if (this.watchdogInterval) return;
+    if (this.watchdogInterval) {return;}
     Logger.logSystem(`🛡️ Userbot Watchdog started (${intervalMs}ms interval).`, 'INFO');
     this.watchdogInterval = setInterval(() => {
       // Cegah siklus tumpang-tindih bila pengecekan sebelumnya belum selesai
-      if (this.watchdogRunning) return;
+      if (this.watchdogRunning) {return;}
       this.watchdogRunning = true;
       this.checkAndReconnect()
         .catch(err => Logger.logSystem(`Watchdog error: ${err.message || err}`, 'ERROR'))
@@ -165,7 +165,7 @@ class UserbotManager {
   }
 
   stopWatchdog() {
-    if (!this.watchdogInterval) return;
+    if (!this.watchdogInterval) {return;}
     clearInterval(this.watchdogInterval);
     this.watchdogInterval = null;
     Logger.logSystem('🛡️ Userbot Watchdog stopped.', 'INFO');
@@ -180,15 +180,15 @@ class UserbotManager {
 
       // Double-check: apakah userbot masih aktif setelah snapshot diambil?
       const fresh = dbCache.get(id);
-      if (!fresh || fresh.is_active !== 1) continue;
+      if (!fresh || fresh.is_active !== 1) {continue;}
 
       // Cek lagi apakah sudah terhubung (mungkin sudah di-reconnect oleh eksekusi sebelumnya)
       if (this.clients.has(id)) {
         const existing = this.clients.get(id);
-        if (existing?.isConnected()) continue;
+        if (existing?.isConnected()) {continue;}
       }
 
-      if (this.reconnecting.has(id)) continue;
+      if (this.reconnecting.has(id)) {continue;}
 
       this.reconnecting.add(id);
       try {

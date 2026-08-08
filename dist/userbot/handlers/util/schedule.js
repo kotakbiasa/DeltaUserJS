@@ -52,8 +52,9 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
 export function stopLoop(telegramId, chatId, deleteFromDb = false) {
     const idNum = Number(telegramId);
     const myLoops = loopStore.get(idNum);
-    if (!myLoops)
+    if (!myLoops) {
         return false;
+    }
     const chatKey = String(chatId);
     if (myLoops.has(chatKey)) {
         clearInterval(myLoops.get(chatKey).intervalId);
@@ -74,8 +75,9 @@ export function stopLoop(telegramId, chatId, deleteFromDb = false) {
 export function stopAllLoops(telegramId) {
     const idNum = Number(telegramId);
     const myLoops = loopStore.get(idNum);
-    if (!myLoops)
+    if (!myLoops) {
         return 0;
+    }
     let count = 0;
     for (const [chatKey, data] of myLoops.entries()) {
         clearInterval(data.intervalId);
@@ -94,15 +96,17 @@ export default {
         detail: 'Pesan loop disimpan di database dan akan dipulihkan otomatis ketika bot direstart.'
     },
     async execute(client, message, settings, telegramId) {
-        if (!message.out || !message.message)
+        if (!message.out || !message.message) {
             return;
+        }
         const text = message.message.trim();
         const args = text.split(/\s+/);
         const cmd = args[0].toLowerCase();
-        if (!['.loop', '.rmloop', '.listloop'].includes(cmd))
+        if (!['.loop', '.rmloop', '.listloop'].includes(cmd)) {
             return;
+        }
         const chatId = message.chatId;
-        const chatKey = String(chatId);
+        const _chatKey = String(chatId);
         const idNum = Number(telegramId);
         if (!loopStore.has(idNum)) {
             loopStore.set(idNum, new Map());

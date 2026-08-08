@@ -1,4 +1,3 @@
-import { Api } from 'teleproto';
 import { getBroadcastBlacklist } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
@@ -20,7 +19,7 @@ setInterval(() => {
       cleaned++;
     }
   }
-  if (cleaned > 0) Logger.logSystem(`🧹 LAST_GCAST cleanup: removed ${cleaned} stale entries`, 'INFO');
+  if (cleaned > 0) {Logger.logSystem(`🧹 LAST_GCAST cleanup: removed ${cleaned} stale entries`, 'INFO');}
 }, 300_000).unref();
 
 export default {
@@ -32,10 +31,10 @@ export default {
     detail: 'Modul ini akan mengabaikan grup yang ada di daftar Blacklist Anda. Sistem dilengkapi dengan Anti-Spam Delay untuk melindungi akun.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+    if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
-    if (!text.toLowerCase().startsWith('.gcast')) return;
+    if (!text.toLowerCase().startsWith('.gcast')) {return;}
 
     const userId = Number(telegramId);
 
@@ -51,8 +50,8 @@ export default {
       return;
     }
 
-    let broadcastMsg = text.substring(6).trim();
-    let repliedMsg = await message.getReplyMessage();
+    const broadcastMsg = text.substring(6).trim();
+    const repliedMsg = await message.getReplyMessage();
 
     if (!broadcastMsg && !repliedMsg) {
        await message.edit({ 
@@ -121,7 +120,7 @@ export default {
           // Dynamic delay: increase after every 10 messages to stay under Telegram limits
           const delay = i >= MAX_MESSAGES_PER_MINUTE ? 5000 : 2000;
           await new Promise(r => setTimeout(r, delay));
-        } catch (err) {
+        } catch (_err) {
           failCount++;
         }
       }

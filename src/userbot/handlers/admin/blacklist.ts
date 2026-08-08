@@ -10,7 +10,7 @@ export default {
     detail: 'Grup yang masuk blacklist tidak akan pernah menerima pesan dari perintah `.gcast`.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+    if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
     const args = text.split(/\s+/);

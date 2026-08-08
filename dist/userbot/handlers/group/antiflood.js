@@ -21,8 +21,9 @@ setInterval(() => {
             floodTracker.set(key, recent);
         }
     }
-    if (cleaned > 0)
+    if (cleaned > 0) {
         Logger.logSystem(`🧹 FloodTracker cleanup: removed ${cleaned} stale entries`, 'INFO');
+    }
 }, 10 * 60 * 1000); // every 10 minutes
 export default {
     name: 'antiflood',
@@ -34,23 +35,25 @@ export default {
     },
     async execute(client, message, settings, telegramId) {
         const chatId = message.chatId;
-        const chatKey = String(chatId);
+        const _chatKey = String(chatId);
         // --- 1. Handle Settings Commands ---
         if (message.out && message.message) {
             const text = message.message.trim();
             const args = text.split(/\s+/);
             const cmd = args[0].toLowerCase();
             if (cmd === '.antiflood') {
-                if (args.length < 2)
+                if (args.length < 2) {
                     return;
+                }
                 const val = args[1].toLowerCase() === 'on';
                 await updateChatSettings(telegramId, chatId, 'antiflood', val);
                 await message.edit({ text: `✅ <b>Berhasil:</b> Anti-Flood diubah menjadi: <b>${val ? 'ON' : 'OFF'}</b>`, parseMode: 'html' });
                 return;
             }
             else if (cmd === '.setfloodlimit') {
-                if (args.length < 2)
+                if (args.length < 2) {
                     return;
+                }
                 const limit = parseInt(args[1]);
                 if (isNaN(limit) || limit <= 0) {
                     await message.edit({ text: `❌ <b>Gagal:</b> Batas limit tidak valid! Kembali ke default / Batal.`, parseMode: 'html' });
@@ -61,8 +64,9 @@ export default {
                 return;
             }
             else if (cmd === '.setfloodwarn') {
-                if (args.length < 2)
+                if (args.length < 2) {
                     return;
+                }
                 const warns = parseInt(args[1]);
                 if (isNaN(warns) || warns <= 0) {
                     await message.edit({ text: `❌ <b>Gagal:</b> Batas warning tidak valid!`, parseMode: 'html' });
@@ -73,8 +77,9 @@ export default {
                 return;
             }
             else if (cmd === '.setfloodtime') {
-                if (args.length < 2)
+                if (args.length < 2) {
                     return;
+                }
                 const seconds = parseInt(args[1]);
                 if (isNaN(seconds) || seconds <= 0) {
                     await message.edit({ text: `❌ <b>Gagal:</b> Rentang waktu tidak valid!`, parseMode: 'html' });
@@ -85,8 +90,9 @@ export default {
                 return;
             }
             else if (cmd === '.setfloodmode') {
-                if (args.length < 2)
+                if (args.length < 2) {
                     return;
+                }
                 const mode = args[1].toLowerCase();
                 if (mode !== 'mute' && mode !== 'kick') {
                     await message.edit({ text: `❌ <b>Gagal:</b> Mode hukuman tidak valid! Gunakan <code>mute</code> atau <code>kick</code>.`, parseMode: 'html' });
@@ -100,11 +106,13 @@ export default {
         // --- 2. Handle Message Monitoring ---
         const chatSettings = getChatSettings(telegramId, chatId);
         const antifloodEnabled = chatSettings.antiflood !== undefined ? chatSettings.antiflood : isTestEnv;
-        if (!antifloodEnabled)
+        if (!antifloodEnabled) {
             return;
+        }
         // Self/Ubot immunity
-        if (message.out || message.senderId === telegramId)
+        if (message.out || message.senderId === telegramId) {
             return;
+        }
         // Ignore join/leave service messages
         if (message.action?.className === 'MessageActionChatAddUser' ||
             message.action?.className === 'MessageActionChatJoinedByLink' ||
@@ -112,12 +120,14 @@ export default {
             return;
         }
         const senderId = message.senderId;
-        if (!senderId)
+        if (!senderId) {
             return;
+        }
         // Admin & whitelisted immunity check
         const isApproved = (settings?.approved_users || []).includes(senderId) || (chatSettings.admins || []).includes(senderId);
-        if (isApproved)
+        if (isApproved) {
             return;
+        }
         // Fetch config
         const limit = Number(chatSettings.flood_limit || 5);
         const timeWindow = Number(chatSettings.flood_time_window || 3) * 1000;
@@ -177,20 +187,20 @@ export default {
                     const userEntity = await client.getEntity(senderId);
                     name = userEntity.firstName || userEntity.username || `User_${senderId}`;
                 }
-                catch (e) { /* ignore: use default name */ }
+                catch (_e) { /* ignore: use default name */ }
                 await message.edit({ text: `<blockquote>⚠️ <b>warning</b> / <b>Banjir</b>: User ${escapeHtml(name)} telah di-${isKick ? 'kick' : 'mute'} karena melebihi batas flood!</blockquote>` });
             }
             else {
                 try {
                     await client.deleteMessages(message.peerId, [message.id], { revoke: true });
                 }
-                catch (e) { /* ignore */ }
+                catch (_e) { /* ignore */ }
                 let name = `User_${senderId}`;
                 try {
                     const userEntity = await client.getEntity(senderId);
                     name = userEntity.firstName || userEntity.username || `User_${senderId}`;
                 }
-                catch (e) { /* ignore: use default name */ }
+                catch (_e) { /* ignore: use default name */ }
                 await client.sendMessage(chatId, {
                     message: `⚠️ <b>warning</b>: Mohon jangan spam, ${escapeHtml(name)}! [Peringatan: ${escapeHtml(String(warnInfo.count))}/${escapeHtml(String(maxWarns))}]`
                 });

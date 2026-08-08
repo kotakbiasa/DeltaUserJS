@@ -1,10 +1,9 @@
-// @ts-nocheck
 import { TelegramClient } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
 import { NewMessage, Raw } from 'teleproto/events/index.js';
 import { Api } from 'teleproto';
 import config from '../../config.js';
-import { getUserbotSession, getChatSettings } from '../../infrastructure/database.js';
+import { getUserbotSession } from '../../infrastructure/database.js';
 import { loadAllPlugins } from './pluginLoader.js';
 import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
@@ -19,7 +18,7 @@ function disabledSet(settings) {
 // concurrent starter awaits the same promise. A bare boolean flag was racy —
 // two userbots starting at once could both enter loadAllPlugins() and clobber
 // the registry mid-clear.
-let pluginLoadPromise: Promise<void> | null = null;
+let pluginLoadPromise: Promise<unknown> | null = null;
 
 export class UserbotClient {
   public telegramId: number;
@@ -120,14 +119,14 @@ export class UserbotClient {
       const loops = loopStore.get(Number(this.telegramId));
       if (loops) {
         const loopCount = loops.size;
-        for (const [chatKey, loopData] of loops.entries()) {
+        for (const [_chatKey, loopData] of loops.entries()) {
           clearInterval(loopData.intervalId);
         }
         loops.clear();
         loopStore.delete(Number(this.telegramId));
-        if (loopCount > 0) Logger.logUser(this.telegramId, `🧹 Cleaned up ${loopCount} active loops for [${this.telegramId}]`, 'INFO');
+        if (loopCount > 0) {Logger.logUser(this.telegramId, `🧹 Cleaned up ${loopCount} active loops for [${this.telegramId}]`, 'INFO');}
       }
-    } catch (e) { /* ignore: schedule module may not be loaded */ }
+    } catch (_e) { /* ignore: schedule module may not be loaded */ }
 
     if (this.client) {
       try {
@@ -144,18 +143,18 @@ export class UserbotClient {
    * Register event handlers for the userbot
    */
   registerHandlers() {
-    if (!this.client) return;
+    if (!this.client) {return;}
 
     // ==========================================
     // Handler 1: Pesan Masuk (NewMessage)
     // ==========================================
     this.client.addEventHandler(async (event) => {
       const message = event.message;
-      if (!message) return;
+      if (!message) {return;}
 
       // 1. Ambil setelan terkini dari in-memory cache (0ms)
       const settings = getUserbotSession(this.telegramId);
-      if (!settings) return;
+      if (!settings) {return;}
 
       // Get prefix setting for the current chat (fallback to global PREFIX var)
       const chatId = message.chatId;
@@ -177,20 +176,6 @@ export class UserbotClient {
         }
       }
 
-      // Wrap message.edit to inject custom signature (DISABLED - no watermark)
-      // const originalEdit = message.edit.bind(message);
-      // message.edit = async (options) => {
-      //   let text = options.text || options.message || '';
-      //   if (settings.custom_name && text && typeof text === 'string') {
-      //     if (!text.includes(settings.custom_name)) {
-      //       text += `\n\n— <b>${settings.custom_name}</b>`;
-      //     }
-      //   }
-      //   if (options.text !== undefined) options.text = text;
-      //   if (options.message !== undefined) options.message = text;
-      //   return originalEdit(options);
-      // };
-
       // 2. Rate limit check — prevent command spam (e.g., rapid .exec/.gcast)
       // Skip in test environment to avoid breaking E2E tests that send many
       // messages in rapid succession.
@@ -202,7 +187,7 @@ export class UserbotClient {
       // 3. Jalankan seluruh plugin secara sekuensial
       const disabled = disabledSet(settings);
       for (const plugin of loadedPlugins) {
-        if (disabled.has(normalizePluginName(plugin.name))) continue;
+        if (disabled.has(normalizePluginName(plugin.name))) {continue;}
 
         try {
           await plugin.execute(this.client, message, settings, this.telegramId);
@@ -249,7 +234,7 @@ export class UserbotClient {
             }
           }
         },
-        answer: async (options = {}) => {
+        answer: async (options: { alert?: boolean; message?: string } = {}) => {
           try {
             await this.client.invoke(
               new Api.messages.SetBotCallbackAnswer({
@@ -269,12 +254,12 @@ export class UserbotClient {
 
       // Jalankan onCallbackQuery pada setiap plugin yang memilikinya
       for (const plugin of loadedPlugins) {
-        if (disabled.has(normalizePluginName(plugin.name))) continue;
-        if (typeof plugin.onCallbackQuery !== 'function') continue;
+        if (disabled.has(normalizePluginName(plugin.name))) {continue;}
+        if (typeof plugin.onCallbackQuery !== 'function') {continue;}
 
         try {
           const handled = await plugin.onCallbackQuery(this.client, callbackEvent, settings, this.telegramId);
-          if (handled) break; // Stop jika sudah ditangani
+          if (handled) {break;} // Stop jika sudah ditangani
         } catch (err) {
           Logger.logUser(this.telegramId, `Error in plugin ${plugin.name} callback: ${err.message}`, 'ERROR');
         }
@@ -287,7 +272,7 @@ export class UserbotClient {
     this.client.addEventHandler(async (event) => {
       try {
         const update = event.update || event;
-        if (!update) return;
+        if (!update) {return;}
         
         const msg = update.message;
         if (msg && msg.out && msg.message === '␡') {
@@ -296,7 +281,7 @@ export class UserbotClient {
             await this.client.deleteMessages(peer, [msg.id], { revoke: true });
           }
         }
-      } catch (err) {
+      } catch (_err) {
         // Abaikan error sunyi untuk event handler
       }
     }, new Raw({ types: [Api.UpdateEditMessage, Api.UpdateEditChannelMessage] }));

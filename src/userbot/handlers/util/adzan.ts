@@ -11,11 +11,11 @@ export default {
     usage: '`.adzan <nama kota>`',
     detail: 'Contoh: `.adzan Bandung`\nJika kota tidak disebutkan, secara default akan menampilkan jadwal untuk Jakarta.'
   },
-  async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+  async execute(client, message, _settings, _telegramId) {
+    if (!message.out || !message.message) {return;}
 
     const match = message.message.match(/^\.adzan(?:\s+([\s\S]+))?$/i);
-    if (!match) return;
+    if (!match) {return;}
 
     const inputStr = match[1];
     const lokasi = inputStr ? inputStr.trim() : 'Jakarta';

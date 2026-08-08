@@ -5,6 +5,8 @@
  * Prevents abuse via rapid-fire .exec, .gcast, .stalk, etc.
  */
 
+import { Logger } from '../../utils/logger.js';
+
 interface RateLimitEntry {
   count: number;
   resetAt: number;
@@ -25,7 +27,7 @@ setInterval(() => {
       cleaned++;
     }
   }
-  if (cleaned > 0) console.log(`🧹 RateLimit cleanup: removed ${cleaned} stale entries`);
+  if (cleaned > 0) {Logger.logSystem(`RateLimit cleanup: removed ${cleaned} stale entries`, 'INFO');}
 }, 300_000).unref();
 
 /**
@@ -57,6 +59,6 @@ export function checkRateLimit(telegramId: number): boolean {
 export function getRemainingRequests(telegramId: number): number {
   const now = Date.now();
   const entry = rateLimitMap.get(telegramId);
-  if (!entry || now > entry.resetAt) return RATE_LIMIT_MAX;
+  if (!entry || now > entry.resetAt) {return RATE_LIMIT_MAX;}
   return Math.max(0, RATE_LIMIT_MAX - entry.count);
 }

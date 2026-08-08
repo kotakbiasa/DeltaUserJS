@@ -1,5 +1,3 @@
-// @ts-nocheck
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -12,13 +10,13 @@ export default {
     detail: 'Fitur ini menembus batasan API normal dengan menyedot hingga 100 pesan riwayat terakhir milik target di dalam grup ini.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+    if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
     const args = text.split(/\s+/);
     const cmd = args[0].toLowerCase();
     
-    if (cmd !== '.stalk') return;
+    if (cmd !== '.stalk') {return;}
 
     let targetUser = args[1];
     const replied = await message.getReplyMessage();
@@ -45,7 +43,7 @@ export default {
       let entity;
       try {
         entity = await client.getEntity(targetUser);
-      } catch (e) {
+      } catch (_e) {
         // Abaikan jika tidak bisa getEntity, mungkin bukan username valid
       }
 
@@ -64,7 +62,7 @@ export default {
       }
 
       const totalFound = history.length;
-      let firstSeenDate = history[history.length - 1].date; // Pesan paling tua yang didapat (indeks terakhir)
+      const firstSeenDate = history[history.length - 1].date; // Pesan paling tua yang didapat (indeks terakhir)
       
       const firstName = entity ? (entity.firstName || '') : 'Pengguna';
       const lastName = entity ? (entity.lastName || '') : '';
@@ -83,13 +81,13 @@ export default {
       for (const msg of history) {
         if (msg.message && msg.message.trim().length > 0) {
           let excerpt = msg.message.trim();
-          if (excerpt.length > 50) excerpt = excerpt.substring(0, 50) + '...';
+          if (excerpt.length > 50) {excerpt = excerpt.substring(0, 50) + '...';}
           
           const dateStr = new Date(msg.date * 1000).toLocaleDateString();
           report += `• <i>"${escapeHtml(excerpt)}"</i> (${escapeHtml(dateStr)})\n`;
           
           textMessagesFound++;
-          if (textMessagesFound >= 3) break;
+          if (textMessagesFound >= 3) {break;}
         }
       }
 

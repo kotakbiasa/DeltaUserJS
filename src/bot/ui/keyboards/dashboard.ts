@@ -1,11 +1,10 @@
-// @ts-nocheck
 /**
  * DeltaUbotJS — Dashboard (UI builders + rich handlers)
  * Redesigned layout — cleaner panels, organized keyboards, consistent navigation.
  */
 import { Api } from 'teleproto';
 import config from '../../../config.js';
-import { replyRich } from '../../../utils/richMessage.js';
+import { replyRich, escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import {
   getUserbotSession,
@@ -19,7 +18,7 @@ import {
   hasClaimedTrial,
   setTrialClaimed,
 } from '../../../infrastructure/database.js';
-import { loadedPlugins, helpRegistry } from '../../../userbot/engine/pluginRegistry.js';
+import { loadedPlugins } from '../../../userbot/engine/pluginRegistry.js';
 import userbotManager from '../../../userbot/engine/manager.js';
 
 // ==========================================================================
@@ -45,22 +44,10 @@ export function pluginPageInfo(page = 1) {
   return { plugins: plugins.slice(start, start + PLUGINS_PER_PAGE), page: currentPage, totalPages, total: plugins.length };
 }
 
-export function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"');
-}
-
-function stripHtml(value) {
-  return String(value ?? '').replace(/<[^>]+>/g, '');
-}
-
-function daysLeftText(dateValue) {
-  if (!dateValue) return 'Belum tersedia';
+function daysLeftText(dateValue: string | Date | undefined | null) {
+  if (!dateValue) {return 'Belum tersedia';}
   const expDate = new Date(dateValue);
-  const diffDays = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.ceil((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   return diffDays > 0
     ? `${expDate.toLocaleDateString()} · ${diffDays} hari lagi`
     : `${expDate.toLocaleDateString()} · kedaluwarsa`;
@@ -191,7 +178,7 @@ export function panelRegister(ctx) {
     `<p>⚠️ Jangan bagikan OTP, password 2FA, atau session string kepada siapa pun.</p>`;
 }
 
-export function panelSubscription(ctx) {
+export function panelSubscription(_ctx) {
   return `<h1>💎 Pilih Paket Langganan</h1>` +
     `<blockquote>Dapatkan akses penuh ke fitur premium.</blockquote>` +
     `<table bordered><caption>📋 Paket</caption>` +
@@ -211,7 +198,7 @@ export function panelAccessDenied(ctx) {
     `</table>`;
 }
 
-export function panelAdmin(ctx) {
+export function panelAdmin(_ctx) {
   const users = getAllRegisteredUsers();
   return `<h1>👑 Admin Command Center</h1>` +
     `<blockquote>Panel owner untuk operasi server dan maintenance.</blockquote>` +
@@ -222,7 +209,7 @@ export function panelAdmin(ctx) {
     `</tr></table>`;
 }
 
-export function panelStats(ctx) {
+export function panelStats(_ctx) {
   const users = getAllRegisteredUsers();
   return `<h1>📊 System Analytics</h1>` +
     `<blockquote>Ringkasan performa layanan.</blockquote>` +
@@ -233,7 +220,7 @@ export function panelStats(ctx) {
     `</tr></table>`;
 }
 
-export function panelQuickHelp(ctx) {
+export function panelQuickHelp(_ctx) {
   return `<h1>❓ Quick Guide</h1>` +
     `<blockquote>Panduan singkat navigasi dashboard.</blockquote>` +
     `<table bordered><caption>📋 Navigasi</caption>` +
@@ -245,7 +232,7 @@ export function panelQuickHelp(ctx) {
     `</table>`;
 }
 
-export function panelDonate(ctx) {
+export function panelDonate(_ctx) {
   return `<h1>💰 Support Project</h1>` +
     `<blockquote>Dukungan membantu pengembangan dan maintenance server.</blockquote>` +
     `<table bordered><caption>💳 Channel Donasi</caption>` +
@@ -355,9 +342,9 @@ export function keyboardPluginStudio(ctx, page = 1) {
   });
 
   const nav = [];
-  if (currentPage > 1) nav.push({ text: '⬅️', callback_data: `rich:plugin_page:${currentPage - 1}` });
+  if (currentPage > 1) {nav.push({ text: '⬅️', callback_data: `rich:plugin_page:${currentPage - 1}` });}
   nav.push({ text: `${currentPage}/${totalPages}`, callback_data: 'rich:noop' });
-  if (currentPage < totalPages) nav.push({ text: '➡️', callback_data: `rich:plugin_page:${currentPage + 1}` });
+  if (currentPage < totalPages) {nav.push({ text: '➡️', callback_data: `rich:plugin_page:${currentPage + 1}` });}
   rows.push(nav);
 
   rows.push([{ text: '🔙 Dashboard Bot', callback_data: 'rich:ubot' }]);
@@ -427,21 +414,21 @@ export function keyboardBack(target = 'main') {
 
 function styleForButtonText(text = '') {
   const label = String(text).trim();
-  if (label.includes('Login') || label.includes('Daftar') || label.includes('Gratis')) return 'success';
-  if (label.includes('Dashboard') || label.includes('Menu')) return 'primary';
-  if (label.includes('Hapus') || label.includes('Danger')) return 'danger';
+  if (label.includes('Login') || label.includes('Daftar') || label.includes('Gratis')) {return 'success';}
+  if (label.includes('Dashboard') || label.includes('Menu')) {return 'primary';}
+  if (label.includes('Hapus') || label.includes('Danger')) {return 'danger';}
   return undefined;
 }
 
 export function applyButtonStylesToPayload(payload) {
   const keyboard = payload?.reply_markup?.inline_keyboard;
-  if (!Array.isArray(keyboard)) return;
+  if (!Array.isArray(keyboard)) {return;}
   for (const row of keyboard) {
-    if (!Array.isArray(row)) continue;
+    if (!Array.isArray(row)) {continue;}
     for (const button of row) {
       if (!button?.style) {
         const style = styleForButtonText(button?.text);
-        if (style) button.style = style;
+        if (style) {button.style = style;}
       }
     }
   }
@@ -453,7 +440,7 @@ async function mongoStatusLabel() {
     return mongoose.default.connection.readyState === 1
       ? `🟢 Connected (${mongoose.default.connection.name})`
       : `🔴 State ${mongoose.default.connection.readyState}`;
-  } catch (e) {
+  } catch (_e) {
     return '🔴 Disconnected';
   }
 }
@@ -469,7 +456,7 @@ async function sendRich(ctx, rich, reply_markup, { deleteOld = false } = {}) {
   try {
     await ctx.replyWithRichMessage(rich_message, { reply_markup });
     if (deleteOld) {
-      try { await ctx.deleteMessage(); } catch (_) {}
+      try { await ctx.deleteMessage(); } catch (_) { /* empty */ }
     }
   } catch (err) {
     Logger.logSystem(`sendRichMessage failed: ${err.message}`, 'WARN');
@@ -498,7 +485,7 @@ export function registerRichHandlers(bot) {
   bot.api.config.use(async (prev, method, payload, signal) => {
     applyButtonStylesToPayload(payload);
     if (Array.isArray(payload?.results)) {
-      for (const result of payload.results) applyButtonStylesToPayload(result);
+      for (const result of payload.results) {applyButtonStylesToPayload(result);}
     }
     return prev(method, payload, signal);
   });
@@ -516,7 +503,7 @@ export function registerRichHandlers(bot) {
   });
 
   bot.command('health', async (ctx) => {
-    if (!isOwner(ctx)) return;
+    if (!isOwner(ctx)) {return;}
     await sendRich(ctx, panelHealth(await mongoStatusLabel()), keyboardBack('admin'));
   });
 
@@ -532,7 +519,7 @@ export function registerRichHandlers(bot) {
     try {
       const ubot = userbotManager.clients.get(telegramId);
       if (ubot && ubot.client) {
-        await ubot.client.call({ _: 'auth.logOut' });
+        await (ubot.client as unknown as { call: (opts: Record<string, unknown>) => Promise<unknown> }).call({ _: 'auth.logOut' });
       }
     } catch (e) {
       Logger.logUser(telegramId, `Failed to logout remotely: ${e.message}`, 'WARN');
@@ -546,12 +533,12 @@ export function registerRichHandlers(bot) {
 
   bot.callbackQuery(/^rich:(.+)$/, async (ctx) => {
     const action = ctx.match[1];
-    try { await ctx.answerCallbackQuery(); } catch (_) {}
+    try { await ctx.answerCallbackQuery(); } catch (_) { /* empty */ }
 
-    if (action === 'main') return openMain(ctx, { deleteOld: true });
-    if (action === 'noop') return;
+    if (action === 'main') {return openMain(ctx, { deleteOld: true });}
+    if (action === 'noop') {return;}
 
-    if (action === 'panel_menu') return sendRich(ctx, panelMenuList(ctx), keyboardPanelMenu(ctx), { deleteOld: true });
+    if (action === 'panel_menu') {return sendRich(ctx, panelMenuList(ctx), keyboardPanelMenu(ctx), { deleteOld: true });}
 
     if (action === 'ubot') {
       try {
@@ -570,7 +557,7 @@ export function registerRichHandlers(bot) {
     if (action === 'toggle_power') {
       const telegramId = ctx.from.id;
       const session = getUserbotSession(telegramId);
-      if (!session) return ctx.answerCallbackQuery('Sesi tidak ditemukan.');
+      if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
 
       const isRunning = userbotManager.isRunning(telegramId);
       if (isRunning) {
@@ -620,11 +607,11 @@ export function registerRichHandlers(bot) {
       return openPluginStudio(ctx, page, pluginNotice(pluginName, false), { deleteOld: true });
     }
 
-    if (action === 'settings') return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });
+    if (action === 'settings') {return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });}
 
     if (action === 'toggle_anti_pm') {
       const session = getUserbotSession(ctx.from.id);
-      if (!session) return ctx.answerCallbackQuery('Sesi tidak ditemukan.');
+      if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
       const newStatus = session.anti_pm === 1 ? 0 : 1;
       await updateUserbotFeature(ctx.from.id, 'anti_pm', newStatus);
       await ctx.answerCallbackQuery(`Anti-PM: ${newStatus === 1 ? 'ON' : 'OFF'}`);
@@ -633,7 +620,7 @@ export function registerRichHandlers(bot) {
 
     if (action === 'toggle_afk') {
       const session = getUserbotSession(ctx.from.id);
-      if (!session) return ctx.answerCallbackQuery('Sesi tidak ditemukan.');
+      if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
       const newStatus = session.auto_reply === 1 ? 0 : 1;
       await updateUserbotFeature(ctx.from.id, 'auto_reply', newStatus);
       await ctx.answerCallbackQuery(`AFK: ${newStatus === 1 ? 'ON' : 'OFF'}`);
@@ -677,8 +664,8 @@ export function registerRichHandlers(bot) {
       return openMain(ctx, { deleteOld: true });
     }
 
-    if (action === 'subscription') return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(), { deleteOld: true });
-    if (action === 'register') return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { deleteOld: true });
+    if (action === 'subscription') {return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(), { deleteOld: true });}
+    if (action === 'register') {return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { deleteOld: true });}
 
     if (action === 'claim_trial') {
       await ctx.answerCallbackQuery();
@@ -694,35 +681,35 @@ export function registerRichHandlers(bot) {
       return ctx.answerCallbackQuery({ text: '⏳ Coming Soon.', show_alert: true });
     }
 
-    if (action === 'stats') return sendRich(ctx, panelStats(ctx), keyboardBack('main'), { deleteOld: true });
-    if (action === 'guide') return sendRich(ctx, panelQuickHelp(ctx), keyboardBack('main'), { deleteOld: true });
-    if (action === 'donate') return sendRich(ctx, panelDonate(ctx), keyboardBack('main'), { deleteOld: true });
+    if (action === 'stats') {return sendRich(ctx, panelStats(ctx), keyboardBack('main'), { deleteOld: true });}
+    if (action === 'guide') {return sendRich(ctx, panelQuickHelp(ctx), keyboardBack('main'), { deleteOld: true });}
+    if (action === 'donate') {return sendRich(ctx, panelDonate(ctx), keyboardBack('main'), { deleteOld: true });}
 
     if (action === 'admin') {
-      if (!isOwner(ctx)) return;
+      if (!isOwner(ctx)) {return;}
       return sendRich(ctx, panelAdmin(ctx), keyboardAdmin(), { deleteOld: true });
     }
     if (action === 'health') {
-      if (!isOwner(ctx)) return;
+      if (!isOwner(ctx)) {return;}
       return sendRich(ctx, panelHealth(await mongoStatusLabel()), keyboardBack('admin'), { deleteOld: true });
     }
     if (action === 'edit_system_vars') {
-      if (!isOwner(ctx)) return;
+      if (!isOwner(ctx)) {return;}
       await ctx.answerCallbackQuery();
       return ctx.conversation.enter('manage-system-vars-conv');
     }
     if (action === 'admin_users') {
-      if (!isOwner(ctx)) return;
+      if (!isOwner(ctx)) {return;}
       const users = getAllRegisteredUsers();
       const rows = users.slice(0, 10).map(u => `${u.telegram_id} · ${u.is_active === 1 ? '✅' : '❌'}`).join('\n') || 'Belum ada user.';
       return ctx.reply(`👥 User Directory\n\n${rows}`);
     }
     if (action === 'backup') {
-      if (!isOwner(ctx)) return;
+      if (!isOwner(ctx)) {return;}
       return ctx.reply('Gunakan: /backup — backup database\n/stats_db — statistik database');
     }
-    if (action === 'otp') return ctx.conversation.enter('otp-reg');
-    if (action === 'qr') return ctx.conversation.enter('qr-reg');
+    if (action === 'otp') {return ctx.conversation.enter('otp-reg');}
+    if (action === 'qr') {return ctx.conversation.enter('qr-reg');}
   });
 }
 

@@ -21,11 +21,11 @@ export function isOwner(userId: number): boolean {
  * NOTE: This checks GROUP admin status, NOT bot owner. Use isOwner() for that!
  */
 export async function isAdmin(ctx: MyContext): Promise<boolean> {
-  if (!ctx.chat || ctx.chat.type === 'private') return false;
+  if (!ctx.chat || ctx.chat.type === 'private') {return false;}
   try {
     const member = await ctx.getChatMember(ctx.from.id);
     return ['creator', 'administrator'].includes(member.status);
-  } catch (err) {
+  } catch (_err) {
     return false;
   }
 }
@@ -38,7 +38,7 @@ export async function isGroupAdmin(ctx: MyContext, userId: number): Promise<bool
   try {
     const member = await ctx.api.getChatMember(ctx.chat.id, userId);
     return ['creator', 'administrator'].includes(member.status);
-  } catch (err) {
+  } catch (_err) {
     return false;
   }
 }
@@ -47,11 +47,11 @@ export async function isGroupAdmin(ctx: MyContext, userId: number): Promise<bool
  * Check if the bot itself is an admin in the current chat.
  */
 export async function isBotAdmin(ctx: MyContext): Promise<boolean> {
-  if (!ctx.chat || ctx.chat.type === 'private') return false;
+  if (!ctx.chat || ctx.chat.type === 'private') {return false;}
   try {
     const botMember = await ctx.getChatMember(ctx.me.id);
     return botMember.status === 'administrator';
-  } catch (err) {
+  } catch (_err) {
     return false;
   }
 }
@@ -62,7 +62,7 @@ export async function isBotAdmin(ctx: MyContext): Promise<boolean> {
 export function ownerOnly() {
   return async (ctx: MyContext, next: () => Promise<void>) => {
     const userId = ctx.from?.id;
-    if (userId && isOwner(userId)) return next();
+    if (userId && isOwner(userId)) {return next();}
     return ctx.reply('❌ Command ini hanya untuk Owner.');
   };
 }
@@ -73,7 +73,7 @@ export function ownerOnly() {
 export function adminOnly() {
   return async (ctx: MyContext, next: () => Promise<void>) => {
     const userId = ctx.from?.id;
-    if (!userId) return;
+    if (!userId) {return;}
     if (isOwner(userId) || await isAdmin(ctx)) {
       return next();
     }

@@ -25,11 +25,12 @@ const SAFE_EVAL_CONTEXT = {
 function validateCommand(cmd: string): string | null {
   // Block dangerous characters — only allow alphanumeric, space, dash, dot, slash
   // Also block newlines, carriage returns, tabs, and other control chars
+  // eslint-disable-next-line no-control-regex
   if (/[;|&`$(){}!\n\r\t\x00-\x1f\x7f]/.test(cmd)) {
     return 'Karakter khusus (;|&`${}! kontrol) tidak diizinkan. Gunakan hanya nama perintah + argumen sederhana.';
   }
   const base = cmd.trim().split(/\s+/)[0];
-  if (ALLOWED_COMMANDS.includes(base)) return null;
+  if (ALLOWED_COMMANDS.includes(base)) {return null;}
   return `Perintah "${base}" tidak diizinkan. Whitelist: ${ALLOWED_COMMANDS.join(', ')}`;
 }
 
@@ -51,11 +52,11 @@ export default {
     }
   },
   execute: async (client, message, settings, telegramId) => {
-    if (Number(telegramId) !== Number(config.ownerId)) return;
+    if (Number(telegramId) !== Number(config.ownerId)) {return;}
 
     const text = message.message || '';
     const match = text.match(/^\.(eval|exec|sh)(?:\s+([\s\S]+))?$/i);
-    if (!match) return;
+    if (!match) {return;}
 
     const command = match[1].toLowerCase();
     const code = match[2];

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Api } from 'teleproto';
 import fs from 'fs';
 import path from 'path';
@@ -70,7 +69,7 @@ export default {
           
           // Download media
           const buffer = await client.downloadMedia(currentMsg.media, { workers: 1 });
-          if (!buffer) continue;
+          if (!buffer) {continue;}
 
           let tmpPath = path.join(process.cwd(), `kang_${Date.now()}`);
           let sentMsgId = null;
@@ -85,7 +84,7 @@ export default {
               try {
                 const image = await Jimp.read(tmpPath);
                 image.scaleToFit({ w: 512, h: 512 });
-                await image.write(tmpPath);
+                await image.write(tmpPath as unknown as `${string}.${string}`);
               } catch (e) {
                 Logger.logUser(telegramId, `Jimp resize error: ${e.message}`, 'WARN');
               }
@@ -158,17 +157,17 @@ export default {
             successCount++;
             
             // Kasih jeda sedikit agar tidak flood API Telegram
-            if (i < total - 1) await new Promise(r => setTimeout(r, 1000));
+            if (i < total - 1) {await new Promise(r => setTimeout(r, 1000));}
           } finally {
             // Cleanup
             if (sentMsgId) {
-              try { await client.deleteMessages('me', [sentMsgId], { revoke: true }); } catch (e) { /* ignore */ }
+              try { await client.deleteMessages('me', [sentMsgId], { revoke: true }); } catch (_e) { /* ignore */ }
             }
             try {
               if (fs.existsSync(tmpPath)) {
                 fs.unlinkSync(tmpPath);
               }
-            } catch (e) { /* ignore */ }
+            } catch (_e) { /* ignore */ }
           }
         }
         

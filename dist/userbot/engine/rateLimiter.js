@@ -4,6 +4,7 @@
  * Limits how many commands a single userbot can execute within a time window.
  * Prevents abuse via rapid-fire .exec, .gcast, .stalk, etc.
  */
+import { Logger } from '../../utils/logger.js';
 const RATE_LIMIT_WINDOW_MS = 10_000; // 10 seconds
 const RATE_LIMIT_MAX = 30; // max 30 commands per 10s per userbot
 const rateLimitMap = new Map();
@@ -17,8 +18,9 @@ setInterval(() => {
             cleaned++;
         }
     }
-    if (cleaned > 0)
-        console.log(`🧹 RateLimit cleanup: removed ${cleaned} stale entries`);
+    if (cleaned > 0) {
+        Logger.logSystem(`RateLimit cleanup: removed ${cleaned} stale entries`, 'INFO');
+    }
 }, 300_000).unref();
 /**
  * Check if a userbot has exceeded its rate limit.
@@ -44,7 +46,8 @@ export function checkRateLimit(telegramId) {
 export function getRemainingRequests(telegramId) {
     const now = Date.now();
     const entry = rateLimitMap.get(telegramId);
-    if (!entry || now > entry.resetAt)
+    if (!entry || now > entry.resetAt) {
         return RATE_LIMIT_MAX;
+    }
     return Math.max(0, RATE_LIMIT_MAX - entry.count);
 }

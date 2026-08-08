@@ -1,14 +1,28 @@
-// @ts-nocheck
 import { InputFile, InlineKeyboard } from 'grammy';
-import { replyRich, editRich } from '../../utils/richMessage.js';
+import { replyRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { TelegramClient, Api } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
 import qrcode from 'qrcode';
 import config from '../../config.js';
-import { hero } from '../ui/keyboards/dashboard.js';
 import { saveUserbotSession } from '../../infrastructure/database.js';
 import userbotManager from '../../userbot/engine/manager.js';
+
+// Custom prototype extension — teleproto's TelegramClient type doesn't declare signIn.
+declare module 'teleproto' {
+  interface TelegramClient {
+    signIn(opts: {
+      phoneNumber: string;
+      phoneCodeHash: string;
+      phoneCode: string;
+      password?: string;
+    }): Promise<{ user: any }>;
+    signInWithPassword(
+      api: { apiId: number; apiHash: string },
+      opts: { password: () => Promise<string> },
+    ): Promise<{ user: any }>;
+  }
+}
 
 export const cancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel');
 
@@ -53,7 +67,7 @@ const pendingOtpState = new Map();
  */
 function getOrCreateClient(telegramId, phoneNumber) {
   let client = activeRegClients.get(telegramId);
-  if (client) return client;
+  if (client) {return client;}
 
   const session = new StringSession('');
   // Preset DC 5 untuk nomor Indonesia
@@ -91,7 +105,7 @@ async function cleanupClient(telegramId) {
   if (client) {
     try {
       await client.disconnect();
-    } catch (e) { /* ignore: already disconnected */ }
+    } catch (_e) { /* ignore: already disconnected */ }
   }
 }
 
@@ -107,7 +121,7 @@ async function waitForInput(conversation, ctx) {
     await result.answerCallbackQuery('Pendaftaran dibatalkan.');
     try {
       await result.deleteMessage();
-    } catch (e) { /* ignore: already deleted */ }
+    } catch (_e) { /* ignore: already deleted */ }
     await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
     throw new Error('USER_CANCELLED');
   }
@@ -115,7 +129,7 @@ async function waitForInput(conversation, ctx) {
   // Berikan reaksi 👍 pada pesan yang dikirim pengguna sebagai indikasi bot memprosesnya
   try {
     await result.react('👍');
-  } catch (e) { /* ignore: reaction may fail */ }
+  } catch (_e) { /* ignore: reaction may fail */ }
 
   return result.message.text.trim();
 }
@@ -140,7 +154,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
     try {
       phoneNumber = await waitForInput(conversation, ctx);
     } catch (err) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {return;}
       throw err;
     }
 
@@ -239,7 +253,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
         if (cbData === 'cancel_reg') {
           await inputResult.answerCallbackQuery('Pendaftaran dibatalkan.');
-          try { await inputResult.deleteMessage(); } catch (e) { /* ignore */ }
+          try { await inputResult.deleteMessage(); } catch (_e) { /* ignore */ }
           await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
           return;
         }
@@ -249,7 +263,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
           try {
             const resendResult = await conversation.external(async () => {
               const activeClient = activeRegClients.get(telegramId);
-              if (!activeClient) throw new Error('Client tidak ditemukan. Ulangi /daftar.');
+              if (!activeClient) {throw new Error('Client tidak ditemukan. Ulangi /daftar.');}
               await ensureConnected(activeClient);
               Logger.logUser(telegramId, `[OTP] Resend via SMS ke ${phoneNumber}...`, 'INFO');
               const r = await activeClient.sendCode(
@@ -285,7 +299,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       // Tangkap error DI DALAM external() agar properti error tidak hilang saat serialisasi
       const signInResult = await conversation.external(async () => {
         const activeClient = activeRegClients.get(telegramId);
-        if (!activeClient) return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };
+        if (!activeClient) {return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };}
         // Reconnect jika koneksi terputus selama user menunggu
         await ensureConnected(activeClient);
         Logger.logUser(telegramId, `[OTP] Mencoba signIn... (percobaan ${attemptCount}/${MAX_ATTEMPTS})`, 'INFO');
@@ -326,7 +340,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
             try {
               const resendResult = await conversation.external(async () => {
                 const activeClient = activeRegClients.get(telegramId);
-                if (!activeClient) throw new Error('Client tidak ditemukan. Ulangi /daftar.');
+                if (!activeClient) {throw new Error('Client tidak ditemukan. Ulangi /daftar.');}
                 await ensureConnected(activeClient);
                 Logger.logUser(telegramId, '[OTP] Resend kode baru karena expired...', 'INFO');
                 const r = await activeClient.sendCode({ apiId: config.apiId, apiHash: config.apiHash }, phoneNumber);
@@ -354,13 +368,13 @@ export async function otpRegistrationConversation(conversation, ctx) {
           try {
             password = await waitForInput(conversation, ctx);
           } catch (pwdErr) {
-            if (pwdErr.message === 'USER_CANCELLED') return;
+            if (pwdErr.message === 'USER_CANCELLED') {return;}
             throw pwdErr;
           }
           // 2FA signIn — juga tangkap error di dalam external()
           const pwdResult = await conversation.external(async () => {
             const activeClient = activeRegClients.get(telegramId);
-            if (!activeClient) return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };
+            if (!activeClient) {return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };}
             await ensureConnected(activeClient);
             try {
               await activeClient.signIn({ password });
@@ -478,7 +492,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
                 if (qrImageMessageId) {
                   try {
                     await outsideCtx.api.deleteMessage(chatId, qrImageMessageId);
-                  } catch (e) { /* ignore: may be already deleted */ }
+                  } catch (_e) { /* ignore: may be already deleted */ }
                 }
 
                 const qrMsg = await outsideCtx.api.sendPhoto(chatId, new InputFile(qrBuffer), {
@@ -526,7 +540,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
           if (qrImageMessageId) {
             try {
               await outsideCtx.api.deleteMessage(chatId, qrImageMessageId);
-            } catch (e) { /* ignore */ }
+            } catch (_e) { /* ignore */ }
           }
         }
 
@@ -540,7 +554,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
         // Disconnect client setelah session disimpan
         try {
           await client.disconnect();
-        } catch (e) { /* ignore */ }
+        } catch (_e) { /* ignore */ }
         activeRegClients.delete(telegramId);
 
         return { status: 'success', sessionString };
@@ -565,16 +579,16 @@ export async function qrRegistrationConversation(conversation, ctx) {
 
       const pwdAuthResult = await conversation.external(async () => {
         const activeClient = activeRegClients.get(telegramId);
-        if (!activeClient) return { status: 'error', error: 'Client hilang.' };
+        if (!activeClient) {return { status: 'error', error: 'Client hilang.' };}
         
         try {
           await activeClient.signInWithPassword({ apiId: config.apiId, apiHash: config.apiHash }, { password: async () => password });
           const sess = activeClient.session.save();
-          try { await activeClient.disconnect(); } catch (e) { /* ignore */ }
+          try { await activeClient.disconnect(); } catch (_e) { /* ignore */ }
           activeRegClients.delete(telegramId);
           return { status: 'success', sessionString: sess };
         } catch (err) {
-          try { await activeClient.disconnect(); } catch (e) { /* ignore */ }
+          try { await activeClient.disconnect(); } catch (_e) { /* ignore */ }
           activeRegClients.delete(telegramId);
           return { status: 'error', error: err.message };
         }
@@ -632,7 +646,7 @@ export async function afkReasonConversation(conversation, ctx) {
     try {
       newReason = await waitForInput(conversation, ctx);
     } catch (err) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {return;}
       throw err;
     }
 
@@ -647,7 +661,7 @@ export async function afkReasonConversation(conversation, ctx) {
 
     await replyRich(ctx, `✅ <b>Alasan AFK berhasil diperbarui menjadi:</b>\n<blockquote>"${newReason}"</blockquote>`);
     
-    await ctx.replyWithRichMessage({ html: `<blockquote>Gunakan `/menu` untuk kembali ke Panel Kontrol Utama.</blockquote>` });
+    await ctx.replyWithRichMessage({ html: `<blockquote>Gunakan <code>/menu</code> untuk kembali ke Panel Kontrol Utama.</blockquote>` });
 
   } catch (error) {
     if (error.message !== 'USER_CANCELLED') {
@@ -676,7 +690,7 @@ export async function broadcastConversation(conversation, ctx) {
     try {
       broadcastMsg = await waitForInput(conversation, ctx);
     } catch (err) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {return;}
       throw err;
     }
 
@@ -697,7 +711,7 @@ export async function broadcastConversation(conversation, ctx) {
         successCount++;
         // Add a small 100ms delay to avoid hitting Telegram's rate limits
         await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (err) {
+      } catch (_err) {
         failCount++;
       }
     }
@@ -753,7 +767,7 @@ export async function manageVarsConv(conversation, ctx) {
       let varList = Object.entries(currentVars)
         .map(([k, v]) => `• <b>${k}</b>: <code>${v}</code>`)
         .join('\n');
-      if (!varList) varList = '<i>Belum ada variabel yang diatur.</i>';
+      if (!varList) {varList = '<i>Belum ada variabel yang diatur.</i>';}
 
       // Kirim menu utama vars
       const menuMsg = await replyRich(ctx, `<h1>⚙️ Pengaturan Variabel (Vars)</h1><blockquote>Daftar Variabel Anda saat ini:</blockquote>\n<blockquote>${varList}</blockquote>\n\nPilih tombol di bawah untuk menambah, mengubah, atau menghapus variabel.`, { reply_markup: buildVarsKeyboard(currentVars) });
@@ -764,7 +778,7 @@ export async function manageVarsConv(conversation, ctx) {
       await result.answerCallbackQuery();
       
       // Hapus menu utama vars agar rapi sebelum masuk sub-prompt
-      try { await ctx.api.deleteMessage(ctx.chat.id, menuMsg.message_id); } catch (_) {}
+      try { await ctx.api.deleteMessage(ctx.chat.id, menuMsg.message_id); } catch (_) { /* empty */ }
 
       if (data === 'var:cancel') {
         await replyRich(ctx, `<blockquote><b>🚪 Selesai</b><br>Keluar dari pengaturan variabel. Gunakan /menu untuk membuka menu utama.</blockquote>`);
@@ -780,7 +794,7 @@ export async function manageVarsConv(conversation, ctx) {
         try {
           value = await waitForInput(conversation, ctx);
         } catch (err) {
-          if (err.message === 'USER_CANCELLED') continue;
+          if (err.message === 'USER_CANCELLED') {continue;}
           throw err;
         }
 
@@ -828,7 +842,7 @@ export async function manageVarsConv(conversation, ctx) {
         try {
           key = await waitForInput(conversation, ctx);
         } catch (err) {
-          if (err.message === 'USER_CANCELLED') continue;
+          if (err.message === 'USER_CANCELLED') {continue;}
           throw err;
         }
 
@@ -844,7 +858,7 @@ export async function manageVarsConv(conversation, ctx) {
         try {
           value = await waitForInput(conversation, ctx);
         } catch (err) {
-          if (err.message === 'USER_CANCELLED') continue;
+          if (err.message === 'USER_CANCELLED') {continue;}
           throw err;
         }
 
@@ -870,9 +884,9 @@ export async function manageVarsConv(conversation, ctx) {
         const delData = delResult.callbackQuery.data;
         await delResult.answerCallbackQuery();
 
-        try { await ctx.api.deleteMessage(ctx.chat.id, delMenuMsg.message_id); } catch (_) {}
+        try { await ctx.api.deleteMessage(ctx.chat.id, delMenuMsg.message_id); } catch (_) { /* empty */ }
 
-        if (delData === 'var:del_cancel') continue;
+        if (delData === 'var:del_cancel') {continue;}
 
         if (delData.startsWith('var:del:')) {
           const keyToDelete = delData.split('var:del:')[1];
@@ -903,7 +917,7 @@ export async function manageVarsConv(conversation, ctx) {
  */
 export async function manageSystemVarsConv(conversation, ctx) {
   const telegramId = ctx.from.id;
-  if (Number(telegramId) !== Number(config.ownerId)) return;
+  if (Number(telegramId) !== Number(config.ownerId)) {return;}
   
   try {
     const currentVars = await conversation.external(async () => {
@@ -912,7 +926,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
     });
 
     let varList = Object.entries(currentVars).map(([k, v]) => `<code>${k}</code> = <code>${v}</code>`).join('\n');
-    if (!varList) varList = '<i>Belum ada variabel sistem.</i>';
+    if (!varList) {varList = '<i>Belum ada variabel sistem.</i>';}
 
     await replyRich(ctx, `<h1>⚙️ System Vars Config</h1><blockquote>${varList}</blockquote>\n\nSilakan kirimkan dengan format: <code>KUNCI NILAI</code>\nContoh: <code>SYSTEM_LOG_CHAT_ID -100123456</code>\nAtau ketik <code>HAPUS KUNCI</code> untuk menghapus.`, { reply_markup: cancelKeyboard, });
 
@@ -920,7 +934,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
     try {
       input = await waitForInput(conversation, ctx);
     } catch (err) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {return;}
       throw err;
     }
 
@@ -973,7 +987,7 @@ export async function customNameConversation(conversation, ctx) {
     try {
       newName = await waitForInput(conversation, ctx);
     } catch (err) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {return;}
       throw err;
     }
 
@@ -988,7 +1002,7 @@ export async function customNameConversation(conversation, ctx) {
 
     await replyRich(ctx, `✅ <b>Nama Ubot berhasil diperbarui menjadi:</b>\n<blockquote>"${newName}"</blockquote>`);
     
-    await ctx.replyWithRichMessage({ html: `<blockquote>Gunakan `/menu` untuk kembali ke Panel Kontrol Utama.</blockquote>` });
+    await ctx.replyWithRichMessage({ html: `<blockquote>Gunakan <code>/menu</code> untuk kembali ke Panel Kontrol Utama.</blockquote>` });
 
   } catch (error) {
     if (error.message !== 'USER_CANCELLED') {

@@ -15,8 +15,9 @@ setInterval(() => {
             cleaned++;
         }
     }
-    if (cleaned > 0)
+    if (cleaned > 0) {
         Logger.logSystem(`🧹 CooldownMap cleanup: removed ${cleaned} stale entries`, 'INFO');
+    }
 }, 10 * 60 * 1000); // every 10 minutes
 export default {
     name: 'reputation',
@@ -28,25 +29,28 @@ export default {
     },
     async execute(client, message, settings, telegramId) {
         const chatId = message.chatId;
-        const chatKey = String(chatId);
+        const _chatKey = String(chatId);
         // --- 1. Handle Settings & Query Commands ---
         if (message.out && message.message) {
             const text = message.message.trim();
             const args = text.split(/\s+/);
             const cmd = args[0].toLowerCase();
             if (cmd === '.setrepfloor') {
-                if (args.length < 2)
+                if (args.length < 2) {
                     return;
+                }
                 const floor = parseInt(args[1]);
-                if (isNaN(floor))
+                if (isNaN(floor)) {
                     return;
+                }
                 await updateChatSettings(telegramId, chatId, 'rep_floor', floor);
                 await message.edit({ text: `✅ <b>Berhasil:</b> Batas bawah reputasi diubah menjadi: <b>${escapeHtml(String(floor))}</b>`, parseMode: 'html' });
                 return;
             }
             else if (cmd === '.setlogchannel') {
-                if (args.length < 2)
+                if (args.length < 2) {
                     return;
+                }
                 const logChannel = args[1];
                 await updateChatSettings(telegramId, chatId, 'log_channel', logChannel);
                 await message.edit({ text: `✅ <b>Berhasil:</b> Channel log diubah menjadi: <code>${escapeHtml(logChannel)}</code>`, parseMode: 'html' });
@@ -79,7 +83,7 @@ export default {
                     const userEntity = await client.getEntity(targetId);
                     name = userEntity.firstName || userEntity.username || `User_${targetId}`;
                 }
-                catch (e) { /* ignore: use default name */ }
+                catch (_e) { /* ignore: use default name */ }
                 await message.edit({
                     text: `ℹ️ <b>Reputasi Pengguna:</b>\n` +
                         `<blockquote>` +
@@ -115,7 +119,7 @@ export default {
                         const userEntity = await client.getEntity(entry.userId);
                         name = userEntity.firstName || userEntity.username || `User_${entry.userId}`;
                     }
-                    catch (e) { /* ignore: use default name */ }
+                    catch (_e) { /* ignore: use default name */ }
                     textList += `${i}. <b>${escapeHtml(name)}</b> (ID: <code>${escapeHtml(String(entry.userId))}</code>) — <b>${entry.score} rep</b>\n`;
                     i++;
                 }
@@ -124,26 +128,31 @@ export default {
             }
         }
         // --- 2. Handle Upvote / Downvote Replies ---
-        if (!message.message)
+        if (!message.message) {
             return;
+        }
         const text = message.message.toLowerCase().trim();
         const isUpvote = text === '+' || text.startsWith('+rep');
         const isDownvote = text === '-' || text.startsWith('-rep');
         if (isUpvote || isDownvote) {
             const chatSettings = getChatSettings(telegramId, chatId);
             const repEnabled = chatSettings.reputation !== undefined ? chatSettings.reputation : isTestEnv;
-            if (!repEnabled)
+            if (!repEnabled) {
                 return;
+            }
             const replied = await message.getReplyMessage();
-            if (!replied)
+            if (!replied) {
                 return;
+            }
             const senderId = message.senderId;
             const targetId = replied.senderId;
-            if (!senderId || !targetId)
+            if (!senderId || !targetId) {
                 return;
+            }
             // Block self-voting
-            if (senderId === targetId)
+            if (senderId === targetId) {
                 return;
+            }
             // Cooldown check (30 seconds)
             const voterKey = `${telegramId}_${chatId}_${senderId}_${targetId}`;
             const lastVoteTime = cooldownMap.get(voterKey) || 0;
@@ -164,13 +173,13 @@ export default {
                 const targetEntity = await client.getEntity(targetId);
                 targetName = targetEntity.firstName || targetEntity.username || `User_${targetId}`;
             }
-            catch (e) { /* ignore: use default name */ }
+            catch (_e) { /* ignore: use default name */ }
             let voterName = `User_${senderId}`;
             try {
                 const voterEntity = await client.getEntity(senderId);
                 voterName = voterEntity.firstName || voterEntity.username || `User_${senderId}`;
             }
-            catch (e) { /* ignore: use default name */ }
+            catch (_e) { /* ignore: use default name */ }
             // Reply confirmation in chat
             await client.sendMessage(message.peerId, {
                 message: `📢 <b>Reputasi Terupdate!</b>\n` +

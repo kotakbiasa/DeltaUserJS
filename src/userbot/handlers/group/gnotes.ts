@@ -1,4 +1,4 @@
-import { saveGroupNote, deleteGroupNote, getAllGroupNotes, getGroupNote } from '../../../infrastructure/database.js';
+import { saveGroupNote, deleteGroupNote, getAllGroupNotes } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 
 export default {
@@ -9,14 +9,14 @@ export default {
     usage: '`.gsave <nama>` — Simpan teks ke note grup\n`.gclear <nama>` — Hapus note grup\n`.gnotes` — Lihat daftar note grup',
     detail: 'Catatan yang disimpan di sini bisa dipanggil oleh siapa saja di grup menggunakan `#namacatatan` jika Master Bot ada di grup.'
   },
-  async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+  async execute(client, message, _settings, _telegramId) {
+    if (!message.out || !message.message) {return;}
 
     const text = message.message;
     const parts = text.split(/\s+/);
     const cmd = parts[0].toLowerCase();
 
-    if (!['.gsave', '.gclear', '.gnotes'].includes(cmd)) return;
+    if (!['.gsave', '.gclear', '.gnotes'].includes(cmd)) {return;}
 
     // Pastikan ini di dalam grup/supergroup
     const peerId = message.peerId;

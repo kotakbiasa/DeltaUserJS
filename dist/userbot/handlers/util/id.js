@@ -1,4 +1,5 @@
 import { Logger } from '../../../utils/logger.js';
+import { escapeHtml } from '../../../utils/richMessage.js';
 export default {
     name: 'id',
     help: {
@@ -45,11 +46,3 @@ export default {
         }
     }
 };
-function escapeHtml(text) {
-    return String(text ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}

@@ -9,7 +9,7 @@ export default {
     detail: 'Modul ini akan meneruskan pesan ke @QuotLyBot dan mengirimkan hasil stikernya kembali ke obrolan Anda.'
   },
   async execute(client, message, settings, telegramId) {
-    if (!message.out || !message.message) return;
+    if (!message.out || !message.message) {return;}
     const cmd = message.message.toLowerCase().trim();
     if (cmd === '.q' || cmd === '.quote') {
       const replied = await message.getReplyMessage();
@@ -57,7 +57,7 @@ export default {
             replyTo: message.replyToMsgId
           });
           // Hapus pesan "membuat quote..."
-          try { await message.delete(); } catch (e) { /* ignore */ }
+          try { await message.delete(); } catch (_e) { /* ignore */ }
         } else {
           await message.edit({ 
             text: `<blockquote>❌ <b>Gagal:</b> Tidak ada balasan dari @QuotLyBot. Coba lagi nanti.</blockquote>`, 

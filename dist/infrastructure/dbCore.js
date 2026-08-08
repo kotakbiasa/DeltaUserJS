@@ -64,13 +64,13 @@ const systemConfigSchema = new mongoose.Schema({
     _id: { type: String, default: 'system' },
     vars: { type: Map, of: String, default: {} },
 }, { _id: false });
-export const UserbotModel = mongoose.models.Userbot || mongoose.model('Userbot', userbotSchema);
-export const SystemConfigModel = mongoose.models.SystemConfig || mongoose.model('SystemConfig', systemConfigSchema);
+export const UserbotModel = (mongoose.models.Userbot || mongoose.model('Userbot', userbotSchema));
+export const SystemConfigModel = (mongoose.models.SystemConfig || mongoose.model('SystemConfig', systemConfigSchema));
 const groupConfigSchema = new mongoose.Schema({
     chat_id: { type: String, required: true, unique: true, index: true },
     notes: { type: Map, of: String, default: {} }
 }, { strict: false });
-export const GroupConfigModel = mongoose.models.GroupConfig || mongoose.model('GroupConfig', groupConfigSchema);
+export const GroupConfigModel = (mongoose.models.GroupConfig || mongoose.model('GroupConfig', groupConfigSchema));
 export const dbCache = new Map();
 export let isMongo = false;
 export let systemConfigCache = { vars: {} };
@@ -132,10 +132,12 @@ export async function readDbFromFile() {
         }
         const data = await fsp.readFile(dbPath, 'utf8');
         const parsed = JSON.parse(data || '{"userbots":{}, "systemConfig": {"vars": {}}, "groups": {}}');
-        if (!parsed.systemConfig)
+        if (!parsed.systemConfig) {
             parsed.systemConfig = { vars: {} };
-        if (!parsed.groups)
+        }
+        if (!parsed.groups) {
             parsed.groups = {};
+        }
         return parsed;
     }
     catch (err) {
@@ -178,8 +180,9 @@ export async function persistField(idNum, field, value) {
     }
     return withWriteLock(async () => {
         const data = await readDbFromFile();
-        if (!data.userbots[idNum])
+        if (!data.userbots[idNum]) {
             return false;
+        }
         data.userbots[idNum][field] = value;
         return writeDbToFile(data);
     });
@@ -216,8 +219,9 @@ export async function persistDelete(idNum) {
     }
     return withWriteLock(async () => {
         const data = await readDbFromFile();
-        if (!data.userbots[idNum])
+        if (!data.userbots[idNum]) {
             return false;
+        }
         delete data.userbots[idNum];
         return writeDbToFile(data);
     });
@@ -238,8 +242,9 @@ export async function initDatabaseAndCache() {
                 dbCache.set(bot.telegram_id, normalizeBot(bot.toObject(), bot.telegram_id));
             }
             const sysConf = await SystemConfigModel.findById('system');
-            if (sysConf)
+            if (sysConf) {
                 systemConfigCache = sysConf.toObject();
+            }
             const groups = await GroupConfigModel.find({});
             for (const group of groups) {
                 groupConfigCache.set(group.chat_id, group.toObject());

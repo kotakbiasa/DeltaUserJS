@@ -10,13 +10,15 @@ export default {
         usage: '`.clear_@` - Bersihkan mention chat ini\n`.clear_all_@` - Bersihkan semua mention\n`.clear_reacts` - Bersihkan reaksi chat ini\n`.clear_all_reacts` - Bersihkan semua reaksi',
         detail: 'Berguna saat notifikasi angka tag/mention dan reaksi menumpuk terlalu banyak. Perintah ini akan menandai semuanya sudah dibaca.'
     },
-    async execute(client, message, settings, telegramId) {
-        if (!message.out || !message.message)
+    async execute(client, message, _settings, _telegramId) {
+        if (!message.out || !message.message) {
             return;
+        }
         const cmd = message.message.split(' ')[0].toLowerCase();
         const validCommands = ['.clear_@', '.clear_all_@', '.clear_reacts', '.clear_all_reacts'];
-        if (!validCommands.includes(cmd))
+        if (!validCommands.includes(cmd)) {
             return;
+        }
         // Helper untuk jeda waktu guna menghindari FloodWait
         const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
         try {
@@ -61,7 +63,7 @@ export default {
                                 await sleep(1500);
                             }
                         }
-                        catch (err) {
+                        catch (_err) {
                             // Abaikan error pada entitas yang tidak mendukung ReadReactions
                         }
                     }

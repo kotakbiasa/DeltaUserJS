@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Help Handlers — Master Bot
  *
@@ -7,24 +6,27 @@
  * menggunakan inline keyboard langsung dari userbot (GramJS buttons).
  */
 import { helpRegistry as userbotHelpRegistry } from '../../userbot/engine/pluginRegistry.js';
-import { escapeHtml } from '../ui/keyboards/dashboard.js';
+import { escapeHtml } from '../../utils/richMessage.js';
 import { editRich } from '../../utils/richMessage.js';
 // Registry modul Master Bot (kosong sejak fitur group management dihapus;
 // tetap disediakan agar mudah diperluas kembali di masa depan).
 export const masterHelpRegistry = {};
 function getRegistry(target) {
-    if (target === 'ubot')
+    if (target === 'ubot') {
         return userbotHelpRegistry;
+    }
     return masterHelpRegistry;
 }
 function moduleNames(target = 'main') {
     return Object.keys(getRegistry(target)).sort();
 }
 function formatModuleName(name) {
-    if (name.toLowerCase() === 'antipm')
+    if (name.toLowerCase() === 'antipm') {
         return 'AntiPM';
-    if (name.length <= 3)
+    }
+    if (name.length <= 3) {
         return name.toUpperCase();
+    }
     return name.charAt(0).toUpperCase() + name.slice(1);
 }
 function plain(value = '-') {
@@ -52,8 +54,9 @@ function buildHelpMenuHtml(page = 1, target = 'main') {
 }
 function buildModuleHtml(moduleName, target = 'main') {
     const mod = getRegistry(target)[moduleName];
-    if (!mod)
+    if (!mod) {
         return `<b>📦 Modul Tidak Ditemukan</b>`;
+    }
     return `<b>📦 ${escapeHtml(mod.title || formatModuleName(moduleName))}</b>\n` +
         `<blockquote>${escapeHtml(plain(mod.description))}</blockquote>\n` +
         `<b>Penggunaan</b>\n<code>${escapeHtml(plain(mod.usage))}</code>` +
@@ -75,11 +78,13 @@ function helpKeyboard(page = 1, target = 'main') {
     }
     if (totalPages > 1) {
         const nav = [];
-        if (currentPage > 1)
+        if (currentPage > 1) {
             nav.push({ text: '⬅️', callback_data: `help:page:${currentPage - 1}:${target}` });
+        }
         nav.push({ text: `${currentPage}/${totalPages}`, callback_data: 'help:noop' });
-        if (currentPage < totalPages)
+        if (currentPage < totalPages) {
             nav.push({ text: '➡️', callback_data: `help:page:${currentPage + 1}:${target}` });
+        }
         rows.push(nav);
     }
     rows.push([{ text: '✖️ Tutup', callback_data: 'help:close' }]);
@@ -92,14 +97,16 @@ function moduleBackKeyboard(target = 'main') {
         ] };
 }
 function resolveModuleTarget(moduleName) {
-    if (userbotHelpRegistry[moduleName])
+    if (userbotHelpRegistry[moduleName]) {
         return 'ubot';
-    if (masterHelpRegistry[moduleName])
+    }
+    if (masterHelpRegistry[moduleName]) {
         return 'main';
+    }
     return null;
 }
 // --- Exported for dashboard ---
-export function buildHelpMenuRichHtml(session, page = 1, target = 'main') {
+export function buildHelpMenuRichHtml(session, _page = 1, target = 'main') {
     return `<h1>📖 Help ${target === 'ubot' ? '(Userbot)' : '(Master)'}</h1>` +
         `<blockquote>Pilih modul untuk melihat command dan detail penggunaan.</blockquote>`;
 }
@@ -132,6 +139,6 @@ export function registerInlineHelpHandlers(bot) {
         try {
             await ctx.deleteMessage();
         }
-        catch (_) { }
+        catch (_) { /* empty */ }
     });
 }

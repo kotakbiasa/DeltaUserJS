@@ -3,8 +3,9 @@ import { escapeHtml } from '../../../utils/richMessage.js';
 export default {
     name: 'approve',
     async execute(client, message, settings, telegramId) {
-        if (!message.out || !message.message)
+        if (!message.out || !message.message) {
             return;
+        }
         const text = message.message.trim();
         const args = text.split(/\s+/);
         const cmd = args[0].toLowerCase();
@@ -18,8 +19,9 @@ export default {
                 return;
             }
             const targetId = Number(replied.senderId);
-            if (!targetId)
+            if (!targetId) {
                 return;
+            }
             const success = await addApprovedUser(telegramId, targetId);
             if (success) {
                 await message.edit({
@@ -38,8 +40,9 @@ export default {
                 return;
             }
             const targetId = Number(replied.senderId);
-            if (!targetId)
+            if (!targetId) {
                 return;
+            }
             const success = await removeApprovedUser(telegramId, targetId);
             if (success) {
                 await message.edit({

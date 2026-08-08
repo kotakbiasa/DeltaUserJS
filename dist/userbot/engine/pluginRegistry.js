@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * DeltaUserJS Plugin Registry
  *
@@ -13,18 +12,23 @@ export function normalizePluginName(name) {
     return String(name || '').trim().toLowerCase();
 }
 export function validatePlugin(plugin) {
-    if (!plugin || typeof plugin !== 'object')
+    if (!plugin || typeof plugin !== 'object') {
         return 'default export harus object';
-    if (!plugin.name || typeof plugin.name !== 'string')
+    }
+    const p = plugin;
+    if (!p.name || typeof p.name !== 'string') {
         return 'property name wajib string';
-    if (typeof plugin.execute !== 'function')
+    }
+    if (typeof p.execute !== 'function') {
         return 'execute(client, message, settings, telegramId) wajib function';
+    }
     return null;
 }
 export function registerPlugin(plugin, meta = {}) {
     const reason = validatePlugin(plugin);
-    if (reason)
+    if (reason) {
         throw new Error(reason);
+    }
     const name = normalizePluginName(plugin.name);
     if (pluginByName.has(name)) {
         throw new Error(`plugin duplikat: ${name}`);
@@ -52,7 +56,8 @@ export function listPlugins() {
 }
 export function clearRegistry() {
     loadedPlugins.length = 0;
-    for (const key of Object.keys(helpRegistry))
+    for (const key of Object.keys(helpRegistry)) {
         delete helpRegistry[key];
+    }
     pluginByName.clear();
 }

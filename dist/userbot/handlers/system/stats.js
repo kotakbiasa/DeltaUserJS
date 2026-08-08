@@ -31,7 +31,7 @@ export default {
                     grammyVer = (pkg.dependencies['grammy'] || 'N/A').replace(/^[\^~>=]+/, '');
                     teleprotoVer = (pkg.dependencies['teleproto'] || 'N/A').replace(/^[\^~>=]+/, '');
                 }
-                catch (e) { /* ignore */ }
+                catch (_e) { /* ignore */ }
                 const text = `📊 <b>USERBOT STATS</b>\n\n` +
                     `<blockquote>` +
                     `🤖 <b>Modul Aktif:</b> <code>${escapeHtml(String(pluginCount))}</code>\n` +
