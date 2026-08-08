@@ -86,15 +86,16 @@ export default {
           photoCount = userPhotos.count || userPhotos.photos.length || 0;
         } catch (_e) { /* ignore */ }
 
-        captionText = `<blockquote>👤 <b>USER INFORMATION</b>\n` +
-                      `───────────────────────\n` +
-                      `📛 <b>Nama:</b> ${escapeHtml(pName)}\n` +
-                      `👤 <b>Username:</b> ${escapeHtml(pUser)}\n` +
-                      `🆔 <b>User ID:</b> <code>${escapeHtml(pId)}</code>\n` +
-                      `📸 <b>Total Foto Profil:</b> ${photoCount}\n` +
-                      `📝 <b>Bio:</b> \n<i>${escapeHtml(pBio)}</i>\n` +
-                      `───────────────────────\n` +
-                      `🔖 <b>Status:</b> ${tags.length > 0 ? tags.join(' | ') : 'Normal User'}</blockquote>\n\n` +
+        captionText = `<h1>👤 User Information</h1>` +
+                      `<table bordered striped><caption>📋 Detail Akun</caption>` +
+                      `<tr><th>Item</th><th>Detail</th></tr>` +
+                      `<tr><td>📛 Nama</td><td align="center">${escapeHtml(pName)}</td></tr>` +
+                      `<tr><td>👤 Username</td><td align="center">${escapeHtml(pUser)}</td></tr>` +
+                      `<tr><td>🆔 User ID</td><td align="center"><code>${escapeHtml(pId)}</code></td></tr>` +
+                      `<tr><td>📸 Foto Profil</td><td align="center">${photoCount}</td></tr>` +
+                      `<tr><td>🔖 Status</td><td align="center">${tags.length > 0 ? tags.join(' · ') : 'Normal User'}</td></tr>` +
+                      `</table>` +
+                      `<blockquote>📝 <b>Bio:</b><br><i>${escapeHtml(pBio)}</i></blockquote>` +
                       ``;
       } else {
         // Group Info (Megagroup/Channel or Basic Chat)
@@ -110,24 +111,26 @@ export default {
           const cBio = f.about || 'Tidak ada deskripsi grup';
           const cMembers = f.participantsCount || c.participantsCount || '?';
 
-          captionText = `<blockquote>👥 <b>GROUP INFORMATION</b>\n` +
-                        `───────────────────────\n` +
-                        `📌 <b>Nama Grup:</b> ${escapeHtml(cName)}\n` +
-                        `🔗 <b>Username:</b> ${escapeHtml(cUser)}\n` +
-                        `🆔 <b>Group ID:</b> <code>${escapeHtml(cId)}</code>\n` +
-                        `👥 <b>Total Member:</b> ${cMembers}\n` +
-                        `📝 <b>Deskripsi:</b> \n<i>${escapeHtml(cBio)}</i>\n` +
-                        `───────────────────────</blockquote>\n\n` +
+          captionText = `<h1>👥 Group Information</h1>` +
+                        `<table bordered striped><caption>📋 Detail Grup</caption>` +
+                        `<tr><th>Item</th><th>Detail</th></tr>` +
+                        `<tr><td>📌 Nama Grup</td><td align="center">${escapeHtml(cName)}</td></tr>` +
+                        `<tr><td>🔗 Username</td><td align="center">${escapeHtml(cUser)}</td></tr>` +
+                        `<tr><td>🆔 Group ID</td><td align="center"><code>${escapeHtml(cId)}</code></td></tr>` +
+                        `<tr><td>👥 Total Member</td><td align="center">${cMembers}</td></tr>` +
+                        `</table>` +
+                        `<blockquote>📝 <b>Deskripsi:</b><br><i>${escapeHtml(cBio)}</i></blockquote>` +
                         ``;
         } catch (_chanErr) {
           // Jika Basic Chat
           const cName = targetEntity.title;
           const cId = targetEntity.id.toString();
-          captionText = `<blockquote>👥 <b>BASIC GROUP INFO</b>\n` +
-                        `───────────────────────\n` +
-                        `📌 <b>Nama:</b> ${escapeHtml(cName)}\n` +
-                        `🆔 <b>ID:</b> <code>-${escapeHtml(cId)}</code>\n` +
-                        `───────────────────────</blockquote>\n\n` +
+          captionText = `<h1>👥 Basic Group Info</h1>` +
+                        `<table bordered striped><caption>📋 Detail Grup</caption>` +
+                        `<tr><th>Item</th><th>Detail</th></tr>` +
+                        `<tr><td>📌 Nama</td><td align="center">${escapeHtml(cName)}</td></tr>` +
+                        `<tr><td>🆔 ID</td><td align="center"><code>-${escapeHtml(cId)}</code></td></tr>` +
+                        `</table>` +
                         ``;
         }
       }

@@ -18,23 +18,25 @@ export default {
                         ? escapeHtml([sender.firstName, sender.lastName].filter(Boolean).join(' ') || 'Tidak Dikenal')
                         : 'Tidak Dikenal';
                     await message.edit({
-                        text: `🌐 <b>Info Chat & User</b>\n\n` +
-                            `<blockquote>` +
-                            `• <b>ID Chat</b>: <code>${message.chatId}</code>\n` +
-                            `• <b>ID Target</b>: <code>${replied.senderId}</code>\n` +
-                            `• <b>Nama Target</b>: <code>${targetName}</code>` +
-                            `</blockquote>\n\n` +
+                        text: `<h1>🌐 Info Chat & User</h1>` +
+                            `<table bordered striped><caption>📋 Detail</caption>` +
+                            `<tr><th>Item</th><th>Detail</th></tr>` +
+                            `<tr><td>💬 ID Chat</td><td align="center"><code>${message.chatId}</code></td></tr>` +
+                            `<tr><td>👤 ID Target</td><td align="center"><code>${replied.senderId}</code></td></tr>` +
+                            `<tr><td>📛 Nama Target</td><td align="center"><code>${targetName}</code></td></tr>` +
+                            `</table>` +
                             ``,
                         parseMode: 'html'
                     });
                 }
                 else {
                     await message.edit({
-                        text: `🌐 <b>Info Chat</b>\n\n` +
-                            `<blockquote>` +
-                            `• <b>ID Chat</b>: <code>${message.chatId}</code>\n` +
-                            `• <b>ID Anda</b>: <code>${telegramId}</code>` +
-                            `</blockquote>\n\n` +
+                        text: `<h1>🌐 Info Chat</h1>` +
+                            `<table bordered striped><caption>📋 Detail</caption>` +
+                            `<tr><th>Item</th><th>Detail</th></tr>` +
+                            `<tr><td>💬 ID Chat</td><td align="center"><code>${message.chatId}</code></td></tr>` +
+                            `<tr><td>👤 ID Anda</td><td align="center"><code>${telegramId}</code></td></tr>` +
+                            `</table>` +
                             ``,
                         parseMode: 'html'
                     });

@@ -88,38 +88,34 @@ export default {
         if (ipAddr !== 'N/A') {break;}
       }
 
-      const text = `🖥️ <b>SYSTEM INFORMATION</b>\n\n` +
-
-        `<b>── CPU ──</b>\n` +
-        `<blockquote>` +
-        `📛 <b>Model:</b> <code>${escapeHtml(cpuModel)}</code>\n` +
-        `🧠 <b>Cores:</b> <code>${escapeHtml(String(cpus.length))}</code>\n` +
-        `📈 <b>Usage:</b> <code>${escapeHtml(cpuUsage)}%</code>\n` +
-        `</blockquote>\n\n` +
-
-        `<b>── MEMORY ──</b>\n` +
-        `<blockquote>` +
-        `💾 <b>Total:</b> <code>${formatBytes(totalMem)}</code>\n` +
-        `📊 <b>Used:</b> <code>${formatBytes(usedMem)}</code> (<code>${memPercent}%</code>)\n` +
-        `🟢 <b>Free:</b> <code>${formatBytes(freeMem)}</code>\n` +
-        `🤖 <b>Bot RSS:</b> <code>${formatBytes(procMem.rss)}</code>\n` +
-        `📦 <b>Bot Heap:</b> <code>${formatBytes(procMem.heapUsed)}</code>` +
-        `</blockquote>\n\n` +
-
-        `<b>── DISK ──</b>\n` +
-        `<blockquote>` +
-        `💿 <b>Root (/):</b> <code>${escapeHtml(diskInfo)}</code>` +
-        `</blockquote>\n\n` +
-
-        `<b>── SYSTEM ──</b>\n` +
-        `<blockquote>` +
-        `🏷️ <b>Hostname:</b> <code>${escapeHtml(hostname)}</code>\n` +
-        `🐧 <b>OS:</b> <code>${escapeHtml(platform)} ${escapeHtml(release)}</code>\n` +
-        `🏗️ <b>Arch:</b> <code>${escapeHtml(arch)}</code>\n` +
-        `🌐 <b>Node.js:</b> <code>${escapeHtml(process.version)}</code>\n` +
-        `⏳ <b>OS Uptime:</b> <code>${escapeHtml(osUptime)}</code>\n` +
-        `🤖 <b>Bot Uptime:</b> <code>${escapeHtml(processUptime)}</code>` +
-        `</blockquote>`;
+      const text = `<h1>🖥️ System Information</h1>` +
+        `<table bordered striped><caption>🧠 CPU</caption>` +
+        `<tr><th>Item</th><th>Detail</th></tr>` +
+        `<tr><td>📛 Model</td><td align="center"><code>${escapeHtml(cpuModel)}</code></td></tr>` +
+        `<tr><td>🧠 Cores</td><td align="center"><code>${escapeHtml(String(cpus.length))}</code></td></tr>` +
+        `<tr><td>📈 Usage</td><td align="center"><code>${escapeHtml(cpuUsage)}%</code></td></tr>` +
+        `</table>` +
+        `<table bordered striped><caption>💾 Memory</caption>` +
+        `<tr><th>Item</th><th>Detail</th></tr>` +
+        `<tr><td>Total</td><td align="center"><code>${formatBytes(totalMem)}</code></td></tr>` +
+        `<tr><td>Used</td><td align="center"><code>${formatBytes(usedMem)}</code> (<code>${memPercent}%</code>)</td></tr>` +
+        `<tr><td>Free</td><td align="center"><code>${formatBytes(freeMem)}</code></td></tr>` +
+        `<tr><td>Bot RSS</td><td align="center"><code>${formatBytes(procMem.rss)}</code></td></tr>` +
+        `<tr><td>Bot Heap</td><td align="center"><code>${formatBytes(procMem.heapUsed)}</code></td></tr>` +
+        `</table>` +
+        `<table bordered striped><caption>💿 Disk</caption>` +
+        `<tr><th>Item</th><th>Detail</th></tr>` +
+        `<tr><td>Root (/)</td><td align="center"><code>${escapeHtml(diskInfo)}</code></td></tr>` +
+        `</table>` +
+        `<table bordered striped><caption>🏷️ System</caption>` +
+        `<tr><th>Item</th><th>Detail</th></tr>` +
+        `<tr><td>Hostname</td><td align="center"><code>${escapeHtml(hostname)}</code></td></tr>` +
+        `<tr><td>OS</td><td align="center"><code>${escapeHtml(platform)} ${escapeHtml(release)}</code></td></tr>` +
+        `<tr><td>Arch</td><td align="center"><code>${escapeHtml(arch)}</code></td></tr>` +
+        `<tr><td>Node.js</td><td align="center"><code>${escapeHtml(process.version)}</code></td></tr>` +
+        `<tr><td>OS Uptime</td><td align="center"><code>${escapeHtml(osUptime)}</code></td></tr>` +
+        `<tr><td>Bot Uptime</td><td align="center"><code>${escapeHtml(processUptime)}</code></td></tr>` +
+        `</table>`;
 
       await message.edit({
         text: text,
