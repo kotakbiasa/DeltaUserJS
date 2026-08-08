@@ -123,7 +123,7 @@ export async function manageVarsConv(conversation, ctx) {
 
       if (data.startsWith('var:set:')) {
         const key = data.split('var:set:')[1];
-        await replyRich(ctx, `📝 <b>Mengatur ${key}</b>\n\nSilakan kirimkan nilai/value baru untuk <code>${key}</code>:`, { reply_markup: cancelKeyboard });
+        await replyRich(ctx, `<h1>📝 Mengatur <code>${key}</code></h1><blockquote>Silakan kirimkan nilai/value baru untuk <code>${key}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
 
         let value;
         try {
@@ -171,7 +171,7 @@ export async function manageVarsConv(conversation, ctx) {
       }
 
       if (data === 'var:custom') {
-        await replyRich(ctx, `📝 <b>Variabel Kustom Baru</b>\n\nSilakan kirimkan <b>NAMA (KUNCI)</b> variabel baru Anda (gunakan huruf besar, contoh: <code>MY_VAR</code>):`, { reply_markup: cancelKeyboard });
+        await replyRich(ctx, `<h1>➕ Variabel Kustom Baru</h1><blockquote>Silakan kirimkan <b>NAMA (KUNCI)</b> variabel baru Anda (gunakan huruf besar, contoh: <code>MY_VAR</code>):</blockquote>`, { reply_markup: cancelKeyboard });
 
         let key;
         try {
@@ -187,7 +187,7 @@ export async function manageVarsConv(conversation, ctx) {
           continue;
         }
 
-        await replyRich(ctx, `📝 <b>Nilai Variabel</b>\n\nSilakan kirimkan nilai/value untuk <code>${key}</code>:`, { reply_markup: cancelKeyboard });
+        await replyRich(ctx, `<h1>📝 Nilai Variabel</h1><blockquote>Silakan kirimkan nilai/value untuk <code>${key}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
 
         let value;
         try {
@@ -227,7 +227,7 @@ export async function manageVarsConv(conversation, ctx) {
         });
         deleteKb.text('❌ Batal', 'var:del_cancel');
 
-        const delMenuMsg = await replyRich(ctx, `🗑️ <b>Hapus Variabel</b>\n\nPilih variabel yang ingin Anda hapus:`, { reply_markup: deleteKb });
+        const delMenuMsg = await replyRich(ctx, `<h1>🗑️ Hapus Variabel</h1><blockquote>Pilih variabel yang ingin Anda hapus:</blockquote>`, { reply_markup: deleteKb });
 
         const delResult = await conversation.waitFor('callback_query:data');
         const delData = delResult.callbackQuery.data;

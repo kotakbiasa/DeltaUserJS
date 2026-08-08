@@ -535,7 +535,7 @@ export function registerRichHandlers(bot) {
 
   bot.command(['start', 'menu'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
-      await replyRich(ctx, `🤖 <b>${ctx.me.first_name} Aktif!</b>\n\nSilakan kirim pesan secara privat (PM) untuk mengelola bot Anda.`, {
+      await replyRich(ctx, `🤖 <b>${ctx.me.first_name} Aktif!</b>\n\n<blockquote>Silakan kirim pesan secara privat (PM) untuk mengelola bot Anda.</blockquote>`, {
         reply_markup: {
           inline_keyboard: [[{ text: '💬 Buka Private Chat', url: `https://t.me/${ctx.me.username}?start=true` }]]
         }
