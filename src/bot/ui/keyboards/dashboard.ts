@@ -279,12 +279,20 @@ export function panelQuickHelp(_ctx) {
 }
 
 export function panelDonate(_ctx) {
+  const ewallet = getSystemVarValue('DONATE_EWALLET', '');
+  const bank = getSystemVarValue('DONATE_BANK', '');
+  const ewalletName = getSystemVarValue('DONATE_EWALLET_NAME', 'e-Wallet');
+  const bankName = getSystemVarValue('DONATE_BANK_NAME', 'Transfer Bank');
+
+  const ewalletCell = ewallet ? `<tg-spoiler><code>${ewallet}</code></tg-spoiler>` : '<i>Belum diset</i>';
+  const bankCell = bank ? `<tg-spoiler><code>${bank}</code></tg-spoiler>` : '<i>Belum diset</i>';
+
   return `<h1>💰 Support Project</h1>` +
-    `<blockquote>Dukungan membantu pengembangan dan maintenance server.</blockquote>` +
+    `<blockquote>Dukungan membantu pengembangan dan maintenance server. Nomor tersembunyi — tap untuk melihat.</blockquote>` +
     `<table bordered striped><caption>💳 Channel Donasi</caption>` +
     `<tr><th>Metode</th><th>Detail</th></tr>` +
-    `<tr><td>e-Wallet</td><td align="center"><tg-spoiler><code>0821-xxxx-xxxx</code></tg-spoiler></td></tr>` +
-    `<tr><td>Transfer Bank</td><td align="center"><tg-spoiler><code>883xxxxxxx</code></tg-spoiler></td></tr>` +
+    `<tr><td>${escapeHtml(ewalletName)}</td><td align="center">${ewalletCell}</td></tr>` +
+    `<tr><td>${escapeHtml(bankName)}</td><td align="center">${bankCell}</td></tr>` +
     `</table>`;
 }
 

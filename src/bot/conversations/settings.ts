@@ -354,6 +354,10 @@ const SYSTEM_VAR_TEMPLATE: { key: string; desc: string; example: string }[] = [
   { key: 'DEFAULT_PREFIX', desc: 'Prefix default userbot', example: '.' },
   { key: 'TRIAL_DAYS', desc: 'Durasi trial (hari)', example: '7' },
   { key: 'SUBSCRIPTION_DAYS', desc: 'Durasi langganan (hari)', example: '30' },
+  { key: 'DONATE_EWALLET', desc: 'Nomor e-wallet donasi', example: '0821xxxxxxx' },
+  { key: 'DONATE_EWALLET_NAME', desc: 'Nama e-wallet donasi', example: 'Dana / OVO' },
+  { key: 'DONATE_BANK', desc: 'Nomor rekening donasi', example: '883xxxxxxx' },
+  { key: 'DONATE_BANK_NAME', desc: 'Nama bank donasi', example: 'BCA / BRI' },
 ];
 
 /** Wrap nilai sensitif dalam spoiler (klik untuk lihat). */
