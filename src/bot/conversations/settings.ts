@@ -259,6 +259,42 @@ export async function manageVarsConv(conversation, ctx) {
 }
 
 /**
+ * System Vars — template var yang tersedia (tabel panduan).
+ * Ditampilkan di menu System Vars; nilai diisi oleh owner via format KUNCI NILAI.
+ */
+const SYSTEM_VAR_TEMPLATE: { key: string; desc: string; example: string }[] = [
+  { key: 'SYSTEM_LOG_CHAT_ID', desc: 'Chat ID tujuan log sistem', example: '-1001234567890' },
+  { key: 'SYSTEM_LOG_TOPIC_ID', desc: 'Topic ID (forum) untuk log', example: '2' },
+  { key: 'MASTER_BOT_TOKEN', desc: 'Token bot master (fallback)', example: '123456:ABC-DEF...' },
+  { key: 'MASTER_BOT_USERNAME', desc: 'Username bot master', example: 'PanelDeltaUbot' },
+  { key: 'DEFAULT_PREFIX', desc: 'Prefix default userbot', example: '.' },
+  { key: 'TRIAL_DAYS', desc: 'Durasi trial (hari)', example: '7' },
+  { key: 'SUBSCRIPTION_DAYS', desc: 'Durasi langganan (hari)', example: '30' },
+];
+
+function systemVarTableHtml(currentVars: Record<string, unknown>): string {
+  const rows = SYSTEM_VAR_TEMPLATE.map(v => {
+    const value = currentVars[v.key] !== undefined ? String(currentVars[v.key]) : '';
+    const status = value ? '✅' : '⬜';
+    return `<tr><td>${status} <code>${v.key}</code></td><td>${v.desc}</td><td><code>${v.example}</code></td></tr>`;
+  }).join('');
+
+  const extraKeys = Object.keys(currentVars).filter(k => !SYSTEM_VAR_TEMPLATE.some(t => t.key === k));
+  const extraRows = extraKeys.length
+    ? extraKeys.map(k => `<tr><td>✅ <code>${k}</code></td><td colspan="2"><code>${String(currentVars[k])}</code></td></tr>`).join('')
+    : '';
+
+  return `<h1>⚙️ System Vars</h1>` +
+    `<blockquote>Set variabel sistem untuk bot. Ketik <code>KUNCI NILAI</code> untuk set, atau <code>HAPUS KUNCI</code> untuk hapus.</blockquote>` +
+    `<table bordered striped><caption>📋 Template Variabel</caption>` +
+    `<tr><th>Variabel</th><th>Fungsi</th><th>Contoh</th></tr>` +
+    rows +
+    extraRows +
+    `</table>` +
+    `<p>Contoh: <code>SYSTEM_LOG_CHAT_ID -1001234567890</code></p>`;
+}
+
+/**
  * Conversation to manage system vars (Owner only)
  */
 export async function manageSystemVarsConv(conversation, ctx) {
@@ -271,10 +307,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
       return db.getAllSystemVars();
     });
 
-    let varList = Object.entries(currentVars).map(([k, v]) => `<code>${k}</code> = <code>${v}</code>`).join('\n');
-    if (!varList) {varList = '<i>Belum ada variabel sistem.</i>';}
-
-    await replyRich(ctx, `<h1>⚙️ System Vars Config</h1><blockquote>${varList}</blockquote>\n\nSilakan kirimkan dengan format: <code>KUNCI NILAI</code>\nContoh: <code>SYSTEM_LOG_CHAT_ID -100123456</code>\nAtau ketik <code>HAPUS KUNCI</code> untuk menghapus.`, { reply_markup: cancelKeyboard });
+    await replyRich(ctx, systemVarTableHtml(currentVars), { reply_markup: cancelKeyboard });
 
     let input;
     try {

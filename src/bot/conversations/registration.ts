@@ -912,67 +912,6 @@ export async function manageVarsConv(conversation, ctx) {
   }
 }
 
-/**
- * Conversation to manage system vars
- */
-export async function manageSystemVarsConv(conversation, ctx) {
-  const telegramId = ctx.from.id;
-  if (Number(telegramId) !== Number(config.ownerId)) {return;}
-  
-  try {
-    const currentVars = await conversation.external(async () => {
-      const db = await import('../../infrastructure/database.js');
-      return db.getAllSystemVars();
-    });
-
-    let varList = Object.entries(currentVars).map(([k, v]) => `<code>${k}</code> = <code>${v}</code>`).join('\n');
-    if (!varList) {varList = '<i>Belum ada variabel sistem.</i>';}
-
-    await replyRich(ctx, `<h1>⚙️ System Vars Config</h1><blockquote>${varList}</blockquote>\n\nSilakan kirimkan dengan format: <code>KUNCI NILAI</code>\nContoh: <code>SYSTEM_LOG_CHAT_ID -100123456</code>\nAtau ketik <code>HAPUS KUNCI</code> untuk menghapus.`, { reply_markup: cancelKeyboard, });
-
-    let input;
-    try {
-      input = await waitForInput(conversation, ctx);
-    } catch (err) {
-      if (err.message === 'USER_CANCELLED') {return;}
-      throw err;
-    }
-
-    const parts = input.trim().split(/\s+/);
-    if (parts.length < 2) {
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Format salah! Harus berupa: <code>KUNCI NILAI</code> atau <code>HAPUS KUNCI</code>.</blockquote>`);
-      return;
-    }
-
-    const command = parts[0].toUpperCase();
-    
-    if (command === 'HAPUS') {
-      const key = parts[1].toUpperCase();
-      await conversation.external(async () => {
-        const db = await import('../../infrastructure/database.js');
-        await db.deleteSystemVar(key);
-      });
-      await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil dihapus.</blockquote>`);
-      return;
-    }
-
-    const key = parts[0].toUpperCase();
-    const value = parts.slice(1).join(' ');
-
-    await conversation.external(async () => {
-      const db = await import('../../infrastructure/database.js');
-      await db.setSystemVar(key, value);
-    });
-
-    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil disimpan!</blockquote>`);
-    
-  } catch (error) {
-    if (error.message !== 'USER_CANCELLED') {
-      Logger.logUser(telegramId, `Error in manageSystemVarsConv: ${error.message}`, 'ERROR');
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</blockquote>`);
-    }
-  }
-}
 
 /**
  * Conversation to set custom userbot name
