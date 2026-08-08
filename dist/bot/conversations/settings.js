@@ -136,50 +136,99 @@ export async function manageVarsConv(conversation, ctx) {
             }
             if (data.startsWith('var:set:')) {
                 const key = data.split('var:set:')[1];
-                await replyRich(ctx, `<h1>📝 Mengatur <code>${key}</code></h1><blockquote>Silakan kirimkan nilai/value baru untuk <code>${key}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
-                let value;
-                try {
-                    value = await waitForInput(conversation, ctx);
-                }
-                catch (err) {
-                    if (err.message === 'USER_CANCELLED') {
-                        continue;
-                    }
-                    throw err;
-                }
-                // Simpan nilai
-                await replyRich(ctx, `<blockquote>⏳ Menyimpan variabel ${key}...</blockquote>`);
-                if (key === 'INLINE_BOT_TOKEN') {
-                    const botData = await conversation.external(async () => {
-                        try {
-                            const response = await fetch(`https://api.telegram.org/bot${value}/getMe`);
-                            return await response.json();
-                        }
-                        catch (e) {
-                            return { ok: false, description: e.message };
-                        }
+                // --- Panel detail variabel: status + nilai + aksi ---
+                const showVarDetail = async () => {
+                    const latest = await conversation.external(async () => {
+                        const db = await import('../../infrastructure/database.js');
+                        return db.getAllUserVars(telegramId);
                     });
-                    if (!botData.ok) {
-                        await replyRich(ctx, `❌ <b>Token Bot tidak valid!</b>\n<blockquote>${botData.description || 'Gagal terhubung ke API'}</blockquote>`);
-                        continue;
+                    const current = latest[key];
+                    const hasValue = current !== undefined && String(current) !== '';
+                    const detailKb = new InlineKeyboard();
+                    detailKb.text('✏️ Ganti Nilai', `var:edit:${key}`).row();
+                    if (hasValue) {
+                        detailKb.text('🗑️ Hapus Nilai', `var:del:${key}`).row();
                     }
-                    const botUsername = botData.result.username;
+                    detailKb.text('🔙 Kembali', 'var:back');
+                    await replyRich(ctx, `<h1>📦 Variabel <code>${key}</code></h1>` +
+                        `<table bordered striped><caption>📋 Detail</caption>` +
+                        `<tr><th>Item</th><th>Detail</th></tr>` +
+                        `<tr><td>Status</td><td align="center">${hasValue ? '🟢 Sudah diset' : '⚪ Belum diset'}</td></tr>` +
+                        `<tr><td>Nilai</td><td align="center">${hasValue ? `<tg-spoiler><code>${String(current)}</code></tg-spoiler>` : '<i>—</i>'}</td></tr>` +
+                        `</table>` +
+                        `<p>Pilih aksi di bawah:</p>`, { reply_markup: detailKb });
+                    return hasValue;
+                };
+                await showVarDetail();
+                // Tunggu aksi pada panel detail
+                const detailResult = await conversation.waitFor('callback_query:data');
+                const detailData = detailResult.callbackQuery.data;
+                await detailResult.answerCallbackQuery();
+                if (detailData === 'var:back') {
+                    continue;
+                }
+                if (detailData.startsWith('var:del:')) {
+                    const keyToDelete = detailData.split('var:del:')[1];
                     await conversation.external(async () => {
                         const db = await import('../../infrastructure/database.js');
-                        await db.setUserVar(telegramId, key, value);
-                        await db.updateUserbotFeature(telegramId, 'inline_bot_token', value);
-                        await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
-                        // Inline bot manager removed; settings are still persisted for .help flow.
+                        await db.deleteUserVar(telegramId, keyToDelete);
+                        if (keyToDelete === 'INLINE_BOT_TOKEN') {
+                            await db.updateUserbotFeature(telegramId, 'inline_bot_token', null);
+                            await db.updateUserbotFeature(telegramId, 'inline_bot_username', null);
+                        }
                     });
-                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
+                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${keyToDelete}</b> berhasil dihapus.</blockquote>`);
+                    continue;
                 }
-                else {
-                    await conversation.external(async () => {
-                        const db = await import('../../infrastructure/database.js');
-                        await db.setUserVar(telegramId, key, value);
-                    });
-                    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${key}</b> berhasil disimpan!</blockquote>`);
+                if (detailData.startsWith('var:edit:')) {
+                    const editKey = detailData.split('var:edit:')[1];
+                    await replyRich(ctx, `<h1>📝 Mengatur <code>${editKey}</code></h1><blockquote>Silakan kirimkan nilai/value baru untuk <code>${editKey}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
+                    let value;
+                    try {
+                        value = await waitForInput(conversation, ctx);
+                    }
+                    catch (err) {
+                        if (err.message === 'USER_CANCELLED') {
+                            continue;
+                        }
+                        throw err;
+                    }
+                    // Simpan nilai
+                    await replyRich(ctx, `<blockquote>⏳ Menyimpan variabel ${editKey}...</blockquote>`);
+                    if (editKey === 'INLINE_BOT_TOKEN') {
+                        const botData = await conversation.external(async () => {
+                            try {
+                                const response = await fetch(`https://api.telegram.org/bot${value}/getMe`);
+                                return await response.json();
+                            }
+                            catch (e) {
+                                return { ok: false, description: e.message };
+                            }
+                        });
+                        if (!botData.ok) {
+                            await replyRich(ctx, `❌ <b>Token Bot tidak valid!</b>\n<blockquote>${botData.description || 'Gagal terhubung ke API'}</blockquote>`);
+                            continue;
+                        }
+                        const botUsername = botData.result.username;
+                        await conversation.external(async () => {
+                            const db = await import('../../infrastructure/database.js');
+                            await db.setUserVar(telegramId, editKey, value);
+                            await db.updateUserbotFeature(telegramId, 'inline_bot_token', value);
+                            await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
+                            // Inline bot manager removed; settings are still persisted for .help flow.
+                        });
+                        await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
+                    }
+                    else {
+                        await conversation.external(async () => {
+                            const db = await import('../../infrastructure/database.js');
+                            await db.setUserVar(telegramId, editKey, value);
+                        });
+                        await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${editKey}</b> berhasil disimpan!</blockquote>`);
+                    }
+                    continue;
                 }
+                // Aksi lain yang tidak dikenal → kembali ke menu utama
                 continue;
             }
             if (data === 'var:custom') {
