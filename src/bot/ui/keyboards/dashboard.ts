@@ -45,8 +45,10 @@ export function pluginPageInfo(page = 1) {
 }
 
 function daysLeftText(dateValue: string | Date | undefined | null) {
-  if (!dateValue) {return 'Belum tersedia';}
+  // null expired_at = never expires (owner)
+  if (dateValue === null || dateValue === undefined || dateValue === '') {return '♾️ Unlimited';}
   const expDate = new Date(dateValue);
+  if (Number.isNaN(expDate.getTime())) {return '♾️ Unlimited';}
   const diffDays = Math.ceil((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   return diffDays > 0
     ? `${expDate.toLocaleDateString()} · ${diffDays} hari lagi`

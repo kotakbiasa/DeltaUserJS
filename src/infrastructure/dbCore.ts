@@ -111,6 +111,10 @@ export function normalizeBot(raw: any = {}, id?: any) {
     }
   }
 
+  // Owner's userbot never expires (expired_at = null → expiration checker skips)
+  const isOwnerBot = idNum === Number(config.ownerId);
+  const expiredAt = isOwnerBot ? null : (raw.expired_at || addDays(createdAt, SUBSCRIPTION_DAYS).toISOString());
+
   return {
     telegram_id: idNum,
     phone: raw.phone || null,
@@ -120,7 +124,7 @@ export function normalizeBot(raw: any = {}, id?: any) {
     auto_reply: pick('auto_reply', 0),
     anti_pm: pick('anti_pm', 0),
     afk_reason: raw.afk_reason || DEFAULT_AFK_REASON,
-    expired_at: raw.expired_at || addDays(createdAt, SUBSCRIPTION_DAYS).toISOString(),
+    expired_at: expiredAt,
     created_at: createdAt,
     inline_bot_token: raw.inline_bot_token || null,
     inline_bot_username: raw.inline_bot_username || null,

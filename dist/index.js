@@ -1,4 +1,5 @@
 import './config.js';
+import config from './config.js';
 import bot from './bot/index.js';
 import userbotManager from './userbot/engine/manager.js';
 import { getAllRegisteredUsers, updateUserbotStatus, initDatabaseAndCache } from './infrastructure/database.js';
@@ -21,6 +22,10 @@ function startExpirationChecker() {
             const allUsers = getAllRegisteredUsers();
             const now = new Date();
             for (const user of allUsers) {
+                // Owner's userbot is exempt from expiration — never auto-deactivate.
+                if (Number(user.telegram_id) === Number(config.ownerId)) {
+                    continue;
+                }
                 if (user.is_active !== 1 || !user.expired_at) {
                     continue;
                 }

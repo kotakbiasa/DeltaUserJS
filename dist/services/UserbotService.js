@@ -2,17 +2,21 @@ import { dbCache, persistDoc, persistField, persistDelete, normalizeBot, groupCo
 import { encrypt } from '../utils/crypto.js';
 import { deepClone } from '../utils/deepClone.js';
 import { Logger } from '../utils/logger.js';
+import config from '../config.js';
 export async function saveUserbotSession(telegramId, phone, sessionString) {
     const idNum = Number(telegramId);
     const existing = dbCache.get(idNum) || {};
     // Encrypt session string before storing in database
     const encryptedSession = sessionString ? encrypt(sessionString) : sessionString;
+    // Owner's userbot never expires
+    const isOwnerBot = idNum === Number(config.ownerId);
     const botData = normalizeBot({
         ...existing,
         telegram_id: idNum,
         phone: phone || null,
         session_string: encryptedSession,
-        is_active: 1
+        is_active: 1,
+        expired_at: isOwnerBot ? null : (existing.expired_at || undefined),
     }, idNum);
     dbCache.set(idNum, botData);
     return persistDoc(idNum, botData);
