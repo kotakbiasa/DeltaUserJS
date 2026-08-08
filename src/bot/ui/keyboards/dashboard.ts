@@ -73,9 +73,17 @@ function userInfo(ctx) {
 
 export function panelMain(ctx) {
   const { firstName, botName } = userInfo(ctx);
+  const session = getUserbotSession(ctx.from.id);
+  const running = session && userbotManager.isRunning(ctx.from.id);
+  const statusBadge = !session ? '🔴 Belum terdaftar' : (running ? '🟢 Aktif' : '🟡 Mati');
+
   return `<h1>👋 Selamat Datang!</h1>` +
-    `<blockquote>Halo <b>${escapeHtml(firstName)}</b>! Saya <b>${escapeHtml(botName)}</b>, ` +
-    `manajer untuk mengelola userbot Telegram Anda.</blockquote>` +
+    `<blockquote>Halo <b>${escapeHtml(firstName)}</b>! Saya <b>${escapeHtml(botName)}</b>, manajer untuk mengelola userbot Telegram Anda.</blockquote>` +
+    `<table bordered striped><caption>📌 Status Akun</caption>` +
+    `<tr><th>Item</th><th>Detail</th></tr>` +
+    `<tr><td>Status Userbot</td><td align="center">${statusBadge}</td></tr>` +
+    `<tr><td>Masa Aktif</td><td align="center">${daysLeftText(session?.expired_at)}</td></tr>` +
+    `</table>` +
     `<p>Gunakan tombol di bawah untuk navigasi.</p>`;
 }
 
@@ -95,6 +103,17 @@ export function panelMenuList(ctx) {
 
   return `<h1>🎛️ Panel Menu</h1>` +
     `<blockquote>Status: <b>${statusLine}</b></blockquote>` +
+    `<table bordered striped><caption>📋 Menu Tersedia</caption>` +
+    `<tr><th>Menu</th><th>Fungsi</th></tr>` +
+    (hasBot
+      ? `<tr><td>🤖 Panel Userbot</td><td>Kontrol & status userbot</td></tr>` +
+        `<tr><td>🧩 Plugin Studio</td><td>Kelola modul aktif</td></tr>` +
+        `<tr><td>⚙️ Settings</td><td>Anti-PM, AFK, identity</td></tr>`
+      : `<tr><td>🚀 Register</td><td>Daftarkan userbot baru</td></tr>`) +
+    (isOwner(ctx)
+      ? `<tr><td>👑 Panel Admin</td><td>Operasi owner & maintenance</td></tr>`
+      : '') +
+    `</table>` +
     `<p>Pilih menu di bawah untuk mengelola userbot Anda.</p>`;
 }
 
@@ -111,17 +130,18 @@ export function panelUserbot(ctx) {
 
   const sessionRows = [
     ['ID Akun', `<code>${ctx.from.id}</code>`],
-    ['Telepon', session?.phone ? `+${session.phone}` : 'Disembunyikan'],
+    ['Telepon', session?.phone ? `<tg-spoiler><code>+${session.phone}</code></tg-spoiler>` : 'Disembunyikan'],
     ['Masa Aktif', daysLeftText(session?.expired_at)],
+    ['Inline Bot', session?.inline_bot_username ? `@${session.inline_bot_username}` : 'Belum diset'],
   ];
 
   return `<h1>🤖 Dashboard ${escapeHtml(botName)}</h1>` +
     `<blockquote>Panel kendali untuk sesi userbot Anda.</blockquote>` +
-    `<table bordered><caption>📊 Status</caption>` +
+    `<table bordered striped><caption>📊 Status</caption>` +
     `<tr><th>Fitur</th><th>Status</th></tr>` +
     featureRows.map(([k, v]) => `<tr><td>${k}</td><td align="center">${v}</td></tr>`).join('') +
     `</table>` +
-    `<table bordered><caption>ℹ️ Info Sesi</caption>` +
+    `<table bordered striped><caption>ℹ️ Info Sesi</caption>` +
     `<tr><th>Detail</th><th>Nilai</th></tr>` +
     sessionRows.map(([k, v]) => `<tr><td>${k}</td><td align="center">${v}</td></tr>`).join('') +
     `</table>`;
@@ -138,33 +158,35 @@ export function panelPlugins(ctx, page = 1, notice = '') {
     const lower = name.toLowerCase();
     const isActive = !disabledSet.has(lower);
     const isProtected = PROTECTED_PLUGINS.includes(lower);
-    return `<tr><td>${escapeHtml(name)}</td><td align="center">${isActive ? '✅' : '❌'}</td><td align="center">${isProtected ? '🔒' : '—'}</td></tr>`;
+    return `<tr><td>${escapeHtml(name)}</td><td align="center">${isActive ? '✅ Aktif' : '❌ Nonaktif'}</td><td align="center">${isProtected ? '🔒' : '—'}</td></tr>`;
   }).join('') || '<tr><td colspan="3" align="center">Tidak ada plugin</td></tr>';
 
   return `<h1>🧩 Plugin Studio</h1>` +
     (notice ? `<blockquote>${escapeHtml(notice)}</blockquote>` : '<blockquote>Kelola modul bot Anda.</blockquote>') +
-    `<table bordered><caption>📊 Statistik</caption><tr>` +
+    `<table bordered striped><caption>📊 Statistik</caption><tr>` +
     `<td align="center"><b>Total</b><br>${total}</td>` +
-    `<td align="center"><b>Aktif</b><br>${active}</td>` +
-    `<td align="center"><b>Nonaktif</b><br>${Math.max(0, total - active)}</td>` +
+    `<td align="center"><b>✅ Aktif</b><br>${active}</td>` +
+    `<td align="center"><b>❌ Nonaktif</b><br>${Math.max(0, total - active)}</td>` +
     `</tr></table>` +
     `<table bordered striped><caption>📋 Plugin · Hal ${currentPage}/${totalPages}</caption>` +
     `<tr><th>Plugin</th><th>Status</th><th>Guard</th></tr>` +
     rows +
-    `</table>`;
+    `</table>` +
+    `<p>🔒 = protected (tidak bisa dinonaktifkan)</p>`;
 }
 
 export function panelSettings(ctx) {
   const session = getUserbotSession(ctx.from.id);
   return `<h1>⚙️ Settings</h1>` +
     `<blockquote>Atur preferensi bot dan identitas.</blockquote>` +
-    `<table bordered><caption>🔀 Feature Switch</caption><tr>` +
-    `<td align="center"><b>Anti-PM</b><br>${badge(session?.anti_pm === 1, '🟢 ON', '🔴 OFF')}</td>` +
-    `<td align="center"><b>AFK</b><br>${badge(session?.auto_reply === 1, '🟢 ON', '🔴 OFF')}</td>` +
-    `<td align="center"><b>Sesi</b><br>${session ? '✅ Ada' : '🔴 Tidak ada'}</td>` +
+    `<table bordered striped><caption>🔀 Feature Switch</caption><tr>` +
+    `<td align="center"><b>🚫 Anti-PM</b><br>${badge(session?.anti_pm === 1, '🟢 ON', '🔴 OFF')}</td>` +
+    `<td align="center"><b>🤖 AFK</b><br>${badge(session?.auto_reply === 1, '🟢 ON', '🔴 OFF')}</td>` +
+    `<td align="center"><b>📦 Sesi</b><br>${session ? '✅ Ada' : '🔴 Tidak ada'}</td>` +
     `</tr></table>` +
-    `<table bordered><caption>🆔 Identity</caption>` +
+    `<table bordered striped><caption>🆔 Identity</caption>` +
     `<tr><th>Item</th><th>Detail</th></tr>` +
+    `<tr><td>Nama Bot</td><td align="center">${escapeHtml(session?.custom_name || '—')}</td></tr>` +
     `<tr><td>Inline Bot</td><td align="center">${session?.inline_bot_username ? `@${session.inline_bot_username}` : 'Belum diset'}</td></tr>` +
     `</table>`;
 }
@@ -172,18 +194,18 @@ export function panelSettings(ctx) {
 export function panelRegister(ctx) {
   return `<h1>🚀 Pilih Metode Login</h1>` +
     `<blockquote>Halo, ${escapeHtml(ctx.from.first_name || 'User')}. Pilih metode login yang paling nyaman.</blockquote>` +
-    `<table bordered><caption>📋 Perbandingan</caption>` +
+    `<table bordered striped><caption>📋 Perbandingan</caption>` +
     `<tr><th>Metode</th><th>Detail</th></tr>` +
     `<tr><td>📱 OTP</td><td>Kode Telegram via aplikasi/SMS</td></tr>` +
     `<tr><td>🔍 QR</td><td>Scan dari Telegram > Devices</td></tr>` +
     `</table>` +
-    `<p>⚠️ Jangan bagikan OTP, password 2FA, atau session string kepada siapa pun.</p>`;
+    `<blockquote>⚠️ <b>Peringatan:</b> Jangan bagikan OTP, password 2FA, atau session string kepada siapa pun.</blockquote>`;
 }
 
 export function panelSubscription(_ctx) {
   return `<h1>💎 Pilih Paket Langganan</h1>` +
     `<blockquote>Dapatkan akses penuh ke fitur premium.</blockquote>` +
-    `<table bordered><caption>📋 Paket</caption>` +
+    `<table bordered striped><caption>📋 Paket</caption>` +
     `<tr><th>Paket</th><th>Durasi</th></tr>` +
     `<tr><td>🎁 Coba Gratis</td><td align="center">7 Hari (1x klaim)</td></tr>` +
     `<tr><td>💎 Premium</td><td align="center">30 Hari — Soon</td></tr>` +
@@ -193,39 +215,49 @@ export function panelSubscription(_ctx) {
 export function panelAccessDenied(ctx) {
   return `<h1>🔒 Akses Belum Dibuka</h1>` +
     `<blockquote>Registrasi bot membutuhkan persetujuan owner.</blockquote>` +
-    `<table bordered><caption>📋 Status</caption>` +
+    `<table bordered striped><caption>📋 Status</caption>` +
     `<tr><th>Item</th><th>Detail</th></tr>` +
     `<tr><td>Akun</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
-    `<tr><td>Status</td><td align="center">Menunggu approval</td></tr>` +
+    `<tr><td>Status</td><td align="center">🕐 Menunggu approval</td></tr>` +
     `</table>`;
 }
 
 export function panelAdmin(_ctx) {
   const users = getAllRegisteredUsers();
+  const running = userbotManager.clients.size;
+  const activeCount = users.filter(u => u.is_active === 1).length;
   return `<h1>👑 Admin Command Center</h1>` +
     `<blockquote>Panel owner untuk operasi server dan maintenance.</blockquote>` +
-    `<table bordered><caption>📊 Snapshot</caption><tr>` +
-    `<td align="center"><b>User</b><br>${users.length}</td>` +
-    `<td align="center"><b>Running</b><br>${userbotManager.clients.size}</td>` +
-    `<td align="center"><b>Plugins</b><br>${loadedPlugins.length}</td>` +
+    `<table bordered striped><caption>📊 Snapshot</caption><tr>` +
+    `<td align="center"><b>👥 User</b><br>${users.length}</td>` +
+    `<td align="center"><b>✅ Aktif</b><br>${activeCount}</td>` +
+    `<td align="center"><b>⚡ Running</b><br>${running}</td>` +
+    `<td align="center"><b>🧩 Plugins</b><br>${loadedPlugins.length}</td>` +
     `</tr></table>`;
 }
 
 export function panelStats(_ctx) {
   const users = getAllRegisteredUsers();
+  const running = userbotManager.clients.size;
+  const mem = process.memoryUsage();
   return `<h1>📊 System Analytics</h1>` +
     `<blockquote>Ringkasan performa layanan.</blockquote>` +
-    `<table bordered><caption>📊 Metrics</caption><tr>` +
-    `<td align="center"><b>User</b><br>${users.length}</td>` +
-    `<td align="center"><b>Running</b><br>${userbotManager.clients.size}</td>` +
-    `<td align="center"><b>Uptime</b><br>${Math.round(process.uptime() / 60)}m</td>` +
-    `</tr></table>`;
+    `<table bordered striped><caption>📊 Metrics</caption><tr>` +
+    `<td align="center"><b>👥 User</b><br>${users.length}</td>` +
+    `<td align="center"><b>⚡ Running</b><br>${running}</td>` +
+    `<td align="center"><b>⏱ Uptime</b><br>${Math.round(process.uptime() / 60)}m</td>` +
+    `</tr></table>` +
+    `<table bordered striped><caption>💾 Memory</caption>` +
+    `<tr><th>Item</th><th>Detail</th></tr>` +
+    `<tr><td>RSS</td><td align="center">${formatBytesRef(mem.rss)}</td></tr>` +
+    `<tr><td>Heap</td><td align="center">${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</td></tr>` +
+    `</table>`;
 }
 
 export function panelQuickHelp(_ctx) {
   return `<h1>❓ Quick Guide</h1>` +
     `<blockquote>Panduan singkat navigasi dashboard.</blockquote>` +
-    `<table bordered><caption>📋 Navigasi</caption>` +
+    `<table bordered striped><caption>📋 Navigasi</caption>` +
     `<tr><th>Menu</th><th>Fungsi</th></tr>` +
     `<tr><td>🤖 Dashboard</td><td>Kontrol userbot pribadi</td></tr>` +
     `<tr><td>🧩 Plugin Studio</td><td>Kelola modul</td></tr>` +
@@ -237,10 +269,10 @@ export function panelQuickHelp(_ctx) {
 export function panelDonate(_ctx) {
   return `<h1>💰 Support Project</h1>` +
     `<blockquote>Dukungan membantu pengembangan dan maintenance server.</blockquote>` +
-    `<table bordered><caption>💳 Channel Donasi</caption>` +
+    `<table bordered striped><caption>💳 Channel Donasi</caption>` +
     `<tr><th>Metode</th><th>Detail</th></tr>` +
-    `<tr><td>e-Wallet</td><td align="center">0821-xxxx-xxxx</td></tr>` +
-    `<tr><td>Transfer Bank</td><td align="center">883xxxxxxx</td></tr>` +
+    `<tr><td>e-Wallet</td><td align="center"><tg-spoiler><code>0821-xxxx-xxxx</code></tg-spoiler></td></tr>` +
+    `<tr><td>Transfer Bank</td><td align="center"><tg-spoiler><code>883xxxxxxx</code></tg-spoiler></td></tr>` +
     `</table>`;
 }
 
@@ -248,27 +280,36 @@ export function panelHealth(mongoStatus = 'Unknown') {
   const users = getAllRegisteredUsers();
   const rows = users.slice(0, 10).map(user => {
     const running = userbotManager.isRunning(user.telegram_id) ? '🟢' : '🔴';
-    return `<tr><td>${escapeHtml(user.telegram_id)}</td><td align="center">${running}</td><td align="center">${user.is_active === 1 ? 'active' : 'inactive'}</td></tr>`;
+    return `<tr><td>${escapeHtml(user.telegram_id)}</td><td align="center">${running}</td><td align="center">${user.is_active === 1 ? '✅ active' : '❌ inactive'}</td></tr>`;
   }).join('') || '<tr><td colspan="3" align="center">Belum ada userbot</td></tr>';
 
   return `<h1>🩺 Server Health</h1>` +
     `<blockquote>Status runtime, database, dan userbot aktif.</blockquote>` +
-    `<table bordered><caption>📊 Core</caption><tr>` +
-    `<td align="center"><b>MongoDB</b><br>${mongoStatus}</td>` +
-    `<td align="center"><b>Running</b><br>${userbotManager.clients.size}</td>` +
-    `<td align="center"><b>Uptime</b><br>${Math.round(process.uptime() / 60)}m</td>` +
+    `<table bordered striped><caption>📊 Core</caption><tr>` +
+    `<td align="center"><b>🍃 MongoDB</b><br>${mongoStatus}</td>` +
+    `<td align="center"><b>⚡ Running</b><br>${userbotManager.clients.size}</td>` +
+    `<td align="center"><b>⏱ Uptime</b><br>${Math.round(process.uptime() / 60)}m</td>` +
     `</tr></table>` +
-    `<table bordered><caption>⚙️ Runtime</caption>` +
+    `<table bordered striped><caption>⚙️ Runtime</caption>` +
     `<tr><th>Item</th><th>Detail</th></tr>` +
     `<tr><td>Node</td><td align="center">${process.version}</td></tr>` +
     `<tr><td>Platform</td><td align="center">${process.platform} ${process.arch}</td></tr>` +
     `<tr><td>Plugins</td><td align="center">${loadedPlugins.length}</td></tr>` +
     `</table>` +
-    `<details><summary>Userbot Snapshot</summary>` +
+    `<details><summary>👥 Userbot Snapshot</summary>` +
     `<table bordered striped>` +
     `<tr><th>ID</th><th>Status</th><th>Aktif</th></tr>` +
     rows +
     `</table></details>`;
+}
+
+/** Format bytes human-readable (tanpa import tambahan). */
+function formatBytesRef(bytes: number): string {
+  if (!bytes) {return '0 B';}
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
 // ==========================================================================

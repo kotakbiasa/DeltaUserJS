@@ -96,13 +96,16 @@ export async function manageVarsConv(conversation, ctx) {
         return db.getAllUserVars(telegramId);
       });
 
-      let varList = Object.entries(currentVars)
-        .map(([k, v]) => `• <b>${k}</b>: <code>${v}</code>`)
-        .join('\n');
-      if (!varList) {varList = '<i>Belum ada variabel yang diatur.</i>';}
+      // Tabel rapi + spoiler nilai
+      const varRows = Object.entries(currentVars)
+        .map(([k, v], i) => `<tr><td align="center">${i + 1}</td><td><code>${k}</code></td><td align="center"><tg-spoiler><code>${String(v)}</code></tg-spoiler></td></tr>`)
+        .join('');
+      const varTable = varRows
+        ? `<table bordered striped><caption>📋 Variabel Aktif</caption><tr><th>#</th><th>Kunci</th><th>Nilai</th></tr>${varRows}</table>`
+        : `<blockquote><i>Belum ada variabel yang diatur.</i></blockquote>`;
 
       // Kirim menu utama vars
-      const menuMsg = await replyRich(ctx, `<h1>⚙️ Pengaturan Variabel (Vars)</h1><blockquote>Daftar Variabel Anda saat ini:</blockquote>\n<blockquote>${varList}</blockquote>\n\nPilih tombol di bawah untuk menambah, mengubah, atau menghapus variabel.`, { reply_markup: buildVarsKeyboard(currentVars) });
+      const menuMsg = await replyRich(ctx, `<h1>⚙️ Pengaturan Variabel (Vars)</h1><blockquote>Daftar variabel Anda saat ini — nilai tersembunyi, tap untuk melihat.</blockquote>${varTable}\n\nPilih tombol di bawah untuk menambah, mengubah, atau menghapus variabel.`, { reply_markup: buildVarsKeyboard(currentVars) });
 
       // Tunggu input callback_query
       const result = await conversation.waitFor('callback_query:data');
@@ -272,26 +275,36 @@ const SYSTEM_VAR_TEMPLATE: { key: string; desc: string; example: string }[] = [
   { key: 'SUBSCRIPTION_DAYS', desc: 'Durasi langganan (hari)', example: '30' },
 ];
 
+/** Wrap nilai sensitif dalam spoiler (klik untuk lihat). */
+function spoiler(value: string): string {
+  return `<tg-spoiler><code>${value}</code></tg-spoiler>`;
+}
+
 function systemVarTableHtml(currentVars: Record<string, unknown>): string {
-  const rows = SYSTEM_VAR_TEMPLATE.map(v => {
-    const value = currentVars[v.key] !== undefined ? String(currentVars[v.key]) : '';
-    const status = value ? '✅' : '⬜';
-    return `<tr><td>${status} <code>${v.key}</code></td><td>${v.desc}</td><td><code>${v.example}</code></td></tr>`;
+  const rows = SYSTEM_VAR_TEMPLATE.map((v, i) => {
+    const hasValue = currentVars[v.key] !== undefined && String(currentVars[v.key]) !== '';
+    const valueCell = hasValue
+      ? spoiler(String(currentVars[v.key]))
+      : `<i>—</i>`;
+    const status = hasValue ? '🟢' : '⚪';
+    return `<tr><td align="center">${i + 1}</td><td>${status} <code>${v.key}</code></td><td>${v.desc}</td><td align="center">${valueCell}</td></tr>`;
   }).join('');
 
   const extraKeys = Object.keys(currentVars).filter(k => !SYSTEM_VAR_TEMPLATE.some(t => t.key === k));
   const extraRows = extraKeys.length
-    ? extraKeys.map(k => `<tr><td>✅ <code>${k}</code></td><td colspan="2"><code>${String(currentVars[k])}</code></td></tr>`).join('')
+    ? `<tr><td colspan="4" align="center"><b>🔧 Variabel Kustom</b></td></tr>` +
+      extraKeys.map(k => `<tr><td align="center">•</td><td>🟢 <code>${k}</code></td><td><i>kustom</i></td><td align="center">${spoiler(String(currentVars[k]))}</td></tr>`).join('')
     : '';
 
   return `<h1>⚙️ System Vars</h1>` +
-    `<blockquote>Set variabel sistem untuk bot. Ketik <code>KUNCI NILAI</code> untuk set, atau <code>HAPUS KUNCI</code> untuk hapus.</blockquote>` +
+    `<blockquote>Kelola variabel sistem bot. Ketik <code>KUNCI NILAI</code> untuk set, atau <code>HAPUS KUNCI</code> untuk hapus. Nilai tersembunyi (spoiler) — tap untuk melihat.</blockquote>` +
     `<table bordered striped><caption>📋 Template Variabel</caption>` +
-    `<tr><th>Variabel</th><th>Fungsi</th><th>Contoh</th></tr>` +
+    `<tr><th>#</th><th>Variabel</th><th>Fungsi</th><th>Nilai</th></tr>` +
     rows +
     extraRows +
     `</table>` +
-    `<p>Contoh: <code>SYSTEM_LOG_CHAT_ID -1001234567890</code></p>`;
+    `<p>💡 Contoh: <code>SYSTEM_LOG_CHAT_ID -1001234567890</code></p>` +
+    `<p>🗑️ Hapus: <code>HAPUS SYSTEM_LOG_CHAT_ID</code></p>`;
 }
 
 /**
