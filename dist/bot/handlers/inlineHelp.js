@@ -34,11 +34,19 @@ function plain(value = '-') {
     return String(value || '-').replace(/<[^>]+>/g, '');
 }
 // --- Builders ---
-function buildHelpMenuHtml(page = 1, target = 'main') {
+export function buildHelpMenuHtml(page = 1, target = 'main') {
     const names = moduleNames(target);
     const perPage = 8;
     const totalPages = Math.max(1, Math.ceil(names.length / perPage));
     const currentPage = Math.min(Math.max(1, page), totalPages);
+    // Untuk userbot: teks singkat + tombol (menu tetap ringkas)
+    if (target === 'ubot') {
+        return `<b>📖 Help (Userbot)</b>\n` +
+            `<code>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</code>\n` +
+            `✨ Pilih modul lewat <b>tombol</b> di bawah.\n\n` +
+            `📄 Halaman: <b>${currentPage}/${totalPages}</b> · 📦 Total: <b>${names.length}</b>`;
+    }
+    // Master bot: tetap tampilkan daftar
     const start = (currentPage - 1) * perPage;
     const items = names.slice(start, start + perPage);
     const list = items
@@ -49,21 +57,33 @@ function buildHelpMenuHtml(page = 1, target = 'main') {
         return `<b>${num}.</b> <code>${escapeHtml(name)}</code>${desc ? ` — <i>${escapeHtml(desc)}…</i>` : ''}`;
     })
         .join('\n');
-    return `<b>📖 Help ${target === 'ubot' ? '(Userbot)' : '(Master)'}</b>\n` +
+    return `<b>📖 Help (Master)</b>\n` +
         `📦 Total: ${names.length} · 📄 Hal ${currentPage}/${totalPages}\n\n` +
         (list || 'Tidak ada modul.');
 }
-function buildModuleHtml(moduleName, target = 'main') {
+export function buildModuleHtml(moduleName, target = 'main') {
     const mod = getRegistry(target)[moduleName];
     if (!mod) {
         return `<b>📦 Modul Tidak Ditemukan</b>`;
     }
-    return `<b>📦 ${escapeHtml(mod.title || formatModuleName(moduleName))}</b>\n` +
-        `<blockquote>${escapeHtml(plain(mod.description))}</blockquote>\n` +
-        `<b>Penggunaan</b>\n<code>${escapeHtml(plain(mod.usage))}</code>` +
-        (mod.detail ? `\n\n<b>Detail</b>\n${escapeHtml(plain(mod.detail))}` : '');
+    const title = mod.title || formatModuleName(moduleName);
+    const desc = plain(mod.description);
+    const usage = plain(mod.usage);
+    const detail = mod.detail ? plain(mod.detail) : '';
+    let html = `<b>📦 ${escapeHtml(title)}</b>\n` +
+        `<code>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</code>\n\n`;
+    if (desc) {
+        html += `<b>📝 Deskripsi</b>\n<blockquote>${escapeHtml(desc)}</blockquote>\n\n`;
+    }
+    if (usage) {
+        html += `<b>⚙️ Penggunaan</b>\n<code>${escapeHtml(usage)}</code>\n`;
+    }
+    if (detail) {
+        html += `\n<b>🔎 Detail</b>\n<blockquote>${escapeHtml(detail)}</blockquote>`;
+    }
+    return html;
 }
-function helpKeyboard(page = 1, target = 'main') {
+export function helpKeyboard(page = 1, target = 'main') {
     const names = moduleNames(target);
     const perPage = 8;
     const totalPages = Math.max(1, Math.ceil(names.length / perPage));
@@ -114,8 +134,44 @@ export function buildHelpMenuRichHtml(session, _page = 1, target = 'main') {
 export function helpKeyboardExported(page = 1, target = 'main') {
     return helpKeyboard(page, target);
 }
-// --- Register callback handlers (no inline_query needed) ---
+// --- Register callback & inline_query handlers ---
 export function registerInlineHelpHandlers(bot) {
+    // inline_query: dipicu saat userbot memanggil getInlineBotResults
+    // untuk mendapatkan menu help + tombol, lalu userbot posting via
+    // sendInlineBotResult ke chat manapun (termasuk Chat Pribadi/Saved).
+    bot.on('inline_query', async (ctx) => {
+        console.log(`[INLINE-QUERY-DEBUG] Received inline query: "${ctx.inlineQuery.query}" from user ${ctx.from?.id}`);
+        const query = (ctx.inlineQuery.query || '').trim().toLowerCase();
+        // Module detail: query adalah nama modul
+        if (query && query !== 'help' && query !== 'menu') {
+            const registry = getRegistry('ubot');
+            const mod = registry[query];
+            if (mod) {
+                const html = buildModuleHtml(query, 'ubot');
+                const result = {
+                    type: 'article',
+                    id: `help:module:${query}`,
+                    title: `📦 ${mod.title || formatModuleName(query)}`,
+                    description: plain(mod.description || '').slice(0, 80),
+                    input_message_content: { message_text: html, parse_mode: 'HTML' },
+                    reply_markup: moduleBackKeyboard('ubot'),
+                };
+                return ctx.answerInlineQuery([result], { cache_time: 30 });
+            }
+        }
+        // Help menu: tampilkan semua modul dengan tombol navigasi
+        const html = buildHelpMenuHtml(1, 'ubot');
+        const names = moduleNames('ubot');
+        const result = {
+            type: 'article',
+            id: 'help:menu',
+            title: `📖 Help Menu (${names.length} modul)`,
+            description: `Pilih modul — tombol navigasi tersedia`,
+            input_message_content: { message_text: html, parse_mode: 'HTML' },
+            reply_markup: helpKeyboard(1, 'ubot'),
+        };
+        return ctx.answerInlineQuery([result], { cache_time: 60 });
+    });
     // Pesan "help_ubot" / "help_ubot:<module>" dari userbot (dikirim via DM ke
     // Master Bot oleh plugin .help userbot — userbot tidak bisa render tombol).
     bot.on('message:text', async (ctx) => {
@@ -123,6 +179,7 @@ export function registerInlineHelpHandlers(bot) {
         if (!text.startsWith('help_ubot')) {
             return;
         }
+        console.log(`[HELP-DEBUG] Master Bot terima: "${text}" dari user ${ctx.from?.id}`);
         const moduleArg = text.split(':')[1]?.toLowerCase() || '';
         if (moduleArg) {
             const html = buildModuleHtml(moduleArg, 'ubot');

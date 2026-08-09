@@ -234,9 +234,11 @@ export async function manageVarsConv(conversation, ctx) {
               await db.setUserVar(telegramId, editKey, value);
               await db.updateUserbotFeature(telegramId, 'inline_bot_token', value);
               await db.updateUserbotFeature(telegramId, 'inline_bot_username', botUsername);
-              // Inline bot manager removed; settings are still persisted for .help flow.
+              // Start polling inline bot untuk menu help tombol (tanpa restart)
+              const svc = await import('../services/inlineBotService.js');
+              await svc.startInlineBotForUser(telegramId, value);
             });
-            await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b>\nBot Anda: @${botUsername} siap digunakan.</blockquote>`);
+            await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b><br>Bot Anda: @${botUsername} siap digunakan — menu <code>.help</code> kini memakai tombol.</blockquote>`);
           } else {
             await conversation.external(async () => {
               const db = await import('../../infrastructure/database.js');

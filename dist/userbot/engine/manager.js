@@ -3,6 +3,7 @@ import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '..
 import { dbCache } from '../../infrastructure/dbCore.js';
 import { Logger } from '../../utils/logger.js';
 import { stopAllLoops } from '../handlers/util/schedule.js';
+import { startInlineBotForUser, stopInlineBotForUser } from '../../bot/services/inlineBotService.js';
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -68,6 +69,12 @@ class UserbotManager {
             this.clients.set(id, userbot);
             try {
                 await userbot.start();
+                // Jika user punya INLINE_BOT_TOKEN — start polling inline bot untuk menu help tombol
+                const session = dbCache.get(id);
+                const inlineToken = session?.inline_bot_token || '';
+                if (inlineToken) {
+                    startInlineBotForUser(id, inlineToken).catch((_e) => { });
+                }
                 return true;
             }
             catch (err) {
@@ -86,6 +93,8 @@ class UserbotManager {
             const userbot = this.clients.get(id);
             if (userbot) {
                 await userbot.stop();
+                // Stop polling inline bot user ini
+                stopInlineBotForUser(id).catch((_e) => { });
                 const cleared = stopAllLoops(id);
                 if (cleared > 0) {
                     Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on stop.`, 'INFO');

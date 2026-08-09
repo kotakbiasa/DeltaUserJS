@@ -88,6 +88,7 @@ async function main() {
         // 3. Start the Master Bot, and load userbots ONLY after it successfully connects
         Logger.logSystem('Starting Master Bot...');
         await bot.start({
+            timeout: 5, // Polling 5 detik untuk inline query MTProto
             onStart: async (info) => {
                 setMasterBotUsername(info.username);
                 Logger.logSystem(`Master Bot [@${info.username}] is running successfully!`, 'SUCCESS');

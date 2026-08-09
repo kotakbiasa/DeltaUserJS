@@ -60,7 +60,8 @@ export async function replyRich(ctx, content, options) {
     try {
         return await ctx.replyWithRichMessage(buildRich(content, richOpts), sendOptions);
     }
-    catch (_err) {
+    catch (err) {
+        console.log(`[REPLY-DEBUG] replyWithRichMessage gagal: ${err?.message} — fallback ke classic`);
         return ctx.reply(String(content ?? ''), {
             parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
             ...sendOptions,

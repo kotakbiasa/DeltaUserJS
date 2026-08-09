@@ -72,7 +72,8 @@ export async function replyRich(
   const { richOpts, sendOptions } = splitOptions(options);
   try {
     return await ctx.replyWithRichMessage(buildRich(content, richOpts), sendOptions as Record<string, unknown>);
-  } catch (_err) {
+  } catch (err) {
+    console.log(`[REPLY-DEBUG] replyWithRichMessage gagal: ${(err as Error)?.message} — fallback ke classic`);
     return ctx.reply(String(content ?? ''), {
       parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
       ...sendOptions,

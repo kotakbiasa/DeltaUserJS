@@ -1,7 +1,42 @@
 import { helpRegistry } from '../../engine/pluginRegistry.js';
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { getUserbotSession } from '../../../services/UserbotService.js';
+import { Api } from 'teleproto';
+import config from '../../../config.js';
+import { buildModuleHtml } from '../../../bot/handlers/inlineHelp.js';
 import { getMasterBotUsername } from '../../../bot/state/botUsername.js';
+/**
+ * Bangun InputReplyToMessage untuk forum topic — memastikan pesan bot
+ * masuk ke topic yang sama dengan .help, bukan main topic.
+ */
+function buildReplyToTopic(message) {
+    try {
+        const header = message.replyTo;
+        if (header) {
+            const topId = header.replyToTopId || header.replyToMsgId;
+            const replyToMsgId = header.replyToMsgId || message.id;
+            if (topId) {
+                return new Api.InputReplyToMessage({
+                    replyToMsgId: replyToMsgId,
+                    topMsgId: topId,
+                });
+            }
+        }
+        // Message ada di topic tapi replyTo kosong — reply ke pesan asli
+        if (message.peerId?.className === 'PeerChannel' && message.message) {
+            const msgId = message.id;
+            return new Api.InputReplyToMessage({
+                replyToMsgId: msgId,
+                topMsgId: msgId, // topic message = pesan asli .help
+            });
+        }
+        return undefined;
+    }
+    catch (_e) {
+        return undefined;
+    }
+}
 /**
  * Format nama modul agar rapi
  */
@@ -54,14 +89,13 @@ function getModuleNames() {
  */
 function buildMenuText(page = 1) {
     const names = getModuleNames();
-    const totalPages = Math.max(1, Math.ceil(names.length / MODULES_PER_PAGE));
-    const currentPage = Math.min(Math.max(1, page), totalPages);
-    const start = (currentPage - 1) * MODULES_PER_PAGE;
-    const items = names.slice(start, start + MODULES_PER_PAGE);
+    // Tampilkan SEMUA modul sekaligus di chat userbot (userbot tidak bisa render tombol)
+    const items = names;
+    const currentPage = 1;
     const moduleList = items
         .map((name, i) => {
         const mod = helpRegistry[name];
-        const num = start + i + 1;
+        const num = i + 1;
         const title = mod?.title || formatModuleName(name);
         const desc = mod ? stripHtml(mod.description).slice(0, 60) : '';
         return `<b>${num}.</b> <code>${escapeHtml(name)}</code> — ${escapeHtml(title)}${desc ? `\n    <i>${escapeHtml(desc)}…</i>` : ''}`;
@@ -69,10 +103,9 @@ function buildMenuText(page = 1) {
         .join('\n\n');
     return (`📖 <b>HELP MENU — DAFTAR MODUL</b>\n` +
         `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n` +
-        `📦 <b>Total Modul:</b> ${names.length}\n` +
-        `📄 <b>Halaman:</b> ${currentPage}/${totalPages}\n\n` +
+        `📦 <b>Total Modul:</b> ${names.length}\n\n` +
         `${moduleList}\n\n` +
-        `💡 Menu interaktif dengan tombol sudah dikirim ke chat Master Bot. Klik tombol di sana untuk navigasi.`);
+        `💡 <b>Petunjuk:</b> ketik <code>.help [nama_modul]</code> untuk melihat detail modul, contoh: <code>.help admin</code>`);
 }
 /**
  * Bangun teks HTML untuk detail modul
@@ -107,18 +140,61 @@ export default {
         }
         try {
             const parts = message.message.trim().split(/\s+/);
-            const masterBot = getMasterBotUsername();
-            if (!masterBot) {
-                // Fallback: Master Bot belum siap — tampilkan teks statis
-                const text = buildMenuText(1);
-                await message.edit({ text, parseMode: 'html' });
-                return;
-            }
             const moduleArg = parts.length > 1 ? parts[1].toLowerCase() : '';
-            const helpTarget = moduleArg ? `help_ubot:${moduleArg}` : 'help_ubot';
-            // Kirim request ke Master Bot — dia yang render inline keyboard
-            await client.sendMessage(masterBot, { message: helpTarget });
-            // Update pesan userbot di chat asal dengan konfirmasi
+            const session = getUserbotSession(telegramId);
+            // Pakai custom INLINE_BOT_TOKEN jika sudah diset; fallback ke Master Bot (bawaan)
+            const inlineToken = session?.inline_bot_token || config.botToken || '';
+            // Kirim menu + TOMBOL via inline bot result (MTProto) ke chat ini.
+            // Pola dari kotakbiasa/userbot: get_inline_bot_results + reply_inline_bot_result
+            // Pesan datang dari bot → inline keyboard render normal.
+            // PENTING: pakai Master Bot (yang polling inline_query), BUKAN
+            // inline_bot_username session (bisa menunjuk bot lain yang tidak polling).
+            const masterBotUsername = getMasterBotUsername() || 'PanelDeltaUbot';
+            const query = moduleArg || 'help';
+            try {
+                // Resolve bot FRESH via contacts.ResolveUsername (hindari cache rusak)
+                const resolved = await client.invoke(new Api.contacts.ResolveUsername({ username: masterBotUsername }));
+                const botUser = (resolved.users || []).find((u) => String(u.id) === String(resolved.peer?.userId));
+                if (!botUser) {
+                    throw new Error(`Bot @${masterBotUsername} tidak ditemukan`);
+                }
+                const botPeer = new Api.InputPeerUser({
+                    userId: botUser.id,
+                    accessHash: botUser.accessHash,
+                });
+                console.log(`[HELP-INLINE] Bot resolved: @${masterBotUsername} id=${botUser.id} (bukan cache ${JSON.stringify((resolved.peer || {}).userId)})`);
+                // Dapatkan inline query results dari bot (peer='me' = user sendiri sebagai konteks)
+                const botResults = await client.invoke(new Api.messages.GetInlineBotResults({
+                    bot: botPeer,
+                    peer: 'me',
+                    query: query,
+                    offset: '',
+                }));
+                console.log(`[HELP-INLINE] Got ${(botResults.results || []).length} results, queryId: ${botResults.queryId}`);
+                // Ambil hasil pertama & kirim ke chat (pesan datang dari BOT → tombol render)
+                const results = botResults.results || [];
+                if (results.length > 0) {
+                    const queryId = botResults.queryId;
+                    // Tangani forum topic: kirim ke topic yang sama dengan .help
+                    const replyTo = buildReplyToTopic(message);
+                    await client.invoke(new Api.messages.SendInlineBotResult({
+                        peer: message.peerId,
+                        queryId: queryId,
+                        id: String(results[0].id),
+                        hideVia: true,
+                        replyTo,
+                    }));
+                    console.log(`[HELP-INLINE] Sent inline result to chat`);
+                    // Hapus pesan asli .help (pola kotakbiasa/userbot: event.delete())
+                    await message.delete().catch(() => { });
+                    return;
+                }
+            }
+            catch (mtpErr) {
+                console.log(`[HELP-INLINE] Error: ${mtpErr.message} (cause: ${mtpErr.cause?.message || 'unknown'})`);
+                Logger.logUser(telegramId, `[HELP] MTProto inline error: ${mtpErr.message} — fallback teks`, 'WARN');
+            }
+            // Fallback: tanpa inline bot — tampilkan daftar lengkap di chat userbot
             if (moduleArg) {
                 const targetModule = helpRegistry[moduleArg];
                 if (targetModule) {
@@ -129,24 +205,50 @@ export default {
                     const available = Object.keys(helpRegistry).join(', ');
                     const safeName = escapeHtml(parts[1]);
                     await message.edit({
-                        text: `❌ Modul "<b>${safeName}</b>" tidak ditemukan!\n\nModul tersedia: <code>${available}</code>\n\nKetik <code>.help</code> untuk melihat daftar modul.`,
-                        parseMode: 'html',
+                        text: `❌ <b>Modul "${safeName}" tidak ditemukan.</b>\n\n<blockquote>Modul tersedia: <code>${escapeHtml(available)}</code></blockquote>`,
+                        parseMode: 'html'
                     });
                 }
                 return;
             }
             const text = buildMenuText(1);
-            await message.edit({
-                text,
-                parseMode: 'html',
-            });
+            await message.edit({ text, parseMode: 'html' });
         }
         catch (err) {
-            Logger.logUser(telegramId, `Error in help plugin: ${err}`, 'ERROR');
+            Logger.logUser(telegramId, `Error in help plugin: ${err.message}`, 'ERROR');
             try {
-                await message.edit({ text: `❌ Terjadi kesalahan saat memproses bantuan: ${err.message}` });
+                await message.edit({
+                    text: `❌ <b>Error menampilkan help:</b>\n<code>${escapeHtml(err.message)}</code>`,
+                    parseMode: 'html'
+                });
             }
             catch (_e) { /* ignore */ }
+        }
+    },
+    // Handle callback dari inline keyboard
+    async onCallbackQuery(client, callbackEvent, _settings, _telegramId) {
+        try {
+            const data = callbackEvent.data?.toString() || '';
+            if (!data.startsWith('help:')) {
+                return false;
+            }
+            const parts = data.split(':');
+            const action = parts[1];
+            if (action === 'close') {
+                // Tutup / hapus pesan
+                await callbackEvent.editMessage('Menu help ditutup.', { parseMode: 'html' });
+                return true;
+            }
+            // Tampilkan detail modul
+            const moduleName = action;
+            const html = buildModuleHtml(moduleName, 'ubot');
+            await callbackEvent.editMessage(html, { parseMode: 'html' });
+            console.log(`[HELP-CALLBACK] Edited message to show ${moduleName}`);
+            return true;
+        }
+        catch (err) {
+            console.log(`[HELP-CALLBACK] Error: ${err.message}`);
+            return false;
         }
     },
 };
