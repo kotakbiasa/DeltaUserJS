@@ -1,4 +1,5 @@
 import { getSystemVar, getUserVar } from '../infrastructure/database.js';
+import config from '../config.js';
 let masterBot = null;
 export function setLoggerBot(botInstance) {
     masterBot = botInstance;
@@ -24,10 +25,15 @@ export class Logger {
         if (!masterBot) {
             return;
         }
-        const logChatId = getSystemVar('SYSTEM_LOG_CHAT_ID');
+        // Prioritize config.logGroupId, fallback to SYSTEM_LOG_CHAT_ID from database
+        const logChatId = config.logGroupId || getSystemVar('SYSTEM_LOG_CHAT_ID');
         if (logChatId) {
             try {
-                await masterBot.api.sendMessage(logChatId, `⚙️ <b>SYSTEM LOG [${level}]</b>\n<blockquote>${message}</blockquote>`, { parse_mode: 'HTML' });
+                const extraParams = { parse_mode: 'HTML' };
+                if (config.logGroupId && config.logTopicId) {
+                    extraParams.message_thread_id = config.logTopicId;
+                }
+                await masterBot.api.sendMessage(logChatId, `⚙️ <b>SYSTEM LOG [${level}]</b>\n<blockquote>${message}</blockquote>`, extraParams);
             }
             catch (err) {
                 console.error(`Failed to send System Log to Telegram:`, err.message);
@@ -53,7 +59,11 @@ export class Logger {
         const logChatId = getUserVar(telegramId, 'LOG_CHAT_ID');
         if (logChatId) {
             try {
-                await masterBot.api.sendMessage(logChatId, `🤖 <b>USERBOT LOG [${level}]</b>\n<blockquote>${message}</blockquote>`, { parse_mode: 'HTML' });
+                const extraParams = { parse_mode: 'HTML' };
+                if (config.logGroupId && config.logTopicId) {
+                    extraParams.message_thread_id = config.logTopicId;
+                }
+                await masterBot.api.sendMessage(logChatId, `🤖 <b>USERBOT LOG [${level}]</b>\n<blockquote>${message}</blockquote>`, extraParams);
             }
             catch (err) {
                 console.error(`Failed to send User Log to Telegram for ${telegramId}:`, err.message);
