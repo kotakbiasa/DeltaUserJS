@@ -64,12 +64,15 @@ const systemConfigSchema = new mongoose.Schema({
     _id: { type: String, default: 'system' },
     vars: { type: Map, of: String, default: {} },
 }, { _id: false });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const UserbotModel = (mongoose.models.Userbot || mongoose.model('Userbot', userbotSchema));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const SystemConfigModel = (mongoose.models.SystemConfig || mongoose.model('SystemConfig', systemConfigSchema));
 const groupConfigSchema = new mongoose.Schema({
     chat_id: { type: String, required: true, unique: true, index: true },
     notes: { type: Map, of: String, default: {} }
 }, { strict: false });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const GroupConfigModel = (mongoose.models.GroupConfig || mongoose.model('GroupConfig', groupConfigSchema));
 export const dbCache = new Map();
 export let isMongo = false;
@@ -81,6 +84,7 @@ export function addDays(date, days) {
     d.setDate(d.getDate() + days);
     return d;
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeBot(raw = {}, id) {
     const idNum = Number(id ?? raw.telegram_id);
     const createdAt = raw.created_at || new Date().toISOString();

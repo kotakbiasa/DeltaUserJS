@@ -214,6 +214,7 @@ export class UserbotClient {
                         return null;
                     }
                 },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 editMessage: async (text, options = {}) => {
                     try {
                         await this.client.editMessage(update.peer, {
@@ -225,7 +226,7 @@ export class UserbotClient {
                     }
                     catch (err) {
                         if (!String(err).includes('not modified')) {
-                            Logger.logUser(this.telegramId, `❌ Error editing callback message: ${err.message}`, 'ERROR');
+                            Logger.logUser(this.telegramId, `❌ Error editing callback message: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
                         }
                     }
                 },

@@ -9,14 +9,17 @@ const execAsync = util.promisify(exec);
 // Safety: exec/sh commands disabled by default. Set EXEC_ALLOWED=true to enable.
 const EXEC_ALLOWED = process.env.EXEC_ALLOWED === 'true';
 
-// Whitelist for .exec/.sh — only allow these commands
-const ALLOWED_COMMANDS = ['date', 'uptime', 'whoami', 'hostname', 'pwd', 'echo', 'df', 'free', 'uname', 'top', 'ps', 'cat', 'ls', 'wc'];
+// Whitelist for .exec/.sh — only allow these commands (no cat to prevent reading secrets)
+const ALLOWED_COMMANDS = ['date', 'uptime', 'whoami', 'hostname', 'pwd', 'echo', 'df', 'free', 'uname', 'top', 'ps', 'wc'];
 
 // Sanitized context for .eval — block dangerous globals
 const SAFE_EVAL_CONTEXT = {
   console: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     log: (...args: any[]) => args.join(' '),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     warn: (...args: any[]) => args.join(' '),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     error: (...args: any[]) => args.join(' '),
   },
 };
@@ -101,9 +104,8 @@ export default {
           Error,
           Set,
           Map,
-          Buffer,
-          setTimeout,
-          setInterval,
+          // Note: Buffer, setTimeout, setInterval removed from sandbox
+          // — they can be used to escape the vm sandbox via async primitives
         };
         // Buat context terisolasi
         const context = vm.createContext(sandbox);
@@ -127,8 +129,10 @@ export default {
           try {
             const { stdout, stderr } = await execAsync(code, { timeout: 10000 });
             output = stdout || stderr || 'Berhasil tanpa output.';
-          } catch (err: any) {
-            output = err.stdout ? `${err.stdout}\n${err.stderr}` : err.message;
+          } catch (err) {
+            output = (err as { stdout?: string; stderr?: string; message?: string }).stdout
+              ? `${(err as { stdout?: string; stderr?: string }).stdout}\n${(err as { stdout?: string; stderr?: string }).stderr}`
+              : (err instanceof Error ? err.message : String(err));
           }
         }
       }

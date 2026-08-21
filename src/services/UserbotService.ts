@@ -374,7 +374,8 @@ export async function updateGroupConfig(chatId, updates) {
     if (isMongo) {
       try {
         // $set so partial updates don't wipe unspecified fields.
-        await (GroupConfigModel as any).findOneAndUpdate(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (GroupConfigModel as any).findOneAndUpdate(
           { chat_id: chatKey },
           { $set: newData },
           { upsert: true, returnDocument: 'after' }

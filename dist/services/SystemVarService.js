@@ -92,6 +92,7 @@ export async function setTrialClaimed(telegramId) {
         if (!systemConfigCache.vars) {
             systemConfigCache.vars = {};
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vars = systemConfigCache.vars;
         const claims = { ...(vars.trial_claims || {}) };
         if (claims[telegramId]) {

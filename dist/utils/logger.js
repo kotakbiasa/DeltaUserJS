@@ -29,6 +29,7 @@ export class Logger {
         const logChatId = config.logGroupId || getSystemVar('SYSTEM_LOG_CHAT_ID');
         if (logChatId) {
             try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const extraParams = { parse_mode: 'HTML' };
                 if (config.logGroupId && config.logTopicId) {
                     extraParams.message_thread_id = config.logTopicId;
@@ -59,6 +60,7 @@ export class Logger {
         const logChatId = getUserVar(telegramId, 'LOG_CHAT_ID');
         if (logChatId) {
             try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const extraParams = { parse_mode: 'HTML' };
                 if (config.logGroupId && config.logTopicId) {
                     extraParams.message_thread_id = config.logTopicId;

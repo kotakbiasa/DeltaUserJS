@@ -101,6 +101,7 @@ export function hasClaimedTrial(telegramId) {
 export async function setTrialClaimed(telegramId) {
   return withKeyLock(SYS_LOCK_KEY, async () => {
     if (!systemConfigCache.vars) {systemConfigCache.vars = {};}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vars = systemConfigCache.vars as Record<string, any>;
     const claims = { ...(vars.trial_claims || {}) };
     if (claims[telegramId]) {return false;}

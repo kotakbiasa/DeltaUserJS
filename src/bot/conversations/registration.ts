@@ -16,10 +16,12 @@ declare module 'teleproto' {
       phoneCodeHash: string;
       phoneCode: string;
       password?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }): Promise<{ user: any }>;
     signInWithPassword(
       api: { apiId: number; apiHash: string },
       opts: { password: () => Promise<string> },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<{ user: any }>;
   }
 }

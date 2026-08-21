@@ -6,13 +6,16 @@ import { Logger } from '../../../utils/logger.js';
 const execAsync = util.promisify(exec);
 // Safety: exec/sh commands disabled by default. Set EXEC_ALLOWED=true to enable.
 const EXEC_ALLOWED = process.env.EXEC_ALLOWED === 'true';
-// Whitelist for .exec/.sh — only allow these commands
-const ALLOWED_COMMANDS = ['date', 'uptime', 'whoami', 'hostname', 'pwd', 'echo', 'df', 'free', 'uname', 'top', 'ps', 'cat', 'ls', 'wc'];
+// Whitelist for .exec/.sh — only allow these commands (no cat to prevent reading secrets)
+const ALLOWED_COMMANDS = ['date', 'uptime', 'whoami', 'hostname', 'pwd', 'echo', 'df', 'free', 'uname', 'top', 'ps', 'wc'];
 // Sanitized context for .eval — block dangerous globals
 const SAFE_EVAL_CONTEXT = {
     console: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         log: (...args) => args.join(' '),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         warn: (...args) => args.join(' '),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error: (...args) => args.join(' '),
     },
 };
@@ -96,9 +99,8 @@ export default {
                     Error,
                     Set,
                     Map,
-                    Buffer,
-                    setTimeout,
-                    setInterval,
+                    // Note: Buffer, setTimeout, setInterval removed from sandbox
+                    // — they can be used to escape the vm sandbox via async primitives
                 };
                 // Buat context terisolasi
                 const context = vm.createContext(sandbox);
@@ -127,7 +129,9 @@ export default {
                         output = stdout || stderr || 'Berhasil tanpa output.';
                     }
                     catch (err) {
-                        output = err.stdout ? `${err.stdout}\n${err.stderr}` : err.message;
+                        output = err.stdout
+                            ? `${err.stdout}\n${err.stderr}`
+                            : (err instanceof Error ? err.message : String(err));
                     }
                 }
             }

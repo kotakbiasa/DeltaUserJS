@@ -14,6 +14,7 @@ export function deepClone(obj) {
     }
     // Handle circular references
     const seen = new WeakMap();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function clone(value) {
         if (value === null || typeof value !== 'object') {
             return value;
@@ -50,6 +51,7 @@ export function deepClone(obj) {
         }
         // Array
         if (Array.isArray(value)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const copy = [];
             seen.set(value, copy);
             for (let i = 0; i < value.length; i++) {
@@ -58,6 +60,7 @@ export function deepClone(obj) {
             return copy;
         }
         // Plain object
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const copy = {};
         seen.set(value, copy);
         for (const key of Object.keys(value)) {

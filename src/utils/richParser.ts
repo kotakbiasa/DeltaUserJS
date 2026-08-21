@@ -48,7 +48,8 @@ export function parseRichText(
   const buttonRegex = /\[([^\]]+)\]\(buttonurl:\/\/([^)]+)\)/g;
   const keyboard = new InlineKeyboard();
   let hasButtons = false;
-  let currentRow: unknown[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let currentRow: any[] = [];
 
   parsedText = parsedText.replace(buttonRegex, (match, btnText, btnUrl) => {
     hasButtons = true;
@@ -68,7 +69,7 @@ export function parseRichText(
       currentRow.push(InlineKeyboard.url(btnText.trim(), url));
     } else {
       if (currentRow.length > 0) {
-        keyboard.row(...(currentRow as any));
+        keyboard.row(...currentRow);
       }
       currentRow = [InlineKeyboard.url(btnText.trim(), url)];
     }
@@ -78,7 +79,7 @@ export function parseRichText(
 
   // Tambahkan baris terakhir
   if (currentRow.length > 0) {
-    keyboard.row(...(currentRow as any));
+    keyboard.row(...currentRow);
   }
 
   return {

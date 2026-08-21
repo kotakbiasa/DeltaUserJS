@@ -209,7 +209,7 @@ export class UserbotClient {
         data: update.data,
         peer: update.peer,
         msgId: update.msgId,
-        message: null as any,
+        message: null as unknown,
         getMessage: async () => {
           try {
             const msgs = await this.client.getMessages(update.peer, { ids: [update.msgId] });
@@ -220,6 +220,7 @@ export class UserbotClient {
             return null;
           }
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         editMessage: async (text: string, options: any = {}) => {
           try {
             await this.client.editMessage(update.peer, {
@@ -228,9 +229,9 @@ export class UserbotClient {
               parseMode: options.parseMode || 'html',
               buttons: options.buttons,
             });
-          } catch (err: any) {
+          } catch (err) {
             if (!String(err).includes('not modified')) {
-              Logger.logUser(this.telegramId, `❌ Error editing callback message: ${err.message}`, 'ERROR');
+              Logger.logUser(this.telegramId, `❌ Error editing callback message: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             }
           }
         },

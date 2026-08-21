@@ -80,18 +80,18 @@ function markdownToHtml(text) {
 //   2. Userbot kirim request "help_ubot" ke Master Bot (via DM)
 //   3. Master Bot balas dengan rich message + inline keyboard
 //      yang bisa diklik (page nav, detail modul, tutup)
-const MODULES_PER_PAGE = 8;
+const _MODULES_PER_PAGE = 8;
 function getModuleNames() {
     return Object.keys(helpRegistry).sort();
 }
 /**
  * Bangun teks HTML untuk halaman menu utama
  */
-function buildMenuText(page = 1) {
+function buildMenuText(_page = 1) {
     const names = getModuleNames();
     // Tampilkan SEMUA modul sekaligus di chat userbot (userbot tidak bisa render tombol)
     const items = names;
-    const currentPage = 1;
+    const _currentPage = 1;
     const moduleList = items
         .map((name, i) => {
         const mod = helpRegistry[name];
@@ -143,7 +143,7 @@ export default {
             const moduleArg = parts.length > 1 ? parts[1].toLowerCase() : '';
             const session = getUserbotSession(telegramId);
             // Pakai custom INLINE_BOT_TOKEN jika sudah diset; fallback ke Master Bot (bawaan)
-            const inlineToken = session?.inline_bot_token || config.botToken || '';
+            const _inlineToken = session?.inline_bot_token || config.botToken || '';
             // Kirim menu + TOMBOL via inline bot result (MTProto) ke chat ini.
             // Pola dari kotakbiasa/userbot: get_inline_bot_results + reply_inline_bot_result
             // Pesan datang dari bot → inline keyboard render normal.
@@ -170,10 +170,13 @@ export default {
                     query: query,
                     offset: '',
                 }));
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 console.log(`[HELP-INLINE] Got ${(botResults.results || []).length} results, queryId: ${botResults.queryId}`);
                 // Ambil hasil pertama & kirim ke chat (pesan datang dari BOT → tombol render)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const results = botResults.results || [];
                 if (results.length > 0) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const queryId = botResults.queryId;
                     // Tangani forum topic: kirim ke topic yang sama dengan .help
                     const replyTo = buildReplyToTopic(message);

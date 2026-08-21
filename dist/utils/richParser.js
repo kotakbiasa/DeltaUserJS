@@ -27,6 +27,7 @@ export function parseRichText(text, userContext = {}, chatContext = {}) {
     const buttonRegex = /\[([^\]]+)\]\(buttonurl:\/\/([^)]+)\)/g;
     const keyboard = new InlineKeyboard();
     let hasButtons = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let currentRow = [];
     parsedText = parsedText.replace(buttonRegex, (match, btnText, btnUrl) => {
         hasButtons = true;

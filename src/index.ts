@@ -53,7 +53,7 @@ function startExpirationChecker() {
         }
       }
     } catch (error) {
-      Logger.logSystem(`Error in Expiration Checker service: ${error.message || error}`, 'ERROR');
+      Logger.logSystem(`Error in Expiration Checker service: ${error instanceof Error ? error.message : String(error)}`, 'ERROR');
     } finally {
       isRunning = false;
     }
@@ -106,7 +106,7 @@ async function main() {
       }
     });
   } catch (error) {
-    Logger.logSystem(`Critical error during system startup: ${error.message || error}`, 'ERROR');
+    Logger.logSystem(`Critical error during system startup: ${error instanceof Error ? error.message : String(error)}`, 'ERROR');
     process.exit(1);
   }
 }
@@ -136,19 +136,29 @@ async function shutdown(signal) {
         await mongoose.default.disconnect();
       }
     } catch (err) {
-      Logger.logSystem(`Error closing MongoDB connection: ${err.message || err}`, 'ERROR');
+      Logger.logSystem(`Error closing MongoDB connection: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
     }
 
     Logger.logSystem('Shutdown complete. Bye! 👋', 'SUCCESS');
     process.exit(0);
   } catch (error) {
-    Logger.logSystem(`Error during shutdown: ${error.message || error}`, 'ERROR');
+    Logger.logSystem(`Error during shutdown: ${error instanceof Error ? error.message : String(error)}`, 'ERROR');
     process.exit(1);
   }
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+// Catch unhandled rejections to prevent silent crashes
+process.on('unhandledRejection', (reason) => {
+  Logger.logSystem(`Unhandled Rejection: ${reason instanceof Error ? reason.message : String(reason)}`, 'ERROR');
+});
+process.on('uncaughtException', (err) => {
+  Logger.logSystem(`Uncaught Exception: ${err.message}`, 'ERROR');
+  // Don't exit immediately — let the process attempt graceful shutdown
+  shutdown('uncaughtException');
+});
 
 // Start the application
 main();
