@@ -1,6 +1,7 @@
 import './config.js';
 import config from './config.js';
 import bot from './bot/index.js';
+import { setupBotCommands } from './bot/index.js';
 import userbotManager from './userbot/engine/manager.js';
 import { getAllRegisteredUsers, updateUserbotStatus, initDatabaseAndCache } from './infrastructure/database.js';
 import { setMasterBotUsername } from './bot/state/botUsername.js';
@@ -97,6 +98,7 @@ async function main() {
       timeout: 5,  // Polling 5 detik untuk inline query MTProto
       onStart: async (info) => {
         setMasterBotUsername(info.username);
+        await setupBotCommands();
         Logger.logSystem(`Master Bot [@${info.username}] is running successfully!`, 'SUCCESS');
 
         // 4. Restart all active userbots from database as the final step
@@ -155,7 +157,7 @@ process.on('unhandledRejection', (reason) => {
   Logger.logSystem(`Unhandled Rejection: ${reason instanceof Error ? reason.message : String(reason)}`, 'ERROR');
 });
 process.on('uncaughtException', (err) => {
-  Logger.logSystem(`Uncaught Exception: ${err.message}`, 'ERROR');
+  Logger.logSystem(`Uncaught Exception: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
   // Don't exit immediately — let the process attempt graceful shutdown
   shutdown('uncaughtException');
 });

@@ -181,7 +181,7 @@ export async function persistField(idNum, field, value) {
             return true;
         }
         catch (err) {
-            Logger.logSystem(`❌ MongoDB update error (${field}): ${err.message}`, 'ERROR');
+            Logger.logSystem(`❌ MongoDB update error (${field}): ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             return false;
         }
     }
@@ -203,7 +203,7 @@ export async function persistDoc(idNum, doc) {
             return true;
         }
         catch (err) {
-            Logger.logSystem(`❌ MongoDB save error: ${err.message}`, 'ERROR');
+            Logger.logSystem(`❌ MongoDB save error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             return false;
         }
     }
@@ -220,7 +220,7 @@ export async function persistDelete(idNum) {
             return true;
         }
         catch (err) {
-            Logger.logSystem(`❌ MongoDB delete error: ${err.message}`, 'ERROR');
+            Logger.logSystem(`❌ MongoDB delete error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             return false;
         }
     }
@@ -260,7 +260,7 @@ export async function initDatabaseAndCache() {
             return;
         }
         catch (err) {
-            Logger.logSystem(`❌ Failed to connect to MongoDB: ${err.message}`, 'ERROR');
+            Logger.logSystem(`❌ Failed to connect to MongoDB: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             Logger.logSystem('🛑 MONGO_URI is configured, so DeltaUbotJS will stop instead of falling back to empty local JSON database.', 'ERROR');
             throw err;
         }

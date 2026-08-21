@@ -20,7 +20,7 @@ export function registerOwnerHandlers(bot) {
       // Clean up temp file after sending
       setTimeout(() => { try { fs.unlinkSync(filename); } catch (_) { /* empty */ } }, 60000);
     } catch (err) {
-      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal backup: ${err.message}</blockquote>` });
+      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal backup: ${err instanceof Error ? err.message : String(err)}</blockquote>` });
     }
   });
 
@@ -36,7 +36,7 @@ export function registerOwnerHandlers(bot) {
         `<tr><td>✅ Aktif</td><td align="center"><code>${activeUsers}</code></td></tr>` +
         `</table>` });
     } catch (err) {
-      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>${err.message}</blockquote>` });
+      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>${err instanceof Error ? err.message : String(err)}</blockquote>` });
     }
   });
 

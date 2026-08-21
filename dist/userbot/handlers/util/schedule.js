@@ -20,7 +20,7 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
     }
     // Kirim pesan pertama kali secara langsung agar instan
     client.sendMessage(chatId, { message: loopMessage }).catch(err => {
-        Logger.logUser(idNum, `Failed to send initial loop message: ${err.message}`, 'ERROR');
+        Logger.logUser(idNum, `Failed to send initial loop message: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
     });
     // Mulai interval baru
     const ms = minutes * 60 * 1000;
@@ -31,7 +31,7 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
             });
         }
         catch (err) {
-            Logger.logUser(idNum, `Loop Error [${chatKey}]: ${err.message}`, 'ERROR');
+            Logger.logUser(idNum, `Loop Error [${chatKey}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         }
     }, ms);
     myLoops.set(chatKey, {
@@ -42,7 +42,7 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
     });
     if (saveToDb) {
         saveSchedule(idNum, chatKey, 'loop', minutes, loopMessage).catch(err => {
-            Logger.logUser(idNum, `Failed to save schedule to DB: ${err.message}`, 'ERROR');
+            Logger.logUser(idNum, `Failed to save schedule to DB: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         });
     }
 }
@@ -61,7 +61,7 @@ export function stopLoop(telegramId, chatId, deleteFromDb = false) {
         myLoops.delete(chatKey);
         if (deleteFromDb) {
             deleteSchedule(idNum, chatKey, 'loop').catch(err => {
-                Logger.logUser(idNum, `Failed to delete schedule from DB: ${err.message}`, 'ERROR');
+                Logger.logUser(idNum, `Failed to delete schedule from DB: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             });
         }
         return true;

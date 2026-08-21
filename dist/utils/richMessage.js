@@ -62,7 +62,8 @@ export async function replyRich(ctx, content, options) {
     }
     catch (err) {
         console.log(`[REPLY-DEBUG] replyWithRichMessage gagal: ${err?.message} — fallback ke classic`);
-        return ctx.reply(String(content ?? ''), {
+        const stripped = stripRichTags(content);
+        return ctx.reply(stripped, {
             parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
             ...sendOptions,
         });
@@ -77,7 +78,8 @@ export async function sendRich(api, chatId, content, options) {
         return await api.sendRichMessage(chatId, buildRich(content, richOpts), sendOptions);
     }
     catch (_err) {
-        return api.sendMessage(chatId, String(content ?? ''), {
+        const stripped = stripRichTags(content);
+        return api.sendMessage(chatId, stripped, {
             parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
             ...sendOptions,
         });
@@ -92,7 +94,8 @@ export async function editRich(ctx, content, options) {
         return await ctx.editMessageText(buildRich(content, richOpts), sendOptions);
     }
     catch (_err) {
-        return ctx.editMessageText(String(content ?? ''), {
+        const stripped = stripRichTags(content);
+        return ctx.editMessageText(stripped, {
             parse_mode: richOpts.markdown ? 'Markdown' : 'HTML',
             ...sendOptions,
         });
@@ -126,11 +129,54 @@ export const list = (items = []) => `<ul>${items.map((it) => `<li>${it}</li>`).j
 export const heading = (t) => `<h3>${t}</h3>`;
 /** Collapsible details block (rich-message only). */
 export const details = (summary, body, { open = false } = {}) => `<details${open ? ' open' : ''}><summary>${summary}</summary>${body}</details>`;
+/** Build a simple table (rich-message only; degrades to preformatted in classic). */
+export function table(rows, opts) {
+    const { header = true, bordered = true, striped = false } = opts || {};
+    const attrs = [];
+    if (bordered) {
+        attrs.push('bordered');
+    }
+    if (striped) {
+        attrs.push('striped');
+    }
+    const attrStr = attrs.length ? ` ${attrs.join(' ')}` : '';
+    let html = `<table${attrStr}>`;
+    rows.forEach((row, i) => {
+        const isHeader = header && i === 0;
+        const tag = isHeader ? 'th' : 'td';
+        html += `<tr>${row.map(cell => `<${tag}>${cell}</${tag}>`).join('')}</tr>`;
+    });
+    html += '</table>';
+    return html;
+}
+/** Strip rich-only tags for classic fallback. */
+export function stripRichTags(html) {
+    return html
+        .replace(/<\/?h[1-6][^>]*>/g, '')
+        .replace(/<\/?details[^>]*>/g, '')
+        .replace(/<\/?summary[^>]*>/g, '')
+        .replace(/<\/?ul[^>]*>/g, '')
+        .replace(/<\/?ol[^>]*>/g, '')
+        .replace(/<\/?li[^>]*>/g, '\n• ')
+        .replace(/<\/?table[^>]*>/g, '')
+        .replace(/<\/?tr[^>]*>/g, '\n')
+        .replace(/<\/?th[^>]*>/g, '')
+        .replace(/<\/?td[^>]*>/g, ' | ')
+        .replace(/<\/?blockquote[^>]*>/g, '')
+        .replace(/<\/?tg-spoiler[^>]*>/g, '')
+        .replace(/<\/?tg-collage[^>]*>/g, '')
+        .replace(/<\/?tg-reference[^>]*>/g, '')
+        .replace(/<br\s*\/?>/g, '\n')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
 export default {
     buildRich,
     replyRich,
     sendRich,
     editRich,
     escapeHtml,
+    stripRichTags,
+    table,
     b, i, u, s, code, pre, spoiler, link, quote, list, heading, details,
 };

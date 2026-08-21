@@ -42,7 +42,7 @@ export async function loadAllPlugins({ reload = true } = {}) {
         files.sort();
     }
     catch (err) {
-        Logger.logSystem(`Failed to read plugin directory: ${err.message}`, 'ERROR');
+        Logger.logSystem(`Failed to read plugin directory: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         return loadedPlugins;
     }
     Logger.logSystem(`📦 Found ${files.length} plugin file(s) in handlers/ directory.`, 'INFO');
@@ -63,7 +63,7 @@ export async function loadAllPlugins({ reload = true } = {}) {
             Logger.logSystem(`  ✓ ${registered.name}${registered.help ? ' · help' : ''}`, 'INFO');
         }
         catch (err) {
-            Logger.logSystem(`  ✗ Failed to load ${fileRelPath}: ${err.message}`, 'ERROR');
+            Logger.logSystem(`  ✗ Failed to load ${fileRelPath}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         }
     }
     Logger.logSystem(`📦 Total plugins loaded: ${loadedPlugins.length}`, 'INFO');

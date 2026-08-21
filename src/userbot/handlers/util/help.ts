@@ -230,7 +230,7 @@ export default {
       const text = buildMenuText(1);
       await message.edit({ text, parseMode: 'html' });
     } catch (err) {
-      Logger.logUser(telegramId, `Error in help plugin: ${err.message}`, 'ERROR');
+      Logger.logUser(telegramId, `Error in help plugin: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
       try {
         await message.edit({
           text: `❌ <b>Error menampilkan help:</b>\n<code>${escapeHtml(err.message)}</code>`,
@@ -262,7 +262,7 @@ export default {
       console.log(`[HELP-CALLBACK] Edited message to show ${moduleName}`);
       return true;
     } catch (err) {
-      console.log(`[HELP-CALLBACK] Error: ${err.message}`);
+      console.log(`[HELP-CALLBACK] Error: ${err instanceof Error ? err.message : String(err)}`);
       return false;
     }
   },

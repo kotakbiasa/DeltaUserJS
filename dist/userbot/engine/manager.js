@@ -147,13 +147,14 @@ class UserbotManager {
         Logger.logSystem(`found ${activeBots.length} active userbots to start.`, 'INFO');
         for (const bot of activeBots) {
             try {
-                const delayMs = Math.floor(Math.random() * 3000) + 2000;
+                // Stagger starts — use index-based delay instead of random to avoid thundering herd
+                const delayMs = Math.min(5000, 1000 + activeBots.indexOf(bot) * 500);
                 Logger.logUser(bot.telegram_id, `⏳ Waiting ${delayMs}ms before starting userbot [${bot.telegram_id}]...`, 'INFO');
                 await sleep(delayMs);
                 await this.startUserbot(bot.telegram_id, bot.session_string);
             }
             catch (err) {
-                Logger.logSystem(`Failed to start userbot [${bot.telegram_id}]: ${err.message || err}`, 'ERROR');
+                Logger.logSystem(`Failed to start userbot [${bot.telegram_id}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             }
         }
     }
@@ -169,7 +170,7 @@ class UserbotManager {
             }
             this.watchdogRunning = true;
             this.checkAndReconnect()
-                .catch(err => Logger.logSystem(`Watchdog error: ${err.message || err}`, 'ERROR'))
+                .catch(err => Logger.logSystem(`Watchdog error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR'))
                 .finally(() => { this.watchdogRunning = false; });
         }, intervalMs);
     }
@@ -209,8 +210,9 @@ class UserbotManager {
                 await sleep(1500);
             }
             catch (err) {
-                Logger.logSystem(`Watchdog failed for [${id}]: ${err.message || err}`, 'ERROR');
-                if (err.message && (err.message.includes('Not a valid string') || err.message.includes('session string'))) {
+                Logger.logSystem(`Watchdog failed for [${id}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
+                const errMsg = err instanceof Error ? err.message : '';
+                if (errMsg && (errMsg.includes('Not a valid string') || errMsg.includes('session string'))) {
                     Logger.logSystem(`Sesi untuk [${id}] tidak valid/rusak. Menonaktifkan userbot secara otomatis agar tidak loop.`, 'ERROR');
                     Logger.logUser(id, 'Sesi Telegram Anda tidak valid atau telah dicabut. Userbot telah dinonaktifkan secara otomatis. Silakan daftar ulang.', 'ERROR');
                     await updateUserbotStatus(id, false);

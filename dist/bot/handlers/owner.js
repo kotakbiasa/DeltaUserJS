@@ -25,7 +25,7 @@ export function registerOwnerHandlers(bot) {
             catch (_) { /* empty */ } }, 60000);
         }
         catch (err) {
-            await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal backup: ${err.message}</blockquote>` });
+            await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal backup: ${err instanceof Error ? err.message : String(err)}</blockquote>` });
         }
     });
     bot.command('stats_db', async (ctx) => {
@@ -43,7 +43,7 @@ export function registerOwnerHandlers(bot) {
                     `</table>` });
         }
         catch (err) {
-            await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>${err.message}</blockquote>` });
+            await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>${err instanceof Error ? err.message : String(err)}</blockquote>` });
         }
     });
     bot.command('restart', async (ctx) => {

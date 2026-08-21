@@ -218,7 +218,7 @@ export default {
             await message.edit({ text, parseMode: 'html' });
         }
         catch (err) {
-            Logger.logUser(telegramId, `Error in help plugin: ${err.message}`, 'ERROR');
+            Logger.logUser(telegramId, `Error in help plugin: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             try {
                 await message.edit({
                     text: `❌ <b>Error menampilkan help:</b>\n<code>${escapeHtml(err.message)}</code>`,
@@ -250,7 +250,7 @@ export default {
             return true;
         }
         catch (err) {
-            console.log(`[HELP-CALLBACK] Error: ${err.message}`);
+            console.log(`[HELP-CALLBACK] Error: ${err instanceof Error ? err.message : String(err)}`);
             return false;
         }
     },

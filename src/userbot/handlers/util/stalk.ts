@@ -103,7 +103,7 @@ export default {
       });
 
     } catch (err) {
-      Logger.logUser(telegramId, `Stalk Error: ${err.message}`, 'ERROR');
+      Logger.logUser(telegramId, `Stalk Error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
       await message.edit({ 
         text: `<blockquote>❌ <b>Gagal Menggali Pesan:</b>\n<i>${escapeHtml(err.message)}</i></blockquote>`, 
         parseMode: 'html' 

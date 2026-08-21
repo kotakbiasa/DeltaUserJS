@@ -22,6 +22,7 @@ export class UserbotClient {
     sessionString;
     client;
     isActive;
+    _stopping;
     /**
      * @param {number} telegramId
      * @param {string} sessionString
@@ -31,6 +32,7 @@ export class UserbotClient {
         this.sessionString = sessionString;
         this.client = null;
         this.isActive = false;
+        this._stopping = false;
     }
     /**
      * Start the userbot instance
@@ -90,7 +92,7 @@ export class UserbotClient {
             Logger.logUser(this.telegramId, `🔁 Restored ${schedules.length} loop schedules for [${this.telegramId}].`, 'INFO');
         }
         catch (err) {
-            Logger.logUser(this.telegramId, `❌ Failed to restart schedules for [${this.telegramId}]: ${err.message}`, 'ERROR');
+            Logger.logUser(this.telegramId, `❌ Failed to restart schedules for [${this.telegramId}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         }
     }
     /**
@@ -103,6 +105,11 @@ export class UserbotClient {
      * Stop the userbot instance
      */
     async stop() {
+        if (this._stopping) {
+            Logger.logUser(this.telegramId, `⚠️ Stop already in progress for [${this.telegramId}], skipping.`, 'WARN');
+            return;
+        }
+        this._stopping = true;
         // Cleanup: stop all active loops for this userbot to prevent memory leaks
         try {
             const { loopStore } = await import('../handlers/util/schedule.js');
@@ -123,13 +130,14 @@ export class UserbotClient {
         if (this.client) {
             try {
                 await this.client.disconnect();
-                Logger.logUser(this.telegramId, `🔌 DeltaUbotJS [${this.telegramId}] disconnected.`, 'INFO');
+                Logger.logUser(this.telegramId, `🔌 DeltaUbotJS [${this.telegramId}] disconnected gracefully.`, 'INFO');
             }
             catch (err) {
-                Logger.logUser(this.telegramId, `❌ Error disconnecting DeltaUbotJS [${this.telegramId}]: ${err}`, 'ERROR');
+                Logger.logUser(this.telegramId, `❌ Error disconnecting DeltaUbotJS [${this.telegramId}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             }
         }
         this.isActive = false;
+        this._stopping = false;
     }
     /**
      * Register event handlers for the userbot
@@ -187,7 +195,7 @@ export class UserbotClient {
                     await plugin.execute(this.client, message, settings, this.telegramId);
                 }
                 catch (err) {
-                    Logger.logUser(this.telegramId, `Error in plugin ${plugin.name}: ${err.message}`, 'ERROR');
+                    Logger.logUser(this.telegramId, `Error in plugin ${plugin.name}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
                 }
             }
         }, new NewMessage({}));
@@ -210,11 +218,10 @@ export class UserbotClient {
                         return msgs[0] || null;
                     }
                     catch (err) {
-                        Logger.logUser(this.telegramId, `❌ Error fetching callback message for [${this.telegramId}]: ${err.message}`, 'ERROR');
+                        Logger.logUser(this.telegramId, `❌ Error fetching callback message for [${this.telegramId}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
                         return null;
                     }
                 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 editMessage: async (text, options = {}) => {
                     try {
                         await this.client.editMessage(update.peer, {
@@ -239,7 +246,7 @@ export class UserbotClient {
                         }));
                     }
                     catch (err) {
-                        Logger.logUser(this.telegramId, `❌ Error answering callback for [${this.telegramId}]: ${err.message}`, 'ERROR');
+                        Logger.logUser(this.telegramId, `❌ Error answering callback for [${this.telegramId}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
                     }
                 }
             };
@@ -260,7 +267,7 @@ export class UserbotClient {
                     } // Stop jika sudah ditangani
                 }
                 catch (err) {
-                    Logger.logUser(this.telegramId, `Error in plugin ${plugin.name} callback: ${err.message}`, 'ERROR');
+                    Logger.logUser(this.telegramId, `Error in plugin ${plugin.name} callback: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
                 }
             }
         }, new Raw({ types: [Api.UpdateBotCallbackQuery] }));

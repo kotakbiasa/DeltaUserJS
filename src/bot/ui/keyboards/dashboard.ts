@@ -523,7 +523,7 @@ async function sendRich(ctx, rich, reply_markup, { deleteOld = false } = {}) {
       try { await ctx.deleteMessage(); } catch (_) { /* empty */ }
     }
   } catch (err) {
-    Logger.logSystem(`sendRichMessage failed: ${err.message}`, 'WARN');
+    Logger.logSystem(`sendRichMessage failed: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
     await ctx.replyWithRichMessage({ html: `<blockquote><b>❌</b> Gagal kirim rich message. Kirim /menu lagi.</blockquote>` });
   }
 }
@@ -612,7 +612,7 @@ export function registerRichHandlers(bot) {
           await ctx.api.deleteMessage(ctx.chat?.id || ctx.callbackQuery?.message?.chat?.id, thinking.message_id).catch(()=>{});
         }
       } catch (err) {
-        Logger.logSystem(`Thinking error: ${err.message}`, 'WARN');
+        Logger.logSystem(`Thinking error: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
         await sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { deleteOld: true });
       }
       return;

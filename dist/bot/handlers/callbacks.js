@@ -71,7 +71,7 @@ export function registerLegacyCallbacks(bot) {
             });
         }
         catch (err) {
-            Logger.logUser(ctx.from.id, `request_approval error: ${err.message}`, 'ERROR');
+            Logger.logUser(ctx.from.id, `request_approval error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             await ctx.answerCallbackQuery({ text: 'Gagal mengirim permintaan approval.', show_alert: true });
         }
     });

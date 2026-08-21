@@ -128,7 +128,7 @@ export async function startInlineBotForUser(telegramId: number, token: string): 
     bot.start({ onStart: () => {
       Logger.logSystem(`Inline Bot [${telegramId}] started polling (help menu).`);
     } }).catch((err) => {
-      Logger.logSystem(`Inline Bot [${telegramId}] polling error: ${err.message}`, 'ERROR');
+      Logger.logSystem(`Inline Bot [${telegramId}] polling error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
     });
 
     // Ambil username (async, non-blocking)
@@ -138,7 +138,7 @@ export async function startInlineBotForUser(telegramId: number, token: string): 
 
     return entry;
   } catch (err) {
-    Logger.logSystem(`Failed to start inline bot for ${telegramId}: ${err.message}`, 'ERROR');
+    Logger.logSystem(`Failed to start inline bot for ${telegramId}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
     return null;
   }
 }
