@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node --no-warnings dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "build": "rm -rf dist && tsc",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
     "test": "node test/runner.js",
     "lint": "eslint src/ --ext .ts",
     "lint:fix": "eslint src/ --ext .ts --fix",
@@ -25,13 +25,7 @@
     "jimp": "^1.6.1",
     "mongoose": "^9.9.1",
     "qrcode": "^1.5.4",
-    "speedtest-net": "^2.2.0",
     "teleproto": "^1.228.5"
-  },
-  "overrides": {
-    "got": "^11.8.6",
-    "http-cache-semantics": "^4.1.1",
-    "tar": "^7.5.16"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -46,7 +40,6 @@
     "typescript-eslint": "^8.66.0"
   },
   "allowScripts": {
-    "esbuild@0.28.1": true,
-    "lzma-native@4.0.6": true
+    "esbuild@0.28.1": true
   }
 }

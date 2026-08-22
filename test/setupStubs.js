@@ -1,6 +1,10 @@
 import mongoose from 'mongoose';
 import fs from 'fs';
 
+process.env.BOT_TOKEN ||= '123456:TEST_TOKEN_FOR_TESTS';
+process.env.MONGO_URI ||= 'mongodb://localhost:27017/delta-test';
+process.env.OWNER_ID ||= '1';
+
 // In-memory mock databases
 export const mockMongoStore = [];
 export const mockJsonDb = { userbots: {} };

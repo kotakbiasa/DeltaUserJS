@@ -47,7 +47,6 @@ npm run test             # node test/runner.js
 | `mongoose` | MongoDB ODM |
 | `qrcode` | QR code generation for userbot auth |
 | `jimp` | Image processing (avatar, thumbnails) |
-| `speedtest-net` | Network diagnostics for userbot health |
 | `dotenv` | Environment config |
 
 ## Config
