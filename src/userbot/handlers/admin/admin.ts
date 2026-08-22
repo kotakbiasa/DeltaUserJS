@@ -88,7 +88,7 @@ export default {
           });
         }
       } catch (err) {
-        Logger.logUser(telegramId, `Error in admin plugin (${cmd}): ${err.message}`, 'ERROR');
+        Logger.logUser(telegramId, `Error in admin plugin (${cmd}): ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         await message.edit({
           text: `<blockquote>❌ <b>Gagal melakukan ${escapeHtml(cmd)}:</b>\n<i>${escapeHtml(err.message)}</i>\n\n(Pastikan Anda adalah Admin dengan hak yang cukup)</blockquote>`,
           parseMode: 'html'

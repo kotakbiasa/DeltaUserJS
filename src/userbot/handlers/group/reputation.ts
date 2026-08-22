@@ -209,7 +209,7 @@ export default {
                      `</blockquote>`
           });
         } catch (err) {
-          Logger.logUser(telegramId, `❌ Failed to send Reputation log to channel ${chatSettings.log_channel}: ${err.message}`, 'ERROR');
+          Logger.logUser(telegramId, `❌ Failed to send Reputation log to channel ${chatSettings.log_channel}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         }
       }
     }

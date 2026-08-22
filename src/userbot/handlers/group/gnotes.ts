@@ -55,7 +55,7 @@ export default {
         await saveGroupNote(chatId, noteName, noteText);
         await message.edit({ text: `✅ Catatan Grup <b>#${noteName}</b> berhasil disimpan.\n\nKetik <code>#${noteName}</code> untuk memanggilnya.`, parseMode: 'html' });
       } catch (err) {
-        await message.edit({ text: `❌ Gagal menyimpan catatan grup: ${err.message}` });
+        await message.edit({ text: `❌ Gagal menyimpan catatan grup: ${err instanceof Error ? err.message : String(err)}` });
       }
     }
 
@@ -73,7 +73,7 @@ export default {
           await message.edit({ text: `❌ Catatan Grup <b>#${noteName}</b> tidak ditemukan.`, parseMode: 'html' });
         }
       } catch (err) {
-        await message.edit({ text: `❌ Gagal menghapus catatan grup: ${err.message}` });
+        await message.edit({ text: `❌ Gagal menghapus catatan grup: ${err instanceof Error ? err.message : String(err)}` });
       }
     }
 
@@ -91,7 +91,7 @@ export default {
         });
         await message.edit({ text: replyText, parseMode: 'html' });
       } catch (err) {
-        await message.edit({ text: `❌ Gagal mengambil daftar catatan grup: ${err.message}` });
+        await message.edit({ text: `❌ Gagal mengambil daftar catatan grup: ${err instanceof Error ? err.message : String(err)}` });
       }
     }
   }

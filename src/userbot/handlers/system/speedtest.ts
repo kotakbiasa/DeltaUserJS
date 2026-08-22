@@ -50,7 +50,7 @@ export default {
 
     } catch (err) {
       await message.edit({
-        text: `<blockquote>❌ <b>Gagal menjalankan speedtest:</b>\n${err.message}</blockquote>`,
+        text: `<blockquote>❌ <b>Gagal menjalankan speedtest:</b>\n${err instanceof Error ? err.message : String(err)}</blockquote>`,
         parseMode: 'html'
       });
     }

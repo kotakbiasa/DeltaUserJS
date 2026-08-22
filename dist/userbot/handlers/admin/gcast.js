@@ -128,7 +128,7 @@ export default {
         catch (err) {
             Logger.logUser(telegramId, `Error in Gcast plugin: ${err}`, 'ERROR');
             await message.edit({
-                text: `<blockquote>❌ <b>Gagal melakukan Broadcast:</b>\n<i>${err.message}</i></blockquote>`,
+                text: `<blockquote>❌ <b>Gagal melakukan Broadcast:</b>\n<i>${err instanceof Error ? err.message : String(err)}</i></blockquote>`,
                 parseMode: 'html'
             });
         }

@@ -32,7 +32,7 @@ export default {
                 });
             }
             catch (err) {
-                Logger.logUser(telegramId, `Error in ping plugin: ${err.message}`, 'ERROR');
+                Logger.logUser(telegramId, `Error in ping plugin: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             }
         }
     }

@@ -214,8 +214,8 @@ export async function otpRegistrationConversation(conversation, ctx) {
       phoneCodeHash = initResult.phoneCodeHash;
       isCodeViaApp = initResult.isCodeViaApp;
     } catch (err) {
-      Logger.logUser(telegramId, `[OTP] Error saat init/sendCode: ${err.message}`, 'ERROR');
-      await replyRich(ctx, `❌ <b>Gagal mengirim OTP:</b>\n<blockquote>${err.message}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
+      Logger.logUser(telegramId, `[OTP] Error saat init/sendCode: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
+      await replyRich(ctx, `❌ <b>Gagal mengirim OTP:</b>\n<blockquote>${err instanceof Error ? err.message : String(err)}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
       return;
     }
 
@@ -546,7 +546,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
             },
             onError: (err) => {
               if (!isScanned) {
-                Logger.logUser(telegramId, `QR Sign-in Error: ${err.message}`, 'ERROR');
+                Logger.logUser(telegramId, `QR Sign-in Error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
               }
             }
           }

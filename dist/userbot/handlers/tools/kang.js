@@ -177,7 +177,7 @@ export default {
                     text: `<blockquote>❌ <b>Terjadi kesalahan saat memproses kang:</b>\n<i>${escapeHtml(err.message)}</i></blockquote>`,
                     parseMode: 'html'
                 });
-                Logger.logSystem(`❌ Error in kang plugin: ${err.message}`, 'ERROR');
+                Logger.logSystem(`❌ Error in kang plugin: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             }
         }
     }

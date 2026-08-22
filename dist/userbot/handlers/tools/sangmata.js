@@ -76,7 +76,7 @@ export default {
         }
         catch (err) {
             await message.edit({
-                text: `<blockquote>❌ <b>Terjadi kesalahan:</b> ${err.message}</blockquote>`,
+                text: `<blockquote>❌ <b>Terjadi kesalahan:</b> ${err instanceof Error ? err.message : String(err)}</blockquote>`,
                 parseMode: 'html'
             });
         }

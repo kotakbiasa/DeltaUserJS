@@ -66,9 +66,9 @@ export default {
                 }
             }
             catch (err) {
-                Logger.logUser(telegramId, `Error in quote plugin: ${err.message}`, 'ERROR');
+                Logger.logUser(telegramId, `Error in quote plugin: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
                 await message.edit({
-                    text: `<blockquote>❌ <b>Gagal membuat quote:</b>\n<i>${err.message}</i></blockquote>`,
+                    text: `<blockquote>❌ <b>Gagal membuat quote:</b>\n<i>${err instanceof Error ? err.message : String(err)}</i></blockquote>`,
                     parseMode: 'html'
                 });
             }
