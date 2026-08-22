@@ -2,7 +2,7 @@ import { helpRegistry } from '../../engine/pluginRegistry.js';
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { getUserbotSession } from '../../../services/UserbotService.js';
-import { Api } from 'teleproto';
+import { Api, Rich } from 'teleproto';
 import config from '../../../config.js';
 import { buildModuleHtml } from '../../../bot/handlers/inlineHelp.js';
 import { getMasterBotUsername } from '../../../bot/state/botUsername.js';
@@ -86,7 +86,32 @@ function getModuleNames() {
 }
 
 /**
- * Bangun teks HTML untuk halaman menu utama
+ * Bangun rich message (dengan tabel) untuk halaman menu utama
+ */
+function buildMenuRich(_page = 1) {
+  const names = getModuleNames();
+  const rows: string[][] = [['#', 'Modul', 'Deskripsi']];
+  names.forEach((name, i) => {
+    const mod = helpRegistry[name];
+    const desc = mod ? stripHtml(mod.description).slice(0, 45) : '';
+    rows.push([String(i + 1), `<code>${escapeHtml(name)}</code>`, escapeHtml(desc)]);
+  });
+
+  let tableHtml = '<table bordered striped><tr><th>#</th><th>Modul</th><th>Deskripsi</th></tr>';
+  for (let i = 1; i < rows.length; i++) {
+    tableHtml += `<tr><td align="center">${rows[i][0]}</td><td>${rows[i][1]}</td><td>${rows[i][2]}</td></tr>`;
+  }
+  tableHtml += '</table>';
+
+  return Rich.html(
+    `<h2>📖 Help Menu</h2>` +
+    `<blockquote>📦 Total <b>${names.length}</b> modul terpasang. Ketik <code>.help [nama_modul]</code> untuk detail.</blockquote>` +
+    tableHtml
+  );
+}
+
+/**
+ * Bangun teks HTML untuk halaman menu utama (fallback classic)
  */
 function buildMenuText(_page = 1) {
   const names = getModuleNames();
@@ -114,7 +139,26 @@ function buildMenuText(_page = 1) {
 }
 
 /**
- * Bangun teks HTML untuk detail modul
+ * Bangun rich message untuk detail modul
+ */
+function buildModuleDetailRich(moduleName) {
+  const mod = helpRegistry[moduleName];
+  if (!mod) {return null;}
+
+  const title = escapeHtml(mod.title?.toUpperCase() || formatModuleName(moduleName).toUpperCase());
+  const tableHtml =
+    `<table bordered striped>` +
+    `<tr><th>Item</th><th>Detail</th></tr>` +
+    `<tr><td>📝 Deskripsi</td><td>${markdownToHtml(mod.description)}</td></tr>` +
+    `<tr><td>🚀 Penggunaan</td><td><code>${escapeHtml(stripHtml(mod.usage))}</code></td></tr>` +
+    (mod.detail ? `<tr><td>💡 Detail</td><td>${markdownToHtml(mod.detail)}</td></tr>` : '') +
+    `</table>`;
+
+  return Rich.html(`<h2>📦 Modul: ${title}</h2>` + tableHtml);
+}
+
+/**
+ * Bangun teks HTML untuk detail modul (fallback classic)
  */
 function buildModuleDetail(moduleName) {
   const mod = helpRegistry[moduleName];
@@ -211,24 +255,30 @@ export default {
       }
 
       // Fallback: tanpa inline bot — tampilkan daftar lengkap di chat userbot
+      // (rich message dengan tabel; kalau server tolak → classic HTML)
       if (moduleArg) {
         const targetModule = helpRegistry[moduleArg];
         if (targetModule) {
-          const text = buildModuleDetail(moduleArg);
-          await message.edit({ text, parseMode: 'html' });
+          try {
+            await message.edit({ text: '', richMessage: buildModuleDetailRich(moduleArg) });
+          } catch (_e) {
+            await message.edit({ text: buildModuleDetail(moduleArg), parseMode: 'html' });
+          }
         } else {
           const available = Object.keys(helpRegistry).join(', ');
           const safeName = escapeHtml(parts[1]);
-          await message.edit({
-            text: `❌ <b>Modul "${safeName}" tidak ditemukan.</b>\n\n<blockquote>Modul tersedia: <code>${escapeHtml(available)}</code></blockquote>`,
-            parseMode: 'html'
-          });
+          const errText = `❌ <b>Modul "${safeName}" tidak ditemukan.</b>\n\n<blockquote>Modul tersedia: <code>${escapeHtml(available)}</code></blockquote>`;
+          await message.edit({ text: errText, parseMode: 'html' });
         }
         return;
       }
 
-      const text = buildMenuText(1);
-      await message.edit({ text, parseMode: 'html' });
+      try {
+        await message.edit({ text: '', richMessage: buildMenuRich(1) });
+      } catch (_e) {
+        const text = buildMenuText(1);
+        await message.edit({ text, parseMode: 'html' });
+      }
     } catch (err) {
       Logger.logUser(telegramId, `Error in help plugin: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
       try {

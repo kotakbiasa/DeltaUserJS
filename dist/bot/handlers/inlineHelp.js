@@ -39,12 +39,14 @@ export function buildHelpMenuHtml(page = 1, target = 'main') {
     const perPage = 8;
     const totalPages = Math.max(1, Math.ceil(names.length / perPage));
     const currentPage = Math.min(Math.max(1, page), totalPages);
-    // Untuk userbot: teks singkat + tombol (menu tetap ringkas)
+    // Untuk userbot: ringkasan info saja — daftar modul lewat tombol di bawah
     if (target === 'ubot') {
-        return `<b>📖 Help (Userbot)</b>\n` +
-            `<code>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</code>\n` +
-            `✨ Pilih modul lewat <b>tombol</b> di bawah.\n\n` +
-            `📄 Halaman: <b>${currentPage}/${totalPages}</b> · 📦 Total: <b>${names.length}</b>`;
+        return `<h3>📖 Help (Userbot)</h3>` +
+            `<table bordered striped><tr><th>Info</th><th>Nilai</th></tr>` +
+            `<tr><td>🧩 Plugin</td><td align="center">${names.length}</td></tr>` +
+            `<tr><td>📄 Halaman</td><td align="center">${currentPage}/${totalPages}</td></tr>` +
+            `</table>` +
+            `<i>Tap modul di bawah untuk melihat detail 👇</i>`;
     }
     // Master bot: tetap tampilkan daftar
     const start = (currentPage - 1) * perPage;
@@ -70,16 +72,14 @@ export function buildModuleHtml(moduleName, target = 'main') {
     const desc = plain(mod.description);
     const usage = plain(mod.usage);
     const detail = mod.detail ? plain(mod.detail) : '';
-    let html = `<b>📦 ${escapeHtml(title)}</b>\n` +
-        `<code>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</code>\n\n`;
-    if (desc) {
-        html += `<b>📝 Deskripsi</b>\n<blockquote>${escapeHtml(desc)}</blockquote>\n\n`;
-    }
-    if (usage) {
-        html += `<b>⚙️ Penggunaan</b>\n<code>${escapeHtml(usage)}</code>\n`;
-    }
+    let html = `<h2>📦 ${escapeHtml(title)}</h2>`;
+    html += `<table bordered striped>` +
+        `<tr><th>Item</th><th>Detail</th></tr>` +
+        (desc ? `<tr><td>📝 Deskripsi</td><td>${escapeHtml(desc)}</td></tr>` : '') +
+        (usage ? `<tr><td>🚀 Penggunaan</td><td><code>${escapeHtml(usage)}</code></td></tr>` : '') +
+        `</table>`;
     if (detail) {
-        html += `\n<b>🔎 Detail</b>\n<blockquote>${escapeHtml(detail)}</blockquote>`;
+        html += `<details><summary>💡 Detail Tambahan</summary>${escapeHtml(detail)}</details>`;
     }
     return html;
 }
@@ -153,10 +153,11 @@ export function registerInlineHelpHandlers(bot) {
                     id: `help:module:${query}`,
                     title: `📦 ${mod.title || formatModuleName(query)}`,
                     description: plain(mod.description || '').slice(0, 80),
-                    input_message_content: { message_text: html, parse_mode: 'HTML' },
+                    // Rich message penuh (heading, tabel, blockquote expandable)
+                    input_message_content: { rich_message: { html } },
                     reply_markup: moduleBackKeyboard('ubot'),
                 };
-                return ctx.answerInlineQuery([result], { cache_time: 30 });
+                return ctx.answerInlineQuery([result], { cache_time: 0 });
             }
         }
         // Help menu: tampilkan semua modul dengan tombol navigasi
@@ -167,10 +168,11 @@ export function registerInlineHelpHandlers(bot) {
             id: 'help:menu',
             title: `📖 Help Menu (${names.length} modul)`,
             description: `Pilih modul — tombol navigasi tersedia`,
-            input_message_content: { message_text: html, parse_mode: 'HTML' },
+            // Rich message penuh (tabel modul bordered striped)
+            input_message_content: { rich_message: { html } },
             reply_markup: helpKeyboard(1, 'ubot'),
         };
-        return ctx.answerInlineQuery([result], { cache_time: 60 });
+        return ctx.answerInlineQuery([result], { cache_time: 0 });
     });
     // Pesan "help_ubot" / "help_ubot:<module>" dari userbot (dikirim via DM ke
     // Master Bot oleh plugin .help userbot — userbot tidak bisa render tombol).
@@ -210,10 +212,17 @@ export function registerInlineHelpHandlers(bot) {
         await ctx.answerCallbackQuery();
     });
     bot.callbackQuery('help:close', async (ctx) => {
-        await ctx.answerCallbackQuery('Tutup menu bantuan');
+        await ctx.answerCallbackQuery('Menu ditutup');
+        // Hapus pesan menu help. Pesan dari inline result mungkin milik userbot
+        // (via-bot), jadi coba deleteMessage dulu; kalau gagal, edit jadi kosong+tanpa tombol.
         try {
             await ctx.deleteMessage();
+            return;
         }
-        catch (_) { /* empty */ }
+        catch (_e) { /* fall through */ }
+        try {
+            await ctx.editMessageText({ html: '<i>Menu help ditutup.</i>' }, { reply_markup: undefined });
+        }
+        catch (_e2) { /* ignore */ }
     });
 }
