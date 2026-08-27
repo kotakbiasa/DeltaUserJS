@@ -17,6 +17,7 @@ import {
 import { registerRichHandlers } from './ui/keyboards/dashboard.js';
 import { registerInlineHelpHandlers } from './handlers/inlineHelp.js';
 import { registerSubscriptionHandlers } from './handlers/subscription.js';
+import { registerAuditHandlers } from './handlers/audit.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
@@ -84,6 +85,9 @@ registerInlineHelpHandlers(bot);
 
 // Subscription handlers (manajemen langganan & pembayaran)
 registerSubscriptionHandlers(bot);
+
+// Audit handlers (audit log & compliance)
+registerAuditHandlers(bot);
 
 // Register all modular handlers
 registerAllHandlers(bot);

@@ -468,8 +468,9 @@ export async function exportAuditLogs(filters: {
   userId?: number;
   startDate?: Date;
   endDate?: Date;
+  limit?: number;
 }) {
-  const logs = await AuditLogModel.find({
+  const query = AuditLogModel.find({
     ...(filters.userId && { userId: filters.userId }),
     ...(filters.startDate || filters.endDate ? {
       createdAt: {
@@ -477,7 +478,11 @@ export async function exportAuditLogs(filters: {
         ...(filters.endDate && { $lte: filters.endDate }),
       }
     } : {}),
-  }).sort({ createdAt: -1 }).lean();
+  }).sort({ createdAt: -1 });
 
-  return logs;
+  if (filters.limit) {
+    query.limit(filters.limit);
+  }
+
+  return query.lean();
 }
