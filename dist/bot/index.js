@@ -7,6 +7,7 @@ import { otpRegistrationConversation, qrRegistrationConversation, customNameConv
 import { afkReasonConversation, manageVarsConv, manageSystemVarsConv, } from './conversations/settings.js';
 import { registerRichHandlers } from './ui/keyboards/dashboard.js';
 import { registerInlineHelpHandlers } from './handlers/inlineHelp.js';
+import { registerSubscriptionHandlers } from './handlers/subscription.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
@@ -66,6 +67,8 @@ setLoggerBot(bot);
 registerRichHandlers(bot);
 // Inline help handlers (menjawab inline query 'help_ubot' dari userbot .help)
 registerInlineHelpHandlers(bot);
+// Subscription handlers (manajemen langganan & pembayaran)
+registerSubscriptionHandlers(bot);
 // Register all modular handlers
 registerAllHandlers(bot);
 /**

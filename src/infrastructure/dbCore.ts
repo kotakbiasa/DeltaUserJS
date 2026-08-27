@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import config from '../config.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
 import { Logger } from '../utils/logger.js';
+// Import subscription models to register them with mongoose
+import './subscriptionModels.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, '../../database.json');
@@ -280,6 +282,10 @@ export async function initDatabaseAndCache() {
       for (const group of groups) {
         groupConfigCache.set(group.chat_id, group.toObject());
       }
+
+      // Seed default subscription plans
+      const { seedDefaultPlans } = await import('../services/SubscriptionService.js');
+      await seedDefaultPlans();
 
       Logger.logSystem(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`, 'INFO');
       return;

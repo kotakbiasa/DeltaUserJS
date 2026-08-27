@@ -14,6 +14,15 @@ const config = {
     mongoUri: process.env.MONGO_URI,
     dbName: 'DeltaUbotJS',
     muslimSalatApiKey: process.env.MUSLIM_SALAT_API_KEY || undefined,
+    // Payment Gateway Config
+    midtransServerKey: process.env.MIDTRANS_SERVER_KEY || undefined,
+    midtransClientKey: process.env.MIDTRANS_CLIENT_KEY || undefined,
+    midtransIsProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
+    xenditApiKey: process.env.XENDIT_API_KEY || undefined,
+    xenditCallbackToken: process.env.XENDIT_CALLBACK_TOKEN || undefined,
+    xenditCallbackVaId: process.env.XENDIT_CALLBACK_VA_ID || undefined,
+    xenditIsProduction: process.env.XENDIT_IS_PRODUCTION === 'true',
+    appUrl: process.env.APP_URL || 'http://localhost:3000',
 };
 // Check if credentials are set
 if (!config.botToken || config.botToken === 'YOUR_TELEGRAM_BOT_TOKEN') {

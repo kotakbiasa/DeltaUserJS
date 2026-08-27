@@ -8,6 +8,7 @@ import { setMasterBotUsername } from './bot/state/botUsername.js';
 import { Logger } from './utils/logger.js';
 import { createServer } from 'http';
 import { startPluginWatcher, stopPluginWatcher } from './userbot/engine/pluginLoader.js';
+import { handleMidtransWebhook, handleXenditWebhook } from './bot/handlers/subscription.js';
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 /**
  * ⏰ SUBSCRIPTION EXPIRATION CHECKER
@@ -115,7 +116,65 @@ async function main() {
 // Health check HTTP server (for Docker/load balancer probes)
 const HEALTH_PORT = process.env.HEALTH_PORT ? Number(process.env.HEALTH_PORT) : 3000;
 const healthServer = createServer(async (req, res) => {
-    if (req.url === '/health' || req.url === '/healthz') {
+    const url = new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`);
+    // Midtrans webhook
+    if (url.pathname === '/webhook/midtrans' && req.method === 'POST') {
+        let body = '';
+        for await (const chunk of req) {
+            body += chunk;
+        }
+        try {
+            const payload = JSON.parse(body);
+            const headersObj = {};
+            for (const [key, value] of Object.entries(req.headers)) {
+                if (typeof value === 'string') {
+                    headersObj[key] = value;
+                }
+                else if (Array.isArray(value)) {
+                    headersObj[key] = value.join(', ');
+                }
+            }
+            const result = await handleMidtransWebhook(payload, headersObj);
+            res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        }
+        catch (err) {
+            Logger.logSystem(`Midtrans webhook error: ${err}`, 'ERROR');
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, message: 'Internal error' }));
+        }
+        return;
+    }
+    // Xendit webhook
+    if (url.pathname === '/webhook/xendit' && req.method === 'POST') {
+        let body = '';
+        for await (const chunk of req) {
+            body += chunk;
+        }
+        try {
+            const payload = JSON.parse(body);
+            const headersObj = {};
+            for (const [key, value] of Object.entries(req.headers)) {
+                if (typeof value === 'string') {
+                    headersObj[key] = value;
+                }
+                else if (Array.isArray(value)) {
+                    headersObj[key] = value.join(', ');
+                }
+            }
+            const result = await handleXenditWebhook(payload, headersObj);
+            res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        }
+        catch (err) {
+            Logger.logSystem(`Xendit webhook error: ${err}`, 'ERROR');
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, message: 'Internal error' }));
+        }
+        return;
+    }
+    // Health check
+    if (url.pathname === '/health' || url.pathname === '/healthz') {
         const mongoose = await import('mongoose');
         const dbState = mongoose.default.connection.readyState; // 1 = connected
         const userbotCount = userbotManager.clients.size;
@@ -130,11 +189,10 @@ const healthServer = createServer(async (req, res) => {
             activeUserbots: userbotCount,
             memory: process.memoryUsage(),
         }));
+        return;
     }
-    else {
-        res.writeHead(404);
-        res.end('Not Found');
-    }
+    res.writeHead(404);
+    res.end('Not Found');
 });
 healthServer.listen(HEALTH_PORT, '0.0.0.0', () => {
     Logger.logSystem(`Health check server listening on port ${HEALTH_PORT}`);
