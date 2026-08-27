@@ -9,6 +9,7 @@ import { registerRichHandlers } from './ui/keyboards/dashboard.js';
 import { registerInlineHelpHandlers } from './handlers/inlineHelp.js';
 import { registerSubscriptionHandlers } from './handlers/subscription.js';
 import { registerAuditHandlers } from './handlers/audit.js';
+import { registerMarketplaceHandlers } from './handlers/marketplace.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
@@ -72,6 +73,8 @@ registerInlineHelpHandlers(bot);
 registerSubscriptionHandlers(bot);
 // Audit handlers (audit log & compliance)
 registerAuditHandlers(bot);
+// Marketplace handlers (plugin marketplace)
+registerMarketplaceHandlers(bot);
 // Register all modular handlers
 registerAllHandlers(bot);
 /**
