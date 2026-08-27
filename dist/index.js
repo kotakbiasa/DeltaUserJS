@@ -7,6 +7,7 @@ import { getAllRegisteredUsers, updateUserbotStatus, initDatabaseAndCache } from
 import { setMasterBotUsername } from './bot/state/botUsername.js';
 import { Logger } from './utils/logger.js';
 import { createServer } from 'http';
+import { startPluginWatcher, stopPluginWatcher } from './userbot/engine/pluginLoader.js';
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 /**
  * ⏰ SUBSCRIPTION EXPIRATION CHECKER
@@ -99,6 +100,10 @@ async function main() {
                 Logger.logSystem('Starting all active userbots...');
                 await userbotManager.restartAllActive();
                 Logger.logSystem('All systems and userbots are fully loaded.', 'SUCCESS');
+                // 5. Start plugin hot-reload watcher (dev only)
+                if (process.env.NODE_ENV !== 'production') {
+                    startPluginWatcher();
+                }
             }
         });
     }
@@ -144,6 +149,8 @@ async function shutdown(signal) {
         Logger.logSystem('Health check server closed.');
     }
     catch (_e) { /* empty */ }
+    // Stop plugin watcher
+    stopPluginWatcher();
     try {
         Logger.logSystem('Stopping Master Bot...');
         await bot.stop();

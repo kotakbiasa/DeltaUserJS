@@ -1,10 +1,13 @@
 import { readdir, stat } from 'fs/promises';
+import { watch } from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
 import { clearRegistry, loadedPlugins, registerPlugin, validatePlugin } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginsDir = path.join(__dirname, '../handlers');
+let watcher = null;
+let isWatching = false;
 function helpIsComplete(help) {
     if (!help) {
         return true;
@@ -32,6 +35,28 @@ async function getJsFilesRecursively(dir) {
     }
     return results;
 }
+async function loadSinglePlugin(filePath) {
+    const fileRelPath = path.relative(pluginsDir, filePath);
+    try {
+        const plugin = await importPlugin(filePath);
+        const validationError = validatePlugin(plugin);
+        if (validationError) {
+            Logger.logSystem(`  ⚠️ Skipped ${fileRelPath}: ${validationError}`, 'WARN');
+            return false;
+        }
+        if (plugin.help && !helpIsComplete(plugin.help)) {
+            Logger.logSystem(`  ⚠️ ${plugin.name} help metadata incomplete; hiding from module library.`, 'WARN');
+            delete plugin.help;
+        }
+        const registered = registerPlugin(plugin, { file: fileRelPath });
+        Logger.logSystem(`  🔄 Reloaded: ${registered.name}`, 'INFO');
+        return true;
+    }
+    catch (err) {
+        Logger.logSystem(`  ✗ Failed to reload ${fileRelPath}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
+        return false;
+    }
+}
 export async function loadAllPlugins({ reload = true } = {}) {
     if (reload) {
         clearRegistry();
@@ -47,25 +72,63 @@ export async function loadAllPlugins({ reload = true } = {}) {
     }
     Logger.logSystem(`📦 Found ${files.length} plugin file(s) in handlers/ directory.`, 'INFO');
     for (const filePath of files) {
-        const fileRelPath = path.relative(pluginsDir, filePath);
-        try {
-            const plugin = await importPlugin(filePath);
-            const validationError = validatePlugin(plugin);
-            if (validationError) {
-                Logger.logSystem(`  ⚠️ Skipped ${fileRelPath}: ${validationError}`, 'WARN');
-                continue;
-            }
-            if (plugin.help && !helpIsComplete(plugin.help)) {
-                Logger.logSystem(`  ⚠️ ${plugin.name} help metadata incomplete; hiding from module library.`, 'WARN');
-                delete plugin.help;
-            }
-            const registered = registerPlugin(plugin, { file: fileRelPath });
-            Logger.logSystem(`  ✓ ${registered.name}${registered.help ? ' · help' : ''}`, 'INFO');
-        }
-        catch (err) {
-            Logger.logSystem(`  ✗ Failed to load ${fileRelPath}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
-        }
+        await loadSinglePlugin(filePath);
     }
     Logger.logSystem(`📦 Total plugins loaded: ${loadedPlugins.length}`, 'INFO');
     return loadedPlugins;
+}
+/**
+ * Start file watcher for hot-reloading plugins in development.
+ * Only watches .ts/.js files in the handlers directory.
+ */
+export function startPluginWatcher() {
+    if (isWatching) {
+        return;
+    }
+    try {
+        watcher = watch(pluginsDir, { recursive: true, persistent: false });
+        watcher.on('change', async (eventType, filename) => {
+            if (!filename) {
+                return;
+            }
+            const filenameStr = filename.toString();
+            const ext = path.extname(filenameStr);
+            if (!['.ts', '.js'].includes(ext) || filenameStr.endsWith('.d.ts')) {
+                return;
+            }
+            const filePath = path.join(pluginsDir, filenameStr);
+            Logger.logSystem(`🔁 File changed: ${filenameStr} — hot-reloading...`, 'INFO');
+            // Clear module cache for this file (Bun/Node)
+            const url = pathToFileURL(filePath).href;
+            for (const key of Object.keys(require.cache || {})) {
+                if (key.includes(filenameStr)) {
+                    delete require.cache[key];
+                }
+            }
+            // For Bun
+            if (typeof globalThis.Bun !== 'undefined' && globalThis.Bun.module?.cache) {
+                globalThis.Bun.module.cache.delete(url);
+            }
+            await loadSinglePlugin(filePath);
+        });
+        watcher.on('error', (err) => {
+            Logger.logSystem(`Plugin watcher error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
+        });
+        isWatching = true;
+        Logger.logSystem('👀 Plugin hot-reload watcher started', 'INFO');
+    }
+    catch (err) {
+        Logger.logSystem(`Failed to start plugin watcher: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+    }
+}
+/**
+ * Stop the plugin watcher.
+ */
+export function stopPluginWatcher() {
+    if (watcher) {
+        watcher.close();
+        watcher = null;
+        isWatching = false;
+        Logger.logSystem('👀 Plugin hot-reload watcher stopped', 'INFO');
+    }
 }

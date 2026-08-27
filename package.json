@@ -30,7 +30,8 @@
     "jimp": "^1.6.1",
     "mongoose": "^9.9.4",
     "qrcode": "^1.5.4",
-    "teleproto": "^1.229.0"
+    "teleproto": "^1.229.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
