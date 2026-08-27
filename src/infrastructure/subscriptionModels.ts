@@ -10,7 +10,7 @@ const planSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   price: { type: Number, required: true, min: 0 }, // in smallest currency unit (IDR cents)
   currency: { type: String, default: 'IDR' },
-  durationDays: { type: Number, required: true, min: 1 }, // 0 = lifetime
+  durationDays: { type: Number, required: true, min: 0 }, // 0 = lifetime
   features: [{ type: String }], // e.g., ["unlimited_bots", "priority_support", "custom_domain"]
   maxUserbots: { type: Number, default: 1 },
   isActive: { type: Boolean, default: true },
