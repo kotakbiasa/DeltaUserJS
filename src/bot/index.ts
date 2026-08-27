@@ -19,6 +19,7 @@ import { registerInlineHelpHandlers } from './handlers/inlineHelp.js';
 import { registerSubscriptionHandlers } from './handlers/subscription.js';
 import { registerAuditHandlers } from './handlers/audit.js';
 import { registerMarketplaceHandlers } from './handlers/marketplace.js';
+import { registerBackupHandlers } from './handlers/backup.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
@@ -92,6 +93,9 @@ registerAuditHandlers(bot);
 
 // Marketplace handlers (plugin marketplace)
 registerMarketplaceHandlers(bot);
+
+// Backup handlers (backup & restore)
+registerBackupHandlers(bot);
 
 // Register all modular handlers
 registerAllHandlers(bot);
