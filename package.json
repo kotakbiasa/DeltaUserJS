@@ -8,13 +8,18 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node --no-warnings dist/index.js",
-    "dev": "tsx watch src/index.ts",
-    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "start": "bun run src/index.ts",
+    "start:prod": "pm2 start ecosystem.config.js",
+    "dev": "bun --watch run src/index.ts",
+    "build": "rm -rf dist && tsc",
     "test": "node test/runner.js",
     "lint": "eslint src/ --ext .ts",
     "lint:fix": "eslint src/ --ext .ts --fix",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "docker:build": "docker build -t deltauserjs .",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
   },
   "dependencies": {
     "@grammyjs/conversations": "^2.1.1",

@@ -6,6 +6,7 @@ import userbotManager from './userbot/engine/manager.js';
 import { getAllRegisteredUsers, updateUserbotStatus, initDatabaseAndCache } from './infrastructure/database.js';
 import { setMasterBotUsername } from './bot/state/botUsername.js';
 import { Logger } from './utils/logger.js';
+import { createServer } from 'http';
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 /**
  * ⏰ SUBSCRIPTION EXPIRATION CHECKER
@@ -106,10 +107,43 @@ async function main() {
         process.exit(1);
     }
 }
+// Health check HTTP server (for Docker/load balancer probes)
+const HEALTH_PORT = process.env.HEALTH_PORT ? Number(process.env.HEALTH_PORT) : 3000;
+const healthServer = createServer(async (req, res) => {
+    if (req.url === '/health' || req.url === '/healthz') {
+        const mongoose = await import('mongoose');
+        const dbState = mongoose.default.connection.readyState; // 1 = connected
+        const userbotCount = userbotManager.clients.size;
+        const isHealthy = dbState === 1 && bot.api;
+        res.writeHead(isHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: isHealthy ? 'ok' : 'degraded',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            mongodb: dbState === 1 ? 'connected' : 'disconnected',
+            masterBot: bot.api ? 'running' : 'stopped',
+            activeUserbots: userbotCount,
+            memory: process.memoryUsage(),
+        }));
+    }
+    else {
+        res.writeHead(404);
+        res.end('Not Found');
+    }
+});
+healthServer.listen(HEALTH_PORT, '0.0.0.0', () => {
+    Logger.logSystem(`Health check server listening on port ${HEALTH_PORT}`);
+});
 // Graceful shutdown handlers
 async function shutdown(signal) {
     console.log('');
     Logger.logSystem(`Received ${signal}. Shutting down gracefully...`, 'WARN');
+    // Close health server
+    try {
+        await new Promise((resolve) => healthServer.close(() => resolve()));
+        Logger.logSystem('Health check server closed.');
+    }
+    catch (_e) { /* empty */ }
     try {
         Logger.logSystem('Stopping Master Bot...');
         await bot.stop();

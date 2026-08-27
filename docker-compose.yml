@@ -1,15 +1,48 @@
 version: '3.8'
 
 services:
-  delta-ubot:
-    build: .
-    container_name: delta-ubot-js
-    restart: always
-    env_file:
-      - .env
+  mongodb:
+    image: mongo:7
+    container_name: deltauserjs-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: deltauserjs
+    volumes:
+      - deltauserjs_mongo_data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  deltauserjs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deltauserjs
+    restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - DATABASE_PATH=/app/data/database.json
+      - HEALTH_PORT=3000
+      - BOT_TOKEN=${BOT_TOKEN}
+      - OWNER_ID=${OWNER_ID}
+      - MONGO_URI=mongodb://mongodb:27017/deltauserjs
+      - LOG_GROUP_ID=${LOG_GROUP_ID}
+      - LOG_TOPIC_ID=${LOG_TOPIC_ID}
+      - API_ID=${API_ID}
+      - API_HASH=${API_HASH}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - MUSLIM_SALAT_API_KEY=${MUSLIM_SALAT_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
     volumes:
-      # Petakan direktori data lokal agar database.json tidak hilang saat kontainer direstart/update
-      - ./data:/app/data
+      - ./logs:/app/logs
+
+volumes:
+  deltauserjs_mongo_data:

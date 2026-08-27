@@ -1,21 +1,46 @@
-# Gunakan image Node.js berbasis Alpine yang sangat ringan (hanya ~40MB)
-FROM node:26-alpine
+# Multi-stage Dockerfile for DeltaUserJS
+# Build stage
+FROM oven/bun:1.4 AS builder
 
-# Setel direktori kerja di dalam kontainer
 WORKDIR /app
 
-# Instal dependensi runtime untuk fitur YouTube Downloader (.ytdl) dan build tools untuk modul native (seperti lzma-native)
-RUN apk add --no-cache yt-dlp ffmpeg build-base xz-dev libc6-compat
+# Copy package files
+COPY package.json package-lock.json ./
 
-# Salin package.json dan package-lock.json (jika ada)
-COPY package*.json ./
+# Install dependencies (production only)
+RUN bun install --frozen-lockfile --production
 
-# Instal dependensi (tanpa --ignore-scripts agar modul native seperti lzma-native dapat dikompilasi)
-RUN npm install --omit=optional
+# Copy source code
+COPY src/ ./src/
+COPY tsconfig.json ./
 
-# Salin seluruh kode program ke dalam kontainer
-COPY . .
+# Build TypeScript
+RUN bun run build
 
+# Production stage
+FROM oven/bun:1.4-slim AS production
 
-# Jalankan DeltaUbotJS saat kontainer dimulai
-CMD ["npm", "start"]
+WORKDIR /app
+
+# Install dumb-init for proper signal handling
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init && rm -rf /var/lib/apt/lists/*
+
+# Copy built files and dependencies from builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+
+# Create non-root user
+RUN useradd -r -s /bin/false -u 1001 deltauserjs && chown -R deltauserjs:deltauserjs /app
+USER deltauserjs
+
+# Expose health check port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Run with dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["bun", "run", "dist/index.js"]
