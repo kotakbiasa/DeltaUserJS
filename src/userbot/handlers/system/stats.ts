@@ -22,8 +22,17 @@ export default {
         const memUsage = process.memoryUsage();
         const rssMB = Math.round(memUsage.rss / 1024 / 1024);
         const heapMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-        
+
         const uptimeStr = formatUptimeStats(Math.round(process.uptime()));
+
+        // Deteksi runtime (Bun atau Node.js)
+        // @ts-ignore — global Bun hanya ada di runtime Bun
+        const isBun = typeof globalThis.Bun !== 'undefined';
+        const runtimeLabel = isBun ? 'Bun' : 'Node.js';
+        const runtimeVersion = isBun
+          // @ts-ignore — Bun.version tersedia di runtime Bun
+          ? `v${globalThis.Bun.version}`
+          : process.version;
 
         // Ambil versi package dari package.json
         let grammyVer = 'N/A';
@@ -40,7 +49,7 @@ export default {
           `🤖 <b>Modul Aktif:</b> <code>${escapeHtml(String(pluginCount))}</code>\n` +
           `⏳ <b>Uptime:</b> <code>${escapeHtml(uptimeStr)}</code>\n` +
           `💾 <b>RAM:</b> <code>${rssMB} MB</code> (Heap: <code>${heapMB} MB</code>)\n` +
-          `🌐 <b>Node.js:</b> <code>${escapeHtml(process.version)}</code>\n` +
+          `⚙️ <b>Runtime:</b> <code>${escapeHtml(runtimeLabel)} ${escapeHtml(runtimeVersion)}</code>\n` +
           `📦 <b>grammY:</b> <code>v${escapeHtml(grammyVer)}</code>\n` +
           `📦 <b>Teleproto:</b> <code>v${escapeHtml(teleprotoVer)}</code>\n` +
           `💻 <b>OS:</b> <code>${escapeHtml(os.type())} ${escapeHtml(os.release())} (${escapeHtml(os.arch())})</code>` +

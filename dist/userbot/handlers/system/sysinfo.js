@@ -84,6 +84,14 @@ export default {
                     break;
                 }
             }
+            // Runtime (Bun atau Node.js)
+            // @ts-ignore — global Bun hanya ada di runtime Bun
+            const isBun = typeof globalThis.Bun !== 'undefined';
+            const runtimeLabel = isBun ? 'Bun' : 'Node.js';
+            const runtimeVersion = isBun
+                // @ts-ignore — Bun.version tersedia di runtime Bun
+                ? `v${globalThis.Bun.version}`
+                : process.version;
             const text = `🖥️ <b>SYSTEM INFORMATION</b>\n\n` +
                 `<b>── CPU ──</b>\n` +
                 `<blockquote>` +
@@ -108,7 +116,7 @@ export default {
                 `🏷️ <b>Hostname:</b> <code>${escapeHtml(hostname)}</code>\n` +
                 `🐧 <b>OS:</b> <code>${escapeHtml(platform)} ${escapeHtml(release)}</code>\n` +
                 `🏗️ <b>Arch:</b> <code>${escapeHtml(arch)}</code>\n` +
-                `🌐 <b>Node.js:</b> <code>${escapeHtml(process.version)}</code>\n` +
+                `🌐 <b>Runtime:</b> <code>${escapeHtml(runtimeLabel)} ${escapeHtml(runtimeVersion)}</code>\n` +
                 `⏳ <b>OS Uptime:</b> <code>${escapeHtml(osUptime)}</code>\n` +
                 `🤖 <b>Bot Uptime:</b> <code>${escapeHtml(processUptime)}</code>` +
                 `</blockquote>`;
