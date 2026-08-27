@@ -4,72 +4,95 @@ let masterBot = null;
 export function setLoggerBot(botInstance) {
     masterBot = botInstance;
 }
+/** Log level enum */
+export var LogLevel;
+(function (LogLevel) {
+    LogLevel["DEBUG"] = "DEBUG";
+    LogLevel["INFO"] = "INFO";
+    LogLevel["WARN"] = "WARN";
+    LogLevel["ERROR"] = "ERROR";
+    LogLevel["SUCCESS"] = "SUCCESS";
+})(LogLevel || (LogLevel = {}));
 export class Logger {
     static getTimestamp() {
         const now = new Date();
         return `\x1b[2m[${now.toLocaleTimeString()}]\x1b[0m`;
     }
-    static async logSystem(message, level = 'INFO') {
-        const time = Logger.getTimestamp();
-        let levelTag = `\x1b[36m[SYSTEM]\x1b[0m`;
-        if (level === 'ERROR') {
-            levelTag = `\x1b[31m[ERROR]\x1b[0m`;
+    static getISOTime() {
+        return new Date().toISOString();
+    }
+    /** Format structured log as JSON line */
+    static toJson(entry) {
+        return JSON.stringify(entry);
+    }
+    /** Format for console with ANSI colors */
+    static toConsole(entry) {
+        const time = entry.timestamp;
+        let levelTag = `\x1b[36m[${entry.level}]\x1b[0m`;
+        if (entry.level === LogLevel.ERROR) {
+            levelTag = `\x1b[31m[${entry.level}]\x1b[0m`;
         }
-        else if (level === 'WARN') {
-            levelTag = `\x1b[33m[WARN]\x1b[0m`;
+        else if (entry.level === LogLevel.WARN) {
+            levelTag = `\x1b[33m[${entry.level}]\x1b[0m`;
         }
-        else if (level === 'SUCCESS') {
-            levelTag = `\x1b[32m[SUCCESS]\x1b[0m`;
+        else if (entry.level === LogLevel.SUCCESS) {
+            levelTag = `\x1b[32m[${entry.level}]\x1b[0m`;
         }
-        console.log(`${time} ${levelTag} ${message}`);
+        else if (entry.level === LogLevel.DEBUG) {
+            levelTag = `\x1b[35m[${entry.level}]\x1b[0m`;
+        }
+        const componentTag = entry.telegramId
+            ? `\x1b[34m[${entry.component}:${entry.telegramId}]\x1b[0m`
+            : `\x1b[36m[${entry.component}]\x1b[0m`;
+        const meta = entry.metadata ? ` ${JSON.stringify(entry.metadata)}` : '';
+        return `${time} ${levelTag} ${componentTag} ${entry.message}${meta}`;
+    }
+    /** Core logging method with structured output */
+    static async log(component, message, level = LogLevel.INFO, telegramId, metadata) {
+        const entry = {
+            timestamp: Logger.getISOTime(),
+            level,
+            component,
+            message,
+            telegramId,
+            metadata,
+        };
+        // Console output (colorized)
+        console.log(Logger.toConsole(entry));
+        // Optional: JSON stdout for log aggregation (Loki, ELK, etc.)
+        if (process.env.LOG_JSON === 'true') {
+            console.log(Logger.toJson(entry));
+        }
+        // Send to Telegram if bot available
         if (!masterBot) {
             return;
         }
-        // Prioritize config.logGroupId, fallback to SYSTEM_LOG_CHAT_ID from database
-        const logChatId = config.logGroupId || getSystemVar('SYSTEM_LOG_CHAT_ID');
-        if (logChatId) {
-            try {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const extraParams = { parse_mode: 'HTML' };
-                if (config.logGroupId && config.logTopicId) {
+        try {
+            const logChatId = telegramId
+                ? getUserVar(telegramId, 'LOG_CHAT_ID')
+                : config.logGroupId || getSystemVar('SYSTEM_LOG_CHAT_ID');
+            if (logChatId) {
+                const extraParams = {
+                    parse_mode: 'HTML',
+                };
+                if (config.logGroupId && config.logTopicId && !telegramId) {
                     extraParams.message_thread_id = config.logTopicId;
                 }
-                await masterBot.api.sendMessage(logChatId, `⚙️ <b>SYSTEM LOG [${level}]</b>\n<blockquote>${message}</blockquote>`, extraParams);
+                const title = telegramId
+                    ? `🤖 <b>USERBOT LOG [${level}]</b>`
+                    : `⚙️ <b>SYSTEM LOG [${level}]</b>`;
+                await masterBot.api.sendMessage(logChatId, `${title}\n<blockquote>${message}</blockquote>`, extraParams);
             }
-            catch (err) {
-                console.error(`Failed to send System Log to Telegram:`, err.message);
-            }
+        }
+        catch (_err) {
+            // Ignore Telegram send failures
         }
     }
+    // Backward compatible methods
+    static async logSystem(message, level = 'INFO') {
+        await Logger.log('SYSTEM', message, level);
+    }
     static async logUser(telegramId, message, level = 'INFO') {
-        const time = Logger.getTimestamp();
-        let levelTag = `\x1b[34m[USER:${telegramId}]\x1b[0m`;
-        if (level === 'ERROR') {
-            levelTag = `\x1b[31m[ERROR:${telegramId}]\x1b[0m`;
-        }
-        else if (level === 'WARN') {
-            levelTag = `\x1b[33m[WARN:${telegramId}]\x1b[0m`;
-        }
-        else if (level === 'SUCCESS') {
-            levelTag = `\x1b[32m[SUCCESS:${telegramId}]\x1b[0m`;
-        }
-        console.log(`${time} ${levelTag} ${message}`);
-        if (!masterBot) {
-            return;
-        }
-        const logChatId = getUserVar(telegramId, 'LOG_CHAT_ID');
-        if (logChatId) {
-            try {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const extraParams = { parse_mode: 'HTML' };
-                if (config.logGroupId && config.logTopicId) {
-                    extraParams.message_thread_id = config.logTopicId;
-                }
-                await masterBot.api.sendMessage(logChatId, `🤖 <b>USERBOT LOG [${level}]</b>\n<blockquote>${message}</blockquote>`, extraParams);
-            }
-            catch (err) {
-                console.error(`Failed to send User Log to Telegram for ${telegramId}:`, err.message);
-            }
-        }
+        await Logger.log('USERBOT', message, level, telegramId);
     }
 }

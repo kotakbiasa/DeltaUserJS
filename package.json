@@ -13,6 +13,7 @@
     "dev": "bun --watch run src/index.ts",
     "build": "rm -rf dist && tsc",
     "test": "node test/runner.js",
+    "test:unit": "node test/validation.test.js",
     "lint": "eslint src/ --ext .ts",
     "lint:fix": "eslint src/ --ext .ts --fix",
     "format": "prettier --write src/",
