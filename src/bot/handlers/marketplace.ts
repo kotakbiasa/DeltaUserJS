@@ -283,7 +283,7 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
   // Owner: Add plugin to registry
   bot.command('madd', async (ctx) => {
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
 
     // Expect: /madd name version description author repo entryPoint perm1,perm2,perm3
     const args = ctx.message?.text?.split(' ').slice(1) || [];
@@ -325,7 +325,7 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
   // Owner: Remove from registry
   bot.command('mremove', async (ctx) => {
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
 
     const name = ctx.message?.text?.split(' ')[1];
     if (!name) {
@@ -340,7 +340,7 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
   // Owner: List registry
   bot.command('mlist', async (ctx) => {
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
 
     const plugins = getRegistryPlugins();
     let text = `<b>📋 REGISTRY (${plugins.length} plugins)</b>\n\n`;

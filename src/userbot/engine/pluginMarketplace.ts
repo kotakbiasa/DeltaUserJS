@@ -43,7 +43,7 @@ interface InstalledPlugin {
 }
 
 let registry: Record<string, PluginManifest> = {};
-let installedPlugins: Record<string, InstalledPlugin> = {};
+const installedPlugins: Record<string, InstalledPlugin> = {};
 
 /**
  * Initialize marketplace directory and load registry
@@ -297,7 +297,7 @@ export function validatePermissions(permissions: PluginPermission[], allowed: Pl
 export function getMarketplaceInfo(name: string) {
   const manifest = registry[name];
   const installed = installedPlugins[name];
-  if (!manifest) return null;
+  if (!manifest) {return null;}
 
   return {
     manifest,

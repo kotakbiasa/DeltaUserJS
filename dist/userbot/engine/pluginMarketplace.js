@@ -7,7 +7,7 @@ const pluginsDir = path.join(__dirname, '../handlers');
 const marketplaceDir = path.join(__dirname, '../../plugins_marketplace');
 const registryFile = path.join(marketplaceDir, 'registry.json');
 let registry = {};
-let installedPlugins = {};
+const installedPlugins = {};
 /**
  * Initialize marketplace directory and load registry
  */
@@ -231,8 +231,9 @@ export function validatePermissions(permissions, allowed) {
 export function getMarketplaceInfo(name) {
     const manifest = registry[name];
     const installed = installedPlugins[name];
-    if (!manifest)
+    if (!manifest) {
         return null;
+    }
     return {
         manifest,
         installed: !!installed,

@@ -11,3 +11,8 @@ ytdl_*
 
 scratch*.js
 test_*.js
+
+# runtime data
+backups/
+session.json
+*.session

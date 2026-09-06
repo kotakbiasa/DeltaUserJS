@@ -3,8 +3,9 @@ import config from '../../config.js';
 import { Logger } from '../../utils/logger.js';
 import { initBackupSystem, createFullBackup, createIncrementalBackup, restoreFromBackup, listBackups, getBackup, pruneBackups, deleteBackup, startAutoBackup, getBackupStats, } from '../../services/BackupService.js';
 function formatBytes(bytes) {
-    if (bytes === 0)
+    if (bytes === 0) {
         return '0 B';
+    }
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -196,8 +197,9 @@ export function registerBackupHandlers(bot) {
     });
     // Confirm restore command
     bot.command('confirm_restore', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         const backupId = ctx.message?.text?.split(' ')[1];
         if (!backupId) {
             await ctx.reply('Usage: <code>/confirm_restore <backup_id></code>', { parse_mode: 'HTML' });
@@ -254,13 +256,15 @@ export function registerBackupHandlers(bot) {
     });
     // Owner commands
     bot.command('backup', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         await showBackupMenu(ctx);
     });
     bot.command('backupfull', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         await ctx.reply('⏳ Membuat full backup...');
         try {
             const backup = await createFullBackup();
@@ -271,8 +275,9 @@ export function registerBackupHandlers(bot) {
         }
     });
     bot.command('backupinc', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         await ctx.reply('⏳ Membuat incremental backup...');
         try {
             const backup = await createIncrementalBackup();
@@ -283,13 +288,15 @@ export function registerBackupHandlers(bot) {
         }
     });
     bot.command('backuplist', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         await showBackupList(ctx, 0);
     });
     bot.command('backuprestore', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         const backupId = ctx.message?.text?.split(' ')[1];
         if (!backupId) {
             await ctx.reply('Usage: <code>/backuprestore <backup_id></code>', { parse_mode: 'HTML' });
@@ -304,8 +311,9 @@ export function registerBackupHandlers(bot) {
         }
     });
     bot.command('backupstats', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         const stats = getBackupStats();
         await ctx.reply(`<b>📊 BACKUP STATS</b>\n\n` +
             `Total: ${stats.total} | ✅ ${stats.completed} | ❌ ${stats.failed}\n` +

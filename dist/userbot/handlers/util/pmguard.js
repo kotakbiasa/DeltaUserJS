@@ -1,0 +1,177 @@
+import { Logger } from '../../../utils/logger.js';
+const pmguardGlobal = globalThis;
+const pmguardStore = pmguardGlobal.__pmguardStore ?? new Map();
+pmguardGlobal.__pmguardStore = pmguardStore;
+function getState(telegramId) {
+    const idNum = Number(telegramId);
+    const existing = pmguardStore.get(idNum);
+    if (existing) {
+        return existing;
+    }
+    const fresh = { enabled: false, whitelist: new Set(), warned: new Set() };
+    pmguardStore.set(idNum, fresh);
+    return fresh;
+}
+/** Status aktif/tidaknya PM Guard milik akun tertentu. */
+export function isPmGuardOn(telegramId) {
+    return pmguardStore.get(Number(telegramId))?.enabled ?? false;
+}
+/** Cek apakah userId ada di whitelist PM Guard milik telegramId. */
+export function isPmAllowed(telegramId, userId) {
+    return pmguardStore.get(Number(telegramId))?.whitelist.has(Number(userId)) ?? false;
+}
+const AWAY_TEXT = '🛡️ <b>Auto-Reply</b>\n\n' +
+    'Owner sedang away. Pesan kamu sudah diterima dan akan dibalas saat owner kembali aktif. 🙏\n\n' +
+    '<i>(Pesan otomatis — PM Guard aktif)</i>';
+function parsePositiveId(raw) {
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+export default {
+    name: 'pmguard',
+    version: '1.0.0',
+    description: 'Anti-PM sederhana: warn 1x ke PM tak dikenal, whitelist via .pmallow, tanpa auto-block.',
+    help: {
+        title: '🛡️ PM Guard (.pmguard / .pmallow / .pmlist)',
+        description: 'Anti-PM ala getter pmpermit: saat aktif, PM masuk dari user di luar whitelist otomatis dibalas sekali "owner sedang away", lalu diabaikan. Tidak ada auto-block.',
+        usage: '• `.pmguard on` — aktifkan\n• `.pmguard off` — matikan\n• `.pmallow <id>` — whitelist via user ID\n• `.pmallow` (reply pesan user) — whitelist via reply\n• `.pmlist` — lihat daftar whitelist',
+        detail: 'Hanya pesan masuk di private chat (non-out) yang diwarn, 1x per user per sesi. ' +
+            'User yang di-whitelist lewat begitu saja. Whitelist tetap tersimpan walau guard dimatikan. ' +
+            'State in-memory per akun — hilang jika proses userbot direstart. ' +
+            'Plugin lain bisa memakai helper isPmGuardOn(telegramId) dan isPmAllowed(telegramId, userId).'
+    },
+    async execute(client, message, _settings, telegramId) {
+        const text = message.message || '';
+        const idNum = Number(telegramId);
+        // ===== 1. Command dari owner (outgoing) =====
+        if (message.out) {
+            if (!text) {
+                return;
+            }
+            const parts = text.trim().split(/\s+/);
+            const cmd = (parts[0] || '').toLowerCase();
+            if (cmd !== '.pmguard' && cmd !== '.pmallow' && cmd !== '.pmlist') {
+                return;
+            }
+            const state = getState(idNum);
+            if (cmd === '.pmguard') {
+                const arg = (parts[1] || '').toLowerCase();
+                if (!arg) {
+                    const status = state.enabled ? 'AKTIF ✅' : 'MATI ❌';
+                    await message.edit({
+                        text: `<blockquote>🛡️ <b>PM Guard: ${status}</b>\nWhitelist: <b>${state.whitelist.size}</b> user\n\nGunakan <code>.pmguard on</code> / <code>.pmguard off</code>.</blockquote>`,
+                        parseMode: 'html'
+                    });
+                    return;
+                }
+                if (['on', 'yes', 'true', '1'].includes(arg)) {
+                    if (state.enabled) {
+                        await message.edit({ text: '<blockquote>ℹ️ PM Guard memang sudah aktif.</blockquote>', parseMode: 'html' });
+                        return;
+                    }
+                    state.enabled = true;
+                    await message.edit({
+                        text: '<blockquote>✅ <b>PM Guard AKTIF.</b>\nPesan masuk (private) dari user di luar whitelist akan diwarn 1x — tanpa auto-block.\nWhitelist: <code>.pmallow &lt;id&gt;</code> atau reply pesan user.</blockquote>',
+                        parseMode: 'html'
+                    });
+                    return;
+                }
+                if (['off', 'no', 'false', '0'].includes(arg)) {
+                    if (!state.enabled) {
+                        await message.edit({ text: '<blockquote>ℹ️ PM Guard memang sudah mati.</blockquote>', parseMode: 'html' });
+                        return;
+                    }
+                    state.enabled = false;
+                    await message.edit({
+                        text: '<blockquote>🛑 <b>PM Guard MATI.</b>\nSemua pesan masuk diteruskan seperti biasa. Whitelist tetap tersimpan.</blockquote>',
+                        parseMode: 'html'
+                    });
+                    return;
+                }
+                await message.edit({
+                    text: '<blockquote>📚 <b>Penggunaan:</b> <code>.pmguard on</code> atau <code>.pmguard off</code></blockquote>',
+                    parseMode: 'html'
+                });
+                return;
+            }
+            if (cmd === '.pmallow') {
+                let targetId = parts[1] ? parsePositiveId(parts[1]) : null;
+                if (targetId === null) {
+                    const replied = await message.getReplyMessage();
+                    if (replied && replied.senderId) {
+                        targetId = parsePositiveId(replied.senderId);
+                    }
+                }
+                if (targetId === null) {
+                    await message.edit({
+                        text: '<blockquote>📚 <b>Penggunaan:</b> <code>.pmallow &lt;user_id&gt;</code>\natau balas pesan user yang ingin di-whitelist.</blockquote>',
+                        parseMode: 'html'
+                    });
+                    return;
+                }
+                if (state.whitelist.has(targetId)) {
+                    await message.edit({
+                        text: `<blockquote>ℹ️ User <code>${targetId}</code> sudah ada di whitelist.</blockquote>`,
+                        parseMode: 'html'
+                    });
+                    return;
+                }
+                state.whitelist.add(targetId);
+                state.warned.delete(targetId);
+                await message.edit({
+                    text: `<blockquote>✅ <b>User Di-whitelist</b>\n<code>${targetId}</code> kini bisa langsung PM tanpa diwarn.\nTotal whitelist: <b>${state.whitelist.size}</b></blockquote>`,
+                    parseMode: 'html'
+                });
+                return;
+            }
+            // .pmlist
+            if (state.whitelist.size === 0) {
+                await message.edit({
+                    text: '<blockquote>📭 Whitelist kosong. Tambahkan dengan <code>.pmallow &lt;id&gt;</code> atau reply pesan user.</blockquote>',
+                    parseMode: 'html'
+                });
+                return;
+            }
+            let rows = '';
+            let i = 1;
+            for (const uid of state.whitelist) {
+                rows += `${i}. <code>${uid}</code>\n`;
+                i++;
+            }
+            await message.edit({
+                text: `🛡️ <b>Whitelist PM Guard (${state.whitelist.size})</b>\n\n<blockquote>${rows.trim()}</blockquote>`,
+                parseMode: 'html'
+            });
+            return;
+        }
+        // ===== 2. Pesan masuk: warn 1x tanpa auto-block =====
+        if (!message.isPrivate) {
+            return;
+        }
+        const senderId = message.senderId ? parsePositiveId(message.senderId) : null;
+        if (!senderId || senderId === idNum) {
+            return;
+        }
+        const guardState = pmguardStore.get(idNum);
+        if (!guardState || !guardState.enabled) {
+            return;
+        }
+        if (guardState.whitelist.has(senderId)) {
+            return;
+        }
+        if (guardState.warned.has(senderId)) {
+            return;
+        }
+        guardState.warned.add(senderId);
+        try {
+            await message.reply({
+                message: AWAY_TEXT,
+                parseMode: 'html',
+                linkPreview: false
+            });
+        }
+        catch (err) {
+            Logger.logUser(idNum, `PM Guard gagal membalas ${senderId}: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+        }
+    }
+};

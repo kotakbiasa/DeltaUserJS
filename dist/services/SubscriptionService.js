@@ -92,8 +92,9 @@ export async function getUserPayments(userId, limit = 20) {
  */
 export async function activateSubscription(userId, planId, paymentId) {
     const plan = await getPlan(planId);
-    if (!plan)
+    if (!plan) {
         throw new Error(`Plan ${planId} not found`);
+    }
     const now = new Date();
     const endDate = plan.durationDays > 0
         ? new Date(now.getTime() + plan.durationDays * 24 * 60 * 60 * 1000)
@@ -126,11 +127,13 @@ export async function activateSubscription(userId, planId, paymentId) {
  */
 export async function renewSubscription(userId, planId, paymentId) {
     const plan = await getPlan(planId);
-    if (!plan)
+    if (!plan) {
         throw new Error(`Plan ${planId} not found`);
+    }
     const subscription = await SubscriptionModel.findOne({ userId });
-    if (!subscription)
+    if (!subscription) {
         throw new Error('No existing subscription to renew');
+    }
     const now = new Date();
     const baseDate = subscription.endDate && subscription.endDate > now ? subscription.endDate : now;
     const endDate = plan.durationDays > 0
@@ -281,11 +284,13 @@ export async function getSubscriptionStats() {
  */
 export async function initTrialSubscription(userId) {
     const existing = await getUserSubscription(userId);
-    if (existing)
+    if (existing) {
         return existing;
+    }
     const plan = await getPlan(TRIAL_PLAN_ID);
-    if (!plan)
+    if (!plan) {
         throw new Error('Trial plan not configured');
+    }
     const now = new Date();
     const endDate = new Date(now.getTime() + plan.trialDays * 24 * 60 * 60 * 1000);
     const subscription = await SubscriptionModel.create({
@@ -336,20 +341,26 @@ async function logAudit(action, resource, resourceId, before, after, actorId, us
  */
 export async function getAuditLogs(filters) {
     const query = {};
-    if (filters.userId)
+    if (filters.userId) {
         query.userId = filters.userId;
-    if (filters.actorId)
+    }
+    if (filters.actorId) {
         query.actorId = filters.actorId;
-    if (filters.action)
+    }
+    if (filters.action) {
         query.action = filters.action;
-    if (filters.resource)
+    }
+    if (filters.resource) {
         query.resource = filters.resource;
+    }
     if (filters.startDate || filters.endDate) {
         query.createdAt = {};
-        if (filters.startDate)
+        if (filters.startDate) {
             query.createdAt.$gte = filters.startDate;
-        if (filters.endDate)
+        }
+        if (filters.endDate) {
             query.createdAt.$lte = filters.endDate;
+        }
     }
     return AuditLogModel.find(query)
         .sort({ createdAt: -1 })

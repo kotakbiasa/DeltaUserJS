@@ -159,10 +159,22 @@ export function panelPlugins(ctx, page = 1, notice = '') {
     const lower = name.toLowerCase();
     const isActive = !disabledSet.has(lower);
     const isProtected = PROTECTED_PLUGINS.includes(lower);
-    return `<tr><td>${escapeHtml(name)}</td><td align="center">${isActive ? '✅ Aktif' : '❌ Nonaktif'}</td><td align="center">${isProtected ? '🔒' : '—'}</td></tr>`;
+    // Status + action digabung satu tombol berwarna: hijau=aktif, merah=off
+    const actionBtn = isProtected
+      ? '🔒'
+      : `<tg-button type="callback_data" data="rich:plugin_toggle:${encodeURIComponent(lower)}:${currentPage}" style="${isActive ? 'success' : 'danger'}">${isActive ? '✅ Aktif' : '❌ Off'}</tg-button>`;
+    return `<tr><td>${escapeHtml(name)}</td><td align="center">${actionBtn}</td></tr>`;
   }).join('') || '<tr><td colspan="3" align="center">Tidak ada plugin</td></tr>';
 
-  return `<h1>🧩 Plugin Studio</h1>` +
+  // Pagination inline keyboard (bawah pesan): baris 1 = prev/halaman/next, baris 2 = kembali dashboard
+  const navRow = [];
+  if (currentPage > 1) {navRow.push({ text: '⬅️', callback_data: `rich:plugin_page:${currentPage - 1}` });}
+  navRow.push({ text: `${currentPage}/${totalPages}`, callback_data: 'rich:noop' });
+  if (currentPage < totalPages) {navRow.push({ text: '➡️', callback_data: `rich:plugin_page:${currentPage + 1}` });}
+  const keyboard = { inline_keyboard: [navRow, [{ text: '🔙 Kembali ke Dashboard', callback_data: 'rich:ubot' }]] };
+
+  return { rich:
+    `<h1>🧩 Plugin Studio</h1>` +
     (notice ? `<blockquote>${escapeHtml(notice)}</blockquote>` : '<blockquote>Kelola modul bot Anda.</blockquote>') +
     `<table bordered striped><caption>📊 Statistik</caption><tr>` +
     `<td align="center"><b>Total</b><br>${total}</td>` +
@@ -170,10 +182,11 @@ export function panelPlugins(ctx, page = 1, notice = '') {
     `<td align="center"><b>❌ Nonaktif</b><br>${Math.max(0, total - active)}</td>` +
     `</tr></table>` +
     `<table bordered striped><caption>📋 Plugin · Hal ${currentPage}/${totalPages}</caption>` +
-    `<tr><th>Plugin</th><th>Status</th><th>Guard</th></tr>` +
+    `<tr><th>Plugin</th><th>Aksi</th></tr>` +
     rows +
     `</table>` +
-    `<p>🔒 = protected (tidak bisa dinonaktifkan)</p>`;
+    `<p>Klik status untuk toggle · 🔒 = protected</p>`,
+    keyboard };
 }
 
 export function panelSettings(ctx) {
@@ -509,7 +522,7 @@ async function mongoStatusLabel() {
   }
 }
 
-async function sendRich(ctx, rich, reply_markup, { deleteOld = false } = {}) {
+async function sendRich(ctx, rich, reply_markup, { deleteOld = false, edit = false } = {}) {
   if (ctx.inlineMessageId) {
     if (ctx.answerCallbackQuery) {
       await ctx.answerCallbackQuery({ text: '⚠️ Akses menu ini melalui Private Chat (DM) bot.', show_alert: true }).catch(()=>{});
@@ -517,6 +530,17 @@ async function sendRich(ctx, rich, reply_markup, { deleteOld = false } = {}) {
     return;
   }
   const rich_message = typeof rich === 'string' ? { html: rich } : rich;
+  // Edit in-place kalau berasal dari callback pada pesan bot (message_id ada) & opsi edit aktif
+  const cbMsgId = ctx.callbackQuery?.message?.message_id;
+  if (edit && cbMsgId) {
+    try {
+      await ctx.api.editMessageText(ctx.callbackQuery.message.chat.id, cbMsgId, undefined, { rich_message, reply_markup });
+      return;
+    } catch (err) {
+      Logger.logSystem(`editMessageText(rich) failed: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+      // fallback: kirim pesan baru di bawah
+    }
+  }
   try {
     await ctx.replyWithRichMessage(rich_message, { reply_markup });
     if (deleteOld) {
@@ -542,7 +566,9 @@ function pluginNotice(pluginName, enabled) {
 }
 
 async function openPluginStudio(ctx, page = 1, notice = '', options = {}) {
-  await sendRich(ctx, panelPlugins(ctx, page, notice), keyboardPluginStudio(ctx, page), options);
+  const result = panelPlugins(ctx, page, notice);
+  // edit: true → kalau dipicu callback (tombol toggle/page), pesan diedit in-place, bukan hapus-kirim-ulang
+  await sendRich(ctx, result.rich, result.keyboard, { edit: true, ...options });
 }
 
 export function registerRichHandlers(bot) {
@@ -642,7 +668,7 @@ export function registerRichHandlers(bot) {
 
     if (action.startsWith('plugin_page:')) {
       const page = Number(action.split(':')[1] || 1);
-      return openPluginStudio(ctx, page, '', { deleteOld: true });
+      return openPluginStudio(ctx, page, '');
     }
 
     if (action.startsWith('plugin_toggle:')) {
@@ -650,7 +676,7 @@ export function registerRichHandlers(bot) {
       const page = Number(rawPage || 1);
       const plugin = findPlugin(rawName);
       if (!plugin) {
-        return openPluginStudio(ctx, page, 'Plugin tidak ditemukan.', { deleteOld: true });
+        return openPluginStudio(ctx, page, 'Plugin tidak ditemukan.');
       }
       const pluginName = String(plugin.name);
       const lower = pluginName.toLowerCase();
@@ -659,16 +685,16 @@ export function registerRichHandlers(bot) {
       const isDisabled = disabled.includes(lower);
 
       if (!isDisabled && protectedPlugins.includes(lower)) {
-        return openPluginStudio(ctx, page, `Plugin protected: ${pluginName}`, { deleteOld: true });
+        return openPluginStudio(ctx, page, `Plugin protected: ${pluginName}`);
       }
 
       if (isDisabled) {
         await enablePlugin(ctx.from.id, pluginName);
-        return openPluginStudio(ctx, page, pluginNotice(pluginName, true), { deleteOld: true });
+        return openPluginStudio(ctx, page, pluginNotice(pluginName, true));
       }
 
       await disablePlugin(ctx.from.id, pluginName);
-      return openPluginStudio(ctx, page, pluginNotice(pluginName, false), { deleteOld: true });
+      return openPluginStudio(ctx, page, pluginNotice(pluginName, false));
     }
 
     if (action === 'settings') {return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });}

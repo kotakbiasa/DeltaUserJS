@@ -176,8 +176,9 @@ export function getBackup(backupId) {
  */
 export async function pruneBackups(keepCount = 10) {
     const sorted = listBackups();
-    if (sorted.length <= keepCount)
+    if (sorted.length <= keepCount) {
         return 0;
+    }
     const toDelete = sorted.slice(keepCount);
     let deleted = 0;
     for (const backup of toDelete) {
@@ -211,8 +212,9 @@ export async function deleteBackup(backupId) {
  */
 export async function exportBackupToRemote(backupId, destination) {
     const backup = backupHistory.find(b => b.id === backupId);
-    if (!backup)
+    if (!backup) {
         throw new Error(`Backup ${backupId} not found`);
+    }
     // Placeholder for S3/GCS/rsync upload
     Logger.logSystem(`💾 Export backup ${backupId} to ${destination} - not implemented`, 'WARN');
     throw new Error('Remote export not implemented');
@@ -265,8 +267,9 @@ export function getBackupStats() {
  * Format bytes to human readable
  */
 function formatBytes(bytes) {
-    if (bytes === 0)
+    if (bytes === 0) {
         return '0 B';
+    }
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));

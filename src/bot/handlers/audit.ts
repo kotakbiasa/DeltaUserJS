@@ -15,8 +15,8 @@ function formatAuditEntry(log: any): string {
 
   if (log.before || log.after) {
     text += `<blockquote>`;
-    if (log.before) text += `Before: ${JSON.stringify(log.before).slice(0, 200)}\n`;
-    if (log.after) text += `After: ${JSON.stringify(log.after).slice(0, 200)}`;
+    if (log.before) {text += `Before: ${JSON.stringify(log.before).slice(0, 200)}\n`;}
+    if (log.after) {text += `After: ${JSON.stringify(log.after).slice(0, 200)}`;}
     text += `</blockquote>`;
   }
 
@@ -29,16 +29,16 @@ function formatAuditEntry(log: any): string {
 export function registerAuditHandlers(bot: Bot) {
   // Owner: View audit logs with filters
   bot.command('audit', async (ctx) => {
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
 
     const args = ctx.message?.text?.split(' ').slice(1) || [];
     const [action, userIdStr, limitStr, skipStr] = args;
 
     const filters: any = {};
-    if (action) filters.action = action;
-    if (userIdStr) filters.userId = parseInt(userIdStr);
-    if (limitStr) filters.limit = parseInt(limitStr);
-    if (skipStr) filters.skip = parseInt(skipStr);
+    if (action) {filters.action = action;}
+    if (userIdStr) {filters.userId = parseInt(userIdStr);}
+    if (limitStr) {filters.limit = parseInt(limitStr);}
+    if (skipStr) {filters.skip = parseInt(skipStr);}
 
     try {
       const logs = await getAuditLogs(filters);
@@ -78,7 +78,7 @@ export function registerAuditHandlers(bot: Bot) {
   // Export audit logs
   bot.callbackQuery('audit:export:json', async (ctx) => {
     await ctx.answerCallbackQuery('Mengekspor...');
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
 
     try {
       const logs = await exportAuditLogs({ userId: undefined, startDate: undefined, endDate: undefined, limit: 1000 });
@@ -98,7 +98,7 @@ export function registerAuditHandlers(bot: Bot) {
 
   bot.callbackQuery('audit:export:csv', async (ctx) => {
     await ctx.answerCallbackQuery('Mengekspor...');
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
 
     try {
       const logs = await exportAuditLogs({ userId: undefined, startDate: undefined, endDate: undefined, limit: 1000 });
@@ -142,7 +142,7 @@ export function registerAuditHandlers(bot: Bot) {
 
   // Owner: Audit stats
   bot.command('auditstats', async (ctx) => {
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
 
     try {
       // Get counts by action

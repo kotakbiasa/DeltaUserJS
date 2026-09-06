@@ -26,7 +26,7 @@ function formatPrice(price: number, currency = 'IDR'): string {
 }
 
 function formatDate(date: Date | null | undefined): string {
-  if (!date) return '—';
+  if (!date) {return '—';}
   return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
@@ -46,7 +46,7 @@ function getSubscriptionStatusEmoji(status: string): string {
  */
 export async function showSubscriptionMenu(ctx: Context) {
   const userId = ctx.from?.id;
-  if (!userId) return;
+  if (!userId) {return;}
 
   const sub = await getUserSubscription(userId);
   const plans = await getActivePlans();
@@ -109,7 +109,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
     await ctx.answerCallbackQuery();
     const planId = ctx.match[1];
     const userId = ctx.from?.id;
-    if (!userId) return;
+    if (!userId) {return;}
 
     const plan = await getPlan(planId);
     if (!plan) {
@@ -174,7 +174,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
   bot.callbackQuery('sub:renew', async (ctx) => {
     await ctx.answerCallbackQuery();
     const userId = ctx.from?.id;
-    if (!userId) return;
+    if (!userId) {return;}
 
     const sub = await getUserSubscription(userId);
     if (!sub) {
@@ -234,7 +234,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
   bot.callbackQuery('sub:cancel_autorenew', async (ctx) => {
     await ctx.answerCallbackQuery('Auto-renew dibatalkan');
     const userId = ctx.from?.id;
-    if (!userId) return;
+    if (!userId) {return;}
 
     await cancelAutoRenew(userId, 'User cancelled via bot');
     await ctx.reply('✅ Auto-renew dibatalkan. Langganan tetap aktif hingga tanggal berakhir.');
@@ -244,7 +244,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
   bot.callbackQuery('sub:history', async (ctx) => {
     await ctx.answerCallbackQuery();
     const userId = ctx.from?.id;
-    if (!userId) return;
+    if (!userId) {return;}
 
     const payments = await getUserPayments(userId, 10);
 
@@ -266,7 +266,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
 
       text += `${statusEmoji} <b>${p.planId}</b> — ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(p.amount)}\n`;
       text += `   Status: ${p.status.toUpperCase()} | ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'short' }).format(p.createdAt)}\n`;
-      if (p.paidAt) text += `   Dibayar: ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'short' }).format(p.paidAt)}\n`;
+      if (p.paidAt) {text += `   Dibayar: ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'short' }).format(p.paidAt)}\n`;}
       text += `\n`;
     }
 
@@ -296,7 +296,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
 
   // Owner: Subscription stats
   bot.command('substats', async (ctx) => {
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
     const stats = await getSubscriptionStats();
     await ctx.reply(
       `<b>📊 STATISTIK LANGGANAN</b>\n\n` +
@@ -317,7 +317,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
 
   // Owner: List all subscriptions
   bot.command('sublist', async (ctx) => {
-    if (ctx.from?.id !== config.ownerId) return;
+    if (ctx.from?.id !== config.ownerId) {return;}
     // Implementation for listing all subscriptions with pagination
     await ctx.reply('📋 Fitur dalam pengembangan. Gunakan dashboard web untuk melihat daftar lengkap.');
   });
@@ -328,7 +328,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
  */
 export async function handleMidtransWebhook(payload: any, headers: Record<string, string>) {
   const result = await handlePaymentWebhook('midtrans', payload, headers);
-  if (!result) return { success: false, message: 'Invalid signature' };
+  if (!result) {return { success: false, message: 'Invalid signature' };}
 
   const { orderId, status } = result;
   Logger.logSystem(`Midtrans webhook: ${orderId} -> ${status}`, 'INFO');
@@ -366,7 +366,7 @@ export async function handleMidtransWebhook(payload: any, headers: Record<string
 
 export async function handleXenditWebhook(payload: any, headers: Record<string, string>) {
   const result = await handlePaymentWebhook('xendit', payload, headers);
-  if (!result) return { success: false, message: 'Invalid signature' };
+  if (!result) {return { success: false, message: 'Invalid signature' };}
 
   const { orderId, status } = result;
   Logger.logSystem(`Xendit webhook: ${orderId} -> ${status}`, 'INFO');

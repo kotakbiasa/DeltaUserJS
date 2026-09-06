@@ -13,10 +13,12 @@ function formatAuditEntry(log) {
     text += `📦 Resource: <b>${log.resource}</b> (${log.resourceId || 'N/A'})\n`;
     if (log.before || log.after) {
         text += `<blockquote>`;
-        if (log.before)
+        if (log.before) {
             text += `Before: ${JSON.stringify(log.before).slice(0, 200)}\n`;
-        if (log.after)
+        }
+        if (log.after) {
             text += `After: ${JSON.stringify(log.after).slice(0, 200)}`;
+        }
         text += `</blockquote>`;
     }
     return text;
@@ -27,19 +29,24 @@ function formatAuditEntry(log) {
 export function registerAuditHandlers(bot) {
     // Owner: View audit logs with filters
     bot.command('audit', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         const args = ctx.message?.text?.split(' ').slice(1) || [];
         const [action, userIdStr, limitStr, skipStr] = args;
         const filters = {};
-        if (action)
+        if (action) {
             filters.action = action;
-        if (userIdStr)
+        }
+        if (userIdStr) {
             filters.userId = parseInt(userIdStr);
-        if (limitStr)
+        }
+        if (limitStr) {
             filters.limit = parseInt(limitStr);
-        if (skipStr)
+        }
+        if (skipStr) {
             filters.skip = parseInt(skipStr);
+        }
         try {
             const logs = await getAuditLogs(filters);
             if (logs.length === 0) {
@@ -72,8 +79,9 @@ export function registerAuditHandlers(bot) {
     // Export audit logs
     bot.callbackQuery('audit:export:json', async (ctx) => {
         await ctx.answerCallbackQuery('Mengekspor...');
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         try {
             const logs = await exportAuditLogs({ userId: undefined, startDate: undefined, endDate: undefined, limit: 1000 });
             const json = JSON.stringify(logs, null, 2);
@@ -88,8 +96,9 @@ export function registerAuditHandlers(bot) {
     });
     bot.callbackQuery('audit:export:csv', async (ctx) => {
         await ctx.answerCallbackQuery('Mengekspor...');
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         try {
             const logs = await exportAuditLogs({ userId: undefined, startDate: undefined, endDate: undefined, limit: 1000 });
             const headers = ['timestamp', 'action', 'userId', 'actorId', 'resource', 'resourceId', 'before', 'after'];
@@ -124,8 +133,9 @@ export function registerAuditHandlers(bot) {
     });
     // Owner: Audit stats
     bot.command('auditstats', async (ctx) => {
-        if (ctx.from?.id !== config.ownerId)
+        if (ctx.from?.id !== config.ownerId) {
             return;
+        }
         try {
             // Get counts by action
             const { AuditLogModel } = await import('../../infrastructure/subscriptionModels.js');

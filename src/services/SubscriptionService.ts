@@ -124,7 +124,7 @@ export async function getUserPayments(userId: number, limit = 20): Promise<Payme
  */
 export async function activateSubscription(userId: number, planId: string, paymentId: string): Promise<SubscriptionDoc> {
   const plan = await getPlan(planId);
-  if (!plan) throw new Error(`Plan ${planId} not found`);
+  if (!plan) {throw new Error(`Plan ${planId} not found`);}
 
   const now = new Date();
   const endDate = plan.durationDays > 0
@@ -167,10 +167,10 @@ export async function activateSubscription(userId: number, planId: string, payme
  */
 export async function renewSubscription(userId: number, planId: string, paymentId: string): Promise<SubscriptionDoc> {
   const plan = await getPlan(planId);
-  if (!plan) throw new Error(`Plan ${planId} not found`);
+  if (!plan) {throw new Error(`Plan ${planId} not found`);}
 
   const subscription = await SubscriptionModel.findOne({ userId });
-  if (!subscription) throw new Error('No existing subscription to renew');
+  if (!subscription) {throw new Error('No existing subscription to renew');}
 
   const now = new Date();
   const baseDate = subscription.endDate && subscription.endDate > now ? subscription.endDate : now;
@@ -363,10 +363,10 @@ export async function getSubscriptionStats() {
  */
 export async function initTrialSubscription(userId: number): Promise<SubscriptionDoc> {
   const existing = await getUserSubscription(userId);
-  if (existing) return existing;
+  if (existing) {return existing;}
 
   const plan = await getPlan(TRIAL_PLAN_ID);
-  if (!plan) throw new Error('Trial plan not configured');
+  if (!plan) {throw new Error('Trial plan not configured');}
 
   const now = new Date();
   const endDate = new Date(now.getTime() + plan.trialDays * 24 * 60 * 60 * 1000);
@@ -444,14 +444,14 @@ export async function getAuditLogs(filters: {
 }) {
   const query: any = {};
 
-  if (filters.userId) query.userId = filters.userId;
-  if (filters.actorId) query.actorId = filters.actorId;
-  if (filters.action) query.action = filters.action;
-  if (filters.resource) query.resource = filters.resource;
+  if (filters.userId) {query.userId = filters.userId;}
+  if (filters.actorId) {query.actorId = filters.actorId;}
+  if (filters.action) {query.action = filters.action;}
+  if (filters.resource) {query.resource = filters.resource;}
   if (filters.startDate || filters.endDate) {
     query.createdAt = {};
-    if (filters.startDate) query.createdAt.$gte = filters.startDate;
-    if (filters.endDate) query.createdAt.$lte = filters.endDate;
+    if (filters.startDate) {query.createdAt.$gte = filters.startDate;}
+    if (filters.endDate) {query.createdAt.$lte = filters.endDate;}
   }
 
   return AuditLogModel.find(query)

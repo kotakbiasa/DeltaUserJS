@@ -225,7 +225,7 @@ export function getBackup(backupId: string): BackupInfo | undefined {
  */
 export async function pruneBackups(keepCount = 10): Promise<number> {
   const sorted = listBackups();
-  if (sorted.length <= keepCount) return 0;
+  if (sorted.length <= keepCount) {return 0;}
 
   const toDelete = sorted.slice(keepCount);
   let deleted = 0;
@@ -264,7 +264,7 @@ export async function deleteBackup(backupId: string): Promise<void> {
  */
 export async function exportBackupToRemote(backupId: string, destination: string): Promise<void> {
   const backup = backupHistory.find(b => b.id === backupId);
-  if (!backup) throw new Error(`Backup ${backupId} not found`);
+  if (!backup) {throw new Error(`Backup ${backupId} not found`);}
 
   // Placeholder for S3/GCS/rsync upload
   Logger.logSystem(`💾 Export backup ${backupId} to ${destination} - not implemented`, 'WARN');
@@ -325,7 +325,7 @@ export function getBackupStats() {
  * Format bytes to human readable
  */
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
+  if (bytes === 0) {return '0 B';}
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
