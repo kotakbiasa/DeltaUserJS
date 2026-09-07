@@ -194,8 +194,11 @@ const healthServer = createServer(async (req, res) => {
     res.writeHead(404);
     res.end('Not Found');
 });
-healthServer.listen(HEALTH_PORT, '0.0.0.0', () => {
-    Logger.logSystem(`Health check server listening on port ${HEALTH_PORT}`);
+// Bind 127.0.0.1 secara default: health/webhook tidak perlu di-expose publik.
+// Kalau butuh akses eksternal (mis. Docker LB), set HEALTH_HOST=0.0.0.0 di .env.
+const HEALTH_HOST = process.env.HEALTH_HOST || '127.0.0.1';
+healthServer.listen(HEALTH_PORT, HEALTH_HOST, () => {
+    Logger.logSystem(`Health check server listening on ${HEALTH_HOST}:${HEALTH_PORT}`);
 });
 // Graceful shutdown handlers
 async function shutdown(signal) {
