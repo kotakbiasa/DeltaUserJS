@@ -1,6 +1,7 @@
-import { saveGroupNote, deleteGroupNote, getAllGroupNotes } from '../../../infrastructure/database.js';
+import { saveGroupNote, deleteGroupNote, getAllGroupNotes, getGroupNote } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 
+// Recall #hashtag: setiap pesan masuk diawali '#namacatatan' → kirim isi note.
 export default {
   name: 'gnotes',
   help: {
@@ -10,9 +11,29 @@ export default {
     detail: 'Catatan yang disimpan di sini bisa dipanggil oleh siapa saja di grup menggunakan `#namacatatan` jika Master Bot ada di grup.'
   },
   async execute(client, message, _settings, _telegramId) {
-    if (!message.out || !message.message) {return;}
-
     const text = message.message;
+    if (!text) {return;}
+
+    // ===== HASHTAG RECALL: pesan masuk '#nama' → kirim isi note =====
+    if (!message.out && /^#[a-z0-9_]+$/i.test(text.trim())) {
+      const noteName = text.trim().slice(1).toLowerCase();
+      const peerIdR = message.peerId;
+      const isGroupR = peerIdR.className === 'PeerChat' || peerIdR.className === 'PeerChannel';
+      if (!isGroupR) {return;}
+      const chatIdR = peerIdR.chatId || peerIdR.channelId;
+      const note = getGroupNote(chatIdR, noteName);
+      if (note) {
+        client.sendMessage(message.chatId, {
+          message: `📋 <b>#${escapeHtml(noteName)}</b>\n\n${escapeHtml(note)}`,
+          parseMode: 'html',
+          replyTo: message.id
+        }).catch(() => { /* ignore */ });
+      }
+      return;
+    }
+
+    if (!message.out) {return;}
+
     const parts = text.split(/\s+/);
     const cmd = parts[0].toLowerCase();
 

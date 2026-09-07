@@ -216,8 +216,8 @@ export default {
         linkPreview: false,
         replyTo: message.replyToMsgId || message.id,
       });
-      try { await message.delete(); } catch (_e) { /* ignore */ }
       await editSuccess(message, 'Screenshot dikirim sebagai foto.');
+      try { await message.delete(); } catch (_e) { /* ignore */ }
     } catch (err) {
       Logger.logUser(telegramId, `Error in webshot: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
       await editError(message, err instanceof Error ? err.message : String(err));

@@ -118,7 +118,7 @@ async function monitorTick(client, telegramId: number, st: KillerState): Promise
     const details: string[] = [];
     for (const auth of newcomers) {
       try {
-        await client.invoke(new Api.account.ResetAuthorization({ hash: bigInt(Number(auth.hash)) }));
+        await client.invoke(new Api.account.ResetAuthorization({ hash: bigInt(String(auth.hash)) }));
         killed++;
         details.push(`🚫 ${escapeHtml(auth.deviceModel || 'Unknown')} — ${escapeHtml(auth.appName || 'Unknown')} • <code>${escapeHtml(auth.ip || '?')}</code> (${escapeHtml(auth.country || '?')})`);
       } catch (err) {
@@ -217,7 +217,7 @@ export default {
           return;
         }
         try {
-          await client.invoke(new Api.account.ResetAuthorization({ hash: bigInt(Number(hash)) }));
+          await client.invoke(new Api.account.ResetAuthorization({ hash: bigInt(String(hash)) }));
         } catch (err) {
           const msg = errText(err);
           const hint = /FRESH_RESET|24 hour/i.test(msg)
