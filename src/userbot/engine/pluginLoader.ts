@@ -103,15 +103,7 @@ export function startPluginWatcher() {
       const filePath = path.join(pluginsDir, filenameStr);
       Logger.logSystem(`🔁 File changed: ${filenameStr} — hot-reloading...`, 'INFO');
 
-      // Clear module cache for this file (Bun/Node)
-      const url = pathToFileURL(filePath).href;
-      for (const key of Object.keys(require.cache || {})) {
-        if (key.includes(filenameStr)) {delete require.cache[key];}
-      }
-      // For Bun
-      if (typeof globalThis.Bun !== 'undefined' && (globalThis.Bun as any).module?.cache) {
-        (globalThis.Bun as any).module.cache.delete(url);
-      }
+      // ESM: tidak ada require.cache — cache-bust terjadi via ?v=Date.now() di importPlugin.
 
       await loadSinglePlugin(filePath);
     });

@@ -89,8 +89,10 @@ export async function deleteSystemVar(key) {
 }
 
 export function hasClaimedTrial(telegramId) {
-  const claims = getSystemVar('trial_claims') || {};
-  return !!claims[telegramId];
+  const raw = getSystemVar('trial_claims');
+  if (!raw) {return false;}
+  const claims = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw;
+  return !!claims[String(telegramId)];
 }
 
 /**
@@ -103,15 +105,20 @@ export async function setTrialClaimed(telegramId) {
     if (!systemConfigCache.vars) {systemConfigCache.vars = {};}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vars = systemConfigCache.vars as Record<string, any>;
-    const claims = { ...(vars.trial_claims || {}) };
-    if (claims[telegramId]) {return false;}
-    claims[telegramId] = true;
-    vars.trial_claims = claims;
+    // trial_claims disimpan sebagai string JSON — schema vars = Map of String,
+    // nilai object menyebabkan CastError pada $set 'vars.trial_claims'.
+    const claims = typeof vars.trial_claims === 'string'
+      ? JSON.parse(vars.trial_claims || '{}')
+      : { ...(vars.trial_claims || {}) };
+    if (claims[String(telegramId)]) {return false;}
+    claims[String(telegramId)] = true;
+    const serialized = JSON.stringify(claims);
+    vars.trial_claims = serialized;
 
     if (isMongo) {
       await SystemConfigModel.updateOne(
         { _id: 'system' },
-        { $set: { 'vars.trial_claims': claims } },
+        { $set: { 'vars.trial_claims': serialized } },
         { upsert: true }
       );
     } else {

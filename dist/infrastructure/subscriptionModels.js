@@ -36,7 +36,7 @@ const paymentSchema = new mongoose.Schema({
         default: 'pending',
         index: true,
     },
-    externalId: { type: String, index: true }, // Midtrans order_id, Xendit invoice_id
+    externalId: { type: String }, // Midtrans order_id, Xendit invoice_id (index dideklarasi manual di bawah, unique+sparse)
     paymentUrl: { type: String }, // checkout URL for user
     payload: { type: mongoose.Schema.Types.Mixed }, // raw webhook payload
     metadata: { type: mongoose.Schema.Types.Mixed }, // custom data
