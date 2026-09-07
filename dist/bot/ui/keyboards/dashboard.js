@@ -477,7 +477,7 @@ async function mongoStatusLabel() {
         return '🔴 Disconnected';
     }
 }
-async function sendRich(ctx, rich, reply_markup, { deleteOld = false, edit = false } = {}) {
+async function sendRich(ctx, rich, reply_markup, { deleteOld = false, edit = true } = {}) {
     if (ctx.inlineMessageId) {
         if (ctx.answerCallbackQuery) {
             await ctx.answerCallbackQuery({ text: '⚠️ Akses menu ini melalui Private Chat (DM) bot.', show_alert: true }).catch(() => { });
