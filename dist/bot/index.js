@@ -66,6 +66,8 @@ bot.use(createConversation(afkReasonConversation, 'afk-reason-conv'));
 bot.use(createConversation(manageVarsConv, 'manage-vars-conv'));
 bot.use(createConversation(manageSystemVarsConv, 'manage-system-vars-conv'));
 setLoggerBot(bot);
+const { setNotifyBot } = await import('../services/notifyService.js');
+setNotifyBot(bot);
 // Register dashboard UI components (menus, start command, etc)
 registerRichHandlers(bot);
 // Inline help handlers (menjawab inline query 'help_ubot' dari userbot .help)

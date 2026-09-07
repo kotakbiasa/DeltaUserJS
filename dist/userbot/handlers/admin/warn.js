@@ -1,6 +1,7 @@
 import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import { updateUserbotFeature } from '../../../infrastructure/database.js';
 // ============================================================
 // Warning grup — .warn / .warns / .resetwarn
 // Konsep diadaptasi dari plugin warn Ultroid ke pola DeltaUserJS.
@@ -9,13 +10,79 @@ import { Logger } from '../../../utils/logger.js';
 // MAX_WARNS); saat batas tercapai user otomatis dikick (dua langkah
 // ChatBannedRights di supergroup, DeleteChatUser di grup biasa)
 // lalu warn-nya direset. State in-memory globalThis per
-// chatKey-userId: bertahan antar hot-reload, hilang saat restart.
+// chatKey-userId: bertahan antar hot-reload, dan dipersist ke
+// Mongo per userbot (field `warn_data` via updateFeature) tiap
+// warn/reset — di-load dari settings saat execute pertama.
 // ============================================================
 const MAX_WARNS = 3;
 // chatKey -> Map<userKey, WarnEntry>
 const STORE_KEY = '__deltauserjs_warn_store__';
+const LOADED_KEY = '__deltauserjs_warn_loaded__';
 const warnStore = (globalThis)[STORE_KEY] || new Map();
 (globalThis)[STORE_KEY] = warnStore;
+// Flag sekali-per-proses (globalThis agar ikut survive hot-reload).
+const loadedFlagHolder = (globalThis)[LOADED_KEY] || { loaded: new Set() };
+(globalThis)[LOADED_KEY] = loadedFlagHolder;
+// ---- Persistence (Mongo via updateFeature, field: warn_data) ----
+// Bentuk tersimpan: { [chatKey]: { [userKey]: { count, reasons[] } } }
+// — sama dengan bentuk yang dipakai addWarn/resetWarns di
+// UserbotService, jadi data di doc userbot kompatibel antar keduanya.
+// Field di doc diisi oleh updateFeature; kalau settings tidak berisi
+// field itu (undefined), store mulai kosong.
+// Load sekali per proses per telegramId (flag di globalThis agar
+// ikut survive hot-reload): isi store dari settings yang diterima
+// execute. Settings (doc userbot dari cache) berisi field ini
+// karena updateFeature mempersist-nya; kalau tidak berisi field itu
+// (undefined), store mulai kosong.
+function loadWarnsFromSettings(telegramId, settings) {
+    const idNum = Number(telegramId);
+    if (loadedFlagHolder.loaded.has(idNum)) {
+        return;
+    }
+    loadedFlagHolder.loaded.add(idNum);
+    const data = settings?.warn_data;
+    if (!data || typeof data !== 'object') {
+        return;
+    }
+    for (const chatKey of Object.keys(data)) {
+        const rawChat = data[chatKey];
+        if (!rawChat || typeof rawChat !== 'object') {
+            continue;
+        }
+        const chatMap = getChatWarns(chatKey);
+        for (const userKey of Object.keys(rawChat)) {
+            const entry = rawChat[userKey];
+            if (!entry || typeof entry !== 'object' || !Number.isFinite(Number(entry.count))) {
+                continue;
+            }
+            chatMap.set(String(userKey), {
+                count: Number(entry.count),
+                reasons: Array.isArray(entry.reasons) ? entry.reasons.map(r => String(r)) : []
+            });
+        }
+    }
+}
+// Snapshot store ke plain object JSON-safe untuk dipersist.
+function serializeWarnStore() {
+    const out = {};
+    for (const [chatKey, chatMap] of warnStore) {
+        const chatData = {};
+        for (const [userKey, entry] of chatMap) {
+            chatData[userKey] = { count: entry.count, reasons: [...entry.reasons] };
+        }
+        out[chatKey] = chatData;
+    }
+    return out;
+}
+// Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
+async function persistWarns(telegramId) {
+    try {
+        await updateUserbotFeature(telegramId, 'warn_data', serializeWarnStore());
+    }
+    catch (err) {
+        Logger.logUser(telegramId, `warn: gagal persist warn_data: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+    }
+}
 // ---- State helpers ----
 function getChatWarns(chatKey) {
     let chatMap = warnStore.get(chatKey);
@@ -109,7 +176,7 @@ async function kickUser(client, chat, isChannel, target) {
     await client.invoke(new Api.messages.DeleteChatUser({ chatId: chat.id, userId: participant }));
 }
 // ---- Command handlers ----
-async function handleWarn(client, message, chat, isChannel, chatKey, target, reason) {
+async function handleWarn(client, message, chat, isChannel, chatKey, telegramId, target, reason) {
     const chatMap = getChatWarns(chatKey);
     const userKey = String(target.id);
     const entry = getEntry(chatKey, userKey);
@@ -131,6 +198,7 @@ async function handleWarn(client, message, chat, isChannel, chatKey, target, rea
                 warnStore.delete(chatKey);
             }
         }
+        await persistWarns(telegramId);
         let text = `<blockquote>🚫 <b>WARNING ${entry.count}/${MAX_WARNS} — batas tercapai.</b>\n` +
             `${mention(target)} <b>${kicked ? 'dikeluarkan dari grup.' : 'gagal dikick.'}</b></blockquote>\n` +
             listWarns(entry);
@@ -140,6 +208,7 @@ async function handleWarn(client, message, chat, isChannel, chatKey, target, rea
         await message.edit({ text, parseMode: 'html' });
         return;
     }
+    await persistWarns(telegramId);
     const remaining = MAX_WARNS - entry.count;
     await message.edit({
         text: `<blockquote>⚠️ <b>WARNING ${entry.count}/${MAX_WARNS}</b>\n` +
@@ -164,7 +233,7 @@ async function handleWarns(message, chatKey, target) {
         parseMode: 'html'
     });
 }
-async function handleResetWarn(message, chatKey, target) {
+async function handleResetWarn(message, chatKey, telegramId, target) {
     const chatMap = warnStore.get(chatKey);
     if (chatMap) {
         chatMap.delete(String(target.id));
@@ -172,6 +241,7 @@ async function handleResetWarn(message, chatKey, target) {
             warnStore.delete(chatKey);
         }
     }
+    await persistWarns(telegramId);
     await message.edit({
         text: `<blockquote>♻️ Semua warn ${mention(target)} <b>direset ke 0/${MAX_WARNS}.</b></blockquote>`,
         parseMode: 'html'
@@ -189,12 +259,14 @@ export default {
             '• `.warns` — lihat daftar warn user yang di-reply\n' +
             '• `.resetwarn` — reset semua warn user yang di-reply',
         detail: 'Sampai 3 warn per user per grup; warn ke-3 otomatis mengeluarkan user dari grup (butuh hak admin kick). ' +
-            'State in-memory: warn bertahan antar hot-reload tapi hilang saat proses userbot direstart. Hanya owner userbot yang bisa memakai command ini.'
+            'Warn dipersist ke database per userbot (field warn_data) dan di-load ulang otomatis saat userbot start. ' +
+            'Hanya owner userbot yang bisa memakai command ini.'
     },
-    async execute(client, message, _settings, telegramId) {
+    async execute(client, message, settings, telegramId) {
         if (!message.out || !message.message) {
             return;
         }
+        loadWarnsFromSettings(telegramId, settings);
         const match = message.message.trim().match(/^\.([A-Za-z]+)(?:\s+([\s\S]*))?$/);
         if (!match) {
             return;
@@ -238,13 +310,13 @@ export default {
                 return;
             }
             if (cmd === 'warn') {
-                await handleWarn(client, message, chat, isChannel, chatKey, target, resolved.reason);
+                await handleWarn(client, message, chat, isChannel, chatKey, telegramId, target, resolved.reason);
             }
             else if (cmd === 'warns') {
                 await handleWarns(message, chatKey, target);
             }
             else {
-                await handleResetWarn(message, chatKey, target);
+                await handleResetWarn(message, chatKey, telegramId, target);
             }
         }
         catch (err) {

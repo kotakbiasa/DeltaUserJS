@@ -1,7 +1,11 @@
 import { Logger } from '../../../utils/logger.js';
+import { updateUserbotFeature, UserbotModel, isMongo, readDbFromFile } from '../../../infrastructure/database.js';
 const pmguardGlobal = globalThis;
 const pmguardStore = pmguardGlobal.__pmguardStore ?? new Map();
 pmguardGlobal.__pmguardStore = pmguardStore;
+// Id yang sudah pernah di-hydrate dari settings (sekali per proses).
+const loadedIds = pmguardGlobal.__pmguardLoadedIds ?? new Set();
+pmguardGlobal.__pmguardLoadedIds = loadedIds;
 function getState(telegramId) {
     const idNum = Number(telegramId);
     const existing = pmguardStore.get(idNum);
@@ -11,6 +15,68 @@ function getState(telegramId) {
     const fresh = { enabled: false, whitelist: new Set(), warned: new Set() };
     pmguardStore.set(idNum, fresh);
     return fresh;
+}
+// ---- Persistence (Mongo via updateFeature, field: pmguard_data) ----
+// Bentuk tersimpan: { enabled: boolean, whitelist: number[] } per
+// telegramId. Set `warned` sengaja tidak dipersist (ephemeral per
+// sesi). Field di doc userbot diisi oleh updateFeature; kalau
+// settings tidak berisi field itu (undefined), coba baca sekali
+// langsung dari Mongo (fallback karena field belum masuk whitelist
+// normalizeBot); kalau tetap kosong, state mulai kosong.
+// Load sekali per proses per id: isi state dari settings yang
+// diterima execute.
+async function loadPmGuardFromSettings(telegramId, settings) {
+    const idNum = Number(telegramId);
+    if (loadedIds.has(idNum)) {
+        return;
+    }
+    loadedIds.add(idNum);
+    let data = settings?.pmguard_data;
+    if (!data || typeof data !== 'object') {
+        try {
+            if (isMongo) {
+                const raw = await UserbotModel.findOne({ telegram_id: idNum }, { pmguard_data: 1 });
+                data = raw?.pmguard_data;
+            }
+            else {
+                // Mode file-DB: field ada di database.json, bukan di Mongoose.
+                const raw = await readDbFromFile();
+                data = raw?.userbots?.[idNum]?.pmguard_data;
+            }
+        }
+        catch (err) {
+            Logger.logSystem(`pmguard: gagal load pmguard_data dari DB: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+        }
+    }
+    if (!data || typeof data !== 'object') {
+        return;
+    }
+    const state = getState(idNum);
+    state.enabled = Boolean(data.enabled);
+    if (Array.isArray(data.whitelist)) {
+        for (const uid of data.whitelist) {
+            const parsed = parsePositiveId(uid);
+            if (parsed !== null) {
+                state.whitelist.add(parsed);
+            }
+        }
+    }
+}
+// Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
+async function persistPmGuard(telegramId) {
+    try {
+        const state = pmguardStore.get(Number(telegramId));
+        if (!state) {
+            return;
+        }
+        await updateUserbotFeature(telegramId, 'pmguard_data', {
+            enabled: state.enabled,
+            whitelist: Array.from(state.whitelist)
+        });
+    }
+    catch (err) {
+        Logger.logUser(Number(telegramId), `pmguard: gagal persist pmguard_data: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+    }
 }
 /** Status aktif/tidaknya PM Guard milik akun tertentu. */
 export function isPmGuardOn(telegramId) {
@@ -37,10 +103,11 @@ export default {
         usage: '• `.pmguard on` — aktifkan\n• `.pmguard off` — matikan\n• `.pmallow <id>` — whitelist via user ID\n• `.pmallow` (reply pesan user) — whitelist via reply\n• `.pmlist` — lihat daftar whitelist',
         detail: 'Hanya pesan masuk di private chat (non-out) yang diwarn, 1x per user per sesi. ' +
             'User yang di-whitelist lewat begitu saja. Whitelist tetap tersimpan walau guard dimatikan. ' +
-            'State in-memory per akun — hilang jika proses userbot direstart. ' +
+            'Status dan whitelist dipersist ke database per userbot (field pmguard_data) dan di-load ulang otomatis saat userbot start. ' +
             'Plugin lain bisa memakai helper isPmGuardOn(telegramId) dan isPmAllowed(telegramId, userId).'
     },
-    async execute(client, message, _settings, telegramId) {
+    async execute(client, message, settings, telegramId) {
+        await loadPmGuardFromSettings(telegramId, settings);
         const text = message.message || '';
         const idNum = Number(telegramId);
         // ===== 1. Command dari owner (outgoing) =====
@@ -70,6 +137,7 @@ export default {
                         return;
                     }
                     state.enabled = true;
+                    await persistPmGuard(idNum);
                     await message.edit({
                         text: '<blockquote>✅ <b>PM Guard AKTIF.</b>\nPesan masuk (private) dari user di luar whitelist akan diwarn 1x — tanpa auto-block.\nWhitelist: <code>.pmallow &lt;id&gt;</code> atau reply pesan user.</blockquote>',
                         parseMode: 'html'
@@ -82,6 +150,7 @@ export default {
                         return;
                     }
                     state.enabled = false;
+                    await persistPmGuard(idNum);
                     await message.edit({
                         text: '<blockquote>🛑 <b>PM Guard MATI.</b>\nSemua pesan masuk diteruskan seperti biasa. Whitelist tetap tersimpan.</blockquote>',
                         parseMode: 'html'
@@ -118,6 +187,7 @@ export default {
                 }
                 state.whitelist.add(targetId);
                 state.warned.delete(targetId);
+                await persistPmGuard(idNum);
                 await message.edit({
                     text: `<blockquote>✅ <b>User Di-whitelist</b>\n<code>${targetId}</code> kini bisa langsung PM tanpa diwarn.\nTotal whitelist: <b>${state.whitelist.size}</b></blockquote>`,
                     parseMode: 'html'

@@ -1,5 +1,6 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import { updateUserbotFeature, UserbotModel, isMongo, readDbFromFile } from '../../../infrastructure/database.js';
 // ============================================================
 // Keyword Filter — auto-reply berbasis kata kunci (grup & private)
 // Perintah:
@@ -10,12 +11,20 @@ import { Logger } from '../../../utils/logger.js';
 // (case-insensitive, kata utuh / word boundary) otomatis dibalas
 // dengan teks reply yang tersimpan. Trigger '*' membalas semua
 // pesan masuk. State in-memory per chatKey, bertahan antar
-// hot-reload lewat globalThis (hilang saat proses restart).
+// hot-reload lewat globalThis, dan dipersist ke Mongo per userbot
+// (field `keyword_filters` via updateFeature): di-load dari settings
+// saat execute pertama, disimpan tiap add/del. Gagal persist tidak
+// mengganggu jalannya plugin.
 // ============================================================
 // chatKey -> Map<triggerLower, { trigger: string, replyText: string }>
 const STORE_KEY = '__deltauserjs_kwfilter_store__';
+const LOADED_KEY = '__deltauserjs_kwfilter_loaded__';
 const filterStore = (globalThis)[STORE_KEY] || new Map();
 (globalThis)[STORE_KEY] = filterStore;
+// telegramId yang sudah pernah di-hydrate (globalThis agar ikut
+// survive hot-reload).
+const loadedIds = (globalThis)[LOADED_KEY] || new Set();
+(globalThis)[LOADED_KEY] = loadedIds;
 const PREVIEW_MAX = 40;
 // ---- Helpers ----
 function escapeRegExp(str) {
@@ -44,6 +53,80 @@ function previewText(text) {
         return oneLine;
     }
     return `${oneLine.slice(0, PREVIEW_MAX - 1)}…`;
+}
+// ---- Persistence (Mongo via updateFeature, field: keyword_filters) ----
+// Bentuk tersimpan: { [chatKey]: { [triggerLower]: { trigger, replyText } } }.
+// Field di doc userbot diisi oleh updateFeature; kalau settings tidak
+// berisi field itu (undefined), baca sekali dari DB (fallback karena
+// field belum masuk whitelist normalizeBot); kalau tetap kosong,
+// store mulai kosong.
+// Load sekali per proses per telegramId: isi store dari settings
+// yang diterima execute. Settings (doc userbot dari cache) berisi
+// field ini karena updateFeature mempersist-nya; kalau tidak berisi
+// field itu (undefined), coba baca sekali langsung dari Mongo
+// (fallback karena field belum masuk whitelist normalizeBot);
+// kalau tetap kosong, store mulai kosong.
+async function loadFiltersFromSettings(telegramId, settings) {
+    const idNum = Number(telegramId);
+    if (loadedIds.has(idNum)) {
+        return;
+    }
+    loadedIds.add(idNum);
+    let data = settings?.keyword_filters;
+    if (!data || typeof data !== 'object') {
+        try {
+            if (isMongo) {
+                const raw = await UserbotModel.findOne({ telegram_id: idNum }, { keyword_filters: 1 });
+                data = raw?.keyword_filters;
+            }
+            else {
+                // Mode file-DB: field ada di database.json, bukan di Mongoose.
+                const raw = await readDbFromFile();
+                data = raw?.userbots?.[idNum]?.keyword_filters;
+            }
+        }
+        catch (err) {
+            Logger.logSystem(`kwfilter: gagal load keyword_filters dari DB: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+        }
+    }
+    if (!data || typeof data !== 'object') {
+        return;
+    }
+    for (const chatKey of Object.keys(data)) {
+        const rawChat = data[chatKey];
+        if (!rawChat || typeof rawChat !== 'object') {
+            continue;
+        }
+        const chatMap = getChatFilters(chatKey);
+        for (const key of Object.keys(rawChat)) {
+            const entry = rawChat[key];
+            if (!entry || typeof entry !== 'object' || typeof entry.replyText !== 'string') {
+                continue;
+            }
+            chatMap.set(String(key), { trigger: String(entry.trigger ?? key), replyText: entry.replyText });
+        }
+    }
+}
+// Snapshot store ke plain object JSON-safe untuk dipersist.
+function serializeFilterStore() {
+    const out = {};
+    for (const [chatKey, chatMap] of filterStore) {
+        const chatData = {};
+        for (const [key, entry] of chatMap) {
+            chatData[key] = { trigger: entry.trigger, replyText: entry.replyText };
+        }
+        out[chatKey] = chatData;
+    }
+    return out;
+}
+// Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
+async function persistFilters(telegramId) {
+    try {
+        await updateUserbotFeature(telegramId, 'keyword_filters', serializeFilterStore());
+    }
+    catch (err) {
+        Logger.logSystem(`kwfilter: gagal persist keyword_filters: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+    }
 }
 // ---- Auto-reply pesan masuk (non-out) ----
 async function autoReplyIncoming(client, message, chatKey, text) {
@@ -97,9 +180,10 @@ export default {
         detail: 'Matching case-insensitive dengan kata utuh (word boundary), jadi trigger "halo" tidak akan menangkap "haloan". ' +
             'Filter disimpan per-chat (grup & private didukung) dan hanya aktif di chat tempat ia dibuat. ' +
             'Trigger spesifik diprioritaskan di atas wildcard `*`. Balasan dikirim sebagai reply ke pesan pemicu dengan teks apa adanya. ' +
-            'State in-memory: filter bertahan antar hot-reload tapi hilang saat proses userbot direstart.'
+            'Filter dipersist ke database per userbot (field keyword_filters) dan di-load ulang otomatis saat userbot start.'
     },
-    async execute(client, message, _settings, _telegramId) {
+    async execute(client, message, settings, telegramId) {
+        await loadFiltersFromSettings(telegramId, settings);
         const text = message.message;
         if (!text) {
             return;
@@ -149,6 +233,7 @@ export default {
             const key = trigger.toLowerCase();
             const existed = chatMap.has(key);
             chatMap.set(key, { trigger, replyText });
+            await persistFilters(telegramId);
             await message.edit({
                 text: existed
                     ? `✏️ Filter <code>${escapeHtml(trigger)}</code> berhasil <b>diperbarui</b>.`
@@ -181,6 +266,7 @@ export default {
             if (chatMap.size === 0) {
                 filterStore.delete(chatKey);
             }
+            await persistFilters(telegramId);
             await message.edit({
                 text: `🗑️ Filter <code>${escapeHtml(trigger)}</code> berhasil dihapus.`,
                 parseMode: 'html'

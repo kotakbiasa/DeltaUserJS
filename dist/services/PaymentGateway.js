@@ -77,7 +77,7 @@ export function mapMidtransStatus(payload) {
 }
 export async function createXenditInvoice(data) {
     const apiKey = config.xenditApiKey || process.env.XENDIT_API_KEY;
-    const isProduction = config.xenditIsProduction || process.env.XENDIT_IS_PRODUCTION === 'true';
+    const _isProduction = config.xenditIsProduction || process.env.XENDIT_IS_PRODUCTION === 'true';
     if (!apiKey) {
         throw new Error('Xendit API Key not configured');
     }
@@ -113,10 +113,13 @@ export async function createXenditInvoice(data) {
     }
     return response.json();
 }
-export function verifyXenditSignature(payload, callbackToken) {
-    // Xendit sends X-CALLBACK-TOKEN header, compare with configured token
-    // Implementation depends on Xendit webhook setup
-    return true; // Implement based on Xendit docs
+export function verifyXenditSignature(_payload, callbackToken) {
+    // Xendit mengirim header x-callback-token; bandingkan dengan token terkonfigurasi
+    const expected = config.xenditCallbackToken || process.env.XENDIT_CALLBACK_TOKEN;
+    if (!expected || !callbackToken) {
+        return false;
+    }
+    return callbackToken === expected;
 }
 export function mapXenditStatus(payload) {
     const { status } = payload;

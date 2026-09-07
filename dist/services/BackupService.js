@@ -62,7 +62,7 @@ export async function createFullBackup() {
         if (!mongoUri) {
             throw new Error('MONGO_URI not configured');
         }
-        const { stdout, stderr } = await execAsync(`mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`, { timeout: 300000 } // 5 min timeout
+        const { stderr } = await execAsync(`mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`, { timeout: 300000 } // 5 min timeout
         );
         if (stderr && !stderr.includes('done dumping')) {
             Logger.logSystem(`mongodump stderr: ${stderr}`, 'WARN');
@@ -113,7 +113,7 @@ export async function createIncrementalBackup() {
         }
         // For incremental, we could use oplog or just dump all (simplified)
         // In production, use mongodump with --oplog or change streams
-        const { stdout, stderr } = await execAsync(`mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`, { timeout: 300000 });
+        const { stderr } = await execAsync(`mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`, { timeout: 300000 });
         if (stderr && !stderr.includes('done dumping')) {
             Logger.logSystem(`mongodump stderr: ${stderr}`, 'WARN');
         }

@@ -101,7 +101,7 @@ export function registerSubscriptionHandlers(bot) {
         const userEmail = `${userId}@telegram.local`; // fallback
         const userPhone = getUserVar(userId, 'PHONE') || undefined;
         try {
-            const payment = await createPayment({
+            const _payment = await createPayment({
                 userId,
                 planId,
                 amount: plan.price,

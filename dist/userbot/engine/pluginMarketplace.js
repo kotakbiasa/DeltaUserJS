@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { Logger } from '../../utils/logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const pluginsDir = path.join(__dirname, '../handlers');
 const marketplaceDir = path.join(__dirname, '../../plugins_marketplace');
 const registryFile = path.join(marketplaceDir, 'registry.json');
 let registry = {};
@@ -169,21 +168,15 @@ export async function updatePlugin(name) {
     const backupDir = path.join(marketplaceDir, 'installed', `${name}.backup.${Date.now()}`);
     await mkdir(backupDir, { recursive: true });
     // Copy current files to backup (simplified)
-    try {
-        // Update manifest
-        installed.manifest = manifest;
-        installed.updatedAt = new Date().toISOString();
-        await writeFile(path.join(installed.localPath, 'manifest.json'), JSON.stringify(installed, null, 2));
-        // Update entry point file
-        const entryPointPath = path.join(installed.localPath, manifest.entryPoint);
-        await writeFile(entryPointPath, `// Plugin: ${manifest.name} v${manifest.version}\n// Updated: ${new Date().toISOString()}\n\nexport default {\n  name: '${manifest.name}',\n  help: {\n    title: '${manifest.name}',\n    description: '${manifest.description}',\n    usage: '',\n    detail: 'Updated from marketplace'\n  },\n  async execute() {}\n};\n`);
-        Logger.logSystem(`📦 Updated plugin: ${name} to v${manifest.version}`, 'SUCCESS');
-        return installed;
-    }
-    catch (err) {
-        // Restore from backup on failure
-        throw err;
-    }
+    // Update manifest
+    installed.manifest = manifest;
+    installed.updatedAt = new Date().toISOString();
+    await writeFile(path.join(installed.localPath, 'manifest.json'), JSON.stringify(installed, null, 2));
+    // Update entry point file
+    const entryPointPath = path.join(installed.localPath, manifest.entryPoint);
+    await writeFile(entryPointPath, `// Plugin: ${manifest.name} v${manifest.version}\n// Updated: ${new Date().toISOString()}\n\nexport default {\n  name: '${manifest.name}',\n  help: {\n    title: '${manifest.name}',\n    description: '${manifest.description}',\n    usage: '',\n    detail: 'Updated from marketplace'\n  },\n  async execute() {}\n};\n`);
+    Logger.logSystem(`📦 Updated plugin: ${name} to v${manifest.version}`, 'SUCCESS');
+    return installed;
 }
 /**
  * Remove installed plugin

@@ -1,23 +1,19 @@
-import { Bot, Context, CallbackQueryContext, CommandContext, InlineKeyboard } from 'grammy';
+import { Bot, Context, InlineKeyboard } from 'grammy';
 import config from '../../config.js';
 import { Logger } from '../../utils/logger.js';
-import { validate, gcastSchema } from '../../utils/validation.js';
 import {
   getActivePlans,
   getPlan,
   getUserSubscription,
   getUserPayments,
   initTrialSubscription,
-  activateSubscription,
   cancelAutoRenew,
-  cancelSubscription,
   createPayment,
   getSubscriptionStats,
   updatePaymentStatus,
 } from '../../services/SubscriptionService.js';
 import { handlePaymentWebhook, createPaymentViaGateway, generateOrderId } from '../../services/PaymentGateway.js';
 import { getUserVar } from '../../infrastructure/database.js';
-import { PaymentModel } from '../../infrastructure/subscriptionModels.js';
 
 const GRACE_PERIOD_DAYS = 3;
 
@@ -130,7 +126,7 @@ export function registerSubscriptionHandlers(bot: Bot) {
     const userPhone = getUserVar(userId, 'PHONE') || undefined;
 
     try {
-      const payment = await createPayment({
+      const _payment = await createPayment({
         userId,
         planId,
         amount: plan.price,

@@ -1,4 +1,4 @@
-import { Bot, Context, CommandContext, InlineKeyboard } from 'grammy';
+import { Bot, Context, InlineKeyboard } from 'grammy';
 import config from '../../config.js';
 import { Logger } from '../../utils/logger.js';
 import {

@@ -1,10 +1,9 @@
-import { readdir, stat, readFile, writeFile, mkdir, rm } from 'fs/promises';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { readdir, readFile, writeFile, mkdir, rm } from 'fs/promises';
+import { fileURLToPath } from 'url';
 import path from 'path';
 import { Logger } from '../../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const pluginsDir = path.join(__dirname, '../handlers');
 const marketplaceDir = path.join(__dirname, '../../plugins_marketplace');
 const registryFile = path.join(marketplaceDir, 'registry.json');
 
@@ -224,7 +223,6 @@ export async function updatePlugin(name: string): Promise<InstalledPlugin> {
   await mkdir(backupDir, { recursive: true });
   // Copy current files to backup (simplified)
 
-  try {
     // Update manifest
     installed.manifest = manifest;
     installed.updatedAt = new Date().toISOString();
@@ -237,10 +235,7 @@ export async function updatePlugin(name: string): Promise<InstalledPlugin> {
 
     Logger.logSystem(`📦 Updated plugin: ${name} to v${manifest.version}`, 'SUCCESS');
     return installed;
-  } catch (err) {
-    // Restore from backup on failure
-    throw err;
-  }
+
 }
 
 /**

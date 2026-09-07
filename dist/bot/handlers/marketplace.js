@@ -1,4 +1,4 @@
-import { InlineKeyboard } from 'grammy';
+import { InlineKeyboard, } from 'grammy';
 import config from '../../config.js';
 import { Logger } from '../../utils/logger.js';
 import { initPluginMarketplace, getRegistryPlugins, getInstalledPlugins, installPlugin, updatePlugin, removePlugin, searchRegistry, getMarketplaceInfo, validatePermissions, } from '../../userbot/engine/pluginMarketplace.js';

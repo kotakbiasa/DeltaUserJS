@@ -2,6 +2,7 @@ import { PlanModel, PaymentModel, SubscriptionModel, AuditLogModel, DEFAULT_PLAN
 import config from '../config.js';
 import { Logger } from '../utils/logger.js';
 import { UserbotModel } from '../infrastructure/dbCore.js';
+import { notifyUser, notifyOwner } from './notifyService.js';
 const GRACE_PERIOD_DAYS = 3;
 const TRIAL_PLAN_ID = 'trial';
 /**
@@ -202,8 +203,13 @@ export async function checkExpiredSubscriptions() {
     for (const sub of inGrace) {
         await SubscriptionModel.findByIdAndUpdate(sub._id, { status: 'grace' });
         await logAudit('subscription.grace_start', 'subscription', sub._id.toString(), { status: 'active' }, { status: 'grace' }, sub.userId);
-        // Notify user
-        // TODO: send notification via bot
+        // Notify user: masa grace berjalan (userbot masih aktif sampai grace habis)
+        const graceDays = sub.graceEndDate ? Math.max(1, Math.ceil((new Date(sub.graceEndDate).getTime() - now.getTime()) / 86400000)) : GRACE_PERIOD_DAYS;
+        await notifyUser(sub.userId, `⚠️ <b>Masa aktif userbot kamu sudah habis</b>\n\n` +
+            `<blockquote>Bot memasuki masa tenggang <b>${graceDays} hari</b>. ` +
+            `Perpanjang sekarang agar userbot tidak dinonaktifkan otomatis.</blockquote>\n\n` +
+            `Buka bot → Subscription untuk perpanjang.`);
+        await notifyOwner(`📢 Subscription <code>${sub._id}</code> masuk masa tenggang (user <code>${sub.userId}</code>).`);
     }
     // Find subscriptions past grace period -> hard expire
     const expired = await SubscriptionModel.find({
@@ -217,7 +223,12 @@ export async function checkExpiredSubscriptions() {
         await SubscriptionModel.findByIdAndUpdate(sub._id, { status: 'expired' });
         await updateUserbotExpiration(sub.userId, new Date()); // deactivate userbot
         await logAudit('subscription.expired', 'subscription', sub._id.toString(), { status: sub.status }, { status: 'expired' }, sub.userId);
-        // TODO: notify user
+        // Notify user: userbot dinonaktifkan otomatis
+        await notifyUser(sub.userId, `🚫 <b>Userbot kamu dinonaktifkan</b>\n\n` +
+            `<blockquote>Masa aktif dan masa tenggang sudah berakhir. ` +
+            `Perpanjang subscription untuk mengaktifkan kembali userbot kamu.</blockquote>\n\n` +
+            `Buka bot → Subscription untuk perpanjang.`);
+        await notifyOwner(`🚫 Subscription <code>${sub._id}</code> expired — userbot user <code>${sub.userId}</code> dinonaktifkan.`);
     }
     // Handle trial expired
     const trialExpired = await SubscriptionModel.find({
@@ -228,6 +239,12 @@ export async function checkExpiredSubscriptions() {
         await SubscriptionModel.findByIdAndUpdate(sub._id, { status: 'expired' });
         await updateUserbotExpiration(sub.userId, new Date());
         await logAudit('subscription.trial_expired', 'subscription', sub._id.toString(), { status: 'trial' }, { status: 'expired' }, sub.userId);
+        // Notify user: trial habis
+        await notifyUser(sub.userId, `⏰ <b>Trial userbot kamu berakhir</b>\n\n` +
+            `<blockquote>Masa trial sudah habis dan userbot dinonaktifkan. ` +
+            `Upgrade ke plan berbayar untuk melanjutkan.</blockquote>\n\n` +
+            `Buka bot → Subscription untuk upgrade.`);
+        await notifyOwner(`⏰ Trial <code>${sub._id}</code> expired (user <code>${sub.userId}</code>).`);
     }
     return { grace: inGrace.length, expired: expired.length, trialExpired: trialExpired.length };
 }

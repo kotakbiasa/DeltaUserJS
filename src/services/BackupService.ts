@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { mkdir, readdir, stat, rm, readFile, writeFile } from 'fs/promises';
+import { mkdir, rm, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Logger } from '../utils/logger.js';
@@ -82,7 +82,7 @@ export async function createFullBackup(): Promise<BackupInfo> {
       throw new Error('MONGO_URI not configured');
     }
 
-    const { stdout, stderr } = await execAsync(
+    const { stderr } = await execAsync(
       `mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`,
       { timeout: 300000 } // 5 min timeout
     );
@@ -145,7 +145,7 @@ export async function createIncrementalBackup(): Promise<BackupInfo> {
 
     // For incremental, we could use oplog or just dump all (simplified)
     // In production, use mongodump with --oplog or change streams
-    const { stdout, stderr } = await execAsync(
+    const { stderr } = await execAsync(
       `mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`,
       { timeout: 300000 }
     );
