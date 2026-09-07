@@ -59,8 +59,9 @@ export default {
                 throw new Error(`API brat gagal: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`);
             }
             await client.sendMessage(message.chatId, {
-                message: '',
+                message: `🎨 Brat: ${text.slice(0, 100)}`,
                 file: { source: buf, filename: 'brat.png' },
+                parseMode: 'html',
                 replyTo: message.replyToMsgId
             });
             try {

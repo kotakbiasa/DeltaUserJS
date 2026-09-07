@@ -57,8 +57,9 @@ export default {
       }
 
       await client.sendMessage(message.chatId, {
-        message: '',
+        message: `🎨 Brat: ${text.slice(0, 100)}`,
         file: { source: buf, filename: 'brat.png' },
+        parseMode: 'html',
         replyTo: message.replyToMsgId
       });
       try { await message.delete(); } catch (_e) { /* ignore */ }

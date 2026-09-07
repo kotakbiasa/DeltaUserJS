@@ -1,3 +1,4 @@
+import config from '../config.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { mkdir, rm, readFile, writeFile } from 'fs/promises';
@@ -58,7 +59,15 @@ export async function createFullBackup() {
     try {
         await mkdir(backupPath, { recursive: true });
         // Use mongodump for MongoDB backup
-        const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+        const baseUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+        if (!baseUri) {
+            throw new Error('MONGO_URI not configured');
+        }
+        // mongodump mengikuti DB di path URI, sedangkan mongoose eksplisit pakai config.dbName
+        // → pastikan URI menunjuk DB yang benar sebelum dump.
+        const mongoUri = baseUri.includes('?')
+            ? baseUri.replace(/(mongodb(?:\+srv)?:\/\/[^/]+)\/[^?]*(\?.*)/, `$1/${config.dbName}$2`)
+            : `${baseUri.replace(/\/$/, '')}/${config.dbName}`;
         if (!mongoUri) {
             throw new Error('MONGO_URI not configured');
         }
