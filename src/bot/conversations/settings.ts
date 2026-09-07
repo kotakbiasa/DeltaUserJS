@@ -18,7 +18,17 @@ async function waitForInput(conversation, ctx) {
   if (cbData === 'cancel' || cbData === 'cancel_reg') {
     try { await result.answerCallbackQuery('Dibatalkan.'); } catch (_e) { /* ignore: already answered */ }
     try { await result.deleteMessage(); } catch (_e) { /* ignore: already deleted */ }
-    await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Aksi dibatalkan.</blockquote>`);
+    // Info batal sementara: hilang sendiri setelah 30 detik
+    try {
+      const notice = await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b></blockquote>`);
+      const noticeId = notice?.message_id;
+      if (noticeId) {
+        const t = setTimeout(() => {
+          ctx.api.deleteMessage(ctx.chat?.id, noticeId).catch(() => { /* ignore */ });
+        }, 30_000);
+        if (typeof t.unref === 'function') {t.unref();}
+      }
+    } catch (_e) { /* ignore: notice optional */ }
     throw new Error('USER_CANCELLED');
   }
 
