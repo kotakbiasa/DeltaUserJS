@@ -92,10 +92,11 @@ export default {
   description: 'Streaming audio ke voice chat grup via tgcalls-js (WebRTC native).',
   help: {
     title: 'Voice Chat (.joinvc / .play)',
-    description: 'Join voice chat grup, streaming audio, atau cuma gabung VC.',
+    description: 'Join voice chat grup, streaming audio/video, atau cuma gabung VC.',
     usage:
       '• `.joinvc` — gabung voice chat (tanpa musik)\n' +
       '• `.play <url>` — streaming dari YouTube/tautan media (yt-dlp/ffmpeg)\n' +
+      '• `.play <url> --video` — streaming audio + video (720p)\n' +
       '• `.play /path/file.mp3` — streaming file lokal\n' +
       '• `.skip` — hentikan track, tetap di VC\n' +
       '• `.pause` / `.resume` / `.mute` / `.unmute`\n' +
@@ -103,7 +104,7 @@ export default {
       '• `.leavevc` — keluar dari VC',
     detail:
       'Perlu ffmpeg (dan yt-dlp untuk YouTube) di PATH. Grup harus punya voice chat aktif ' +
-      '(bot membuat otomatis bila kamu admin). Audio-only; video menyusul.',
+      '(bot membuat otomatis bila kamu admin). Flag --video: streaming video dari file/URL yang sama.',
   },
   onLoad: () => {
     Logger.logSystem('🎵 Plugin VC loaded (.joinvc/.play/.skip/.pause/.resume/.mute/.unmute/.vctime/.leavevc)', 'INFO');
@@ -156,26 +157,34 @@ export default {
           return;
         }
         case 'play': {
-          if (!args) {
+          const withVideo = /--video\b/i.test(args);
+          const cleanArgs = args.replace(/--video\b/i, '').trim();
+          if (!cleanArgs) {
             await message.edit({
-              text: `🎵 <b>PLAY</b>\n<blockquote>Penggunaan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.play /path/file.mp3</code></blockquote>`,
+              text: `🎵 <b>PLAY</b>\n<blockquote>Penggunaan:\n<code>.play https://youtube.com/watch?v=…</code> [auto video]\n<code>.play /path/file.mp4 --video</code> — paksa video\n<code>.play /path/file.mp3</code> — audio only</blockquote>`,
               parseMode: 'html',
             });
             return;
           }
           if (tg.isActive(chatId)) {
             await busy('Ganti track');
-            await tg.setSource(chatId, await toSource(args, tg));
+            await tg.setSource(chatId, await toSource(cleanArgs, tg));
             await message.edit({
-              text: `🎵 <b>VC</b>\n<blockquote>⏭ Ganti track: <i>${escapeHtml(args.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+              text: `🎵 <b>VC</b>\n<blockquote>⏭ Ganti track: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;
           }
           await busy('Joining voice chat');
-          await tg.join(chatId, await toSource(args, tg), { allowCreate: true });
+          // --video flag: stream video track from the same source (fase 2).
+          // Tanpa flag: audio-only (default aman untuk musik).
+          const source = await toSource(cleanArgs, tg);
+          await tg.join(chatId, source, {
+            allowCreate: true,
+            ...(withVideo ? { video: { width: 1280, height: 720, fps: 24 } } : {}),
+          });
           await message.edit({
-            text: `🎵 <b>VC</b>\n<blockquote>▶️ Streaming: <i>${escapeHtml(args.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 🔇 <code>.mute</code> • 👋 <code>.leavevc</code></blockquote>`,
+            text: `${withVideo ? '🎬' : '🎵'} <b>VC</b>\n<blockquote>▶️ Streaming: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON (720p)' : ''}\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
             parseMode: 'html',
           });
           return;
