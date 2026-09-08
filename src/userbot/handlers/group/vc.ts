@@ -122,6 +122,7 @@ async function getRtmpUrl(client: unknown, chatId: bigint): Promise<{ url: strin
     peer: chatId as never,
   })) as unknown as { url: string; key: string };
   // rtmps default port 443 works over TCP; 1935 is commonly blocked.
+  // NOTE: url already ends with "/s/" so the final URL is url + key (no extra slash).
   return { url: url.url.replace(':1935', ':443'), key: url.key };
 }
 
@@ -152,7 +153,8 @@ function spawnRtmpPush(
   } else {
     args.push('-vn');
   }
-  args.push('-f', 'flv', `rtmps://${rtmpUrl.replace(/^rtmps?:\/\//, '')}/${rtmpKey}`);
+  // url already ends with "/s/" — final URL is url + key (no extra slash).
+  args.push('-f', 'flv', `rtmps://${rtmpUrl.replace(/^rtmps?:\/\//, '')}${rtmpKey}`);
   const ff = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });
   ff.stderr?.on('data', () => { /* drain to avoid pipe backpressure */ });
   return ff;
