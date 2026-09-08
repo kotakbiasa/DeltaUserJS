@@ -38,6 +38,7 @@ async function getClient(client: unknown): Promise<{
   time: (chat: string | number | bigint) => Promise<number>;
   isActive: (chat: string | number | bigint) => boolean;
   resolveYouTube: (url: string) => Promise<string | null>;
+  joinIdle: (chat: string | number | bigint, opts?: unknown) => Promise<unknown>;
 }> {
   const key = 'shared';
   const existing = state.clients.get(key);
@@ -144,14 +145,12 @@ export default {
             return;
           }
           await busy('Joining voice chat');
-          // Infinite silent source: ffmpeg /dev/null would exit instantly and
-          // trigger the streamEnd auto-leave path.
-          await tg.join(chatId, {
-            kind: 'shell',
-            command: 'ffmpeg -f lavfi -i anullsrc=r=48000:cl=stereo -loglevel panic -f s16le -ac 2 -ar 48000 pipe:1',
-          }, { allowCreate: true });
+          // UDP-blocked VPS: RTC mode gets ICE-timeout-kicked in ~25s.
+          // Proven-stable idle mode: create an RTMP-stream call and join as a
+          // muted broadcaster with NO local sources (see skill note).
+          await tg.joinIdle(chatId, { allowCreate: true });
           await message.edit({
-            text: `🎧 <b>VC</b>\n<blockquote>✅ Masuk voice chat.\n▶️ Putar musik: <code>.play &lt;url&gt;</code>\n👋 Keluar: <code>.leavevc</code></blockquote>`,
+            text: `🎧 <b>VC</b>\n<blockquote>✅ Masuk voice chat.\n▶️ Putar musik: <code>.play &lt;url&gt;</code> (butuh UDP keluar)\n👋 Keluar: <code>.leavevc</code></blockquote>`,
             parseMode: 'html',
           });
           return;
