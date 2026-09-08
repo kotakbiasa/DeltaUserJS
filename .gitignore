@@ -16,3 +16,4 @@ test_*.js
 backups/
 session.json
 *.session
+dist
