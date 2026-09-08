@@ -144,7 +144,12 @@ export default {
             return;
           }
           await busy('Joining voice chat');
-          await tg.join(chatId, { kind: 'file', path: '/dev/null' }, { allowCreate: true });
+          // Infinite silent source: ffmpeg /dev/null would exit instantly and
+          // trigger the streamEnd auto-leave path.
+          await tg.join(chatId, {
+            kind: 'shell',
+            command: 'ffmpeg -f lavfi -i anullsrc=r=48000:cl=stereo -loglevel panic -f s16le -ac 2 -ar 48000 pipe:1',
+          }, { allowCreate: true });
           await message.edit({
             text: `🎧 <b>VC</b>\n<blockquote>✅ Masuk voice chat.\n▶️ Putar musik: <code>.play &lt;url&gt;</code>\n👋 Keluar: <code>.leavevc</code></blockquote>`,
             parseMode: 'html',
