@@ -40,19 +40,18 @@ interface DraftApi {
     chatId: number,
     draftId: number,
     richMessage: { html: string },
-    other?: { can_stop?: boolean; keep_on_stop?: boolean },
   ) => Promise<unknown>;
 }
 
 /**
  * Kirim satu update draft via Bot API native (grammY 1.46+, Bot API 10.3).
- * can_stop: true → user melihat tombol Stop resmi Telegram (stopped_message_generation).
+ * Polos: tanpa tombol Stop (can_stop tidak dipakai, sesuai preferensi user).
  * Draft gagal tidak melempar error — finalize tetap mengirim pesan penuh.
  */
 async function draftPost(api: DraftApi, chatId: number, draftId: number, html: string): Promise<void> {
   if (typeof api.sendRichMessageDraft !== 'function') {return;}
   try {
-    await api.sendRichMessageDraft(chatId, draftId, { html }, { can_stop: true, keep_on_stop: false });
+    await api.sendRichMessageDraft(chatId, draftId, { html });
   } catch {
     // biarkan finalize yang menampilkan pesan
   }
