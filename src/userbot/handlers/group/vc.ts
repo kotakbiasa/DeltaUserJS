@@ -101,24 +101,32 @@ async function toSource(
 
 // ------------------------------------------------------------ RTMP mode
 
-/** Get (or lazily create) the RTMP livestream call for this chat. */
+/** Get a FRESH RTMP key for this chat. Empirically (9 Sep 2026): the RTMP key
+ * is one-shot per call session — after a publish ends, the key is dead even
+ * if the call object still exists. So every .play must discard the old call
+ * and create a brand-new rtmpStream call. */
 async function getRtmpUrl(client: unknown, chatId: bigint): Promise<{ url: string; key: string }> {
   const invoker = client as unknown as {
     invoke: (r: unknown) => Promise<never>;
   };
-  // Ensure a live call exists (rtmpStream calls provide the RTMP URL).
+  // Discard any existing call — its RTMP key is already burnt.
   const full = await invoker.invoke(new Api.channels.GetFullChannel({ channel: chatId as never })) as {
     fullChat?: { call?: unknown };
   };
-  if (!full.fullChat?.call) {
-    await invoker.invoke(new Api.phone.CreateGroupCall({
-      peer: chatId as never,
-      randomId: Math.floor(Math.random() * 2 ** 31),
-      title: 'Live',
-      rtmpStream: true,
+  if (full.fullChat?.call) {
+    await invoker.invoke(new Api.phone.DiscardGroupCall({
+      call: full.fullChat.call as never,
     }));
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1500));
   }
+  // Create a brand-new livestream call (fresh RTMP key).
+  await invoker.invoke(new Api.phone.CreateGroupCall({
+    peer: chatId as never,
+    randomId: Math.floor(Math.random() * 2 ** 31),
+    title: 'Live',
+    rtmpStream: true,
+  }));
+  await new Promise((r) => setTimeout(r, 2000));
   const url = await invoker.invoke(new Api.phone.GetGroupCallStreamRtmpUrl({
     peer: chatId as never,
   })) as unknown as { url: string; key: string };
