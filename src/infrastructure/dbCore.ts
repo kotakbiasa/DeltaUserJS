@@ -59,6 +59,7 @@ const userbotSchema = new mongoose.Schema({
   auto_read: { type: Number, default: 0 },
   auto_reply: { type: Number, default: 0 },
   anti_pm: { type: Number, default: 0 },
+  stream_mode: { type: Number, default: 0 }, // 0=off, 1=full instant, 2=per-kata
   afk_reason: { type: String, default: DEFAULT_AFK_REASON },
   expired_at: Date,
   created_at: { type: Date, default: Date.now },

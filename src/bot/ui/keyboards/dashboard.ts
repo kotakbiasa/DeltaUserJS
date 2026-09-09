@@ -123,10 +123,13 @@ export function panelUserbot(ctx) {
   const running = userbotManager.isRunning(ctx.from.id);
   const botName = session?.custom_name || ctx.me?.first_name || 'Bot';
 
+  const streamLabel = (session?.stream_mode || 0) === 1 ? '⚡ Full Instant'
+    : (session?.stream_mode || 0) === 2 ? '🎬 Per Kata' : '⭕ OFF';
   const featureRows = [
     ['Koneksi', running ? '🟢 Online' : '🔴 Offline'],
     ['Anti-PM', badge(session?.anti_pm === 1, '🟢 ON', '🔴 OFF')],
     ['AFK / Auto-Reply', badge(session?.auto_reply === 1, '🟢 ON', '🔴 OFF')],
+    ['Streaming Teks', streamLabel],
   ];
 
   const sessionRows = [
@@ -393,12 +396,16 @@ export function keyboardPanelMenu(ctx) {
 
 export function keyboardUserbot(ctx) {
   const isRunning = userbotManager.isRunning(ctx.from.id);
+  const session = getUserbotSession(ctx.from.id);
+  const mode = Number(session?.stream_mode || 0);
+  const streamLabel = mode === 1 ? '⚡ Full Instant' : mode === 2 ? '🎬 Per Kata' : '⭕ OFF';
   return { inline_keyboard: [
     [{ text: isRunning ? '🔌 Matikan Bot' : '⚡ Hidupkan Bot', callback_data: 'rich:toggle_power', style: isRunning ? 'danger' : 'success' }],
     [
       { text: '🧩 Plugin', callback_data: 'rich:plugin_page:1' },
       { text: '⚙️ Settings', callback_data: 'rich:settings' },
     ],
+    [{ text: `🎬 Streaming: ${streamLabel}`, callback_data: 'rich:toggle_stream', style: mode > 0 ? 'success' : 'danger' }],
     [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
@@ -695,6 +702,16 @@ export function registerRichHandlers(bot) {
 
       await disablePlugin(ctx.from.id, pluginName);
       return openPluginStudio(ctx, page, pluginNotice(pluginName, false));
+    }
+
+    if (action === 'toggle_stream') {
+      const session = getUserbotSession(ctx.from.id);
+      if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
+      const next = ((session.stream_mode || 0) + 1) % 3; // 0 off -> 1 full -> 2 per-kata -> 0
+      await updateUserbotFeature(ctx.from.id, 'stream_mode', next);
+      const label = next === 1 ? 'Full Instant' : next === 2 ? 'Per Kata' : 'OFF';
+      await ctx.answerCallbackQuery(`Streaming Teks: ${label}`);
+      return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { deleteOld: true });
     }
 
     if (action === 'settings') {return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx), { deleteOld: true });}
