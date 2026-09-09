@@ -24,14 +24,7 @@ import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
 
-// Bot API lokal (docker telegram-bot-api 10.x) — WAJIB untuk fitur Rich Message
-// (sendRichMessage/sendRichMessageDraft tidak ada di api.telegram.org publik).
-// Polling getUpdates ikut lewat sini → semua update dikonsisten via satu server.
-const bot = new Bot(config.botToken, {
-  client: {
-    apiRoot: process.env.BOT_API_URL || 'http://127.0.0.1:8081',
-  },
-});
+const bot = new Bot(config.botToken);
 
 // --- Manual sequentialize implementation (no extra deps) ---
 // Maps key -> Promise<void> that resolves when the current update finishes.
