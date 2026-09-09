@@ -1,5 +1,6 @@
 import { Api } from 'teleproto';
 import { spawn, type ChildProcess } from 'child_process';
+import fs from 'node:fs';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -160,6 +161,52 @@ function spawnRtmpPush(
   return ff;
 }
 
+// ------------------------------------------------------- Telegram media
+
+/**
+ * Download a replied/quoted Telegram media message to /tmp and return the
+ * local path. Supports audio, video, voice, document. Returns null when the
+ * message has no downloadable media.
+ */
+async function downloadTgMedia(
+  client: unknown,
+  replyMsg: unknown,
+): Promise<{ path: string; cleanup: () => void } | null> {
+  const m = replyMsg as {
+    audio?: unknown;
+    video?: unknown;
+    voice?: unknown;
+    videoNote?: unknown;
+    document?: unknown;
+  };
+  const hasMedia = Boolean(m?.audio || m?.video || m?.voice || m?.videoNote || m?.document);
+  if (!hasMedia) {return null;}
+  const downloader = client as unknown as {
+    downloadMedia: (handle: unknown, opts?: unknown) => Promise<string | Buffer | undefined>;
+  };
+  const tmpPath = `/tmp/vcplay-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const saved = await downloader.downloadMedia(replyMsg, { filePath: tmpPath });
+  if (typeof saved !== 'string') {
+    // Buffer fallback: write manually
+    if (Buffer.isBuffer(saved)) {
+      fs.writeFileSync(tmpPath, saved);
+    } else {
+      return null;
+    }
+  }
+  return { path: tmpPath, cleanup: () => fs.unlink(tmpPath, () => {}) };
+}
+
+/** Infer media kind for nicer titles. */
+function mediaLabel(replyMsg: unknown): string {
+  const m = replyMsg as { audio?: { title?: string }; video?: unknown; voice?: unknown; document?: { fileName?: string } };
+  if (m?.audio?.title) {return m.audio.title;}
+  if (m?.video) {return 'video';}
+  if (m?.voice) {return 'voice';}
+  if (m?.document?.fileName) {return m.document.fileName;}
+  return 'media';
+}
+
 export default {
   name: 'vc',
   version: '2.0.0',
@@ -172,6 +219,7 @@ export default {
       '• `.play <url>` — streaming musik dari YouTube/tautan\n' +
       '• `.play <url> --video` — audio+video livestream (720p)\n' +
       '• `.play /path/file.mp3` — file lokal\n' +
+      '• Reply media (lagu/video/voice) + `.play` — putar media Telegram\n' +
       '• `.skip` — hentikan track\n' +
       '• `.pause` / `.resume` / `.vctime` — kontrol\n' +
       '• `.vcmode` — mode streaming aktif (RTC/RTMP)\n' +
@@ -242,9 +290,41 @@ export default {
         case 'play': {
           const withVideo = /--video\b/i.test(args);
           const cleanArgs = args.replace(/--video\b/i, '').trim();
+
+          // Reply mode: `.play` (or `.play --video`) replying to a media message.
           if (!cleanArgs) {
+            let replyMsg: unknown = null;
+            try {
+              replyMsg = await (message as unknown as { getReplyMessage: () => Promise<unknown> }).getReplyMessage();
+            } catch (_e) {replyMsg = null;}
+            const dl = replyMsg ? await downloadTgMedia(client, replyMsg) : null;
+            if (dl === null) {
+              await message.edit({
+                text: `🎵 <b>PLAY</b>\n<blockquote>Penggunaan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.play <url> --video</code> — audio+video livestream\n<code>.play /path/file.mp3</code> — file lokal\nAtau <b>reply</b> media (audio/video/voice/dokumen) dengan <code>.play</code></blockquote>`,
+                parseMode: 'html',
+              });
+              return;
+            }
+            // Telegram media path — always RTMP (works on UDP-blocked hosts).
+            await busy('Downloading media');
+            const label = mediaLabel(replyMsg);
+            const { url, key } = await getRtmpUrl(client, asBigIntChat(chatId));
+            const ff = spawnRtmpPush(undefined, dl.path, url, key, withVideo);
+            ff.on('close', () => {dl.cleanup();});
+            ff.on('error', () => {dl.cleanup();});
+            await new Promise((r) => setTimeout(r, 4000));
+            if (ff.exitCode !== null) {
+              dl.cleanup();
+              throw new Error('ffmpeg gagal start (media tidak bisa dibaca)');
+            }
+            state.rtmpStreams.set(rtmpKey, {
+              ffmpeg: ff,
+              chatId: asBigIntChat(chatId),
+              startedAt: Date.now(),
+              title: label,
+            });
             await message.edit({
-              text: `🎵 <b>PLAY</b>\n<blockquote>Penggunaan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.play <url> --video</code> — audio+video livestream\n<code>.play /path/file.mp3</code> — file lokal</blockquote>`,
+              text: `📺 <b>LIVE</b>\n<blockquote>🔴 Streaming media Telegram: <i>${escapeHtml(label.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON (720p)' : '\n🎵 Audio only'}\n⏹ Stop: <code>.skip</code> / <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;
