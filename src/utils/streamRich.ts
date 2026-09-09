@@ -1,16 +1,23 @@
 /**
- * Streaming rich message helper — teks live ala ChatGPT di chat userbot.
+ * Streaming rich message helper — teks live ala ChatGPT untuk DASHBOARD BOT.
  *
- * Mode (dari setting `stream_mode` sesi userbot, dikelola via Dashboard):
- *   0 = off      → kirim langsung (replyRich biasa)
+ * PENTING: fitur ini untuk panel dashboard (@PanelDeltaUbot), BUKAN untuk
+ * plugin userbot (keputusan user, Sep 2026). Dipanggil dari sendRich() di
+ * dashboard.ts saat panel dikirim sebagai pesan BARU (bukan edit in-place).
+ *
+ * Mode (dari field `stream_mode` sesi userbot, toggle di Panel Userbot):
+ *   0 = off      → kirim langsung
  *   1 = full     → placeholder sesaat (▌) → seluruh teks muncul sekaligus
  *   2 = per-kata → teks muncul bertahap kata demi kata + cursor ▌
  *
- * Catatan lapangan (field-tested Sep 2026):
- * - Telegram membatasi draft update ±1 req/detik per chat → mode per-kata pakai delay 1.05s
- * - 429 ditangani dengan retry_after otomatis
- * - Draft hanya untuk chat privat (chat_id integer) — grup otomatis fallback kirim langsung
- * - Draft window ~30 detik; finalize wajib sebelum window habis
+ * Mekanisme:
+ * - Draft update via raw fetch ke Bot API lokal (sendRichMessageDraft).
+ *   Draft tidak memuat tombol → tidak butuh style middleware.
+ * - Pesan FINAL dikirim lewat closure finalSend() yang memakai ctx.api
+ *   (grammy) → tg-button style tetap diproses middleware dashboard.
+ * - Telegram membatasi draft ±1 req/detik → per-kata adaptif maks ±18
+ *   update agar tidak melebihi draft window ~30 detik; 429 di-retry.
+ * - Draft hanya jalan di chat privat (chat_id integer); selain itu langsung final.
  *
  * @module utils/streamRich
  */
@@ -18,130 +25,116 @@
 const DRAFT_BASE = process.env.BOT_API_URL || 'http://127.0.0.1:8081';
 const DRAFT_DELAY_MS = 1050;
 
-function botToken() {
+function botToken(): string {
   return process.env.BOT_TOKEN || '';
 }
 
-interface StreamOpts {
-  mode?: number;
-  replyTo?: number;
-}
-
-async function post(method: string, payload: Record<string, unknown>) {
-  const res = await fetch(`${DRAFT_BASE}/bot${botToken()}/${method}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(15000),
-  });
-  const data = await res.json().catch(() => ({}) as Record<string, unknown>);
-  if (!res.ok) {
-    const err = new Error(String(data.description || `HTTP ${res.status}`)) as Error & { retryAfter?: number };
-    err.retryAfter = (data.parameters as { retry_after?: number } | undefined)?.retry_after;
-    throw err;
-  }
-  return data;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 let draftCounter = 0;
-function nextDraftId() {
+function nextDraftId(): number {
   draftCounter = (draftCounter + 1) % 900000;
   return 100000 + draftCounter;
 }
 
-async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+interface DraftError extends Error {
+  retryAfter?: number;
 }
 
-async function draftUpdate(chatId, draftId, html) {
+async function draftPost(chatId: number, draftId: number, html: string): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      return await post('sendRichMessageDraft', {
-        chat_id: chatId,
-        draft_id: draftId,
-        rich_message: { html },
+      const res = await fetch(`${DRAFT_BASE}/bot${botToken()}/sendRichMessageDraft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, draft_id: draftId, rich_message: { html } }),
+        signal: AbortSignal.timeout(15000),
       });
+      const data = (await res.json().catch(() => ({}))) as {
+        description?: string;
+        parameters?: { retry_after?: number };
+      };
+      if (res.ok) {return;}
+      const err: DraftError = new Error(String(data.description || `HTTP ${res.status}`));
+      err.retryAfter = data.parameters?.retry_after;
+      throw err;
     } catch (err) {
-      const wait = (err.retryAfter || 1.2) * 1000;
-      if (attempt === 2) {throw err;}
-      await sleep(wait);
+      if (attempt === 2) {return;} // draft gagal → biarkan finalize yang menampilkan pesan
+      await sleep(((err as DraftError).retryAfter || 1.2) * 1000);
     }
   }
-  return null;
 }
 
 /**
- * Kirim pesan rich dengan efek streaming sesuai stream_mode.
- * @param {object} clientGrammy grammy ctx.api atau bot.api (harus punya sendRichMessage/editMessageText via Bot API lokal)
- * @param {number} chatId ID chat target (harus privat utk efek draft; grup → langsung final)
- * @param {string} html konten rich HTML final
- * @param {object} opts { mode: 0|1|2, replyTo?: number }
- * @returns {Promise<object>} pesan final terkirim
+ * Kirim pesan rich dengan efek streaming sesuai mode.
+ * @param finalSend closure yang mengirim pesan final (harus lewat ctx.api agar style tg-button diproses)
+ * @param chatId target chat
+ * @param html konten rich HTML final (untuk streaming per-kata)
+ * @param opts { mode: 0|1|2 }
  */
-export async function sendWithStreamEffect(api: { sendRichMessage: Function }, chatId: number, html: string, opts: StreamOpts = {}) {
+export async function sendWithStreamEffect(
+  finalSend: () => Promise<unknown>,
+  chatId: number,
+  html: string,
+  opts: { mode?: number } = {},
+): Promise<unknown> {
   const mode = Number(opts.mode || 0);
   const isPrivate = Number.isInteger(chatId) && chatId > 0;
-  const extra = opts.replyTo ? { reply_to_message_id: opts.replyTo } : {};
-
-  // Mode off / grup / bukan chat pribadi → langsung final
-  if (mode === 0 || !isPrivate) {
-    return api.sendRichMessage(chatId, { html }, extra);
-  }
+  if (mode === 0 || !isPrivate) {return finalSend();}
 
   const draftId = nextDraftId();
 
   if (mode === 1) {
-    // ⚡ Full instant: placeholder sesaat → finalize full
-    await draftUpdate(chatId, draftId, '<blockquote>▌</blockquote>').catch(() => {});
+    // ⚡ Full instant: placeholder sesaat → finalize full text
+    await draftPost(chatId, draftId, '<blockquote>▌</blockquote>');
     await sleep(900);
-    return api.sendRichMessage(chatId, { html }, extra);
+    return finalSend();
   }
 
-  // 🎬 Per-kata: buang tag HTML untuk hitung kata, kirim progres tiap ±1 detik
-  const tokens = html.split(/(<[^>]+>)/g);
-  let plainAccum = '';
-  const words = [];
+  // 🎬 Per-kata: pecah HTML pada batas tag/kata, stream adaptif ≤18 update
+  const tokens = html.split(/(<[^>]*>)/g).filter((t) => t.length > 0);
+  type Piece = { type: 'tag' | 'word' | 'space'; value: string };
+  const pieces: Piece[] = [];
   for (const tok of tokens) {
-    if (tok.startsWith('<')) {plainAccum += tok; continue;}
+    if (tok.startsWith('<')) {
+      pieces.push({ type: 'tag', value: tok });
+      continue;
+    }
     for (const w of tok.split(/(\s+)/)) {
-      if (w.trim()) {words.push({ text: w, sep: ' ' });}
-      else if (w) {words.push({ text: '', sep: w });}
+      if (!w) {continue;}
+      pieces.push(/^\s+$/.test(w) ? { type: 'space', value: w } : { type: 'word', value: w });
     }
   }
-  if (words.length <= 3) {
-    return api.sendRichMessage(chatId, { html }, extra);
-  }
+  const totalWords = pieces.filter((p) => p.type === 'word').length;
+  if (totalWords <= 3) {return finalSend();}
 
+  const step = Math.max(1, Math.ceil(totalWords / 18));
   let htmlAccum = '';
-  let plainCount = 0;
-  const totalPlain = words.filter((w) => w.text).length;
-  let lastSent = 0;
+  let wordCount = 0;
+  let sinceUpdate = 0;
 
-  await draftUpdate(chatId, draftId, '<blockquote>▌</blockquote>').catch(() => {});
+  await draftPost(chatId, draftId, '<blockquote>▌</blockquote>');
   await sleep(DRAFT_DELAY_MS);
 
-  for (const word of words) {
-    if (word.text) {
-      htmlAccum += (htmlAccum && !htmlAccum.endsWith('>') && !htmlAccum.endsWith(' ') ? ' ' : '') + word.text;
-      plainCount++;
-    } else {
-      htmlAccum += word.sep;
+  for (const piece of pieces) {
+    htmlAccum += piece.value;
+    if (piece.type === 'word') {
+      wordCount++;
+      sinceUpdate++;
     }
-    // Tag penutup yng menempel di akhir teks akan ikut di finalize; cukup teks plain untuk draft
-    if (plainCount - lastSent >= Math.max(1, Math.ceil(totalPlain / 25)) || plainCount === totalPlain) {
-      await draftUpdate(chatId, draftId, `${htmlAccum} ▌`).catch(() => { /* ignore */ });
-      lastSent = plainCount;
-      await sleep(DRAFT_DELAY_MS);
+    if (sinceUpdate >= step || (piece.type === 'word' && wordCount === totalWords)) {
+      await draftPost(chatId, draftId, `${htmlAccum} ▌`);
+      sinceUpdate = 0;
+      if (wordCount < totalWords) {await sleep(DRAFT_DELAY_MS);}
     }
   }
 
-  return api.sendRichMessage(chatId, { html }, extra);
+  return finalSend();
 }
 
-/**
- * Baca stream_mode dari settings sesi userbot.
- * @param {object} session objek sesi dari getUserbotSession
- */
+/** Baca stream_mode dari sesi userbot (0=off, 1=full, 2=per-kata). */
 export function streamModeOf(session: { stream_mode?: number } | null | undefined): number {
   return Number(session?.stream_mode || 0);
 }

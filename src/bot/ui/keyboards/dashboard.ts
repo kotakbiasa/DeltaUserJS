@@ -5,6 +5,7 @@
 import { Api } from 'teleproto';
 import config from '../../../config.js';
 import { replyRich, escapeHtml } from '../../../utils/richMessage.js';
+import { sendWithStreamEffect, streamModeOf } from '../../../utils/streamRich.js';
 import { Logger } from '../../../utils/logger.js';
 import {
   getUserbotSession,
@@ -548,8 +549,17 @@ async function sendRich(ctx, rich, reply_markup, { deleteOld = false, edit = tru
       // fallback: kirim pesan baru di bawah
     }
   }
+  // Efek streaming (draft) hanya untuk pengiriman pesan BARU di chat privat,
+  // sesuai stream_mode yang di-toggle di Panel Userbot. Edit in-place tidak perlu efek.
+  const chatId = ctx.chat?.id;
+  const mode = streamModeOf(getUserbotSession(ctx.from?.id));
+  const doSend = () => ctx.replyWithRichMessage(rich_message, { reply_markup });
   try {
-    await ctx.replyWithRichMessage(rich_message, { reply_markup });
+    if (chatId && mode > 0 && typeof chatId === 'number' && chatId > 0) {
+      await sendWithStreamEffect(doSend, chatId, typeof rich_message === 'object' && 'html' in rich_message && typeof rich_message.html === 'string' ? rich_message.html : '', { mode });
+    } else {
+      await doSend();
+    }
     if (deleteOld) {
       try { await ctx.deleteMessage(); } catch (_) { /* empty */ }
     }
