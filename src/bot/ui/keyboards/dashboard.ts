@@ -130,7 +130,7 @@ export function panelUserbot(ctx) {
     ['Koneksi', running ? '🟢 Online' : '🔴 Offline'],
     ['Anti-PM', badge(session?.anti_pm === 1, '🟢 ON', '🔴 OFF')],
     ['AFK / Auto-Reply', badge(session?.auto_reply === 1, '🟢 ON', '🔴 OFF')],
-    ['Streaming Teks', streamLabel],
+    ['Stream Mode', streamLabel],
   ];
 
   const sessionRows = [
@@ -406,7 +406,7 @@ export function keyboardUserbot(ctx) {
       { text: '🧩 Plugin', callback_data: 'rich:plugin_page:1' },
       { text: '⚙️ Settings', callback_data: 'rich:settings' },
     ],
-    [{ text: `🎬 Streaming: ${streamLabel}`, callback_data: 'rich:toggle_stream', style: mode > 0 ? 'success' : 'danger' }],
+    [{ text: `🎬 Stream: ${streamLabel}`, callback_data: 'rich:toggle_stream', style: mode > 0 ? 'success' : 'danger' }],
     [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
@@ -556,7 +556,7 @@ async function sendRich(ctx, rich, reply_markup, { deleteOld = false, edit = tru
   const doSend = () => ctx.replyWithRichMessage(rich_message, { reply_markup });
   try {
     if (chatId && mode > 0 && typeof chatId === 'number' && chatId > 0) {
-      await sendWithStreamEffect(doSend, chatId, typeof rich_message === 'object' && 'html' in rich_message && typeof rich_message.html === 'string' ? rich_message.html : '', { mode });
+      await sendWithStreamEffect(doSend, ctx.api, chatId, typeof rich_message === 'object' && 'html' in rich_message && typeof rich_message.html === 'string' ? rich_message.html : '', { mode });
     } else {
       await doSend();
     }
@@ -720,7 +720,7 @@ export function registerRichHandlers(bot) {
       const next = ((session.stream_mode || 0) + 1) % 3; // 0 off -> 1 full -> 2 per-kata -> 0
       await updateUserbotFeature(ctx.from.id, 'stream_mode', next);
       const label = next === 1 ? 'Full Instant' : next === 2 ? 'Per Kata' : 'OFF';
-      await ctx.answerCallbackQuery(`Streaming Teks: ${label}`);
+      await ctx.answerCallbackQuery(`Stream Mode: ${label}`);
       return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { deleteOld: true });
     }
 

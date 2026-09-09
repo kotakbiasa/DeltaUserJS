@@ -22,12 +22,7 @@
  * @module utils/streamRich
  */
 
-const DRAFT_BASE = process.env.BOT_API_URL || 'http://127.0.0.1:8081';
 const DRAFT_DELAY_MS = 1050;
-
-function botToken(): string {
-  return process.env.BOT_TOKEN || '';
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,31 +34,27 @@ function nextDraftId(): number {
   return 100000 + draftCounter;
 }
 
-interface DraftError extends Error {
-  retryAfter?: number;
+/** Minimal Api shape (grammy ctx.api / bot.api) yang dipakai helper. */
+interface DraftApi {
+  sendRichMessageDraft?: (
+    chatId: number,
+    draftId: number,
+    richMessage: { html: string },
+    other?: { can_stop?: boolean; keep_on_stop?: boolean },
+  ) => Promise<unknown>;
 }
 
-async function draftPost(chatId: number, draftId: number, html: string): Promise<void> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const res = await fetch(`${DRAFT_BASE}/bot${botToken()}/sendRichMessageDraft`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, draft_id: draftId, rich_message: { html } }),
-        signal: AbortSignal.timeout(15000),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        description?: string;
-        parameters?: { retry_after?: number };
-      };
-      if (res.ok) {return;}
-      const err: DraftError = new Error(String(data.description || `HTTP ${res.status}`));
-      err.retryAfter = data.parameters?.retry_after;
-      throw err;
-    } catch (err) {
-      if (attempt === 2) {return;} // draft gagal → biarkan finalize yang menampilkan pesan
-      await sleep(((err as DraftError).retryAfter || 1.2) * 1000);
-    }
+/**
+ * Kirim satu update draft via Bot API native (grammY 1.46+, Bot API 10.3).
+ * can_stop: true → user melihat tombol Stop resmi Telegram (stopped_message_generation).
+ * Draft gagal tidak melempar error — finalize tetap mengirim pesan penuh.
+ */
+async function draftPost(api: DraftApi, chatId: number, draftId: number, html: string): Promise<void> {
+  if (typeof api.sendRichMessageDraft !== 'function') {return;}
+  try {
+    await api.sendRichMessageDraft(chatId, draftId, { html }, { can_stop: true, keep_on_stop: false });
+  } catch {
+    // biarkan finalize yang menampilkan pesan
   }
 }
 
@@ -76,19 +67,20 @@ async function draftPost(chatId: number, draftId: number, html: string): Promise
  */
 export async function sendWithStreamEffect(
   finalSend: () => Promise<unknown>,
+  api: DraftApi,
   chatId: number,
   html: string,
   opts: { mode?: number } = {},
 ): Promise<unknown> {
   const mode = Number(opts.mode || 0);
   const isPrivate = Number.isInteger(chatId) && chatId > 0;
-  if (mode === 0 || !isPrivate) {return finalSend();}
+  if (mode === 0 || !isPrivate || typeof api.sendRichMessageDraft !== 'function') {return finalSend();}
 
   const draftId = nextDraftId();
 
   if (mode === 1) {
     // ⚡ Full instant: placeholder sesaat → finalize full text
-    await draftPost(chatId, draftId, '<blockquote>▌</blockquote>');
+    await draftPost(api, chatId, draftId, '<blockquote>▌</blockquote>');
     await sleep(900);
     return finalSend();
   }
@@ -115,7 +107,7 @@ export async function sendWithStreamEffect(
   let wordCount = 0;
   let sinceUpdate = 0;
 
-  await draftPost(chatId, draftId, '<blockquote>▌</blockquote>');
+  await draftPost(api, chatId, draftId, '<blockquote>▌</blockquote>');
   await sleep(DRAFT_DELAY_MS);
 
   for (const piece of pieces) {
@@ -125,7 +117,7 @@ export async function sendWithStreamEffect(
       sinceUpdate++;
     }
     if (sinceUpdate >= step || (piece.type === 'word' && wordCount === totalWords)) {
-      await draftPost(chatId, draftId, `${htmlAccum} ▌`);
+      await draftPost(api, chatId, draftId, `${htmlAccum} ▌`);
       sinceUpdate = 0;
       if (wordCount < totalWords) {await sleep(DRAFT_DELAY_MS);}
     }
