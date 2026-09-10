@@ -26,6 +26,28 @@ const MAX_HISTORY = 50;
 const HISTORY_FILE = path.join(__dirname, '../../backups/history.json');
 
 /**
+ * Ganti nama database di path URI dengan config.dbName (DB yang benar-benar dipakai mongoose).
+ * - `mongodb://host:port/lama?opts` → `mongodb://host:port/DeltaUbotJS?opts`
+ * - `mongodb://host:port`           → `mongodb://host:port/DeltaUbotJS`
+ * - `mongodb+srv://user:pass@host`  → `mongodb+srv://user:pass@host/DeltaUbotJS`
+ */
+function resolveMongoDatabaseUri(uri: string): string {
+  const db = config.dbName;
+  // Pisahkan query string (opsi koneksi) supaya tidak ikut terpotong.
+  const [main, query] = uri.split('?');
+  const suffix = query ? `?${query}` : '';
+  // Otentikasi: mongodb://user:pass@host — ambil bagian setelah '@' terakhir.
+  const authMatch = main.match(/^(mongodb(?:\+srv)?:\/\/)(?:[^@/]*@)?(.*)$/);
+  if (!authMatch) {
+    return `${main.replace(/\/+$/, '')}${suffix}`;
+  }
+  const [, scheme, hostAndPath] = authMatch;
+  const authPart = main.slice(scheme.length, main.length - hostAndPath.length);
+  const host = hostAndPath.split('/')[0];
+  return `${scheme}${authPart}${host}/${db}${suffix}`;
+}
+
+/**
  * Initialize backup system
  */
 export async function initBackupSystem() {
@@ -77,19 +99,14 @@ export async function createFullBackup(): Promise<BackupInfo> {
   try {
     await mkdir(backupPath, { recursive: true });
 
-    // Use mongodump for MongoDB backup
+    // mongodump mengikuti nama DB di path URI, sedangkan mongoose eksplisit pakai config.dbName.
+    // Penting: path URI HARUS DIGANTI, bukan ditambahi — `host/deltauserjs/DeltaUbotJS`
+    // bukan nama DB yang valid (mongodump: InvalidNamespace).
     const baseUri = process.env.MONGO_URI || process.env.MONGODB_URI;
     if (!baseUri) {
       throw new Error('MONGO_URI not configured');
     }
-    // mongodump mengikuti DB di path URI, sedangkan mongoose eksplisit pakai config.dbName
-    // → pastikan URI menunjuk DB yang benar sebelum dump.
-    const mongoUri = baseUri.includes('?')
-      ? baseUri.replace(/(mongodb(?:\+srv)?:\/\/[^/]+)\/[^?]*(\?.*)/, `$1/${config.dbName}$2`)
-      : `${baseUri.replace(/\/$/, '')}/${config.dbName}`;
-    if (!mongoUri) {
-      throw new Error('MONGO_URI not configured');
-    }
+    const mongoUri = resolveMongoDatabaseUri(baseUri);
 
     const { stderr } = await execAsync(
       `mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`,
@@ -147,10 +164,13 @@ export async function createIncrementalBackup(): Promise<BackupInfo> {
   try {
     await mkdir(backupPath, { recursive: true });
 
-    const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-    if (!mongoUri) {
+    const baseUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+    if (!baseUri) {
       throw new Error('MONGO_URI not configured');
     }
+    // Sama seperti full backup: path URI harus menunjuk DB asli (config.dbName),
+    // kalau tidak mongodump "sukses" tapi menghasilkan 0 file.
+    const mongoUri = resolveMongoDatabaseUri(baseUri);
 
     // For incremental, we could use oplog or just dump all (simplified)
     // In production, use mongodump with --oplog or change streams
