@@ -683,6 +683,56 @@ export function panelTermsDeclined(ctx) {
   };
 }
 
+export function panelDangerDelete(ctx?: any) {
+  const firstName = ctx?.from?.first_name || 'User';
+  return {
+    blocks: [
+      {
+        type: 'paragraph',
+        text: `⚠️ KONFIRMASI PENGHAPUSAN SESI AKUN\n\nHalo, ${firstName}!\nAnda meminta untuk menghapus sesi userbot Telegram Anda secara permanen dari server.`
+      },
+      {
+        type: 'details',
+        summary: '📋 Rincian Konsekuensi Penghapusan Sesi',
+        blocks: [
+          {
+            type: 'table',
+            is_compact: true,
+            cells: [
+              [{ text: 'Konsekuensi' }, { text: 'Keterangan' }],
+              [{ text: '🔌 Koneksi MTProto' }, { text: 'Userbot otomatis dimatikan dan logout dari Datacenter Telegram.' }],
+              [{ text: '🔐 String Sesi' }, { text: 'Session string akun di database MongoDB akan dihapus permanen.' }],
+              [{ text: '⚙️ Konfigurasi Akun' }, { text: 'Seluruh variabel kustom (PREFIX, AFK, Anti-PM) akan di-reset.' }],
+              [{ text: '💡 Berhenti Sementara' }, { text: 'Gunakan tombol Matikan Userbot jika hanya ingin berhenti sementara.' }]
+            ]
+          }
+        ]
+      },
+      { type: 'divider' },
+      {
+        type: 'paragraph',
+        text: '🚨 Peringatan Keamanan:\nTindakan ini tidak dapat dibatalkan. Jika Anda ingin menggunakan bot lagi nantinya, Anda wajib login ulang via Scan QR atau OTP.'
+      },
+      {
+        type: 'buttons',
+        buttons: [
+          { text: '🗑️ Ya, Hapus Sesi Akun Permanen', style: 'danger', callback_data: 'rich:confirm_delete_session' }
+        ]
+      },
+      {
+        type: 'buttons',
+        buttons: [
+          { text: '❌ Batalkan & Kembali ke Pengaturan', style: 'primary', callback_data: 'rich:settings' }
+        ]
+      },
+      {
+        type: 'footer',
+        text: 'Pilih salah satu tombol tindakan di atas.'
+      }
+    ]
+  };
+}
+
 export function panelRegister(ctx) {
   const claimed = hasClaimedTrial(ctx.from.id);
   const statusTrial = claimed ? 'Sudah Diklaim <sup>[USED]</sup>' : '🎁 Gratis 7 Hari <sup>[FREE]</sup>';
@@ -710,21 +760,80 @@ function getSystemVarNum(key: string, fallback: number): number {
   return Number((systemConfigCache.vars as Record<string, unknown>)?.[key]) || fallback;
 }
 
-export function panelSubscription(_ctx) {
+export function panelSubscription(ctx?: any) {
   const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
   const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
-  return `<h1 align="center">💎 Paket Langganan &amp; Voucher <sup>VIP</sup></h1>` +
-    `<p>Dapatkan akses penuh ke fitur userbot tanpa batas, prioritas server, dan penukaran kupon promo.</p>` +
-    `<table bordered striped>` +
-    `<tr><th>Pilihan Akses</th><th>Durasi Masa Aktif</th><th>Keterangan</th></tr>` +
-    `<tr><td>🎁 Coba Gratis <sub>(trial)</sub></td><td align="center">${trialDays} Hari <sup>Free</sup></td><td>Request ke Owner</td></tr>` +
-    `<tr><td>💎 Premium VIP <sub>(langganan)</sub></td><td align="center">${premiumDays} Hari <sup>Akses</sup></td><td>Fitur Lengkap Unlocked</td></tr>` +
-    `<tr><td>🎟️ Kupon Promo <sub>(voucher)</sub></td><td align="center">Variatif <sup>Klaim</sup></td><td>Tukar Kode Voucher</td></tr>` +
-    `</table>` +
-    `<hr/>` +
-    `<h3>💡 Punya Kode Voucher Promo?</h3>` +
-    `<p>Jika Anda memiliki kode voucher dari owner, giveaway, atau promo spesial, tekan tombol <b>🎟️ Tukar Kode Voucher Promo</b> di bawah untuk langsung mengaktifkan atau menambah masa aktif userbot Anda.</p>` +
-    `<footer>Pilih salah satu menu di bawah:</footer>`;
+  const userId = ctx?.from?.id;
+  const approved = userId ? (isOwner(ctx) || isApproved(userId)) : false;
+  const pending = userId ? isPendingApproval(userId) : false;
+  const claimed = userId ? hasClaimedTrial(userId) : false;
+
+  let ctaButton: any;
+  if (approved) {
+    ctaButton = { text: '🚀 Hubungkan Sesi Userbot (Disetujui)', style: 'success', callback_data: 'rich:register' };
+  } else if (pending) {
+    ctaButton = { text: '⏳ Cek Status Approval Permohonan', style: 'primary', callback_data: 'rich:check_approval' };
+  } else if (!claimed) {
+    ctaButton = { text: `🎁 Klaim Coba Gratis (${trialDays} Hari)`, style: 'success', callback_data: 'rich:claim_trial' };
+  } else {
+    ctaButton = { text: '🚀 Mulai Daftar Userbot Baru', style: 'primary', callback_data: 'rich:register' };
+  }
+
+  return {
+    blocks: [
+      {
+        type: 'paragraph',
+        text: '💎 Paket Langganan & Voucher VIP\n\nDapatkan akses penuh ke fitur userbot tanpa batas, server prioritas berkecepatan tinggi, dan penukaran kupon promo.'
+      },
+      {
+        type: 'details',
+        summary: '✨ Rincian Perbandingan Paket Akses',
+        blocks: [
+          {
+            type: 'table',
+            is_compact: true,
+            cells: [
+              [{ text: 'Pilihan Paket' }, { text: 'Durasi' }, { text: 'Keterangan' }],
+              [{ text: '🎁 Coba Gratis' }, { text: `${trialDays} Hari` }, { text: 'Trial request ke Owner' }],
+              [{ text: '💎 Premium VIP' }, { text: `${premiumDays} Hari` }, { text: 'Fitur lengkap tanpa batas' }],
+              [{ text: '🎟️ Kupon Promo' }, { text: 'Variatif' }, { text: 'Tukar kode voucher' }]
+            ]
+          }
+        ]
+      },
+      { type: 'divider' },
+      {
+        type: 'paragraph',
+        text: '💡 Punya Kode Voucher Promo?\nJika Anda memiliki voucher dari owner atau promo spesial, gunakan tombol Tukar Voucher Promo di bawah untuk langsung mengaktifkan masa aktif akun.'
+      },
+      {
+        type: 'buttons',
+        buttons: [ctaButton]
+      },
+      {
+        type: 'buttons',
+        buttons: [
+          { text: `💎 Berlangganan VIP (${premiumDays} Hari)`, style: 'primary', callback_data: 'rich:buy_premium' }
+        ]
+      },
+      {
+        type: 'buttons',
+        buttons: [
+          { text: '🎟️ Tukar Kode Voucher Promo', style: 'primary', callback_data: 'rich:redeem_voucher' }
+        ]
+      },
+      {
+        type: 'buttons',
+        buttons: [
+          { text: '🔙 Kembali ke Menu Utama', callback_data: 'rich:main' }
+        ]
+      },
+      {
+        type: 'footer',
+        text: 'Pilih salah satu opsi di atas untuk mengaktifkan userbot Anda.'
+      }
+    ]
+  };
 }
 
 export function panelAccessDenied(ctx) {
@@ -1617,10 +1726,7 @@ export function keyboardHelpBack() {
 }
 
 export function keyboardDangerDelete() {
-  return { inline_keyboard: [
-    [{ text: '🗑️ Ya, Hapus Permanen', callback_data: 'rich:confirm_delete_session' }],
-    [{ text: '❌ Batal', callback_data: 'rich:settings' }],
-  ] };
+  return { inline_keyboard: [] };
 }
 
 export function keyboardTermsOfService() {
@@ -1643,23 +1749,8 @@ export function keyboardRegister() {
   ] };
 }
 
-export function keyboardSubscription(ctx?: any) {
-  const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
-  const userId = ctx?.from?.id;
-  const approved = userId ? (isOwner(ctx) || isApproved(userId)) : false;
-  const pending = userId ? isPendingApproval(userId) : false;
-  const rows = [];
-  if (approved) {
-    rows.push([{ text: '🚀 Daftar Userbot (Disetujui)', callback_data: 'rich:register' }]);
-  } else if (pending) {
-    rows.push([{ text: '⏳ Menunggu Approval Owner', callback_data: 'rich:check_approval' }]);
-  } else {
-    rows.push([{ text: '🎁 Request Coba Gratis (7 Hari)', callback_data: 'rich:claim_trial' }]);
-  }
-  rows.push([{ text: '🎟️ Tukar Kode Voucher Promo', callback_data: 'rich:redeem_voucher' }]);
-  rows.push([{ text: `💎 Premium ${premiumDays} Hari`, callback_data: 'rich:buy_premium' }]);
-  rows.push([{ text: '🔙 Menu Utama', callback_data: 'rich:main' }]);
-  return { inline_keyboard: rows };
+export function keyboardSubscription(_ctx?: any) {
+  return { inline_keyboard: [] };
 }
 
 export function keyboardAdmin(pendingCount = 0) {
@@ -2399,8 +2490,7 @@ export function registerRichHandlers(bot) {
 
     if (action === 'danger_delete_session') {
       await ctx.answerCallbackQuery();
-      const text = `🔺 <b>KONFIRMASI HAPUS SESI</b>\n\nTindakan ini akan mematikan bot dan menghapus session string dari database.\n\nJika hanya ingin berhenti sementara, gunakan tombol <b>Matikan Bot</b>.`;
-      return sendRich(ctx, text, keyboardDangerDelete(), { deleteOld: true });
+      return sendRich(ctx, panelDangerDelete(ctx), keyboardDangerDelete(), { edit: true });
     }
 
     if (action === 'confirm_delete_session') {
