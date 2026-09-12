@@ -29,6 +29,7 @@ import { registerBackupHandlers } from './handlers/backup.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
+import { getUserbotSession, updateTelegramPremiumStatus } from '../infrastructure/database.js';
 
 const bot = new Bot(config.botToken);
 
@@ -66,6 +67,21 @@ bot.use(sequentialize((ctx) => {
 }));
 
 bot.use(session({ initial: () => ({}) }));
+
+// Auto-sync Telegram Premium status whenever user interacts with the bot
+bot.use(async (ctx, next) => {
+  const userId = ctx.from?.id;
+  if (userId && ctx.from?.is_premium !== undefined) {
+    const session = getUserbotSession(userId);
+    const premVal = ctx.from.is_premium ? 1 : 0;
+    if (session && session.is_telegram_premium !== premVal) {
+      session.is_telegram_premium = premVal;
+      updateTelegramPremiumStatus(userId, premVal).catch(() => {});
+    }
+  }
+  await next();
+});
+
 bot.use(limit({
   timeFrame: 2000,
   limit: 3,

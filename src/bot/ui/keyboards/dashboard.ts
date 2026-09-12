@@ -23,6 +23,7 @@ import {
   setSystemVar,
   UserbotModel,
   getSchedules,
+  updateTelegramPremiumStatus,
 } from '../../../infrastructure/database.js';
 import { stopLoop } from '../../../userbot/handlers/util/loop.js';
 import { getAllVouchers, deleteVoucher, redeemVoucher, broadcastVoucherToChannel } from '../../../services/VoucherService.js';
@@ -133,10 +134,27 @@ function userInfo(ctx) {
   return { firstName, botName };
 }
 
+export function isTelegramPremium(ctx?: any, session?: any): boolean {
+  if (ctx?.from?.is_premium !== undefined) {
+    const isPrem = Boolean(ctx.from.is_premium);
+    if (session && session.is_telegram_premium !== (isPrem ? 1 : 0) && ctx.from?.id) {
+      session.is_telegram_premium = isPrem ? 1 : 0;
+      updateTelegramPremiumStatus(ctx.from.id, isPrem ? 1 : 0).catch(() => {});
+    }
+    return isPrem;
+  }
+  return session?.is_telegram_premium === 1;
+}
+
+export function formatTelegramPremiumBadge(isPremium: boolean): string {
+  return isPremium ? '⭐ Ya <sup>[PREMIUM]</sup>' : '⚪ Tidak <sup>[REGULER]</sup>';
+}
+
 export function panelMain(ctx) {
   const { firstName, botName } = userInfo(ctx);
   const session = getUserbotSession(ctx.from.id);
   const isRegistered = !!session;
+  const isTgPremium = isTelegramPremium(ctx, session);
   const running = isRegistered && userbotManager.isRunning(ctx.from.id);
   const statusBadge = !isRegistered
     ? '🔴 Belum Terdaftar'
@@ -183,6 +201,7 @@ export function panelMain(ctx) {
       `<table bordered striped>` +
       `<tr><th>Layanan Platform</th><th>Status</th><th>Keterangan</th></tr>` +
       `<tr><td>🤖 Userbot Engine <sub>(MTProto)</sub></td><td align="center">🟢 Online <sup>[v229]</sup></td><td>Teleproto Layer 229</td></tr>` +
+      `<tr><td>⭐ Akun Telegram <sub>(status)</sub></td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td><td>${isTgPremium ? 'Telegram Premium' : 'Telegram Reguler'}</td></tr>` +
       `<tr><td>🎁 Uji Coba Gratis <sub>(trial)</sub></td><td align="center">7 Hari <sup>Gratis</sup></td><td>Request ke Owner</td></tr>` +
       `<tr><td>📦 Modul Tersedia <sub>(plugins)</sub></td><td align="center">${loadedPlugins.length} Plugin <sup>Aktif</sup></td><td>Siap Digunakan</td></tr>` +
       `</table>` +
@@ -205,6 +224,7 @@ export function panelMain(ctx) {
     `<table bordered striped>` +
     `<tr><th>Informasi Akun</th><th>Status</th><th>Keterangan</th></tr>` +
     `<tr><td>🤖 Status Userbot <sub>(engine)</sub></td><td align="center">${running ? '🟢 Online <sup>[RUNNING]</sup>' : '🔴 Offline <sup>[STOPPED]</sup>'}</td><td>${running ? 'Teleproto 229' : 'Siap Dijalankan'}</td></tr>` +
+    `<tr><td>⭐ Akun Telegram <sub>(status)</sub></td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td><td>Telegram Resmi</td></tr>` +
     `<tr><td>⏳ Masa Aktif <sub>(akses)</sub></td><td align="center">${daysLeftText(session?.expired_at, true, isOwner(ctx))}</td><td>Akses Penuh</td></tr>` +
     `<tr><td>⚡ Core Engine <sub>(MTProto)</sub></td><td align="center">Teleproto <sup>Layer 229</sup></td><td>Layer MTProto</td></tr>` +
     `</table>` +
@@ -261,6 +281,7 @@ export function panelUserbot(ctx) {
     return `<h1 align="center">❌ Sesi Tidak Ditemukan</h1><p>Akun Anda belum terdaftar di DeltaUserJS. Silakan hubungkan akun terlebih dahulu via <code>/daftar</code>.</p><footer>Ketik /menu untuk membuka menu utama.</footer>`;
   }
   const running = userbotManager.isRunning(ctx.from.id);
+  const isTgPremium = isTelegramPremium(ctx, session);
   const ubot = userbotManager.clients.get(ctx.from.id);
   const isConnected = running && Boolean(ubot?.client?.connected);
   const dcId = String((ubot?.client?.session as any)?.dcId || '4');
@@ -323,6 +344,7 @@ export function panelUserbot(ctx) {
     `<tr><th>Informasi Akun</th><th>Nilai</th></tr>` +
     `<tr><td>📱 Nomor Telegram <sub>(phone)</sub></td><td align="center">${phoneText}</td></tr>` +
     `<tr><td>🆔 ID Telegram <sub>(UID)</sub></td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
+    `<tr><td>⭐ Telegram Premium <sub>(akun)</sub></td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<details>` +
@@ -769,6 +791,7 @@ export function panelSubscription(ctx?: any) {
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
+  const isTgPremium = isTelegramPremium(ctx, session);
 
   const packagesTable = `<table bordered striped><caption>✨ Pilihan Paket &amp; Tarif Langganan VIP</caption>` +
     `<tr><th>Pilihan Paket</th><th>Durasi</th><th>Investasi</th><th>Keterangan</th></tr>` +
@@ -798,6 +821,7 @@ export function panelSubscription(ctx?: any) {
       `<tr><th>Parameter Akun</th><th>Informasi / Status</th></tr>` +
       `<tr><td>🆔 ID Telegram <sub>(UID)</sub></td><td align="center"><code>${userId || 'Root'}</code></td></tr>` +
       `<tr><td>👑 Tingkat Akses <sub>(tier)</sub></td><td align="center">👑 Owner <sup>[ROOT]</sup></td></tr>` +
+      `<tr><td>⭐ Akun Telegram <sub>(premium)</sub></td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td></tr>` +
       `<tr><td>⏱️ Masa Aktif <sub>(durasi)</sub></td><td align="center">♾️ Unlimited <sup>[PERMANEN]</sup></td></tr>` +
       `<tr><td>⚡ Status Mesin <sub>(engine)</sub></td><td align="center">${connStatus}</td></tr>` +
       `<tr><td>📱 Akun Userbot <sub>(session)</sub></td><td align="center">${phoneText}</td></tr>` +
@@ -856,6 +880,7 @@ export function panelSubscription(ctx?: any) {
       `<tr><th>Parameter Akun</th><th>Informasi / Status</th></tr>` +
       `<tr><td>🆔 ID Telegram <sub>(UID)</sub></td><td align="center"><code>${userId}</code></td></tr>` +
       `<tr><td>💎 Status Paket <sub>(tier)</sub></td><td align="center">${tierText}</td></tr>` +
+      `<tr><td>⭐ Akun Telegram <sub>(premium)</sub></td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td></tr>` +
       `<tr><td>⏱️ Masa Aktif <sub>(durasi)</sub></td><td align="center">${durationText}</td></tr>` +
       `<tr><td>⚡ Status Mesin <sub>(engine)</sub></td><td align="center">${connStatus}</td></tr>` +
       `<tr><td>📱 Nomor Telepon <sub>(phone)</sub></td><td align="center">${phoneText}</td></tr>` +
@@ -955,6 +980,7 @@ export interface CombinedAdminUser {
   username?: string;
   is_active: number;
   is_awaiting_reg: boolean;
+  is_telegram_premium?: number;
   expired_at?: string | null;
   approved_at?: number;
 }
@@ -973,6 +999,7 @@ export function getCombinedAdminUsers(): CombinedAdminUser[] {
         username: meta?.username,
         is_active: 1,
         is_awaiting_reg: true,
+        is_telegram_premium: 0,
         approved_at: meta?.approvedAt,
       };
     });
@@ -983,6 +1010,7 @@ export function getCombinedAdminUsers(): CombinedAdminUser[] {
     username: (u as any).username,
     is_active: u.is_active,
     is_awaiting_reg: false,
+    is_telegram_premium: (u as any).is_telegram_premium,
     expired_at: u.expired_at,
   }));
 
@@ -1082,7 +1110,8 @@ export function panelAdminUsers(page = 1) {
 
     const running = userbotManager.isRunning(u.telegram_id);
     const status = running ? '🟢 On <sup>[RUN]</sup>' : (u.is_active === 1 ? '🟡 Off <sup>[IDLE]</sup>' : '🔴 Revoked <sup>[OFF]</sup>');
-    const name = u.custom_name ? escapeHtml(u.custom_name) : 'User';
+    const isTgPrem = u.is_telegram_premium === 1;
+    const name = (u.custom_name ? escapeHtml(u.custom_name) : 'User') + (isTgPrem ? ' ⭐' : '');
     const expiry = u.expired_at ? new Date(u.expired_at).toLocaleDateString('id-ID') : '♾️ <sup>Unlim</sup>';
     const detailBtn = `<tg-button type="callback_data" data="rich:admin_user:${u.telegram_id}">🔍 Buka</tg-button>`;
     return `<tr><td align="center">${status}</td><td><code>${u.telegram_id}</code></td><td>${name}</td><td align="center">${expiry}</td><td align="center">${detailBtn}</td></tr>`;
@@ -1155,6 +1184,7 @@ export function panelAdminUserDetail(targetId: number) {
     `<tr><td>ID Telegram <sub>(UID)</sub></td><td><code>${targetId}</code></td><td align="center">${powerBtn}</td></tr>` +
     `<tr><td>Nomor Telepon <sub>(phone)</sub></td><td>${session.phone ? `<tg-spoiler>${session.phone}</tg-spoiler>` : '<i>Tidak diset</i>'}</td><td align="center">MTProto</td></tr>` +
     `<tr><td>Status Userbot <sub>(engine)</sub></td><td>${isRunning ? '🟢 Online <sup>[RUNNING]</sup>' : '🔴 Offline <sup>[STOPPED]</sup>'}</td><td align="center">${powerBtn}</td></tr>` +
+    `<tr><td>⭐ Telegram Premium <sub>(status)</sub></td><td>${formatTelegramPremiumBadge(session.is_telegram_premium === 1)}</td><td align="center">Telegram</td></tr>` +
     `<tr><td>Masa Aktif Akun <sub>(expired)</sub></td><td>${expStr}</td><td align="center">${ext7Btn} ${ext30Btn}</td></tr>` +
     `<tr><td>Paket Unlimited <sub>(akses)</sub></td><td>Akses Permanen</td><td align="center">${extInfBtn}</td></tr>` +
     `<tr><td>Proteksi Anti-PM <sub>(guard)</sub></td><td>${session.anti_pm === 1 ? '🟢 Aktif <sup>[ON]</sup>' : '🔴 Nonaktif <sup>[OFF]</sup>'}</td><td align="center">Shield</td></tr>` +
@@ -1298,12 +1328,14 @@ export function panelAdminSettings() {
 export function panelStats(_ctx) {
   const users = getAllRegisteredUsers();
   const running = userbotManager.clients.size;
+  const premCount = users.filter((u: any) => u.is_telegram_premium === 1).length;
   const mem = process.memoryUsage();
   return `<h1 align="center">📊 System Analytics <sup>METRICS</sup></h1>` +
     `<p>Ringkasan performa server dan konsumsi memori runtime.</p>` +
     `<table bordered striped>` +
     `<tr><th>Metrik Performa</th><th>Statistik</th><th>Keterangan</th></tr>` +
     `<tr><td>👥 Total Pengguna <sub>(database)</sub></td><td align="center">${users.length} Akun</td><td>Terdaftar di DB</td></tr>` +
+    `<tr><td>⭐ Telegram Premium <sub>(official)</sub></td><td align="center">${premCount} Akun <sup>[PREM]</sup></td><td>Member Premium</td></tr>` +
     `<tr><td>⚡ Userbot Aktif <sub>(engine)</sub></td><td align="center">${running} Running <sup>[OK]</sup></td><td>Teleproto 229</td></tr>` +
     `<tr><td>⏱️ Server Uptime <sub>(durasi)</sub></td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td>Node.js Runtime</td></tr>` +
     `<tr><td>💾 RAM Resident <sub>(RSS)</sub></td><td align="center">${formatBytesRef(mem.rss)}</td><td>Total Memori Fisik</td></tr>` +

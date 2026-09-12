@@ -4,7 +4,7 @@ import { NewMessage, Raw } from 'teleproto/events/index.js';
 import { Api } from 'teleproto';
 import type { EditMessageParams } from 'teleproto/client/messages.js';
 import config from '../../config.js';
-import { getUserbotSession } from '../../infrastructure/database.js';
+import { getUserbotSession, updateTelegramPremiumStatus } from '../../infrastructure/database.js';
 import { loadAllPlugins } from './pluginLoader.js';
 import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
@@ -122,6 +122,16 @@ export class UserbotClient {
       this.client.setParseMode('html');
       this.isActive = true;
       Logger.logUser(this.telegramId, `🤖 DeltaUbotJS [${this.telegramId}] connected successfully.`, 'SUCCESS');
+
+      // Detect and sync official Telegram Premium status
+      try {
+        const me: any = await this.client.getMe();
+        if (me && typeof me.premium === 'boolean') {
+          await updateTelegramPremiumStatus(this.telegramId, me.premium ? 1 : 0);
+        }
+      } catch (err) {
+        Logger.logUser(this.telegramId, `⚠️ Could not sync Telegram Premium status: ${err}`, 'WARN');
+      }
 
       // Register handlers
       this.registerHandlers();

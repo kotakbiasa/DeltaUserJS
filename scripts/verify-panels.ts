@@ -36,14 +36,21 @@ const tagBalance = (html: string) => {
 const panels = [
   'panelMain', 'panelMenuList', 'panelUserbot', 'panelPlugins', 'panelSettings',
   'panelRegister', 'panelSubscription', 'panelBuySubscription', 'panelAccessDenied', 'panelAdmin',
+  'panelAdminUsers', 'panelAdminUserDetail', 'panelAdminFleet', 'panelAdminSettings',
   'panelStats', 'panelQuickHelp', 'panelDonate', 'panelHealth',
 ];
 
 for (const name of panels) {
   try {
-    const html = name === 'panelHealth'
-      ? (d as any)[name]('🟢 Connected (DeltaUbotJS)')
-      : (d as any)[name](ctx);
+    let res: any;
+    if (name === 'panelHealth') {
+      res = (d as any)[name]('🟢 Connected (DeltaUbotJS)');
+    } else if (name === 'panelAdminUserDetail') {
+      res = (d as any)[name](1025855210);
+    } else {
+      res = (d as any)[name](ctx);
+    }
+    const html = typeof res === 'object' && res?.text ? res.text : String(res);
     const { opens, closes, balanced } = tagBalance(html);
     const spoilerOk = html.split('<tg-spoiler>').length - 1 === html.split('</tg-spoiler>').length - 1;
     const status = balanced && spoilerOk ? 'OK' : 'WARN';

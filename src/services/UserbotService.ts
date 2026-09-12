@@ -57,6 +57,18 @@ export async function updateUserbotStatus(telegramId, isActive) {
   return persistField(idNum, 'is_active', statusVal);
 }
 
+export async function updateTelegramPremiumStatus(telegramId: number | string, isPremium: boolean | number) {
+  const idNum = Number(telegramId);
+  const premVal = isPremium ? 1 : 0;
+
+  const cached = dbCache.get(idNum);
+  if (cached) {
+    cached.is_telegram_premium = premVal;
+  }
+
+  return persistField(idNum, 'is_telegram_premium', premVal);
+}
+
 // Helper: safely update a complex object field in DB (deep clone before persist)
 export async function updateObjectField(telegramId, field, value) {
   const idNum = Number(telegramId);
