@@ -324,7 +324,8 @@ export function panelUserbot(ctx) {
     `<tr><td>🆔 ID Telegram <sub>(UID)</sub></td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
     `</table>` +
     `<hr/>` +
-    `<h3>💡 Cheatsheet Perintah Populer:</h3>` +
+    `<details>` +
+    `<summary>💡 Cheatsheet Perintah Populer (7 Perintah)</summary>` +
     `<ul>` +
     `<li><code>${escapeHtml(currentPrefix)}ping</code> — Uji kecepatan latensi koneksi respon MTProto</li>` +
     `<li><code>${escapeHtml(currentPrefix)}alive</code> — Tampilkan kartu status userbot &amp; engine di chat</li>` +
@@ -334,6 +335,7 @@ export function panelUserbot(ctx) {
     `<li><code>${escapeHtml(currentPrefix)}tagall [pesan]</code> — Mention seluruh member grup sekaligus</li>` +
     `<li><code>${escapeHtml(currentPrefix)}id</code> — Cek ID obrolan, pengguna, atau channel saat ini</li>` +
     `</ul>` +
+    `</details>` +
     `<footer>Ketuk tombol aksi di dalam tabel atau gunakan tombol navigasi di bawah.</footer>`;
 }
 
