@@ -35,7 +35,13 @@ interface RichOpts {
 /**
  * Build an InputRichMessage payload.
  */
-export function buildRich(content: string, opts?: { markdown?: boolean; isRtl?: boolean; skipEntityDetection?: boolean }): InputRichMessage {
+export function buildRich(content: string | InputRichMessage | Record<string, unknown>, opts?: { markdown?: boolean; isRtl?: boolean; skipEntityDetection?: boolean }): InputRichMessage {
+  if (typeof content === 'object' && content !== null) {
+    const rich = { ...content } as InputRichMessage;
+    if (opts?.isRtl) {rich.is_rtl = true;}
+    if (opts?.skipEntityDetection) {rich.skip_entity_detection = true;}
+    return rich;
+  }
   const rich = (opts?.markdown
     ? { markdown: String(content ?? '') }
     : { html: String(content ?? '') }) as InputRichMessage;
