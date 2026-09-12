@@ -83,6 +83,37 @@ export interface ChatItem {
   isUser: boolean;
 }
 
+export interface UserSettings {
+  prefix: string;
+  antiPm: boolean;
+  autoReply: boolean;
+  afkReason: string;
+  customName: string;
+  logChatId: string;
+  inlineBotToken: string;
+  inlineBotUsername: string;
+  approvedUsers: number[];
+  broadcastBlacklist: string[];
+}
+
+export interface VarsData {
+  userVars: Record<string, string>;
+  systemVars?: Record<string, string>;
+}
+
+export interface DiagnosticsData {
+  connected: boolean;
+  pingMs: number;
+  dcId: string;
+  uptime: number;
+  activePlugins: number;
+  disabledPlugins: number;
+  floodGuard: {
+    inCooldown: boolean;
+    remainingSeconds: number;
+  };
+}
+
 export const api = {
   getMe: () => fetchApi<{ success: boolean; user: UserMe; hasUserbot: boolean; isActive: boolean }>('/api/me'),
   getUserbotStatus: () => fetchApi<{ success: boolean } & UserbotStatus>('/api/userbot/status'),
@@ -108,6 +139,48 @@ export const api = {
     fetchApi<{ success: boolean; message: string }>('/api/broadcast/send', {
       method: 'POST',
       body: JSON.stringify({ chatIds, message }),
+    }),
+  getSettings: () => fetchApi<{ success: boolean; settings: UserSettings }>('/api/settings'),
+  updateSettings: (settings: Partial<UserSettings>) =>
+    fetchApi<{ success: boolean; message: string }>('/api/settings', {
+      method: 'POST',
+      body: JSON.stringify(settings),
+    }),
+  addApprovedUser: (targetUserId: number | string) =>
+    fetchApi<{ success: boolean; approvedUsers: number[] }>('/api/settings/approved-users', {
+      method: 'POST',
+      body: JSON.stringify({ targetUserId }),
+    }),
+  removeApprovedUser: (targetUserId: number | string) =>
+    fetchApi<{ success: boolean; approvedUsers: number[] }>('/api/settings/approved-users', {
+      method: 'DELETE',
+      body: JSON.stringify({ targetUserId }),
+    }),
+  addBroadcastBlacklist: (chatId: string) =>
+    fetchApi<{ success: boolean; broadcastBlacklist: string[] }>('/api/settings/broadcast-blacklist', {
+      method: 'POST',
+      body: JSON.stringify({ chatId }),
+    }),
+  removeBroadcastBlacklist: (chatId: string) =>
+    fetchApi<{ success: boolean; broadcastBlacklist: string[] }>('/api/settings/broadcast-blacklist', {
+      method: 'DELETE',
+      body: JSON.stringify({ chatId }),
+    }),
+  getVars: () => fetchApi<{ success: boolean } & VarsData>('/api/vars'),
+  setVar: (key: string, value: string, isSystem?: boolean) =>
+    fetchApi<{ success: boolean; message: string; userVars?: Record<string, string>; systemVars?: Record<string, string> }>('/api/vars', {
+      method: 'POST',
+      body: JSON.stringify({ key, value, isSystem }),
+    }),
+  deleteVar: (key: string, isSystem?: boolean) =>
+    fetchApi<{ success: boolean; message: string; userVars?: Record<string, string>; systemVars?: Record<string, string> }>('/api/vars', {
+      method: 'DELETE',
+      body: JSON.stringify({ key, isSystem }),
+    }),
+  getDiagnostics: () => fetchApi<{ success: boolean } & DiagnosticsData>('/api/userbot/diagnostics'),
+  logoutSession: () =>
+    fetchApi<{ success: boolean; message: string }>('/api/userbot/logout', {
+      method: 'POST',
     }),
   getAdminStats: () => fetchApi<{ success: boolean; stats: any }>('/api/admin/stats'),
   getAdminUsers: () => fetchApi<{ success: boolean; users: any[] }>('/api/admin/users'),

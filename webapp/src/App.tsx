@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Spinner } from '@telegram-apps/telegram-ui';
-import { Power, Puzzle, Radio, CreditCard, ShieldCheck, RefreshCw, Star, Zap } from 'lucide-react';
+import { Power, Puzzle, Radio, CreditCard, ShieldCheck, RefreshCw, Star, Zap, Sliders } from 'lucide-react';
 import { api, UserMe } from './api';
 import { OverviewTab } from './tabs/OverviewTab';
 import { PluginsTab } from './tabs/PluginsTab';
 import { BroadcastTab } from './tabs/BroadcastTab';
+import { SettingsTab } from './tabs/SettingsTab';
 import { SubscriptionTab } from './tabs/SubscriptionTab';
 import { AdminTab } from './tabs/AdminTab';
 import { triggerHaptic } from './telegram';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'plugins' | 'broadcast' | 'subscription' | 'admin'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'plugins' | 'broadcast' | 'settings' | 'subscription' | 'admin'>('overview');
   const [user, setUser] = useState<UserMe | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -95,6 +96,7 @@ export default function App() {
     { id: 'overview', label: 'Overview', icon: Power },
     { id: 'plugins', label: 'Plugin', icon: Puzzle },
     { id: 'broadcast', label: 'Siaran', icon: Radio },
+    { id: 'settings', label: 'Setelan', icon: Sliders },
     { id: 'subscription', label: 'Paket', icon: CreditCard },
     ...(user?.isOwner ? [{ id: 'admin', label: 'Admin', icon: ShieldCheck }] : []),
   ] as const;
@@ -208,6 +210,7 @@ export default function App() {
         )}
         {activeTab === 'plugins' && <PluginsTab />}
         {activeTab === 'broadcast' && <BroadcastTab />}
+        {activeTab === 'settings' && <SettingsTab user={user} />}
         {activeTab === 'subscription' && <SubscriptionTab />}
         {activeTab === 'admin' && user?.isOwner && <AdminTab />}
       </main>

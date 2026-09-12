@@ -2,14 +2,36 @@ import { IncomingMessage, ServerResponse } from 'http';
 import config from '../config.js';
 import { validateTelegramInitData, TelegramUser } from './auth.js';
 import userbotManager from '../userbot/engine/manager.js';
+import { Api } from 'teleproto';
 import {
   getUserbotSession,
   getAllRegisteredUsers,
   updateUserbotStatus,
+  updateUserbotFeature,
   enablePlugin,
   disablePlugin,
   getDisabledPlugins,
+  getApprovedUsers,
+  addApprovedUser,
+  removeApprovedUser,
+  getBroadcastBlacklist,
+  addBroadcastBlacklist,
+  removeBroadcastBlacklist,
+  deleteUserbot,
 } from '../services/UserbotService.js';
+import {
+  getAllUserVars,
+  setUserVar,
+  deleteUserVar,
+  getAllSystemVars,
+  setSystemVar,
+  deleteSystemVar,
+} from '../services/SystemVarService.js';
+import {
+  validateInlineBot,
+  startInlineBotForUser,
+  stopInlineBotForUser,
+} from '../bot/services/inlineBotService.js';
 import { loadedPlugins } from '../userbot/engine/pluginRegistry.js';
 import { redeemVoucher } from '../services/VoucherService.js';
 import { isApproved } from '../bot/state/approvedUsers.js';
@@ -403,6 +425,344 @@ export async function handleApiRequest(req: AuthenticatedRequest, res: ServerRes
       }));
 
       sendJson(res, 200, { success: true, users: allUsers });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // GET /api/settings: Ambil seluruh konfigurasi akun userbot
+    // ----------------------------------------------------
+    if (pathname === '/api/settings' && req.method === 'GET') {
+      const session = getUserbotSession(user.id);
+      const userVars = getAllUserVars(user.id);
+      const approvedUsers = getApprovedUsers(user.id);
+      const broadcastBlacklist = getBroadcastBlacklist(user.id);
+
+      sendJson(res, 200, {
+        success: true,
+        settings: {
+          prefix: userVars.PREFIX || '.',
+          antiPm: session?.anti_pm === 1,
+          autoReply: session?.auto_reply === 1,
+          afkReason: session?.afk_reason || 'Sedang AFK, silakan tinggalkan pesan.',
+          customName: session?.custom_name || '',
+          logChatId: userVars.LOG_CHAT_ID || '',
+          inlineBotToken: session?.inline_bot_token || '',
+          inlineBotUsername: session?.inline_bot_username || '',
+          approvedUsers: approvedUsers || [],
+          broadcastBlacklist: broadcastBlacklist || [],
+        },
+      });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // POST /api/settings: Simpan preferensi akun userbot
+    // ----------------------------------------------------
+    if (pathname === '/api/settings' && req.method === 'POST') {
+      const body = await readJsonBody<{
+        prefix?: string;
+        antiPm?: boolean;
+        autoReply?: boolean;
+        afkReason?: string;
+        customName?: string;
+        logChatId?: string;
+        inlineBotToken?: string;
+      }>(req);
+
+      const session = getUserbotSession(user.id);
+      if (!session) {
+        sendJson(res, 400, { success: false, error: 'Sesi akun userbot belum ditemukan.' });
+        return true;
+      }
+
+      if (typeof body.prefix === 'string' && body.prefix.trim()) {
+        const p = body.prefix.trim();
+        if (p.length > 5) {
+          sendJson(res, 400, { success: false, error: 'Prefix maksimal 5 karakter.' });
+          return true;
+        }
+        await setUserVar(user.id, 'PREFIX', p);
+      }
+
+      if (typeof body.antiPm === 'boolean') {
+        await updateUserbotFeature(user.id, 'anti_pm', body.antiPm ? 1 : 0);
+      }
+
+      if (typeof body.autoReply === 'boolean') {
+        await updateUserbotFeature(user.id, 'auto_reply', body.autoReply ? 1 : 0);
+      }
+
+      if (typeof body.afkReason === 'string') {
+        const reason = body.afkReason.slice(0, 200);
+        await updateUserbotFeature(user.id, 'afk_reason', reason);
+      }
+
+      if (typeof body.customName === 'string') {
+        const name = body.customName.slice(0, 50);
+        await updateUserbotFeature(user.id, 'custom_name', name);
+      }
+
+      if (typeof body.logChatId === 'string') {
+        const logId = body.logChatId.trim();
+        if (logId) {
+          await setUserVar(user.id, 'LOG_CHAT_ID', logId);
+        } else {
+          await deleteUserVar(user.id, 'LOG_CHAT_ID');
+        }
+      }
+
+      if (typeof body.inlineBotToken === 'string') {
+        const token = body.inlineBotToken.trim();
+        if (token) {
+          const username = await validateInlineBot(token);
+          if (!username) {
+            sendJson(res, 400, { success: false, error: 'Token Bot tidak valid atau gagal terhubung ke Telegram Bot API.' });
+            return true;
+          }
+          await setUserVar(user.id, 'INLINE_BOT_TOKEN', token);
+          await updateUserbotFeature(user.id, 'inline_bot_token', token);
+          await updateUserbotFeature(user.id, 'inline_bot_username', username);
+          await startInlineBotForUser(Number(user.id), token);
+        } else {
+          await deleteUserVar(user.id, 'INLINE_BOT_TOKEN');
+          await updateUserbotFeature(user.id, 'inline_bot_token', null);
+          await updateUserbotFeature(user.id, 'inline_bot_username', null);
+          await stopInlineBotForUser(Number(user.id));
+        }
+      }
+
+      sendJson(res, 200, { success: true, message: 'Setelan berhasil diperbarui!' });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // POST /api/settings/approved-users: Tambah whitelist user
+    // ----------------------------------------------------
+    if (pathname === '/api/settings/approved-users' && req.method === 'POST') {
+      const body = await readJsonBody<{ targetUserId: number | string }>(req);
+      const targetId = Number(body.targetUserId);
+      if (!targetId || isNaN(targetId)) {
+        sendJson(res, 400, { success: false, error: 'Target Telegram User ID tidak valid.' });
+        return true;
+      }
+      await addApprovedUser(user.id, targetId);
+      sendJson(res, 200, { success: true, approvedUsers: getApprovedUsers(user.id) });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // DELETE /api/settings/approved-users: Hapus whitelist user
+    // ----------------------------------------------------
+    if (pathname === '/api/settings/approved-users' && req.method === 'DELETE') {
+      const body = await readJsonBody<{ targetUserId: number | string }>(req);
+      const targetId = Number(body.targetUserId);
+      if (!targetId || isNaN(targetId)) {
+        sendJson(res, 400, { success: false, error: 'Target Telegram User ID tidak valid.' });
+        return true;
+      }
+      await removeApprovedUser(user.id, targetId);
+      sendJson(res, 200, { success: true, approvedUsers: getApprovedUsers(user.id) });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // POST /api/settings/broadcast-blacklist: Tambah blacklist chat
+    // ----------------------------------------------------
+    if (pathname === '/api/settings/broadcast-blacklist' && req.method === 'POST') {
+      const body = await readJsonBody<{ chatId: string }>(req);
+      if (!body.chatId || !body.chatId.trim()) {
+        sendJson(res, 400, { success: false, error: 'Chat ID tidak valid.' });
+        return true;
+      }
+      await addBroadcastBlacklist(user.id, body.chatId.trim());
+      sendJson(res, 200, { success: true, broadcastBlacklist: getBroadcastBlacklist(user.id) });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // DELETE /api/settings/broadcast-blacklist: Hapus blacklist chat
+    // ----------------------------------------------------
+    if (pathname === '/api/settings/broadcast-blacklist' && req.method === 'DELETE') {
+      const body = await readJsonBody<{ chatId: string }>(req);
+      if (!body.chatId || !body.chatId.trim()) {
+        sendJson(res, 400, { success: false, error: 'Chat ID tidak valid.' });
+        return true;
+      }
+      await removeBroadcastBlacklist(user.id, body.chatId.trim());
+      sendJson(res, 200, { success: true, broadcastBlacklist: getBroadcastBlacklist(user.id) });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // GET /api/vars: Ambil semua variabel pengguna & sistem
+    // ----------------------------------------------------
+    if (pathname === '/api/vars' && req.method === 'GET') {
+      const userVars = getAllUserVars(user.id);
+      const systemVars = isOwner ? getAllSystemVars() : undefined;
+
+      sendJson(res, 200, {
+        success: true,
+        userVars,
+        systemVars,
+      });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // POST /api/vars: Tambah atau edit variabel (User/System)
+    // ----------------------------------------------------
+    if (pathname === '/api/vars' && req.method === 'POST') {
+      const body = await readJsonBody<{ key: string; value: string; isSystem?: boolean }>(req);
+      if (!body.key || typeof body.value !== 'string') {
+        sendJson(res, 400, { success: false, error: 'Key dan value wajib diisi.' });
+        return true;
+      }
+
+      const key = body.key.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+      if (!key) {
+        sendJson(res, 400, { success: false, error: 'Nama key variabel tidak valid.' });
+        return true;
+      }
+
+      if (body.isSystem) {
+        if (!isOwner) {
+          sendJson(res, 403, { success: false, error: 'Hanya Owner yang dapat mengubah System Vars.' });
+          return true;
+        }
+        await setSystemVar(key, body.value);
+        sendJson(res, 200, {
+          success: true,
+          message: `System Var ${key} berhasil disimpan.`,
+          systemVars: getAllSystemVars(),
+        });
+        return true;
+      }
+
+      // Cegah penulisan variabel reserved
+      const RESTRICTED_VARS = ['BOT_TOKEN', 'API_ID', 'API_HASH', 'MONGO_URI', 'ENCRYPTION_KEY', 'OWNER_ID'];
+      if (RESTRICTED_VARS.includes(key)) {
+        sendJson(res, 400, { success: false, error: `Variabel ${key} adalah reserved sistem dan tidak boleh diubah.` });
+        return true;
+      }
+
+      if (key === 'INLINE_BOT_TOKEN') {
+        const username = await validateInlineBot(body.value);
+        if (!username) {
+          sendJson(res, 400, { success: false, error: 'Token Bot tidak valid atau gagal menghubungi Bot API!' });
+          return true;
+        }
+        await updateUserbotFeature(user.id, 'inline_bot_token', body.value);
+        await updateUserbotFeature(user.id, 'inline_bot_username', username);
+        await startInlineBotForUser(Number(user.id), body.value);
+      }
+
+      await setUserVar(user.id, key, body.value);
+      sendJson(res, 200, {
+        success: true,
+        message: `Variabel ${key} berhasil disimpan.`,
+        userVars: getAllUserVars(user.id),
+      });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // DELETE /api/vars: Hapus variabel (User/System)
+    // ----------------------------------------------------
+    if (pathname === '/api/vars' && req.method === 'DELETE') {
+      const body = await readJsonBody<{ key: string; isSystem?: boolean }>(req);
+      if (!body.key) {
+        sendJson(res, 400, { success: false, error: 'Key variabel wajib diisi.' });
+        return true;
+      }
+
+      const key = body.key.toUpperCase();
+
+      if (body.isSystem) {
+        if (!isOwner) {
+          sendJson(res, 403, { success: false, error: 'Hanya Owner yang dapat menghapus System Vars.' });
+          return true;
+        }
+        await deleteSystemVar(key);
+        sendJson(res, 200, {
+          success: true,
+          message: `System Var ${key} berhasil dihapus.`,
+          systemVars: getAllSystemVars(),
+        });
+        return true;
+      }
+
+      await deleteUserVar(user.id, key);
+      if (key === 'INLINE_BOT_TOKEN') {
+        await updateUserbotFeature(user.id, 'inline_bot_token', null);
+        await updateUserbotFeature(user.id, 'inline_bot_username', null);
+        await stopInlineBotForUser(Number(user.id));
+      }
+
+      sendJson(res, 200, {
+        success: true,
+        message: `Variabel ${key} berhasil dihapus.`,
+        userVars: getAllUserVars(user.id),
+      });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // GET /api/userbot/diagnostics: Diagnostik koneksi MTProto
+    // ----------------------------------------------------
+    if (pathname === '/api/userbot/diagnostics' && req.method === 'GET') {
+      const client = userbotManager.clients.get(Number(user.id));
+      const isConnected = Boolean(client && client.isConnected());
+      let pingMs = -1;
+      let dcId = '4';
+
+      if (isConnected && client?.client) {
+        dcId = String((client.client.session as any)?.dcId || '4');
+        try {
+          const start = Date.now();
+          await client.client.invoke(new Api.help.GetNearestDc());
+          pingMs = Date.now() - start;
+        } catch (_) {
+          pingMs = -1;
+        }
+      }
+
+      const disabledCount = (getDisabledPlugins(user.id) || []).length;
+      const activeCount = Math.max(0, loadedPlugins.length - disabledCount);
+      const flood = userbotManager.getFloodStatus(user.id);
+
+      sendJson(res, 200, {
+        success: true,
+        connected: isConnected,
+        pingMs,
+        dcId,
+        uptime: process.uptime(),
+        activePlugins: activeCount,
+        disabledPlugins: disabledCount,
+        floodGuard: flood,
+      });
+      return true;
+    }
+
+    // ----------------------------------------------------
+    // POST /api/userbot/logout: Hapus sesi userbot dari server
+    // ----------------------------------------------------
+    if (pathname === '/api/userbot/logout' && req.method === 'POST') {
+      const telegramId = Number(user.id);
+      try {
+        const ubot = userbotManager.clients.get(telegramId);
+        if (ubot && ubot.client) {
+          await ubot.client.invoke(new Api.auth.LogOut());
+        }
+      } catch (e) {
+        Logger.logUser(telegramId, `Logout Telegram exception: ${e instanceof Error ? e.message : String(e)}`, 'WARN');
+      }
+
+      if (userbotManager.isRunning(telegramId)) {
+        await userbotManager.stopUserbot(telegramId);
+      }
+
+      await deleteUserbot(telegramId);
+      sendJson(res, 200, { success: true, message: 'Sesi userbot berhasil dihapus dan akun logout.' });
       return true;
     }
 
