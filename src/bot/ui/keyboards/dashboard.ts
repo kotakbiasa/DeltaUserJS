@@ -770,6 +770,16 @@ export function panelSubscription(ctx?: any) {
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
 
+  const packagesTable = `<table bordered striped><caption>✨ Pilihan Paket &amp; Tarif Langganan VIP</caption>` +
+    `<tr><th>Pilihan Paket</th><th>Durasi</th><th>Investasi</th><th>Keterangan</th></tr>` +
+    `<tr><td>🎁 Coba Gratis <sub>(trial)</sub></td><td align="center">${trialDays} Hari</td><td align="center">Rp 0 <sup>Free</sup></td><td>Akses awal coba fitur</td></tr>` +
+    `<tr><td>💎 Premium Bulanan <sub>(starter)</sub></td><td align="center">${premiumDays} Hari</td><td align="center">Rp 50.000</td><td>Full akses 30 hari</td></tr>` +
+    `<tr><td>🚀 Paket Triwulanan <sub>(hemat)</sub></td><td align="center">90 Hari</td><td align="center">Rp 135.000</td><td>Diskon 10% (3 bulan)</td></tr>` +
+    `<tr><td>👑 Paket Tahunan <sub>(hemat)</sub></td><td align="center">365 Hari</td><td align="center">Rp 480.000</td><td>Diskon 20% (1 tahun)</td></tr>` +
+    `<tr><td>♾️ Lifetime VIP <sub>(permanen)</sub></td><td align="center">Selamanya</td><td align="center">Rp 1.500.000</td><td>Bayar sekali selamanya</td></tr>` +
+    `<tr><td>🎟️ Kupon Promo <sub>(voucher)</sub></td><td align="center">Variatif</td><td align="center">Gratis</td><td>Tukar kode voucher promo</td></tr>` +
+    `</table>`;
+
   // 1. Tampilan Khusus OWNER / SUPERADMIN
   if (owner) {
     const running = userId ? userbotManager.isRunning(userId) : false;
@@ -792,6 +802,7 @@ export function panelSubscription(ctx?: any) {
       `<tr><td>⚡ Status Mesin <sub>(engine)</sub></td><td align="center">${connStatus}</td></tr>` +
       `<tr><td>📱 Akun Userbot <sub>(session)</sub></td><td align="center">${phoneText}</td></tr>` +
       `</table>` +
+      packagesTable +
       `<hr/>` +
       `<details>` +
       `<summary>✨ Fasilitas Eksklusif Akun Owner</summary>` +
@@ -803,7 +814,7 @@ export function panelSubscription(ctx?: any) {
       `<li><b>Generator Voucher:</b> Buat dan terbitkan kupon promo durasi untuk pengguna.</li>` +
       `</ul>` +
       `</details>` +
-      `<footer>Gunakan tombol navigasi di bawah untuk membuka dashboard atau panel admin.</footer>`;
+      `<footer>Gunakan tombol di bawah untuk membuka menu beli paket, tukar voucher, atau dashboard.</footer>`;
   }
 
   // 2. Tampilan Pengguna Terdaftar (Mempunyai Sesi Userbot)
@@ -836,7 +847,7 @@ export function panelSubscription(ctx?: any) {
       : `<h1 align="center">💎 Status Langganan &amp; Masa Aktif <sup>VIP</sup></h1>`;
 
     const subText = isExpired
-      ? `<p>Masa aktif VIP akun Anda telah berakhir. Perpanjang langganan atau tukar kode voucher promo untuk mengaktifkan kembali mesin userbot.</p>`
+      ? `<p>Masa aktif VIP akun Anda telah berakhir. Beli perpanjangan atau tukar kode voucher promo untuk mengaktifkan kembali mesin userbot.</p>`
       : `<p>Akun userbot Anda aktif dan terhubung ke server cloud DeltaUserJS dengan fitur lengkap.</p>`;
 
     return headingTitle +
@@ -849,6 +860,7 @@ export function panelSubscription(ctx?: any) {
       `<tr><td>⚡ Status Mesin <sub>(engine)</sub></td><td align="center">${connStatus}</td></tr>` +
       `<tr><td>📱 Nomor Telepon <sub>(phone)</sub></td><td align="center">${phoneText}</td></tr>` +
       `</table>` +
+      packagesTable +
       `<hr/>` +
       `<details>` +
       `<summary>✨ Keuntungan &amp; Fasilitas VIP Member</summary>` +
@@ -860,18 +872,13 @@ export function panelSubscription(ctx?: any) {
       `<li><b>Server Cloud 24/7:</b> Userbot terus online walau aplikasi Telegram ditutup.</li>` +
       `</ul>` +
       `</details>` +
-      `<footer>Gunakan tombol di bawah untuk menambah masa aktif atau kembali ke dashboard.</footer>`;
+      `<footer>Gunakan tombol di bawah untuk membeli paket VIP, menukar voucher, atau kembali ke dashboard.</footer>`;
   }
 
   // 3. Tampilan Pengguna Tamu / Belum Punya Sesi Userbot
   return `<h1 align="center">💎 Paket Langganan &amp; Voucher <sup>VIP</sup></h1>` +
     `<p>Dapatkan akses penuh ke fitur userbot tanpa batas, prioritas server berkecepatan tinggi, dan penukaran kupon promo.</p>` +
-    `<table bordered striped><caption>✨ Pilihan Paket Akses DeltaUserJS</caption>` +
-    `<tr><th>Pilihan Paket</th><th>Durasi Masa Aktif</th><th>Keterangan</th></tr>` +
-    `<tr><td>🎁 Coba Gratis <sub>(trial)</sub></td><td align="center">${trialDays} Hari <sup>Free</sup></td><td>Uji coba fitur lengkap</td></tr>` +
-    `<tr><td>💎 Premium VIP <sub>(langganan)</sub></td><td align="center">${premiumDays} Hari <sup>Pro</sup></td><td>Akses cloud server 24/7</td></tr>` +
-    `<tr><td>🎟️ Kupon Promo <sub>(voucher)</sub></td><td align="center">Variatif <sup>Klaim</sup></td><td>Tukar kode voucher promo</td></tr>` +
-    `</table>` +
+    packagesTable +
     `<hr/>` +
     `<h3>💡 Punya Kode Voucher Promo?</h3>` +
     `<p>Jika Anda memiliki voucher dari owner atau promo spesial, gunakan tombol <b>🎟️ Tukar Kode Voucher Promo</b> di bawah untuk langsung mengaktifkan akun.</p>` +
@@ -884,6 +891,30 @@ export function panelSubscription(ctx?: any) {
     `</ul>` +
     `</details>` +
     `<footer>Pilih salah satu menu di bawah untuk melanjutkan:</footer>`;
+}
+
+export function panelBuySubscription(_ctx?: any) {
+  const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
+  const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
+
+  return `<h1 align="center">🛒 Beli &amp; Perpanjang Langganan <sup>VIP</sup></h1>` +
+    `<p>Pilih paket langganan <b>DeltaUserJS</b> untuk mendapatkan akses penuh tanpa batasan modul, server prioritas berkecepatan tinggi, dan proteksi cloud 24/7.</p>` +
+    `<table bordered striped><caption>✨ Daftar Paket &amp; Tarif Langganan</caption>` +
+    `<tr><th>Paket VIP</th><th>Durasi</th><th>Investasi</th><th>Keterangan</th></tr>` +
+    `<tr><td>🎁 Coba Gratis <sub>(trial)</sub></td><td align="center">${trialDays} Hari</td><td align="center">Rp 0 <sup>Free</sup></td><td>Akses awal coba fitur</td></tr>` +
+    `<tr><td>💎 Premium Bulanan <sub>(starter)</sub></td><td align="center">${premiumDays} Hari</td><td align="center">Rp 50.000</td><td>Full akses 30 hari</td></tr>` +
+    `<tr><td>🚀 Paket Triwulanan <sub>(hemat)</sub></td><td align="center">90 Hari</td><td align="center">Rp 135.000</td><td>Diskon 10% (3 bulan)</td></tr>` +
+    `<tr><td>👑 Paket Tahunan <sub>(hemat)</sub></td><td align="center">365 Hari</td><td align="center">Rp 480.000</td><td>Diskon 20% (1 tahun)</td></tr>` +
+    `<tr><td>♾️ Lifetime VIP <sub>(permanen)</sub></td><td align="center">Selamanya</td><td align="center">Rp 1.500.000</td><td>Bayar sekali selamanya</td></tr>` +
+    `</table>` +
+    `<hr/>` +
+    `<h3>💡 Pilihan Cara Aktivasi / Pembelian:</h3>` +
+    `<ul>` +
+    `<li><b>Kupon / Voucher Promo:</b> Jika Anda memiliki kode voucher, tekan tombol <b>🎟️ Tukar Kode Promo</b> di bawah untuk langsung aktif instan tanpa biaya.</li>` +
+    `<li><b>Transfer Bank / e-Wallet (QRIS):</b> Tekan tombol <b>💬 Hubungi Owner untuk Order</b> atau <b>💰 Info Rekening Pembayaran</b> untuk konfirmasi dan aktivasi langsung.</li>` +
+    `<li><b>Garansi Aktif 24/7:</b> Userbot langsung menyala di server cloud dan siap digunakan.</li>` +
+    `</ul>` +
+    `<footer>Tekan tombol di bawah untuk memilih opsi pemesanan atau kembali:</footer>`;
 }
 
 export function panelAccessDenied(ctx) {
@@ -1799,6 +1830,28 @@ export function keyboardRegister() {
   ] };
 }
 
+export function keyboardBuySubscription(_ctx?: any) {
+  const rows: any[] = [];
+  rows.push([
+    { text: '🎟️ Tukar Kode Voucher Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
+  ]);
+  if (config.ownerId) {
+    rows.push([
+      { text: '💬 Hubungi Owner untuk Order', url: `tg://user?id=${config.ownerId}` },
+      { text: '💰 Info Rekening', callback_data: 'rich:donate' },
+    ]);
+  } else {
+    rows.push([
+      { text: '💰 Info Rekening Pembayaran', callback_data: 'rich:donate' },
+    ]);
+  }
+  rows.push([
+    { text: '💎 Cek Status Langganan', callback_data: 'rich:subscription' },
+    { text: '🔙 Menu Utama', callback_data: 'rich:main' },
+  ]);
+  return { inline_keyboard: rows };
+}
+
 export function keyboardSubscription(ctx?: any) {
   const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
   const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
@@ -1808,20 +1861,21 @@ export function keyboardSubscription(ctx?: any) {
   const rows: any[] = [];
 
   if (owner) {
+    rows.push([
+      { text: '🛒 Menu Beli / Paket VIP', callback_data: 'rich:buy_premium', style: 'primary' },
+      { text: '🎟️ Tukar Kode Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
+    ]);
     if (session) {
       rows.push([
-        { text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot', style: 'primary' },
-        { text: '🎟️ Tukar Kode Promo', callback_data: 'rich:redeem_voucher' },
+        { text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' },
+        { text: '👑 Panel Admin', callback_data: 'rich:admin' },
       ]);
     } else {
       rows.push([
-        { text: '🚀 Hubungkan Sesi Userbot', callback_data: 'rich:register', style: 'success' },
-        { text: '🎟️ Tukar Kode Promo', callback_data: 'rich:redeem_voucher' },
+        { text: '🚀 Hubungkan Sesi', callback_data: 'rich:register', style: 'success' },
+        { text: '👑 Panel Admin', callback_data: 'rich:admin' },
       ]);
     }
-    rows.push([
-      { text: '👑 Panel Admin Command Center', callback_data: 'rich:admin' },
-    ]);
     rows.push([
       { text: '🔙 Menu Utama', callback_data: 'rich:main' },
     ]);
@@ -1834,23 +1888,12 @@ export function keyboardSubscription(ctx?: any) {
     const diffDays = expDate && !isUnlimited ? Math.ceil((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 999;
     const isExpired = !isUnlimited && diffDays <= 0;
 
-    if (!isExpired) {
-      rows.push([
-        { text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot', style: 'primary' },
-        { text: '🎟️ Tukar Voucher Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
-      ]);
-      rows.push([
-        { text: `💎 Perpanjang VIP (${premiumDays} Hari)`, callback_data: 'rich:buy_premium' },
-      ]);
-    } else {
-      rows.push([
-        { text: '🎟️ Tukar Kode Voucher Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
-      ]);
-      rows.push([
-        { text: `💎 Aktifkan VIP (${premiumDays} Hari)`, callback_data: 'rich:buy_premium', style: 'primary' },
-      ]);
-    }
     rows.push([
+      { text: '🛒 Beli / Perpanjang VIP', callback_data: 'rich:buy_premium', style: 'primary' },
+      { text: '🎟️ Tukar Voucher Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
+    ]);
+    rows.push([
+      { text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' },
       { text: '🔙 Menu Utama', callback_data: 'rich:main' },
     ]);
     return { inline_keyboard: rows };
@@ -1872,8 +1915,8 @@ export function keyboardSubscription(ctx?: any) {
   }
 
   rows.push([
-    { text: '🎟️ Tukar Kode Voucher Promo', callback_data: 'rich:redeem_voucher', style: 'primary' },
-    { text: `💎 Berlangganan VIP (${premiumDays} Hari)`, callback_data: 'rich:buy_premium' },
+    { text: '🛒 Menu Beli / Paket VIP', callback_data: 'rich:buy_premium', style: 'primary' },
+    { text: '🎟️ Tukar Kode Voucher Promo', callback_data: 'rich:redeem_voucher' },
   ]);
   rows.push([
     { text: '🔙 Menu Utama', callback_data: 'rich:main' },
@@ -2307,6 +2350,13 @@ export function registerRichHandlers(bot) {
     } else {
       return replyRich(ctx, `<p>❌ ${escapeHtml(res.message)}</p>`);
     }
+  });
+
+  bot.command(['paket', 'vip', 'langganan', 'subscribe', 'pricing'], async (ctx) => {
+    if (ctx.chat.type !== 'private') {
+      return replyRich(ctx, `<p>Silakan buka menu paket langganan di Private Chat bot.</p>`);
+    }
+    return sendRich(ctx, panelBuySubscription(ctx), keyboardBuySubscription(ctx));
   });
 
   bot.command(['daftar', 'login', 'register'], async (ctx) => {
@@ -2777,7 +2827,8 @@ export function registerRichHandlers(bot) {
     }
 
     if (action === 'buy_premium') {
-      return ctx.answerCallbackQuery({ text: '⏳ Coming Soon.', show_alert: true });
+      await ctx.answerCallbackQuery();
+      return sendRich(ctx, panelBuySubscription(ctx), keyboardBuySubscription(ctx), { edit: true });
     }
 
     if (action === 'stats') {return sendRich(ctx, panelStats(ctx), keyboardBack('main'), { edit: true });}

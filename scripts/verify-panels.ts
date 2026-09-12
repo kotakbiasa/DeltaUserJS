@@ -35,7 +35,7 @@ const tagBalance = (html: string) => {
 
 const panels = [
   'panelMain', 'panelMenuList', 'panelUserbot', 'panelPlugins', 'panelSettings',
-  'panelRegister', 'panelSubscription', 'panelAccessDenied', 'panelAdmin',
+  'panelRegister', 'panelSubscription', 'panelBuySubscription', 'panelAccessDenied', 'panelAdmin',
   'panelStats', 'panelQuickHelp', 'panelDonate', 'panelHealth',
 ];
 
@@ -54,7 +54,7 @@ for (const name of panels) {
 }
 
 // Keyboard checks
-const kbs = ['keyboardMain', 'keyboardPanelMenu', 'keyboardUserbot', 'keyboardSettings', 'keyboardAdmin', 'keyboardSubscription', 'keyboardRegister', 'keyboardDangerDelete'];
+const kbs = ['keyboardMain', 'keyboardPanelMenu', 'keyboardUserbot', 'keyboardSettings', 'keyboardAdmin', 'keyboardSubscription', 'keyboardBuySubscription', 'keyboardRegister', 'keyboardDangerDelete'];
 for (const name of kbs) {
   try {
     const kb = (d as any)[name](ctx);
