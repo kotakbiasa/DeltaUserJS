@@ -1,6 +1,6 @@
 import { tg } from './telegram';
 
-const BASE_URL = '';
+const BASE_URL = typeof window !== 'undefined' && window.location.pathname.startsWith('/ubot') ? '/ubot' : '';
 
 function getInitData(): string {
   if (tg?.initData) {

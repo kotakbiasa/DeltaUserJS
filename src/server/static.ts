@@ -32,7 +32,7 @@ export function serveStaticFiles(
   }
 
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-  let pathname = decodeURIComponent(url.pathname);
+  let pathname = decodeURIComponent(url.pathname).replace(/^\/ubot/, '');
 
   // Jangan tangani route webhook atau api
   if (pathname.startsWith('/api') || pathname.startsWith('/webhook') || pathname.startsWith('/health')) {

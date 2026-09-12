@@ -5,7 +5,7 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   root: '.',
-  base: '/',
+  base: './',
   build: {
     outDir: '../dist/webapp',
     emptyOutDir: true,

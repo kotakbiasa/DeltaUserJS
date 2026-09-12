@@ -45,7 +45,8 @@ async function readJsonBody<T = any>(req: IncomingMessage): Promise<T> {
  */
 export async function handleApiRequest(req: AuthenticatedRequest, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-  const pathname = url.pathname;
+  const rawPath = url.pathname;
+  const pathname = rawPath.replace(/^\/ubot/, '');
 
   // Only handle /api/* routes
   if (!pathname.startsWith('/api/')) {
