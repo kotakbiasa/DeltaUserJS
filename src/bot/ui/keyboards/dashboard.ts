@@ -176,14 +176,14 @@ export function panelMain(ctx) {
         `<footer>Ketuk tombol 🚀 Mulai Daftar Userbot di bawah untuk menghubungkan akun Telegram Anda.</footer>`;
     }
 
-    return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
-      `<p>Halo, <b>${escapeHtml(firstName)}</b>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
+    return `<h1 align="center">⚡ DeltaUserJS <sup>v2.4</sup></h1>` +
+      `<p>Halo, <b>${escapeHtml(firstName)}</b> <sub>(Pengguna Baru)</sub>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
       `Platform modular untuk mengelola userbot Telegram Anda dengan mudah, cepat, dan aman.</p>` +
       `<table bordered striped>` +
       `<tr><th>Layanan Platform</th><th>Status</th><th>Keterangan</th></tr>` +
-      `<tr><td>🤖 Userbot Engine</td><td align="center">🟢 Online</td><td>Teleproto Layer 229</td></tr>` +
-      `<tr><td>🎁 Uji Coba Gratis</td><td align="center">7 Hari</td><td>Request ke Owner</td></tr>` +
-      `<tr><td>📦 Modul Tersedia</td><td align="center">${loadedPlugins.length} Plugin</td><td>Siap Digunakan</td></tr>` +
+      `<tr><td>🤖 Userbot Engine <sub>(MTProto)</sub></td><td align="center">🟢 Online <sup>[v229]</sup></td><td>Teleproto Layer 229</td></tr>` +
+      `<tr><td>🎁 Uji Coba Gratis <sub>(trial)</sub></td><td align="center">7 Hari <sup>Gratis</sup></td><td>Request ke Owner</td></tr>` +
+      `<tr><td>📦 Modul Tersedia <sub>(plugins)</sub></td><td align="center">${loadedPlugins.length} Plugin <sup>Aktif</sup></td><td>Siap Digunakan</td></tr>` +
       `</table>` +
       `<hr/>` +
       `<h3>🚀 Alur Pendaftaran Cepat (4 Langkah):</h3>` +
@@ -197,14 +197,15 @@ export function panelMain(ctx) {
   }
 
   // Tampilan Menu Utama untuk Pengguna Terdaftar (Portal Ringkas)
-  return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
-    `<p>Halo, <b>${escapeHtml(firstName)}</b>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
+  const roleBadge = isOwner(ctx) ? 'Owner' : 'VIP Member';
+  return `<h1 align="center">⚡ DeltaUserJS <sup>v2.4</sup></h1>` +
+    `<p>Halo, <b>${escapeHtml(firstName)}</b> <sub>(${roleBadge})</sub>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
     `Pusat kendali &amp; portal utama userbot Telegram Anda.</p>` +
     `<table bordered striped>` +
     `<tr><th>Informasi Akun</th><th>Status</th><th>Keterangan</th></tr>` +
-    `<tr><td>🤖 Status Userbot</td><td align="center">${statusBadge}</td><td>${running ? 'Teleproto 229' : 'Siap Dijalankan'}</td></tr>` +
-    `<tr><td>⏳ Masa Aktif</td><td align="center">${daysLeftText(session?.expired_at, true)}</td><td>Akses Penuh</td></tr>` +
-    `<tr><td>⚡ Core Engine</td><td align="center">Teleproto 229</td><td>Layer MTProto</td></tr>` +
+    `<tr><td>🤖 Status Userbot <sub>(engine)</sub></td><td align="center">${running ? '🟢 Online <sup>[RUNNING]</sup>' : '🔴 Offline <sup>[STOPPED]</sup>'}</td><td>${running ? 'Teleproto 229' : 'Siap Dijalankan'}</td></tr>` +
+    `<tr><td>⏳ Masa Aktif <sub>(akses)</sub></td><td align="center">${daysLeftText(session?.expired_at, true)}</td><td>Akses Penuh</td></tr>` +
+    `<tr><td>⚡ Core Engine <sub>(MTProto)</sub></td><td align="center">Teleproto <sup>Layer 229</sup></td><td>Layer MTProto</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Akses Cepat Pengguna:</h3>` +
@@ -223,21 +224,21 @@ export function panelMenuList(ctx) {
 
   const statusLine = !hasBot
     ? '🔴 Belum Terdaftar'
-    : (running ? '🟢 Online &amp; Berjalan' : '🟡 Terdaftar (Offline)');
+    : (running ? '🟢 Online &amp; Berjalan <sup>[AKTIF]</sup>' : '🟡 Terdaftar <sub>(Offline)</sub>');
 
-  return `<h1 align="center">🎛️ Panel Menu Kontrol</h1>` +
+  return `<h1 align="center">🎛️ Panel Menu Kontrol <sup>PORTAL</sup></h1>` +
     `<p>Status Akun: <b>${statusLine}</b></p>` +
     `<table bordered striped>` +
     `<tr><th>Menu Kontrol</th><th>Deskripsi Layanan</th><th>Akses</th></tr>` +
     (hasBot
-      ? `<tr><td>🤖 Panel Userbot</td><td>Kendali daya, restart, &amp; info sesi</td><td align="center">🟢 Siap</td></tr>` +
-        `<tr><td>🧩 Plugin Studio</td><td>Manajemen ${loadedPlugins.length} modul perintah aktif</td><td align="center">🟢 Siap</td></tr>` +
-        `<tr><td>⚙️ Pengaturan</td><td>Anti-PM, Mode AFK, &amp; custom prefix</td><td align="center">🟢 Siap</td></tr>` +
-        `<tr><td>🩺 Diagnostik</td><td>Uji latensi MTProto &amp; data center</td><td align="center">🟢 Siap</td></tr>` +
-        `<tr><td>💎 Langganan</td><td>Status durasi akses &amp; perpanjangan</td><td align="center">🟢 Siap</td></tr>`
-      : `<tr><td>🚀 Registrasi Akun</td><td>Daftar userbot baru via OTP atau QR Code</td><td align="center">🟡 Perlu Setup</td></tr>` +
-        `<tr><td>💎 Paket VIP</td><td>Pilihan durasi berlangganan premium</td><td align="center">🟢 Tersedia</td></tr>`) +
-    (isOwner(ctx) ? `<tr><td>👑 Panel Admin</td><td>Operasi owner &amp; maintenance sistem</td><td align="center">🔴 Owner</td></tr>` : '') +
+      ? `<tr><td>🤖 Panel Userbot <sub>(kendali)</sub></td><td>Kendali daya, restart, &amp; info sesi</td><td align="center">🟢 Siap</td></tr>` +
+        `<tr><td>🧩 Plugin Studio <sub>(modul)</sub></td><td>Manajemen ${loadedPlugins.length} modul perintah aktif</td><td align="center">🟢 Siap</td></tr>` +
+        `<tr><td>⚙️ Pengaturan <sub>(keamanan)</sub></td><td>Anti-PM, Mode AFK, &amp; custom prefix</td><td align="center">🟢 Siap</td></tr>` +
+        `<tr><td>🩺 Diagnostik <sub>(network)</sub></td><td>Uji latensi MTProto &amp; data center</td><td align="center">🟢 Siap</td></tr>` +
+        `<tr><td>💎 Langganan <sub>(billing)</sub></td><td>Status durasi akses &amp; perpanjangan</td><td align="center">🟢 Siap</td></tr>`
+      : `<tr><td>🚀 Registrasi Akun <sub>(baru)</sub></td><td>Daftar userbot baru via OTP atau QR Code</td><td align="center">🟡 Perlu Setup</td></tr>` +
+        `<tr><td>💎 Paket VIP <sub>(premium)</sub></td><td>Pilihan durasi berlangganan premium</td><td align="center">🟢 Tersedia</td></tr>`) +
+    (isOwner(ctx) ? `<tr><td>👑 Panel Admin <sub>(owner)</sub></td><td>Operasi owner &amp; maintenance sistem</td><td align="center">🔴 Owner <sup>ROOT</sup></td></tr>` : '') +
     `</table>` +
     `<footer>Pilih salah satu menu di bawah untuk melanjutkan.</footer>`;
 }
@@ -301,26 +302,26 @@ export function panelUserbot(ctx) {
       `<p>Akun dalam jeda aman Telegram (<b>${flood.secondsLeft} detik tersisa</b>) untuk mencegah pembatasan akun. Aksi keluar ditahan otomatis hingga hitungan mundur selesai.</p><hr/>`
     : '';
 
-  return `<h1 align="center">🤖 Dashboard ${escapeHtml(botName)}</h1>` +
+  return `<h1 align="center">🤖 Dashboard ${escapeHtml(botName)} <sup>PRO</sup></h1>` +
     floodBanner +
-    `<h3>${running ? '🟢 Status: Userbot Online &amp; Aktif' : '🔴 Status: Userbot Offline / Mati'}</h3>` +
-    `<p>Teleproto Layer 229 · Telegram Datacenter DC ${dcId} · Latensi Real-time</p>` +
+    `<h3>${running ? '🟢 Status: Online <sup>[RUNNING]</sup>' : '🔴 Status: Offline <sup>[STOPPED]</sup>'}</h3>` +
+    `<p>Teleproto <sup>Layer 229</sup> · Telegram Datacenter <sub>DC ${dcId}</sub> · Latensi Real-time</p>` +
     `<table bordered striped><caption>🎛️ Panel Kendali &amp; Aksi Interaktif</caption>` +
     `<tr><th>Fitur / Layanan</th><th>Status Saat Ini</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>⚡ Daya Userbot</td><td>${connStatus}</td><td align="center">${powerBtn}${restartBtn}</td></tr>` +
-    `<tr><td>💬 Prefix Perintah</td><td><code>${escapeHtml(currentPrefix)}</code></td><td align="center">${prefixBtn}</td></tr>` +
-    `<tr><td>🛡️ Proteksi Anti-PM</td><td>${badge(isAntiPm, '🟢 ON', '🔴 OFF')}</td><td align="center">${antiPmBtn}</td></tr>` +
-    `<tr><td>💤 Mode AFK Auto</td><td>${badge(isAfk, '🟢 ON', '🔴 OFF')}</td><td align="center">${afkBtn}</td></tr>` +
-    `<tr><td>🏷️ Nama Kustom</td><td><b>${escapeHtml(botName)}</b></td><td align="center">${nameBtn}</td></tr>` +
-    `<tr><td>🧩 Modul Plugin</td><td>🟢 ${activePlugins}/${loadedPlugins.length} Aktif</td><td align="center">${pluginBtn}</td></tr>` +
-    `<tr><td>⏰ Auto-Loop</td><td><b>${loopCount}</b> Jadwal Aktif</td><td align="center">${loopBtn}</td></tr>` +
-    `<tr><td>🛡️ FloodGuard</td><td>${flood.inCooldown ? `⏳ Cooldown (${flood.secondsLeft}s)` : '🟢 Normal'}</td><td align="center">${diagBtn}</td></tr>` +
-    `<tr><td>⏱️ Masa Langganan</td><td>${daysLeftText(session?.expired_at)}</td><td align="center">${subBtn}</td></tr>` +
+    `<tr><td>⚡ Daya Userbot <sub>(power)</sub></td><td>${connStatus}</td><td align="center">${powerBtn}${restartBtn}</td></tr>` +
+    `<tr><td>💬 Prefix Perintah <sub>(trigger)</sub></td><td><code>${escapeHtml(currentPrefix)}</code></td><td align="center">${prefixBtn}</td></tr>` +
+    `<tr><td>🛡️ Proteksi Anti-PM <sub>(guard)</sub></td><td>${badge(isAntiPm, '🟢 ON', '🔴 OFF')}</td><td align="center">${antiPmBtn}</td></tr>` +
+    `<tr><td>💤 Mode AFK Auto <sub>(reply)</sub></td><td>${badge(isAfk, '🟢 ON', '🔴 OFF')}</td><td align="center">${afkBtn}</td></tr>` +
+    `<tr><td>🏷️ Nama Kustom <sub>(branding)</sub></td><td><b>${escapeHtml(botName)}</b></td><td align="center">${nameBtn}</td></tr>` +
+    `<tr><td>🧩 Modul Plugin <sub>(active)</sub></td><td>🟢 ${activePlugins}/${loadedPlugins.length} Aktif</td><td align="center">${pluginBtn}</td></tr>` +
+    `<tr><td>⏰ Auto-Loop <sub>(broadcast)</sub></td><td><b>${loopCount}</b> Jadwal Aktif</td><td align="center">${loopBtn}</td></tr>` +
+    `<tr><td>🛡️ FloodGuard <sub>(hibernasi)</sub></td><td>${flood.inCooldown ? `⏳ Cooldown <sub>(${flood.secondsLeft}s)</sub>` : '🟢 Normal <sup>[AMAN]</sup>'}</td><td align="center">${diagBtn}</td></tr>` +
+    `<tr><td>⏱️ Masa Langganan <sub>(durasi)</sub></td><td>${daysLeftText(session?.expired_at)}</td><td align="center">${subBtn}</td></tr>` +
     `</table>` +
     `<table bordered striped><caption>👤 Profil Akun Terhubung</caption>` +
     `<tr><th>Informasi Akun</th><th>Nilai</th></tr>` +
-    `<tr><td>📱 Nomor Telegram</td><td align="center">${phoneText}</td></tr>` +
-    `<tr><td>🆔 ID Telegram</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
+    `<tr><td>📱 Nomor Telegram <sub>(phone)</sub></td><td align="center">${phoneText}</td></tr>` +
+    `<tr><td>🆔 ID Telegram <sub>(UID)</sub></td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Cheatsheet Perintah Populer:</h3>` +
@@ -391,13 +392,13 @@ export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
 
   return {
     rich:
-      `<h1 align="center">🧩 Plugin Studio</h1>` +
+      `<h1 align="center">🧩 Plugin Studio <sup>v1.0</sup></h1>` +
       (notice ? `<p>🔔 <b>${escapeHtml(notice)}</b></p>` : `<p>Kelola <b>${loadedPlugins.length}</b> modul perintah untuk userbot Telegram Anda.</p>`) +
-      `<table bordered striped><caption>📊 Filter Kategori: ${catIcon} ${escapeHtml(catLabel)}</caption>` +
+      `<table bordered striped><caption>📊 Filter Kategori: ${catIcon} ${escapeHtml(catLabel)} <sub>(${total} plugin)</sub></caption>` +
       `<tr><th>Total Kategori</th><th>Total Aktif</th><th>Total Off</th><th>Halaman</th></tr>` +
       `<tr><td align="center">${total}</td><td align="center">🟢 ${activeCount}</td><td align="center">🔴 ${Math.max(0, loadedPlugins.length - activeCount)}</td><td align="center">${currentPage}/${totalPages}</td></tr>` +
       `</table>` +
-      `<table bordered striped><caption>📋 Modul ${escapeHtml(catLabel)} · Hal ${currentPage}/${totalPages}</caption>` +
+      `<table bordered striped><caption>📋 Modul ${escapeHtml(catLabel)} <sub>(Hal ${currentPage}/${totalPages})</sub></caption>` +
       `<tr><th>Plugin</th><th align="center">Detail</th><th align="center">Status</th></tr>` +
       rows +
       `</table>` +
@@ -482,17 +483,17 @@ export function panelSettings(ctx) {
   const afkReasonBtn = `<tg-button type="callback_data" data="rich:edit_afk">✏️ Edit</tg-button>`;
   const helperBtn = `<tg-button type="callback_data" data="rich:setup_helper">⚙️ Setup</tg-button>`;
 
-  return `<h1 align="center">⚙️ Pengaturan &amp; Keamanan</h1>` +
+  return `<h1 align="center">⚙️ Pengaturan &amp; Keamanan <sup>SYSTEM</sup></h1>` +
     `<p>Atur preferensi keamanan, identitas bot, dan respons otomatis akun Anda.</p>` +
     `<table bordered striped><caption>🛠️ Konfigurasi Fitur Akun</caption>` +
     `<tr><th>Pengaturan</th><th>Nilai / Status</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>💬 Prefix Perintah</td><td><code>${escapeHtml(currentPrefix)}</code></td><td align="center">${prefixBtn}</td></tr>` +
-    `<tr><td>🛡️ Proteksi Anti-PM</td><td>${badge(isAntiPm, '🟢 ON', '🔴 OFF')}</td><td align="center">${antiPmBtn}</td></tr>` +
-    `<tr><td>💤 Mode AFK Auto</td><td>${badge(isAfk, '🟢 ON', '🔴 OFF')}</td><td align="center">${afkBtn}</td></tr>` +
-    `<tr><td>🏷️ Nama Kustom Bot</td><td><b>${escapeHtml(botName)}</b></td><td align="center">${nameBtn}</td></tr>` +
-    `<tr><td>📝 Pesan Balasan AFK</td><td><tg-spoiler><code>${escapeHtml(afkReason)}</code></tg-spoiler></td><td align="center">${afkReasonBtn}</td></tr>` +
-    `<tr><td>🤖 Inline Helper</td><td>${helperUser}</td><td align="center">${helperBtn}</td></tr>` +
-    `<tr><td>📦 Database Sesi</td><td>${session ? '🟢 Tersimpan' : '🔴 Kosong'}</td><td align="center">MongoDB</td></tr>` +
+    `<tr><td>💬 Prefix Perintah <sub>(trigger)</sub></td><td><code>${escapeHtml(currentPrefix)}</code></td><td align="center">${prefixBtn}</td></tr>` +
+    `<tr><td>🛡️ Proteksi Anti-PM <sub>(guard)</sub></td><td>${badge(isAntiPm, '🟢 ON', '🔴 OFF')}</td><td align="center">${antiPmBtn}</td></tr>` +
+    `<tr><td>💤 Mode AFK Auto <sub>(reply)</sub></td><td>${badge(isAfk, '🟢 ON', '🔴 OFF')}</td><td align="center">${afkBtn}</td></tr>` +
+    `<tr><td>🏷️ Nama Kustom Bot <sub>(identity)</sub></td><td><b>${escapeHtml(botName)}</b></td><td align="center">${nameBtn}</td></tr>` +
+    `<tr><td>📝 Pesan Balasan AFK <sub>(template)</sub></td><td><tg-spoiler><code>${escapeHtml(afkReason)}</code></tg-spoiler></td><td align="center">${afkReasonBtn}</td></tr>` +
+    `<tr><td>🤖 Inline Helper <sub>(botfather)</sub></td><td>${helperUser}</td><td align="center">${helperBtn}</td></tr>` +
+    `<tr><td>📦 Database Sesi <sub>(storage)</sub></td><td>${session ? '🟢 Tersimpan <sup>[OK]</sup>' : '🔴 Kosong'}</td><td align="center">MongoDB</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>⚠️ Keamanan Sesi Telegram:</h3>` +
@@ -503,17 +504,17 @@ export function panelSettings(ctx) {
 export function panelPrefixPicker(ctx) {
   const session = getUserbotSession(ctx.from.id);
   const currentPrefix = session?.vars?.PREFIX || '.';
-  return `<h1 align="center">💬 Ganti Prefix Perintah</h1>` +
+  return `<h1 align="center">💬 Ganti Prefix Perintah <sup>CONFIG</sup></h1>` +
     `<p>Prefix saat ini: <code>${escapeHtml(currentPrefix)}</code><br>` +
     `Pilih salah satu simbol prefix di bawah untuk mengubah prefix perintah userbot Anda:</p>` +
     `<table bordered striped>` +
     `<tr><th>Simbol</th><th>Contoh Perintah</th><th>Keterangan</th></tr>` +
-    `<tr><td><code>.</code> (Titik)</td><td><code>.ping</code>, <code>.alive</code></td><td>Standar Default</td></tr>` +
-    `<tr><td><code>!</code> (Tanda Seru)</td><td><code>!ping</code>, <code>!alive</code></td><td>Populer Bot</td></tr>` +
-    `<tr><td><code>,</code> (Koma)</td><td><code>,ping</code>, <code>,alive</code></td><td>Mudah Diketik</td></tr>` +
-    `<tr><td><code>#</code> (Pagar)</td><td><code>#ping</code>, <code>#alive</code></td><td>Alternatif</td></tr>` +
-    `<tr><td><code>?</code> (Tanya)</td><td><code>?ping</code>, <code>?alive</code></td><td>Alternatif</td></tr>` +
-    `<tr><td><code>~</code> (Tilde)</td><td><code>~ping</code>, <code>~alive</code></td><td>Alternatif</td></tr>` +
+    `<tr><td><code>.</code> <sub>(Titik)</sub></td><td><code>.ping</code>, <code>.alive</code></td><td>Standar <sup>Default</sup></td></tr>` +
+    `<tr><td><code>!</code> <sub>(Seru)</sub></td><td><code>!ping</code>, <code>!alive</code></td><td>Populer <sup>Bot</sup></td></tr>` +
+    `<tr><td><code>,</code> <sub>(Koma)</sub></td><td><code>,ping</code>, <code>,alive</code></td><td>Mudah <sup>Ketik</sup></td></tr>` +
+    `<tr><td><code>#</code> <sub>(Pagar)</sub></td><td><code>#ping</code>, <code>#alive</code></td><td>Alternatif</td></tr>` +
+    `<tr><td><code>?</code> <sub>(Tanya)</sub></td><td><code>?ping</code>, <code>?alive</code></td><td>Alternatif</td></tr>` +
+    `<tr><td><code>~</code> <sub>(Tilde)</sub></td><td><code>~ping</code>, <code>~alive</code></td><td>Alternatif</td></tr>` +
     `</table>` +
     `<footer>Ketuk tombol prefix di bawah untuk langsung mengganti.</footer>`;
 }
@@ -521,12 +522,12 @@ export function panelPrefixPicker(ctx) {
 export function panelInlineHelper(ctx) {
   const session = getUserbotSession(ctx.from.id);
   const botUser = session?.inline_bot_username;
-  return `<h1 align="center">🤖 Setup Inline Helper Bot</h1>` +
+  return `<h1 align="center">🤖 Setup Inline Helper Bot <sup>BOTFATHER</sup></h1>` +
     `<p>Inline Helper Bot memungkinkan perintah <code>.help</code> di obrolan mana pun memunculkan tombol menu interaktif.</p>` +
     `<table bordered striped>` +
     `<tr><th>Parameter</th><th>Status</th></tr>` +
-    `<tr><td>Status Helper</td><td align="center">${botUser ? `🟢 Terpasang (@${escapeHtml(botUser)})` : '🔴 Belum Terpasang'}</td></tr>` +
-    `<tr><td>Metode Pemasangan</td><td align="center">Via @BotFather</td></tr>` +
+    `<tr><td>Status Helper <sub>(username)</sub></td><td align="center">${botUser ? `🟢 Terpasang <sup>(@${escapeHtml(botUser)})</sup>` : '🔴 Belum Terpasang'}</td></tr>` +
+    `<tr><td>Metode Pemasangan <sub>(auth)</sub></td><td align="center">Via @BotFather <sup>HTTP API</sup></td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>📝 Cara Mendapatkan Token Bot:</h3>` +
@@ -574,18 +575,18 @@ export async function panelUserbotDiag(ctx) {
       `<p>Akun Anda saat ini sedang dalam masa pendinginan aman sebesar <b>${flood.secondsLeft} detik</b>. DeltaUbotJS otomatis menahan seluruh aktivitas perintah keluar agar akun tidak terkena batasan banned dari Telegram. Sistem akan kembali normal secara otomatis begitu hitungan mundur selesai.</p><hr/>`
     : '';
 
-  return `<h1 align="center">🩺 Diagnostik &amp; Latensi MTProto</h1>` +
+  return `<h1 align="center">🩺 Diagnostik &amp; Latensi MTProto <sup>v2.4</sup></h1>` +
     floodInfo +
     `<p>Hasil pengujian langsung soket MTProto Telegram dan status runtime engine.</p>` +
     `<table bordered striped><caption>📊 Hasil Pengujian Real-Time</caption>` +
     `<tr><th>Parameter Uji</th><th>Hasil / Nilai</th><th align="center">Aksi</th></tr>` +
-    `<tr><td>⚡ Status Client</td><td>${isRunning ? (connected ? '🟢 Online &amp; Terhubung' : '🟡 Menghubungkan...') : '🔴 Offline / Mati'}</td><td align="center">${retryBtn}</td></tr>` +
-    `<tr><td>📡 Latensi Telegram DC</td><td>${pingMs > 0 ? `<b>${pingMs} ms</b>` : (isRunning ? '🟡 Mengukur...' : '🔴 N/A')}</td><td align="center">Layer 229</td></tr>` +
-    `<tr><td>🌐 Server Datacenter</td><td>Telegram DC ${dcId}</td><td align="center">Teleproto</td></tr>` +
-    `<tr><td>🛡️ FloodWait Guard</td><td>${flood.inCooldown ? `⏳ Hibernasi (${flood.secondsLeft}s)` : '🟢 Normal / Aman'}</td><td align="center">Proteksi</td></tr>` +
-    `<tr><td>🧩 Modul Aktif</td><td>🟢 ${activeCount} / ${loadedPlugins.length} Plugin</td><td align="center">${backUbotBtn}</td></tr>` +
-    `<tr><td>🛡️ Filter Anti-PM</td><td>${session?.anti_pm === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Spam Shield</td></tr>` +
-    `<tr><td>🤖 Auto-Reply AFK</td><td>${session?.auto_reply === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Auto-Reply</td></tr>` +
+    `<tr><td>⚡ Status Client <sub>(koneksi)</sub></td><td>${isRunning ? (connected ? '🟢 Online &amp; Terhubung <sup>[OK]</sup>' : '🟡 Menghubungkan...') : '🔴 Offline / Mati'}</td><td align="center">${retryBtn}</td></tr>` +
+    `<tr><td>📡 Latensi Telegram DC <sub>(ping)</sub></td><td>${pingMs > 0 ? `<b>${pingMs} ms</b>` : (isRunning ? '🟡 Mengukur...' : '🔴 N/A')}</td><td align="center">Layer 229 <sup>MTProto</sup></td></tr>` +
+    `<tr><td>🌐 Server Datacenter <sub>(lokasi)</sub></td><td>Telegram DC ${dcId} <sup>[DC${dcId}]</sup></td><td align="center">Teleproto</td></tr>` +
+    `<tr><td>🛡️ FloodWait Guard <sub>(proteksi)</sub></td><td>${flood.inCooldown ? `⏳ Hibernasi <sub>(${flood.secondsLeft}s)</sub>` : '🟢 Normal <sup>[AMAN]</sup>'}</td><td align="center">Proteksi</td></tr>` +
+    `<tr><td>🧩 Modul Aktif <sub>(plugins)</sub></td><td>🟢 ${activeCount} / ${loadedPlugins.length} Plugin</td><td align="center">${backUbotBtn}</td></tr>` +
+    `<tr><td>🛡️ Filter Anti-PM <sub>(shield)</sub></td><td>${session?.anti_pm === 1 ? '🟢 Aktif <sup>[ON]</sup>' : '🔴 Nonaktif <sup>[OFF]</sup>'}</td><td align="center">Spam Shield</td></tr>` +
+    `<tr><td>🤖 Auto-Reply AFK <sub>(status)</sub></td><td>${session?.auto_reply === 1 ? '🟢 Aktif <sup>[ON]</sup>' : '🔴 Nonaktif <sup>[OFF]</sup>'}</td><td align="center">Auto-Reply</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Panduan Indikator Latensi:</h3>` +
@@ -684,13 +685,13 @@ export function panelTermsDeclined(ctx) {
 
 export function panelRegister(ctx) {
   const claimed = hasClaimedTrial(ctx.from.id);
-  const statusTrial = claimed ? 'Sudah Diklaim' : '🎁 Gratis 7 Hari';
-  return `<h1 align="center">🚀 Daftar Userbot Telegram</h1>` +
+  const statusTrial = claimed ? 'Sudah Diklaim <sup>[USED]</sup>' : '🎁 Gratis 7 Hari <sup>[FREE]</sup>';
+  return `<h1 align="center">🚀 Daftar Userbot Telegram <sup>ONBOARDING</sup></h1>` +
     `<p>Halo, <b>${escapeHtml(ctx.from.first_name || 'User')}</b>! Pilih metode login untuk mengaktifkan userbot Anda.</p>` +
     `<table bordered striped>` +
     `<tr><th>Metode Login</th><th>Keterangan</th><th>Trial</th></tr>` +
-    `<tr><td>📱 OTP Telegram</td><td>Kode verifikasi via SMS / App</td><td align="center">${statusTrial}</td></tr>` +
-    `<tr><td>🔍 Scan QR Code</td><td>Pindai via Settings &gt; Devices</td><td align="center">${statusTrial}</td></tr>` +
+    `<tr><td>📱 OTP Telegram <sub>(SMS/App)</sub></td><td>Kode verifikasi via SMS / App</td><td align="center">${statusTrial}</td></tr>` +
+    `<tr><td>🔍 Scan QR Code <sub>(Settings)</sub></td><td>Pindai via Settings &gt; Devices</td><td align="center">${statusTrial}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>🛡️ Jaminan Keamanan:</h3>` +
@@ -712,13 +713,13 @@ function getSystemVarNum(key: string, fallback: number): number {
 export function panelSubscription(_ctx) {
   const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
   const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
-  return `<h1 align="center">💎 Paket Langganan &amp; Voucher</h1>` +
+  return `<h1 align="center">💎 Paket Langganan &amp; Voucher <sup>VIP</sup></h1>` +
     `<p>Dapatkan akses penuh ke fitur userbot tanpa batas, prioritas server, dan penukaran kupon promo.</p>` +
     `<table bordered striped>` +
     `<tr><th>Pilihan Akses</th><th>Durasi Masa Aktif</th><th>Keterangan</th></tr>` +
-    `<tr><td>🎁 Coba Gratis</td><td align="center">${trialDays} Hari</td><td>Request ke Owner</td></tr>` +
-    `<tr><td>💎 Premium VIP</td><td align="center">${premiumDays} Hari</td><td>Fitur Lengkap Unlocked</td></tr>` +
-    `<tr><td>🎟️ Kupon Promo</td><td align="center">Variatif</td><td>Tukar Kode Voucher</td></tr>` +
+    `<tr><td>🎁 Coba Gratis <sub>(trial)</sub></td><td align="center">${trialDays} Hari <sup>Free</sup></td><td>Request ke Owner</td></tr>` +
+    `<tr><td>💎 Premium VIP <sub>(langganan)</sub></td><td align="center">${premiumDays} Hari <sup>Akses</sup></td><td>Fitur Lengkap Unlocked</td></tr>` +
+    `<tr><td>🎟️ Kupon Promo <sub>(voucher)</sub></td><td align="center">Variatif <sup>Klaim</sup></td><td>Tukar Kode Voucher</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Punya Kode Voucher Promo?</h3>` +
@@ -729,14 +730,14 @@ export function panelSubscription(_ctx) {
 export function panelAccessDenied(ctx) {
   const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
   const pending = isPendingApproval(ctx.from.id);
-  const statusText = pending ? '🕐 Menunggu Approval Owner' : '🔴 Belum Disetujui';
-  return `<h1 align="center">🔒 Akses Belum Disetujui</h1>` +
+  const statusText = pending ? '🕐 Menunggu Approval Owner <sup>[PENDING]</sup>' : '🔴 Belum Disetujui <sup>[LOCKED]</sup>';
+  return `<h1 align="center">🔒 Akses Belum Disetujui <sup>RESTRICTED</sup></h1>` +
     `<p>Pendaftaran userbot memerlukan persetujuan dari owner.</p>` +
     `<table bordered striped>` +
     `<tr><th>Informasi Akun</th><th>Status</th></tr>` +
-    `<tr><td>ID Telegram</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
-    `<tr><td>Status Akses</td><td align="center">${statusText}</td></tr>` +
-    `<tr><td>Uji Coba Gratis</td><td align="center">${trialDays} Hari</td></tr>` +
+    `<tr><td>ID Telegram <sub>(UID)</sub></td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
+    `<tr><td>Status Akses <sub>(izin)</sub></td><td align="center">${statusText}</td></tr>` +
+    `<tr><td>Uji Coba Gratis <sub>(trial)</sub></td><td align="center">${trialDays} Hari <sup>Free</sup></td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Cara Mendapatkan Akses:</h3>` +
@@ -821,17 +822,17 @@ export function panelAdmin(_ctx) {
     ? `<b>${totalUsers}</b> Akun (${registeredUsers.length} Sesi, ${awaitingCount} Siap Login)`
     : `<b>${registeredUsers.length}</b> Sesi`;
 
-  return `<h1 align="center">👑 Admin Command Center</h1>` +
+  return `<h1 align="center">👑 Admin Command Center <sup>ROOT</sup></h1>` +
     `<p>Pusat kendali operasional, manajemen armada userbot, dan pemeliharaan platform.</p>` +
     `<table bordered striped><caption>📊 Metrik Real-Time &amp; Aksi Cepat</caption>` +
     `<tr><th>Komponen Sistem</th><th>Metrik / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>👥 Total Pengguna</td><td align="center">${userMetricsStr}</td><td align="center">${usersBtn}</td></tr>` +
-    `<tr><td>⚡ Userbot Aktif</td><td align="center"><b>${running}</b> Client Running</td><td align="center">${fleetBtn}</td></tr>` +
-    `<tr><td>⏳ Antrean Approval</td><td align="center"><b>${pending.length}</b> Menunggu</td><td align="center">${pendingBtn}</td></tr>` +
-    `<tr><td>🎟️ Voucher Promo</td><td align="center"><b>${vouchers.length}</b> Kupon</td><td align="center">${voucherBtn}</td></tr>` +
-    `<tr><td>💳 Status Langganan</td><td align="center">Metrik Finansial</td><td align="center">${subsBtn}</td></tr>` +
-    `<tr><td>💾 Backup &amp; Audit</td><td align="center">MongoDB Cluster</td><td align="center">${backupBtn}</td></tr>` +
-    `<tr><td>🩺 Kesehatan Server</td><td align="center">${uptimeMin}m · ${formatBytesRef(mem.rss)}</td><td align="center">${healthBtn}</td></tr>` +
+    `<tr><td>👥 Total Pengguna <sub>(users)</sub></td><td align="center">${userMetricsStr}</td><td align="center">${usersBtn}</td></tr>` +
+    `<tr><td>⚡ Userbot Aktif <sub>(fleet)</sub></td><td align="center"><b>${running}</b> Client Running <sup>[ONLINE]</sup></td><td align="center">${fleetBtn}</td></tr>` +
+    `<tr><td>⏳ Antrean Approval <sub>(pending)</sub></td><td align="center"><b>${pending.length}</b> Menunggu <sup>[QUEUE]</sup></td><td align="center">${pendingBtn}</td></tr>` +
+    `<tr><td>🎟️ Voucher Promo <sub>(coupons)</sub></td><td align="center"><b>${vouchers.length}</b> Kupon <sup>[ACTIVE]</sup></td><td align="center">${voucherBtn}</td></tr>` +
+    `<tr><td>💳 Status Langganan <sub>(billing)</sub></td><td align="center">Metrik Finansial</td><td align="center">${subsBtn}</td></tr>` +
+    `<tr><td>💾 Backup &amp; Audit <sub>(database)</sub></td><td align="center">MongoDB Cluster</td><td align="center">${backupBtn}</td></tr>` +
+    `<tr><td>🩺 Kesehatan Server <sub>(health)</sub></td><td align="center">${uptimeMin}m · ${formatBytesRef(mem.rss)}</td><td align="center">${healthBtn}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Status Lingkungan Runtime:</h3>` +
@@ -846,7 +847,7 @@ export function panelAdmin(_ctx) {
 export function panelAdminPending() {
   const pendingList = getPendingApprovals();
   if (pendingList.length === 0) {
-    return `<h1 align="center">⏳ Antrean Approval</h1>` +
+    return `<h1 align="center">⏳ Antrean Approval <sup>PENDING</sup></h1>` +
       `<p>Tidak ada permohonan coba gratis yang menunggu persetujuan saat ini.</p>` +
       `<footer>Semua permohonan sudah diproses atau belum ada user baru yang mengajukan.</footer>`;
   }
@@ -859,19 +860,16 @@ export function panelAdminPending() {
     return `<tr><td><code>${p.userId}</code></td><td>${userLabel}</td><td align="center">${timeStr}</td><td align="center">${approveBtn} ${rejectBtn}</td></tr>`;
   }).join('');
 
-  return `<h1 align="center">⏳ Antrean Approval (${pendingList.length})</h1>` +
+  return `<h1 align="center">⏳ Antrean Approval <sup>[${pendingList.length}]</sup></h1>` +
     `<p>Daftar pengguna yang mengajukan permohonan coba gratis 7 Hari:</p>` +
     `<table bordered striped><caption>📋 Permohonan Masuk</caption>` +
-    `<tr><th>ID Pengguna</th><th>Nama / Username</th><th>Waktu</th><th align="center">Keputusan</th></tr>` +
+    `<tr><th>ID Pemohon</th><th>Nama / Username</th><th align="center">Waktu</th><th align="center">Aksi Cepat</th></tr>` +
     rows +
     `</table>` +
     `<hr/>` +
-    `<h3>💡 Petunjuk Keputusan:</h3>` +
-    `<ul>` +
-    `<li>Ketuk <b>✅ Terima</b> untuk langsung mengizinkan user mendaftar dan memberikan masa trial 7 Hari.</li>` +
-    `<li>Ketuk <b>❌ Tolak</b> untuk menolak permohonan akun tersebut.</li>` +
-    `</ul>` +
-    `<footer>Ketuk tombol di atas atau gunakan tombol navigasi di bawah:</footer>`;
+    `<h3>💡 Catatan Approval:</h3>` +
+    `<p>Pengguna yang disetujui akan otomatis mendapatkan durasi coba gratis <b>7 Hari</b> dan dapat langsung login via QR Code atau OTP.</p>` +
+    `<footer>Ketuk tombol aksi di baris tabel untuk memproses permohonan.</footer>`;
 }
 
 export function panelAdminUsers(page = 1) {
@@ -885,7 +883,7 @@ export function panelAdminUsers(page = 1) {
 
   const rows = currentUsers.map(u => {
     if (u.is_awaiting_reg) {
-      const status = '🔵 Siap';
+      const status = '🔵 Siap <sup>[WAIT]</sup>';
       const name = escapeHtml(u.custom_name || 'Calon User');
       const expiry = '⏳ Belum Login';
       const detailBtn = `<tg-button type="callback_data" data="rich:admin_user:${u.telegram_id}">🔍 Buka</tg-button>`;
@@ -893,9 +891,9 @@ export function panelAdminUsers(page = 1) {
     }
 
     const running = userbotManager.isRunning(u.telegram_id);
-    const status = running ? '🟢 On' : (u.is_active === 1 ? '🟡 Off' : '🔴 Revoked');
+    const status = running ? '🟢 On <sup>[RUN]</sup>' : (u.is_active === 1 ? '🟡 Off <sup>[IDLE]</sup>' : '🔴 Revoked <sup>[OFF]</sup>');
     const name = u.custom_name ? escapeHtml(u.custom_name) : 'User';
-    const expiry = u.expired_at ? new Date(u.expired_at).toLocaleDateString('id-ID') : '♾️';
+    const expiry = u.expired_at ? new Date(u.expired_at).toLocaleDateString('id-ID') : '♾️ <sup>Unlim</sup>';
     const detailBtn = `<tg-button type="callback_data" data="rich:admin_user:${u.telegram_id}">🔍 Buka</tg-button>`;
     return `<tr><td align="center">${status}</td><td><code>${u.telegram_id}</code></td><td>${name}</td><td align="center">${expiry}</td><td align="center">${detailBtn}</td></tr>`;
   }).join('') || '<tr><td colspan="5" align="center">Belum ada user</td></tr>';
@@ -904,8 +902,8 @@ export function panelAdminUsers(page = 1) {
     ? ` (${registeredCount} sesi aktif, ${awaitingCount} siap login)`
     : '';
 
-  return `<h1 align="center">👥 Manajemen Pengguna</h1>` +
-    `<p>Total terdaftar: <b>${allUsers.length}</b> akun${summaryBadge} &bull; Halaman ${currentPage}/${totalPages}</p>` +
+  return `<h1 align="center">👥 Manajemen Pengguna <sup>DIRECTORY</sup></h1>` +
+    `<p>Total terdaftar: <b>${allUsers.length}</b> akun${summaryBadge} &bull; Halaman <sup>${currentPage}/${totalPages}</sup></p>` +
     `<table bordered striped><caption>📋 Direktori Akun Userbot</caption>` +
     `<tr><th>Status</th><th>ID Telegram</th><th>Nama Akun</th><th>Expired</th><th align="center">Aksi</th></tr>` +
     rows +
@@ -933,16 +931,16 @@ export function panelAdminUserDetail(targetId: number) {
         : '<i>Baru saja</i>';
       const revokeBtn = `<tg-button type="callback_data" data="rich:admin_revoke_user:${targetId}">🚫 Cabut Izin</tg-button>`;
 
-      return `<h1 align="center">👤 Detail Calon User: ${escapeHtml(name)}</h1>` +
+      return `<h1 align="center">👤 Detail Calon User: ${escapeHtml(name)} <sup>APPROVAL</sup></h1>` +
         `<p>Akun ini <b>telah disetujui (Approved)</b> oleh Owner, tetapi <b>belum menghubungkan sesi userbot</b> (belum login via OTP atau Scan QR).</p>` +
         `<table bordered striped><caption>ℹ️ Status Izin &amp; Akses</caption>` +
         `<tr><th>Parameter Akun</th><th>Nilai / Status</th><th align="center">Aksi Langsung</th></tr>` +
-        `<tr><td>ID Telegram</td><td><code>${targetId}</code></td><td align="center">Whitelist</td></tr>` +
-        `<tr><td>Username</td><td>${uname}</td><td align="center">Telegram</td></tr>` +
-        `<tr><td>Status Akses</td><td>🔵 Disetujui (Siap Login)</td><td align="center">Approved</td></tr>` +
-        `<tr><td>Sesi Userbot</td><td>⚪ Belum Ditautkan</td><td align="center">Scan QR / OTP</td></tr>` +
-        `<tr><td>Waktu Disetujui</td><td>${approvedAtStr}</td><td align="center">Timestamp</td></tr>` +
-        `<tr><td>Tindakan Keamanan</td><td>Batalkan hak registrasi akun</td><td align="center">${revokeBtn}</td></tr>` +
+        `<tr><td>ID Telegram <sub>(UID)</sub></td><td><code>${targetId}</code></td><td align="center">Whitelist</td></tr>` +
+        `<tr><td>Username <sub>(handle)</sub></td><td>${uname}</td><td align="center">Telegram</td></tr>` +
+        `<tr><td>Status Akses <sub>(izin)</sub></td><td>🔵 Disetujui <sup>[Approved]</sup></td><td align="center">Approved</td></tr>` +
+        `<tr><td>Sesi Userbot <sub>(session)</sub></td><td>⚪ Belum Ditautkan</td><td align="center">Scan QR / OTP</td></tr>` +
+        `<tr><td>Waktu Disetujui <sub>(timestamp)</sub></td><td>${approvedAtStr}</td><td align="center">Timestamp</td></tr>` +
+        `<tr><td>Tindakan Keamanan <sub>(danger)</sub></td><td>Batalkan hak registrasi akun</td><td align="center">${revokeBtn}</td></tr>` +
         `</table>` +
         `<footer>Jika izin dicabut, status akun dikembalikan ke tamu dan pengguna tidak dapat mendaftar tanpa permohonan baru.</footer>`;
     }
@@ -951,7 +949,7 @@ export function panelAdminUserDetail(targetId: number) {
   }
   const isRunning = userbotManager.isRunning(targetId);
   const disabledCount = getDisabledPlugins(targetId).length;
-  const expStr = session.expired_at ? new Date(session.expired_at).toLocaleDateString('id-ID') : '♾️ Unlimited';
+  const expStr = session.expired_at ? new Date(session.expired_at).toLocaleDateString('id-ID') : '♾️ <sup>Unlimited</sup>';
 
   const powerBtn = `<tg-button type="callback_data" data="rich:admin_power_user:${targetId}">${isRunning ? '⏹️ Matikan' : '▶️ Nyalakan'}</tg-button>`;
   const ext7Btn = `<tg-button type="callback_data" data="rich:admin_extend:${targetId}:7">➕ 7H</tg-button>`;
@@ -960,19 +958,19 @@ export function panelAdminUserDetail(targetId: number) {
   const revokeBtn = `<tg-button type="callback_data" data="rich:admin_revoke_user:${targetId}">🚫 Revoke</tg-button>`;
   const deleteBtn = `<tg-button type="callback_data" data="rich:admin_delete_user:${targetId}">🗑️ Hapus</tg-button>`;
 
-  return `<h1 align="center">👤 Detail Akun: ${escapeHtml(session.custom_name || String(targetId))}</h1>` +
+  return `<h1 align="center">👤 Detail Akun: ${escapeHtml(session.custom_name || String(targetId))} <sup>USER</sup></h1>` +
     `<p>Inspeksi konfigurasi dan kontrol langsung untuk akun userbot ini.</p>` +
     `<table bordered striped><caption>🛠️ Pengaturan &amp; Status Sesi</caption>` +
     `<tr><th>Parameter Akun</th><th>Nilai / Status</th><th align="center">Aksi Langsung</th></tr>` +
-    `<tr><td>ID Telegram</td><td><code>${targetId}</code></td><td align="center">${powerBtn}</td></tr>` +
-    `<tr><td>Nomor Telepon</td><td>${session.phone ? `<tg-spoiler>${session.phone}</tg-spoiler>` : '<i>Tidak diset</i>'}</td><td align="center">MTProto</td></tr>` +
-    `<tr><td>Status Userbot</td><td>${isRunning ? '🟢 Online (Teleproto 229)' : '🔴 Offline / Mati'}</td><td align="center">${powerBtn}</td></tr>` +
-    `<tr><td>Masa Aktif Akun</td><td>${expStr}</td><td align="center">${ext7Btn} ${ext30Btn}</td></tr>` +
-    `<tr><td>Paket Unlimited</td><td>Akses Permanen</td><td align="center">${extInfBtn}</td></tr>` +
-    `<tr><td>Proteksi Anti-PM</td><td>${session.anti_pm === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Shield</td></tr>` +
-    `<tr><td>Auto-Reply AFK</td><td>${session.auto_reply === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Auto</td></tr>` +
-    `<tr><td>Plugin Dinonaktifkan</td><td>${disabledCount} Modul</td><td align="center">Studio</td></tr>` +
-    `<tr><td>Tindakan Keamanan</td><td>Izin &amp; Basis Data</td><td align="center">${revokeBtn} ${deleteBtn}</td></tr>` +
+    `<tr><td>ID Telegram <sub>(UID)</sub></td><td><code>${targetId}</code></td><td align="center">${powerBtn}</td></tr>` +
+    `<tr><td>Nomor Telepon <sub>(phone)</sub></td><td>${session.phone ? `<tg-spoiler>${session.phone}</tg-spoiler>` : '<i>Tidak diset</i>'}</td><td align="center">MTProto</td></tr>` +
+    `<tr><td>Status Userbot <sub>(engine)</sub></td><td>${isRunning ? '🟢 Online <sup>[RUNNING]</sup>' : '🔴 Offline <sup>[STOPPED]</sup>'}</td><td align="center">${powerBtn}</td></tr>` +
+    `<tr><td>Masa Aktif Akun <sub>(expired)</sub></td><td>${expStr}</td><td align="center">${ext7Btn} ${ext30Btn}</td></tr>` +
+    `<tr><td>Paket Unlimited <sub>(akses)</sub></td><td>Akses Permanen</td><td align="center">${extInfBtn}</td></tr>` +
+    `<tr><td>Proteksi Anti-PM <sub>(guard)</sub></td><td>${session.anti_pm === 1 ? '🟢 Aktif <sup>[ON]</sup>' : '🔴 Nonaktif <sup>[OFF]</sup>'}</td><td align="center">Shield</td></tr>` +
+    `<tr><td>Auto-Reply AFK <sub>(reply)</sub></td><td>${session.auto_reply === 1 ? '🟢 Aktif <sup>[ON]</sup>' : '🔴 Nonaktif <sup>[OFF]</sup>'}</td><td align="center">Auto</td></tr>` +
+    `<tr><td>Plugin Dinonaktifkan <sub>(plugin)</sub></td><td>${disabledCount} Modul</td><td align="center">Studio</td></tr>` +
+    `<tr><td>Tindakan Keamanan <sub>(danger)</sub></td><td>Izin &amp; Basis Data</td><td align="center">${revokeBtn} ${deleteBtn}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Panduan Aksi Administrator:</h3>` +
@@ -1011,16 +1009,16 @@ export function panelAdminFleet() {
   const startAllBtn = `<tg-button type="callback_data" data="rich:admin_fleet_start">🚀 Start Fleet</tg-button>`;
   const restartBotBtn = `<tg-button type="callback_data" data="rich:admin_restart_bot">🔄 Restart Master</tg-button>`;
 
-  return `<h1 align="center">⚡ Fleet &amp; Userbot Control</h1>` +
+  return `<h1 align="center">⚡ Fleet &amp; Userbot Control <sup>FLEET</sup></h1>` +
     `<p>Operasi massal dan kontrol darurat untuk seluruh client userbot di server.</p>` +
     `<table bordered striped><caption>🚀 Operasi Armada Server</caption>` +
     `<tr><th>Operasi Armada</th><th>Status / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>⚡ Userbot Berjalan</td><td align="center"><b>${running}</b> / ${users.length} Client</td><td align="center">${startAllBtn}</td></tr>` +
-    `<tr><td>🔄 Restart Massal</td><td align="center">Seluruh Userbot Aktif</td><td align="center">${restartAllBtn}</td></tr>` +
-    `<tr><td>🛑 Emergency Stop</td><td align="center">Matikan Semua Sesi</td><td align="center">${stopAllBtn}</td></tr>` +
-    `<tr><td>🤖 Master Bot PM2</td><td align="center">PID ${process.pid}</td><td align="center">${restartBotBtn}</td></tr>` +
-    `<tr><td>🧠 Memori RAM (RSS)</td><td align="center">${formatBytesRef(mem.rss)}</td><td align="center">Server RAM</td></tr>` +
-    `<tr><td>⏱️ Uptime Node.js</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td align="center">Uptime</td></tr>` +
+    `<tr><td>⚡ Userbot Berjalan <sub>(active)</sub></td><td align="center"><b>${running}</b> / ${users.length} Client <sup>[ONLINE]</sup></td><td align="center">${startAllBtn}</td></tr>` +
+    `<tr><td>🔄 Restart Massal <sub>(reboot)</sub></td><td align="center">Seluruh Userbot Aktif</td><td align="center">${restartAllBtn}</td></tr>` +
+    `<tr><td>🛑 Emergency Stop <sub>(shutdown)</sub></td><td align="center">Matikan Semua Sesi</td><td align="center">${stopAllBtn}</td></tr>` +
+    `<tr><td>🤖 Master Bot PM2 <sub>(daemon)</sub></td><td align="center">PID ${process.pid} <sup>[L229]</sup></td><td align="center">${restartBotBtn}</td></tr>` +
+    `<tr><td>🧠 Memori RAM <sub>(RSS)</sub></td><td align="center">${formatBytesRef(mem.rss)}</td><td align="center">Server RAM</td></tr>` +
+    `<tr><td>⏱️ Uptime Node.js <sub>(uptime)</sub></td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td align="center">Uptime</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>⚠️ Peringatan Emergency Stop:</h3>` +
@@ -1042,15 +1040,15 @@ export async function panelAdminSubs() {
   const expiredUsersBtn = `<tg-button type="callback_data" data="rich:admin_expired_users">👥 Lihat (${stats.expired})</tg-button>`;
   const refreshBtn = `<tg-button type="callback_data" data="rich:admin_subs">🔄 Refresh</tg-button>`;
 
-  return `<h1 align="center">💎 Statistik Langganan &amp; Finansial</h1>` +
+  return `<h1 align="center">💎 Statistik Langganan &amp; Finansial <sup>FINANCE</sup></h1>` +
     `<p>Ringkasan metrik pelanggan, status aktif, dan pendapatan platform.</p>` +
     `<table bordered striped><caption>📊 Analisis Finansial &amp; Akun</caption>` +
     `<tr><th>Kategori Metrik</th><th>Statistik</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>💰 Total Pendapatan</td><td align="center"><b>${formattedRev}</b></td><td align="center">Semua Transaksi</td></tr>` +
-    `<tr><td>💎 Akun VIP Aktif</td><td align="center"><b>${stats.active}</b> Akun</td><td align="center">Berlangganan Penuh</td></tr>` +
-    `<tr><td>🎁 Akun Trial</td><td align="center"><b>${stats.trial}</b> Akun</td><td align="center">Masa Uji Coba</td></tr>` +
-    `<tr><td>⏳ Masa Tenggang</td><td align="center"><b>${stats.grace}</b> Akun</td><td align="center">Grace Period</td></tr>` +
-    `<tr><td>🔴 Kedaluwarsa</td><td align="center"><b>${stats.expired}</b> Akun</td><td align="center">${expiredUsersBtn}</td></tr>` +
+    `<tr><td>💰 Total Pendapatan <sub>(omset)</sub></td><td align="center"><b>${formattedRev}</b></td><td align="center">Semua Transaksi</td></tr>` +
+    `<tr><td>💎 Akun VIP Aktif <sub>(member)</sub></td><td align="center"><b>${stats.active}</b> Akun <sup>[VIP]</sup></td><td align="center">Berlangganan Penuh</td></tr>` +
+    `<tr><td>🎁 Akun Trial <sub>(uji coba)</sub></td><td align="center"><b>${stats.trial}</b> Akun <sup>[TRIAL]</sup></td><td align="center">Masa Uji Coba</td></tr>` +
+    `<tr><td>⏳ Masa Tenggang <sub>(grace)</sub></td><td align="center"><b>${stats.grace}</b> Akun <sup>[GRACE]</sup></td><td align="center">Grace Period</td></tr>` +
+    `<tr><td>🔴 Kedaluwarsa <sub>(expired)</sub></td><td align="center"><b>${stats.expired}</b> Akun <sup>[EXP]</sup></td><td align="center">${expiredUsersBtn}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Keterangan Status Langganan:</h3>` +
@@ -1069,12 +1067,12 @@ export function panelAdminBackup() {
   const downloadBtn = `<tg-button type="callback_data" data="rich:admin_download_backup">📥 Unduh JSON</tg-button>`;
   const auditBtn = `<tg-button type="callback_data" data="rich:admin_view_audit">📜 10 Log Terakhir</tg-button>`;
 
-  return `<h1 align="center">💾 Backup Database &amp; Riwayat Audit</h1>` +
+  return `<h1 align="center">💾 Backup Database &amp; Riwayat Audit <sup>BACKUP</sup></h1>` +
     `<p>Pencadangan database MongoDB dan inspeksi riwayat kepatuhan sistem.</p>` +
     `<table bordered striped><caption>📦 Manajemen Data &amp; Audit</caption>` +
     `<tr><th>Layanan Database</th><th>Status / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>📦 Backup MongoDB</td><td align="center">${users.length} Akun Terdaftar</td><td align="center">${downloadBtn}</td></tr>` +
-    `<tr><td>📜 Riwayat Audit</td><td align="center">Log Aktivitas Sistem</td><td align="center">${auditBtn}</td></tr>` +
+    `<tr><td>📦 Backup MongoDB <sub>(snapshot)</sub></td><td align="center">${users.length} Akun Terdaftar</td><td align="center">${downloadBtn}</td></tr>` +
+    `<tr><td>📜 Riwayat Audit <sub>(compliance)</sub></td><td align="center">Log Aktivitas Sistem</td><td align="center">${auditBtn}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>ℹ️ Format Backup:</h3>` +
@@ -1090,13 +1088,13 @@ export function panelAdminSettings() {
   const toggleApproveBtn = `<tg-button type="callback_data" data="rich:admin_toggle_auto_approve">${autoApprove ? '🔒 Ubah ke Manual' : '🌐 Ubah ke Bebas'}</tg-button>`;
   const editVarsBtn = `<tg-button type="callback_data" data="rich:edit_system_vars">✏️ Edit Nilai</tg-button>`;
 
-  return `<h1 align="center">⚙️ Pengaturan Cepat Sistem</h1>` +
+  return `<h1 align="center">⚙️ Pengaturan Cepat Sistem <sup>CONFIG</sup></h1>` +
     `<p>Konfigurasi parameter global platform tanpa restart server atau edit file .env.</p>` +
     `<table bordered striped><caption>🛠️ Parameter Global Platform</caption>` +
     `<tr><th>Parameter Sistem</th><th>Setelan Saat Ini</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>🛡️ Mode Registrasi</td><td align="center"><b>${autoApprove ? '🌐 Buka Bebas' : '🔒 Butuh Approval'}</b></td><td align="center">${toggleApproveBtn}</td></tr>` +
-    `<tr><td>🎁 Durasi Trial Default</td><td align="center"><b>${trialDays} Hari</b></td><td align="center">${editVarsBtn}</td></tr>` +
-    `<tr><td>💎 Durasi VIP Default</td><td align="center"><b>${vipDays} Hari</b></td><td align="center">${editVarsBtn}</td></tr>` +
+    `<tr><td>🛡️ Mode Registrasi <sub>(policy)</sub></td><td align="center"><b>${autoApprove ? '🌐 Buka Bebas <sup>[OPEN]</sup>' : '🔒 Butuh Approval <sup>[LOCK]</sup>'}</b></td><td align="center">${toggleApproveBtn}</td></tr>` +
+    `<tr><td>🎁 Durasi Trial Default <sub>(trial)</sub></td><td align="center"><b>${trialDays} Hari <sup>Free</sup></b></td><td align="center">${editVarsBtn}</td></tr>` +
+    `<tr><td>💎 Durasi VIP Default <sub>(billing)</sub></td><td align="center"><b>${vipDays} Hari <sup>Akses</sup></b></td><td align="center">${editVarsBtn}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Penjelasan Mode Registrasi:</h3>` +
@@ -1111,15 +1109,15 @@ export function panelStats(_ctx) {
   const users = getAllRegisteredUsers();
   const running = userbotManager.clients.size;
   const mem = process.memoryUsage();
-  return `<h1 align="center">📊 System Analytics</h1>` +
+  return `<h1 align="center">📊 System Analytics <sup>METRICS</sup></h1>` +
     `<p>Ringkasan performa server dan konsumsi memori runtime.</p>` +
     `<table bordered striped>` +
     `<tr><th>Metrik Performa</th><th>Statistik</th><th>Keterangan</th></tr>` +
-    `<tr><td>👥 Total Pengguna</td><td align="center">${users.length} Akun</td><td>Terdaftar di DB</td></tr>` +
-    `<tr><td>⚡ Userbot Aktif</td><td align="center">${running} Running</td><td>Teleproto 229</td></tr>` +
-    `<tr><td>⏱️ Server Uptime</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td>Node.js Runtime</td></tr>` +
-    `<tr><td>💾 RAM Resident (RSS)</td><td align="center">${formatBytesRef(mem.rss)}</td><td>Total Memori Fisik</td></tr>` +
-    `<tr><td>🧠 Heap Memory</td><td align="center">${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</td><td>Alokasi V8 Engine</td></tr>` +
+    `<tr><td>👥 Total Pengguna <sub>(database)</sub></td><td align="center">${users.length} Akun</td><td>Terdaftar di DB</td></tr>` +
+    `<tr><td>⚡ Userbot Aktif <sub>(engine)</sub></td><td align="center">${running} Running <sup>[OK]</sup></td><td>Teleproto 229</td></tr>` +
+    `<tr><td>⏱️ Server Uptime <sub>(durasi)</sub></td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td>Node.js Runtime</td></tr>` +
+    `<tr><td>💾 RAM Resident <sub>(RSS)</sub></td><td align="center">${formatBytesRef(mem.rss)}</td><td>Total Memori Fisik</td></tr>` +
+    `<tr><td>🧠 Heap Memory <sub>(V8)</sub></td><td align="center">${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</td><td>Alokasi V8 Engine</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Keterangan Metrik Server:</h3>` +
@@ -1162,7 +1160,7 @@ export function panelUserLoops(ctx: any, page = 1) {
 
   const addBtn = `<tg-button type="callback_data" data="rich:add_loop">➕ Tambah Jadwal Baru</tg-button>`;
 
-  return `<h1 align="center">⏰ Visual Broadcast Scheduler</h1>` +
+  return `<h1 align="center">⏰ Visual Broadcast Scheduler <sup>LOOP</sup></h1>` +
     `<p>Jadwal pengiriman pesan berkala otomatis tanpa mengetik perintah manual.</p>` +
     `<table bordered striped><caption>🔁 Jadwal Loop Aktif (${loops.length} Jadwal)</caption>` +
     `<tr><th>Target Chat</th><th align="center">Interval</th><th>Cuplikan Pesan</th><th align="center">Aksi</th></tr>` +
@@ -1209,7 +1207,7 @@ export function panelAdminVouchers(page = 1) {
 
   const createBtn = `<tg-button type="callback_data" data="rich:admin_new_voucher">➕ Buat Voucher Baru</tg-button>`;
 
-  return `<h1 align="center">🎟️ Kelola Voucher Promo</h1>` +
+  return `<h1 align="center">🎟️ Kelola Voucher Promo <sup>COUPONS</sup></h1>` +
     `<p>Pusat manajemen kupon promo dan perpanjangan masa aktif userbot.</p>` +
     `<table bordered striped><caption>🎟️ Daftar Voucher (${vouchers.length} Kupon)</caption>` +
     `<tr><th>Kode Voucher</th><th align="center">Durasi</th><th align="center">Kuota</th><th align="center">Status</th><th align="center">Aksi</th></tr>` +
@@ -1227,15 +1225,15 @@ export function panelAdminVouchers(page = 1) {
 }
 
 export function panelQuickHelp(_ctx) {
-  return `<h1 align="center">📚 Pusat Bantuan &amp; Panduan</h1>` +
+  return `<h1 align="center">📚 Pusat Bantuan &amp; Panduan <sup>GUIDE</sup></h1>` +
     `<p>Selamat datang di Pusat Bantuan <b>DeltaUserJS</b>.<br>` +
     `Temukan panduan lengkap, cheatsheet perintah, dan solusi kendala di bawah ini.</p>` +
     `<table bordered striped>` +
     `<tr><th>Topik Bantuan</th><th>Deskripsi</th></tr>` +
-    `<tr><td>🚀 Panduan Mulai</td><td>Langkah pertama konfigurasi userbot baru</td></tr>` +
-    `<tr><td>📜 Cheatsheet Perintah</td><td>Daftar perintah wajib tahu &amp; terpopuler</td></tr>` +
-    `<tr><td>❓ FAQ &amp; Kendala</td><td>Pertanyaan umum dan solusi troubleshooting</td></tr>` +
-    `<tr><td>💬 Hubungi Owner</td><td>Konsultasi langsung untuk bantuan teknis</td></tr>` +
+    `<tr><td>🚀 Panduan Mulai <sub>(quickstart)</sub></td><td>Langkah pertama konfigurasi userbot baru</td></tr>` +
+    `<tr><td>📜 Cheatsheet Perintah <sub>(cheatsheet)</sub></td><td>Daftar perintah wajib tahu &amp; terpopuler</td></tr>` +
+    `<tr><td>❓ FAQ &amp; Kendala <sub>(troubleshoot)</sub></td><td>Pertanyaan umum dan solusi troubleshooting</td></tr>` +
+    `<tr><td>💬 Hubungi Owner <sub>(support)</sub></td><td>Konsultasi langsung untuk bantuan teknis</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Perintah Bantuan Cepat:</h3>` +
@@ -1244,14 +1242,14 @@ export function panelQuickHelp(_ctx) {
 }
 
 export function panelHelpQuickstart() {
-  return `<h1 align="center">🚀 Panduan Mulai Cepat (Quickstart)</h1>` +
+  return `<h1 align="center">🚀 Panduan Mulai Cepat <sup>QUICKSTART</sup></h1>` +
     `<p>4 langkah mudah memaksimalkan userbot Anda setelah berhasil login:</p>` +
     `<table bordered striped>` +
     `<tr><th>Langkah</th><th>Tindakan</th><th>Keterangan</th></tr>` +
-    `<tr><td>1. Tes Koneksi</td><td>Kirim <code>.alive</code></td><td>Menampilkan kartu status bot di chat</td></tr>` +
-    `<tr><td>2. Cek Kecepatan</td><td>Kirim <code>.ping</code></td><td>Mengukur responsivitas koneksi</td></tr>` +
-    `<tr><td>3. Amankan Akun</td><td>Aktifkan Anti-PM</td><td>Mencegah spam pesan pribadi</td></tr>` +
-    `<tr><td>4. Buka Modul</td><td>Kirim <code>.help</code></td><td>Membuka pustaka ${loadedPlugins.length} plugin aktif</td></tr>` +
+    `<tr><td>1. Tes Koneksi <sub>(status)</sub></td><td>Kirim <code>.alive</code></td><td>Menampilkan kartu status bot di chat</td></tr>` +
+    `<tr><td>2. Cek Kecepatan <sub>(latency)</sub></td><td>Kirim <code>.ping</code></td><td>Mengukur responsivitas koneksi</td></tr>` +
+    `<tr><td>3. Amankan Akun <sub>(security)</sub></td><td>Aktifkan Anti-PM</td><td>Mencegah spam pesan pribadi</td></tr>` +
+    `<tr><td>4. Buka Modul <sub>(plugins)</sub></td><td>Kirim <code>.help</code></td><td>Membuka pustaka ${loadedPlugins.length} plugin aktif</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Tips Penting:</h3>` +
@@ -1267,26 +1265,26 @@ export function panelHelpCommands(ctx?: any) {
   const session = ctx?.from?.id ? getUserbotSession(ctx.from.id) : null;
   const p = session?.vars?.PREFIX || '.';
 
-  return `<h1 align="center">📜 Cheatsheet 16 Perintah Terpopuler</h1>` +
+  return `<h1 align="center">📜 Cheatsheet 16 Perintah Terpopuler <sup>CHEAT</sup></h1>` +
     `<p>Perintah yang sering digunakan untuk aktivitas harian (Prefix aktif: <code>${escapeHtml(p)}</code>):</p>` +
     `<table bordered striped>` +
     `<tr><th>Perintah</th><th>Kategori</th><th>Fungsi Utama</th></tr>` +
-    `<tr><td><code>${p}alive</code></td><td>Informasi</td><td>Kartu status userbot &amp; engine</td></tr>` +
-    `<tr><td><code>${p}ping</code></td><td>Informasi</td><td>Cek latensi koneksi &amp; respon</td></tr>` +
-    `<tr><td><code>${p}afk [alasan]</code></td><td>Status</td><td>Pasang pesan sibuk otomatis</td></tr>` +
-    `<tr><td><code>${p}antipm on/off</code></td><td>Keamanan</td><td>Proteksi spam pesan pribadi</td></tr>` +
-    `<tr><td><code>${p}tagall [pesan]</code></td><td>Grup &amp; Admin</td><td>Mention seluruh member grup</td></tr>` +
-    `<tr><td><code>${p}purge</code></td><td>Moderasi</td><td>Hapus pesan massal sekaligus</td></tr>` +
-    `<tr><td><code>${p}gcast [pesan]</code></td><td>Broadcast</td><td>Siaran pesan ke semua grup userbot</td></tr>` +
-    `<tr><td><code>${p}tr [lang] [teks]</code></td><td>Utilitas</td><td>Terjemah bahasa internasional</td></tr>` +
-    `<tr><td><code>${p}tts [teks]</code></td><td>Media</td><td>Ubah teks ke pesan suara (VN)</td></tr>` +
-    `<tr><td><code>${p}brat [teks]</code></td><td>Stiker</td><td>Buat stiker animasi gaya brat</td></tr>` +
-    `<tr><td><code>${p}quote</code></td><td>Kreatif</td><td>Ubah pesan chat menjadi stiker quote</td></tr>` +
-    `<tr><td><code>${p}sangmata</code></td><td>Investigasi</td><td>Cek riwayat pergantian nama user</td></tr>` +
-    `<tr><td><code>${p}id</code></td><td>Tools</td><td>Cek ID chat, user, atau channel</td></tr>` +
-    `<tr><td><code>${p}calc [rumus]</code></td><td>Tools</td><td>Kalkulator matematika cepat</td></tr>` +
-    `<tr><td><code>${p}weather [kota]</code></td><td>Utilitas</td><td>Prakiraan cuaca terkini</td></tr>` +
-    `<tr><td><code>${p}help</code></td><td>Bantuan</td><td>Buka katalog inline ${loadedPlugins.length} modul</td></tr>` +
+    `<tr><td><code>${p}alive</code></td><td>Informasi <sub>(status)</sub></td><td>Kartu status userbot &amp; engine</td></tr>` +
+    `<tr><td><code>${p}ping</code></td><td>Informasi <sub>(latency)</sub></td><td>Cek latensi koneksi &amp; respon</td></tr>` +
+    `<tr><td><code>${p}afk [alasan]</code></td><td>Status <sub>(away)</sub></td><td>Pasang pesan sibuk otomatis</td></tr>` +
+    `<tr><td><code>${p}antipm on/off</code></td><td>Keamanan <sub>(guard)</sub></td><td>Proteksi spam pesan pribadi</td></tr>` +
+    `<tr><td><code>${p}tagall [pesan]</code></td><td>Grup &amp; Admin <sub>(mention)</sub></td><td>Mention seluruh member grup</td></tr>` +
+    `<tr><td><code>${p}purge</code></td><td>Moderasi <sub>(cleanup)</sub></td><td>Hapus pesan massal sekaligus</td></tr>` +
+    `<tr><td><code>${p}gcast [pesan]</code></td><td>Broadcast <sub>(siaran)</sub></td><td>Siaran pesan ke semua grup userbot</td></tr>` +
+    `<tr><td><code>${p}tr [lang] [teks]</code></td><td>Utilitas <sub>(translate)</sub></td><td>Terjemah bahasa internasional</td></tr>` +
+    `<tr><td><code>${p}tts [teks]</code></td><td>Media <sub>(audio)</sub></td><td>Ubah teks ke pesan suara (VN)</td></tr>` +
+    `<tr><td><code>${p}brat [teks]</code></td><td>Stiker <sub>(generator)</sub></td><td>Buat stiker animasi gaya brat</td></tr>` +
+    `<tr><td><code>${p}quote</code></td><td>Kreatif <sub>(sticker)</sub></td><td>Ubah pesan chat menjadi stiker quote</td></tr>` +
+    `<tr><td><code>${p}sangmata</code></td><td>Investigasi <sub>(history)</sub></td><td>Cek riwayat pergantian nama user</td></tr>` +
+    `<tr><td><code>${p}id</code></td><td>Tools <sub>(inspect)</sub></td><td>Cek ID chat, user, atau channel</td></tr>` +
+    `<tr><td><code>${p}calc [rumus]</code></td><td>Tools <sub>(math)</sub></td><td>Kalkulator matematika cepat</td></tr>` +
+    `<tr><td><code>${p}weather [kota]</code></td><td>Utilitas <sub>(cuaca)</sub></td><td>Prakiraan cuaca terkini</td></tr>` +
+    `<tr><td><code>${p}help</code></td><td>Bantuan <sub>(katalog)</sub></td><td>Buka katalog inline ${loadedPlugins.length} modul</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Tips Penggunaan Perintah:</h3>` +
@@ -1323,12 +1321,12 @@ export function panelDonate(_ctx) {
   const ewalletCell = ewallet ? `<tg-spoiler><code>${ewallet}</code></tg-spoiler>` : '<i>Belum diset</i>';
   const bankCell = bank ? `<tg-spoiler><code>${bank}</code></tg-spoiler>` : '<i>Belum diset</i>';
 
-  return `<h1 align="center">💰 Dukungan &amp; Donasi</h1>` +
+  return `<h1 align="center">💰 Dukungan &amp; Donasi <sup>SUPPORT</sup></h1>` +
     `<p>Dukungan Anda membantu operasional server dan maintenance berkelanjutan. Nomor tersembunyi — tap untuk melihat.</p>` +
     `<table bordered striped>` +
     `<tr><th>Metode Donasi</th><th>Nomor / Akun</th><th>Keterangan</th></tr>` +
-    `<tr><td>${escapeHtml(ewalletName)}</td><td align="center">${ewalletCell}</td><td>Tap untuk salin</td></tr>` +
-    `<tr><td>${escapeHtml(bankName)}</td><td align="center">${bankCell}</td><td>Tap untuk salin</td></tr>` +
+    `<tr><td>${escapeHtml(ewalletName)} <sub>(digital)</sub></td><td align="center">${ewalletCell}</td><td>Tap untuk salin <sup>[COPY]</sup></td></tr>` +
+    `<tr><td>${escapeHtml(bankName)} <sub>(transfer)</sub></td><td align="center">${bankCell}</td><td>Tap untuk salin <sup>[COPY]</sup></td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💖 Konfirmasi &amp; Reward Donasi:</h3>` +
@@ -1340,18 +1338,18 @@ export function panelHealth(mongoStatus = 'Unknown') {
   const users = getAllRegisteredUsers();
   const rows = users.slice(0, 5).map(user => {
     const running = userbotManager.isRunning(user.telegram_id) ? '🟢' : '🔴';
-    return `<tr><td><code>${escapeHtml(user.telegram_id)}</code></td><td align="center">${running}</td><td align="center">${user.is_active === 1 ? '✅ Aktif' : '❌ Nonaktif'}</td></tr>`;
+    return `<tr><td><code>${escapeHtml(user.telegram_id)}</code></td><td align="center">${running}</td><td align="center">${user.is_active === 1 ? '✅ Aktif <sup>[OK]</sup>' : '❌ Nonaktif <sup>[OFF]</sup>'}</td></tr>`;
   }).join('') || '<tr><td colspan="3" align="center">Belum ada userbot</td></tr>';
 
-  return `<h1 align="center">🩺 Server Health</h1>` +
+  return `<h1 align="center">🩺 Server Health <sup>STATUS</sup></h1>` +
     `<p>Status runtime, database cluster, dan kesehatan userbot aktif.</p>` +
     `<table bordered striped>` +
     `<tr><th>Komponen</th><th>Status</th><th>Keterangan</th></tr>` +
-    `<tr><td>🍃 MongoDB Cluster</td><td align="center">${mongoStatus}</td><td>Primary Replica</td></tr>` +
-    `<tr><td>⚡ Userbot Engine</td><td align="center">${userbotManager.clients.size} Running</td><td>Teleproto Layer 229</td></tr>` +
-    `<tr><td>⏱️ Waktu Aktif</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td>Server Uptime</td></tr>` +
-    `<tr><td>📦 Runtime Versi</td><td align="center">Node ${process.version}</td><td>${process.platform} ${process.arch}</td></tr>` +
-    `<tr><td>🧩 Modul Plugin</td><td align="center">${loadedPlugins.length} Modul</td><td>Hot-Reload Siap</td></tr>` +
+    `<tr><td>🍃 MongoDB Cluster <sub>(storage)</sub></td><td align="center">${mongoStatus}</td><td>Primary Replica</td></tr>` +
+    `<tr><td>⚡ Userbot Engine <sub>(engine)</sub></td><td align="center">${userbotManager.clients.size} Running <sup>[OK]</sup></td><td>Teleproto Layer 229</td></tr>` +
+    `<tr><td>⏱️ Waktu Aktif <sub>(uptime)</sub></td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td>Server Uptime</td></tr>` +
+    `<tr><td>📦 Runtime Versi <sub>(runtime)</sub></td><td align="center">Node ${process.version} <sup>[LTS]</sup></td><td>${process.platform} ${process.arch}</td></tr>` +
+    `<tr><td>🧩 Modul Plugin <sub>(modul)</sub></td><td align="center">${loadedPlugins.length} Modul <sup>Loaded</sup></td><td>Hot-Reload Siap</td></tr>` +
     `</table>` +
     `<table bordered striped><caption>👥 Snapshot Sesi Pengguna</caption>` +
     `<tr><th>ID Pengguna</th><th>Status</th><th>Langganan</th></tr>` +
