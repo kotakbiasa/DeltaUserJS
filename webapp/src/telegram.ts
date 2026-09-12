@@ -79,10 +79,12 @@ export function initTelegramApp() {
   }
 }
 
-export function triggerHaptic(style: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' = 'light') {
+export function triggerHaptic(style: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selectionChanged' = 'light') {
   try {
     if (!tg?.HapticFeedback) return;
-    if (style === 'success' || style === 'warning' || style === 'error') {
+    if (style === 'selectionChanged') {
+      tg.HapticFeedback.selectionChanged();
+    } else if (style === 'success' || style === 'warning' || style === 'error') {
       tg.HapticFeedback.notificationOccurred(style);
     } else {
       tg.HapticFeedback.impactOccurred(style);

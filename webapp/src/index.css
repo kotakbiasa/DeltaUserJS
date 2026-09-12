@@ -1,0 +1,149 @@
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --tg-bg: var(--tg-theme-bg-color, #0f172a);
+  --tg-secondary-bg: var(--tg-theme-secondary-bg-color, #090d16);
+  --tg-card-bg: rgba(255, 255, 255, 0.05);
+  --tg-card-border: rgba(255, 255, 255, 0.08);
+  --tg-text: var(--tg-theme-text-color, #f8fafc);
+  --tg-hint: var(--tg-theme-hint-color, #94a3b8);
+  --tg-link: var(--tg-theme-link-color, #38bdf8);
+  --tg-btn: var(--tg-theme-button-color, #0284c7);
+  --tg-btn-text: var(--tg-theme-button-text-color, #ffffff);
+
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-blue: #38bdf8;
+  --accent-purple: #a855f7;
+  --accent-gold: #f59e0b;
+
+  --safe-top: var(--tg-safe-area-inset-top, 0px);
+  --safe-bottom: var(--tg-safe-area-inset-bottom, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  background-color: var(--tg-secondary-bg);
+  color: var(--tg-text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Animations */
+@keyframes pulseGreen {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+  70% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+@keyframes pulseRed {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.pulse-green {
+  animation: pulseGreen 2s infinite;
+}
+
+.pulse-red {
+  animation: pulseRed 2s infinite;
+}
+
+/* Glassmorphism Styles */
+.glass-card {
+  background: var(--tg-card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--tg-card-border);
+  border-radius: 16px;
+  transition: all 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.tap-effect {
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.tap-effect:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Telegram Chat Bubble Preview */
+.tg-bubble {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(30, 64, 175, 0.3) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 14px 14px 2px 14px;
+  padding: 12px 14px;
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Code Pill */
+.code-pill {
+  font-family: 'SF Mono', Consolas, Menlo, Monaco, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--accent-blue);
+  display: inline-block;
+}
+
+/* VIP Card Gold Shimmer */
+.vip-gold-card {
+  background: linear-gradient(135deg, #2a210d 0%, #171308 50%, #2f2510 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.12);
+}
+
+.vip-gold-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 30%,
+    rgba(245, 158, 11, 0.1) 50%,
+    transparent 70%
+  );
+  background-size: 200% 200%;
+  animation: shimmer 6s infinite;
+  pointer-events: none;
+}
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
