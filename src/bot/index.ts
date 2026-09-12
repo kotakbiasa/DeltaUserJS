@@ -125,6 +125,33 @@ registerMarketplaceHandlers(bot);
 // Backup handlers (backup & restore)
 registerBackupHandlers(bot);
 
+// Mini App command
+bot.command(['app', 'webapp', 'dashboard'], async (ctx) => {
+  const appUrl = config.appUrl || 'http://localhost:3000';
+  const isHttps = appUrl.startsWith('https://');
+
+  const button = isHttps
+    ? { text: '🚀 Buka Mini App Dashboard', web_app: { url: appUrl } }
+    : { text: '🌐 Buka Web Dashboard', url: appUrl };
+
+  await ctx.reply(
+    '⚡ <b>DeltaUserJS Web Dashboard Mini App</b>\n\n' +
+    'Dashboard visual interaktif untuk manajemen userbot Anda:\n' +
+    '• 📊 Pantau status live, ping, RAM & FloodGuard\n' +
+    '• 🧩 Toggle saklar 58+ plugin on/off instan\n' +
+    '• 📢 Broadcast studio dengan chat selector\n' +
+    '• 💎 Cek masa aktif & klaim kode voucher promo\n' +
+    '• 👑 Pusat kontrol armada (khusus owner)\n\n' +
+    'Ketuk tombol di bawah untuk membuka:',
+    {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[button]],
+      },
+    }
+  );
+});
+
 // Register all modular handlers
 registerAllHandlers(bot);
 
@@ -137,12 +164,25 @@ export async function setupBotCommands() {
     await bot.api.setMyCommands([
       { command: 'start', description: 'Buka dashboard utama' },
       { command: 'menu', description: 'Buka menu bot' },
+      { command: 'app', description: 'Buka Web Dashboard Mini App' },
       { command: 'claim', description: 'Tukar kode voucher promo (/claim <kode>)' },
       { command: 'daftar', description: 'Daftar userbot baru' },
       { command: 'cancel', description: 'Batalkan proses pendaftaran yang aktif' },
       { command: 'health', description: 'Cek status server (owner only)' },
       { command: 'revoke', description: 'Hapus sesi userbot Anda' },
     ]);
+
+    if (config.appUrl && config.appUrl.startsWith('https://')) {
+      try {
+        await bot.api.setChatMenuButton({
+          menu_button: {
+            type: 'web_app',
+            text: 'Dashboard',
+            web_app: { url: config.appUrl },
+          },
+        });
+      } catch (_e) { /* empty */ }
+    }
   } catch (err) {
     Logger.logSystem(`Failed to setMyCommands: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
   }

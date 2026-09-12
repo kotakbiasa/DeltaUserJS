@@ -9,6 +9,8 @@ import { Logger } from './utils/logger.js';
 import { createServer } from 'http';
 import { startPluginWatcher, stopPluginWatcher } from './userbot/engine/pluginLoader.js';
 import { handleMidtransWebhook, handleXenditWebhook } from './bot/handlers/subscription.js';
+import { handleApiRequest } from './server/api.js';
+import { serveStaticFiles } from './server/static.js';
 
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 
@@ -126,6 +128,10 @@ async function main() {
     const healthServer = createServer(async (req, res) => {
       const url = new URL(req.url || '/', `http://localhost:${HEALTH_PORT}`);
 
+      // Mini App API Handler
+      const apiHandled = await handleApiRequest(req, res);
+      if (apiHandled) {return;}
+
       // Midtrans webhook
       if (url.pathname === '/webhook/midtrans' && req.method === 'POST') {
         let body = '';
@@ -190,15 +196,17 @@ async function main() {
         return;
       }
 
+      // Mini App Frontend Static Files (dist/webapp)
+      const staticHandled = serveStaticFiles(req, res);
+      if (staticHandled) {return;}
+
       res.writeHead(404);
       res.end('Not Found');
     });
 
-    // Bind 127.0.0.1 secara default: health/webhook tidak perlu di-expose publik.
-    // Kalau butuh akses eksternal (mis. Docker LB), set HEALTH_HOST=0.0.0.0 di .env.
-    const HEALTH_HOST = process.env.HEALTH_HOST || '127.0.0.1';
+    const HEALTH_HOST = process.env.HEALTH_HOST || '0.0.0.0';
     healthServer.listen(HEALTH_PORT, HEALTH_HOST, () => {
-      Logger.logSystem(`Health check server listening on ${HEALTH_HOST}:${HEALTH_PORT}`);
+      Logger.logSystem(`Health check & Mini App web server listening on http://${HEALTH_HOST}:${HEALTH_PORT}`);
     });
 
 // Graceful shutdown handlers
