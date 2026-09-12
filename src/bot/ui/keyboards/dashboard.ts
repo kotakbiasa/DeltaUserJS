@@ -204,6 +204,11 @@ export function panelMain(ctx) {
     `<tr><td>⏳ Masa Aktif</td><td align="center">${daysLeftText(session?.expired_at, true)}</td><td>Akses Penuh</td></tr>` +
     `<tr><td>⚡ Core Engine</td><td align="center">Teleproto 229</td><td>Layer MTProto</td></tr>` +
     `</table>` +
+    `<blockquote expandable>💡 <b>Akses Cepat Pengguna (Tap untuk Buka):</b><br>` +
+    `• Gunakan tombol <b>🤖 Buka Dashboard Userbot</b> untuk kontrol daya &amp; prefix.<br>` +
+    `• Buka <b>🧩 Plugin Studio</b> untuk mengaktifkan/mematikan ${loadedPlugins.length} modul aktif.<br>` +
+    `• Kirim <code>.help</code> di chat mana pun untuk melihat cheatsheet perintah.` +
+    `</blockquote>` +
     `<p><i>Ketuk <b>🤖 Buka Dashboard Userbot</b> di bawah untuk mengelola modul, kontrol daya, dan pengaturan akun Anda.</i></p>`;
 }
 
@@ -222,7 +227,7 @@ export function panelMenuList(ctx) {
     `<tr><th>Menu Kontrol</th><th>Deskripsi Layanan</th><th>Akses</th></tr>` +
     (hasBot
       ? `<tr><td>🤖 Panel Userbot</td><td>Kendali daya, restart, &amp; info sesi</td><td align="center">🟢 Siap</td></tr>` +
-        `<tr><td>🧩 Plugin Studio</td><td>Manajemen 72 modul perintah aktif</td><td align="center">🟢 Siap</td></tr>` +
+        `<tr><td>🧩 Plugin Studio</td><td>Manajemen ${loadedPlugins.length} modul perintah aktif</td><td align="center">🟢 Siap</td></tr>` +
         `<tr><td>⚙️ Pengaturan</td><td>Anti-PM, Mode AFK, &amp; custom prefix</td><td align="center">🟢 Siap</td></tr>` +
         `<tr><td>🩺 Diagnostik</td><td>Uji latensi MTProto &amp; data center</td><td align="center">🟢 Siap</td></tr>` +
         `<tr><td>💎 Langganan</td><td>Status durasi akses &amp; perpanjangan</td><td align="center">🟢 Siap</td></tr>`
@@ -230,6 +235,9 @@ export function panelMenuList(ctx) {
         `<tr><td>💎 Paket VIP</td><td>Pilihan durasi berlangganan premium</td><td align="center">🟢 Tersedia</td></tr>`) +
     (isOwner(ctx) ? `<tr><td>👑 Panel Admin</td><td>Operasi owner &amp; maintenance sistem</td><td align="center">🔴 Owner</td></tr>` : '') +
     `</table>` +
+    `<blockquote expandable>💡 <b>Petunjuk Navigasi:</b><br>` +
+    `Gunakan tombol di bawah untuk berpindah menu kontrol. Anda dapat membuka pengaturan bot atau memeriksa modul kapan saja.` +
+    `</blockquote>` +
     `<p><i>Pilih salah satu menu di bawah untuk melanjutkan:</i></p>`;
 }
 
@@ -288,13 +296,19 @@ export function panelUserbot(ctx) {
     : '<i>Disembunyikan</i>';
 
   const floodBanner = flood.inCooldown
-    ? `<blockquote>⚠️ <b>MODE HIBERNASI FLOODGUARD AKTIF</b><br>Akun dalam jeda aman Telegram (<b>${flood.secondsLeft} detik tersisa</b>) untuk mencegah pembatasan akun. Aksi keluar ditahan otomatis.</blockquote>`
+    ? `<blockquote expandable>⚠️ <b>Mode Hibernasi FloodGuard Aktif:</b><br>Akun dalam jeda aman Telegram (<b>${flood.secondsLeft} detik tersisa</b>) untuk mencegah pembatasan akun. Aksi keluar ditahan otomatis hingga hitungan mundur selesai.</blockquote>`
     : '';
 
   return `<h1 align="center">🤖 Dashboard ${escapeHtml(botName)}</h1>` +
     floodBanner +
     `<blockquote>${running ? '🟢 <b>STATUS: USERBOT ONLINE &amp; AKTIF</b>' : '🔴 <b>STATUS: USERBOT OFFLINE / MATI</b>'}<br>` +
     `Teleproto Layer 229 · Telegram Datacenter DC ${dcId} · Latensi Real-time</blockquote>` +
+    `<blockquote expandable>ℹ️ <b>Detail Engine &amp; Koneksi (Tap untuk Buka):</b><br>` +
+    `• Engine Core: <b>Teleproto Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)<br>` +
+    `• Datacenter: <b>Telegram DC ${dcId}</b><br>` +
+    `• FloodGuard: <b>${flood.inCooldown ? `Hibernasi (${flood.secondsLeft}s)` : 'Normal (Siap Pakai)'}</b><br>` +
+    `• Penyimpanan: <b>MongoDB Cluster</b>` +
+    `</blockquote>` +
     `<table bordered striped><caption>🎛️ Panel Kendali &amp; Aksi Interaktif</caption>` +
     `<tr><th>Fitur / Layanan</th><th>Status Saat Ini</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>⚡ Daya Userbot</td><td>${connStatus}</td><td align="center">${powerBtn}${restartBtn}</td></tr>` +
@@ -380,7 +394,7 @@ export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
   return {
     rich:
       `<h1 align="center">🧩 Plugin Studio</h1>` +
-      (notice ? `<blockquote>🔔 <b>${escapeHtml(notice)}</b></blockquote>` : `<blockquote>Kelola 72 modul perintah untuk userbot Telegram Anda.</blockquote>`) +
+      (notice ? `<blockquote>🔔 <b>${escapeHtml(notice)}</b></blockquote>` : `<blockquote>Kelola ${loadedPlugins.length} modul perintah untuk userbot Telegram Anda.</blockquote>`) +
       `<table bordered striped><caption>📊 Filter Kategori: ${catIcon} ${escapeHtml(catLabel)}</caption>` +
       `<tr><th>Total Kategori</th><th>Total Aktif</th><th>Total Off</th><th>Halaman</th></tr>` +
       `<tr><td align="center">${total}</td><td align="center">🟢 ${activeCount}</td><td align="center">🔴 ${Math.max(0, loadedPlugins.length - activeCount)}</td><td align="center">${currentPage}/${totalPages}</td></tr>` +
@@ -569,6 +583,11 @@ export async function panelUserbotDiag(ctx) {
     `<tr><td>🛡️ Filter Anti-PM</td><td>${session?.anti_pm === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Spam Shield</td></tr>` +
     `<tr><td>🤖 Auto-Reply AFK</td><td>${session?.auto_reply === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Auto-Reply</td></tr>` +
     `</table>` +
+    `<blockquote expandable>💡 <b>Panduan Indikator Latensi:</b><br>` +
+    `• <b>&lt; 50 ms</b>: Sangat Cepat (Respon bot instan)<br>` +
+    `• <b>50 - 150 ms</b>: Normal (Kecepatan standar jaringan MTProto Telegram)<br>` +
+    `• <b>&gt; 200 ms</b>: Lambat (Beban jaringan atau antrean di Datacenter Telegram)` +
+    `</blockquote>` +
     (isRunning
       ? `<p><i>✅ Koneksi userbot berjalan lancar dan siap mengeksekusi perintah secara instan.</i></p>`
       : `<p><i>⚠️ Userbot sedang mati. Gunakan tombol Hidupkan Userbot di bawah untuk menyalakan.</i></p>`);
@@ -887,6 +906,12 @@ export function panelAdminUserDetail(targetId: number) {
     `<tr><td>Plugin Dinonaktifkan</td><td>${disabledCount} Modul</td><td align="center">Studio</td></tr>` +
     `<tr><td>Tindakan Keamanan</td><td>Izin &amp; Basis Data</td><td align="center">${revokeBtn} ${deleteBtn}</td></tr>` +
     `</table>` +
+    `<blockquote expandable>💡 <b>Panduan Aksi Administrator:</b><br>` +
+    `• <b>➕ 7H / ➕ 30H</b>: Perpanjang masa aktif akun secara bertahap.<br>` +
+    `• <b>♾️ Unlim</b>: Berikan akses unlimited permanen.<br>` +
+    `• <b>🚫 Revoke</b>: Cabut akses dan matikan userbot.<br>` +
+    `• <b>🗑️ Hapus</b>: Hapus sesi userbot secara permanen dari database.` +
+    `</blockquote>` +
     `<p><i>Ketuk tombol aksi langsung di tabel atau gunakan tombol di bawah:</i></p>`;
 }
 
@@ -956,6 +981,12 @@ export async function panelAdminSubs() {
     `<tr><td>⏳ Masa Tenggang</td><td align="center"><b>${stats.grace}</b> Akun</td><td align="center">Grace Period</td></tr>` +
     `<tr><td>🔴 Kedaluwarsa</td><td align="center"><b>${stats.expired}</b> Akun</td><td align="center">${expiredUsersBtn}</td></tr>` +
     `</table>` +
+    `<blockquote expandable>💡 <b>Keterangan Status Langganan:</b><br>` +
+    `• <b>VIP Aktif</b>: Akun yang memiliki durasi langganan berjalan.<br>` +
+    `• <b>Akun Trial</b>: Pengguna dalam masa coba gratis 7 hari.<br>` +
+    `• <b>Masa Tenggang</b>: Akun habis tempo dalam 3 hari terakhir (Grace Period).<br>` +
+    `• <b>Kedaluwarsa</b>: Akun yang masa aktifnya telah habis sepenuhnya.` +
+    `</blockquote>` +
     `<p><i>Data diperbarui secara real-time dari riwayat pembayaran. ${refreshBtn}</i></p>`;
 }
 
@@ -1014,7 +1045,12 @@ export function panelStats(_ctx) {
     `<tr><td>⏱️ Server Uptime</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td>Node.js Runtime</td></tr>` +
     `<tr><td>💾 RAM Resident (RSS)</td><td align="center">${formatBytesRef(mem.rss)}</td><td>Total Memori Fisik</td></tr>` +
     `<tr><td>🧠 Heap Memory</td><td align="center">${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</td><td>Alokasi V8 Engine</td></tr>` +
-    `</table>`;
+    `</table>` +
+    `<blockquote expandable>💡 <b>Keterangan Metrik Server:</b><br>` +
+    `• <b>Heap Memory</b>: Memori objek JavaScript &amp; cache runtime V8 engine.<br>` +
+    `• <b>RAM RSS</b>: Total penggunaan memori fisik proses Node.js di server VPS.<br>` +
+    `• <b>Teleproto Clients</b>: Seluruh userbot berjalan hemat resource dalam single event loop.` +
+    `</blockquote>`;
 }
 
 const LOOPS_PER_PAGE = 5;
@@ -1120,7 +1156,7 @@ export function panelQuickHelp(_ctx) {
     `<tr><td>💬 Hubungi Owner</td><td>Konsultasi langsung untuk bantuan teknis</td></tr>` +
     `</table>` +
     `<blockquote expandable>💡 <b>Perintah Bantuan Cepat:</b><br>` +
-    `Kirim perintah <code>.help</code> di chat mana pun untuk membuka pustaka bantuan interaktif 72 modul bawaan.` +
+    `Kirim perintah <code>.help</code> di chat mana pun untuk membuka pustaka bantuan interaktif ${loadedPlugins.length} modul bawaan.` +
     `</blockquote>` +
     `<p><i>Pilih topik panduan di bawah untuk membaca lebih detail:</i></p>`;
 }
@@ -1133,7 +1169,7 @@ export function panelHelpQuickstart() {
     `<tr><td>1. Tes Koneksi</td><td>Kirim <code>.alive</code></td><td>Menampilkan kartu status bot di chat</td></tr>` +
     `<tr><td>2. Cek Kecepatan</td><td>Kirim <code>.ping</code></td><td>Mengukur responsivitas koneksi</td></tr>` +
     `<tr><td>3. Amankan Akun</td><td>Aktifkan Anti-PM</td><td>Mencegah spam pesan pribadi</td></tr>` +
-    `<tr><td>4. Buka Modul</td><td>Kirim <code>.help</code></td><td>Membuka pustaka 72 plugin aktif</td></tr>` +
+    `<tr><td>4. Buka Modul</td><td>Kirim <code>.help</code></td><td>Membuka pustaka ${loadedPlugins.length} plugin aktif</td></tr>` +
     `</table>` +
     `<blockquote expandable>💡 <b>Tips Penting:</b><br>` +
     `• Anda dapat mengganti prefix default (<code>.</code>) menjadi simbol lain di menu <b>Pengaturan &gt; Ganti Prefix</b>.<br>` +
@@ -1167,6 +1203,11 @@ export function panelHelpCommands(ctx?: any) {
     `<tr><td><code>${p}weather [kota]</code></td><td>Utilitas</td><td>Prakiraan cuaca terkini</td></tr>` +
     `<tr><td><code>${p}help</code></td><td>Bantuan</td><td>Buka katalog inline ${loadedPlugins.length} modul</td></tr>` +
     `</table>` +
+    `<blockquote expandable>💡 <b>Tips Penggunaan Perintah:</b><br>` +
+    `• Seluruh perintah di atas dapat langsung dijalankan di grup atau chat pribadi.<br>` +
+    `• Balas (reply) pesan target saat memakai perintah moderasi seperti <code>${p}purge</code> atau <code>${p}kang</code>.<br>` +
+    `• Eksekusi perintah diproses langsung via protokol MTProto Layer 229 tanpa perantara.` +
+    `</blockquote>` +
     `<p><i>Kirim <code>${p}help [nama_modul]</code> di obrolan mana pun untuk melihat panduan lengkap suatu modul.</i></p>`;
 }
 
@@ -1200,7 +1241,10 @@ export function panelDonate(_ctx) {
     `<tr><th>Metode Donasi</th><th>Nomor / Akun</th><th>Keterangan</th></tr>` +
     `<tr><td>${escapeHtml(ewalletName)}</td><td align="center">${ewalletCell}</td><td>Tap untuk salin</td></tr>` +
     `<tr><td>${escapeHtml(bankName)}</td><td align="center">${bankCell}</td><td>Tap untuk salin</td></tr>` +
-    `</table>`;
+    `</table>` +
+    `<blockquote expandable>💖 <b>Konfirmasi &amp; Reward Donasi:</b><br>` +
+    `Setelah melakukan transfer atau donasi, silakan kirimkan bukti transfer ke kontak Owner untuk mendapatkan status VIP atau perpanjangan masa aktif userbot.` +
+    `</blockquote>`;
 }
 
 export function panelHealth(mongoStatus = 'Unknown') {
