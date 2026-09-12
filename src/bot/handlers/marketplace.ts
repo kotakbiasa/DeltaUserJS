@@ -110,7 +110,7 @@ export async function showPluginDetail(ctx: Context, name: string) {
   const { manifest, installed, installedVersion, updateAvailable } = info;
 
   let text = `<b>📦 ${manifest.name}</b> v${manifest.version}\n\n`;
-  text += `<blockquote>${manifest.description}</blockquote>\n\n`;
+  text += `<i>${manifest.description}</i>\n\n`;
   text += `<b>👤 Author:</b> ${manifest.author}\n`;
   text += `<b>📂 Repo:</b> <a href="${manifest.repository}">${manifest.repository}</a>\n`;
   text += `<b>🏷️ Tags:</b> ${manifest.tags?.join(', ') || '—'}\n`;

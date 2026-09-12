@@ -17,7 +17,7 @@ async function waitForInput(conversation: any, ctx: any): Promise<string> {
       try { await result.answerCallbackQuery('Aksi dibatalkan.'); } catch (_) {}
       try { await result.deleteMessage(); } catch (_) {}
     }
-    await replyRich(ctx, `<blockquote><b>❌ Aksi Dibatalkan</b><br>Operasi voucher telah dibatalkan.</blockquote>`);
+    await replyRich(ctx, `<p><b>❌ Aksi Dibatalkan</b><br>Operasi voucher telah dibatalkan.</p>`);
     throw new Error('USER_CANCELLED');
   }
 
@@ -38,9 +38,9 @@ export async function userRedeemVoucherConversation(conversation: any, ctx: any)
   try {
     await replyRich(ctx,
       `<h1 align="center">🎟️ Penukaran Kode Voucher Promo</h1>` +
-      `<blockquote>Silakan ketik atau tempelkan kode voucher promo Anda.<br>` +
-      `Contoh: <code>DELTA-VIP30</code> atau <code>PROMO7D</code></blockquote>` +
-      `<p><i>Ketik <code>/cancel</code> atau ketuk tombol di bawah untuk membatalkan:</i></p>`,
+      `<p>Silakan ketik atau tempelkan kode voucher promo Anda.<br>` +
+      `Contoh: <code>DELTA-VIP30</code> atau <code>PROMO7D</code></p>` +
+      `<footer>Ketik /cancel atau ketuk tombol di bawah untuk membatalkan:</footer>`,
       { reply_markup: voucherCancelKeyboard }
     );
 
@@ -64,8 +64,8 @@ export async function userRedeemVoucherConversation(conversation: any, ctx: any)
       keyboard.text('💎 Menu Langganan', 'rich:subscription');
       await replyRich(ctx,
         `<h1 align="center">🎉 Penukaran Voucher Berhasil!</h1>` +
-        `<blockquote>${result.message}</blockquote>` +
-        `<p><i>Layanan userbot Anda telah diperpanjang dan siap digunakan.</i></p>`,
+        `<p>${result.message}</p>` +
+        `<footer>Layanan userbot Anda telah diperpanjang dan siap digunakan.</footer>`,
         { reply_markup: keyboard }
       );
     } else {
@@ -73,28 +73,28 @@ export async function userRedeemVoucherConversation(conversation: any, ctx: any)
       keyboard.text('💎 Menu Langganan', 'rich:subscription');
       await replyRich(ctx,
         `<h1 align="center">❌ Gagal Menukarkan Voucher</h1>` +
-        `<blockquote>${escapeHtml(result.message)}</blockquote>`,
+        `<p>${escapeHtml(result.message)}</p>`,
         { reply_markup: keyboard }
       );
     }
   } catch (err: any) {
     if (err.message === 'USER_CANCELLED') return;
-    await replyRich(ctx, `<blockquote>❌ Terjadi kesalahan saat memproses voucher: ${escapeHtml(err.message || String(err))}</blockquote>`);
+    await replyRich(ctx, `<p>❌ Terjadi kesalahan saat memproses voucher: ${escapeHtml(err.message || String(err))}</p>`);
   }
 }
 
 export async function adminCreateVoucherConversation(conversation: any, ctx: any) {
   const telegramId = ctx.from.id;
   if (Number(telegramId) !== Number(config.ownerId)) {
-    await replyRich(ctx, `<blockquote>❌ Anda tidak memiliki akses ke fitur ini.</blockquote>`);
+    await replyRich(ctx, `<p>❌ Anda tidak memiliki akses ke fitur ini.</p>`);
     return;
   }
 
   try {
     await replyRich(ctx,
       `<h1 align="center">🎟️ Buat Kode Voucher Promo Baru</h1>` +
-      `<blockquote>Langkah 1/3: <b>Kode Voucher</b><br>` +
-      `Ketik kode voucher yang diinginkan (contoh: <code>PROMO-RAMADHAN</code>), atau ketik <code>auto</code> untuk generate kode acak otomatis.</blockquote>`,
+      `<h3>Langkah 1/3: Kode Voucher</h3>` +
+      `<p>Ketik kode voucher yang diinginkan (contoh: <code>PROMO-RAMADHAN</code>), atau ketik <code>auto</code> untuk generate kode acak otomatis.</p>`,
       { reply_markup: voucherCancelKeyboard }
     );
 
@@ -112,9 +112,9 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
     }
 
     await replyRich(ctx,
-      `<blockquote>Langkah 2/3: <b>Durasi Masa Aktif (Hari)</b><br>` +
-      `Kode: <code>${finalCode}</code><br><br>` +
-      `Kirimkan jumlah hari masa aktif yang diberikan (contoh: <code>30</code> untuk 30 hari, atau <code>0</code> untuk Lifetime / Unlimited).</blockquote>`,
+      `<h3>Langkah 2/3: Durasi Masa Aktif (Hari)</h3>` +
+      `<p>Kode: <code>${finalCode}</code><br><br>` +
+      `Kirimkan jumlah hari masa aktif yang diberikan (contoh: <code>30</code> untuk 30 hari, atau <code>0</code> untuk Lifetime / Unlimited).</p>`,
       { reply_markup: voucherCancelKeyboard }
     );
 
@@ -128,15 +128,15 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
 
     const days = parseInt(daysInput, 10);
     if (isNaN(days) || days < 0) {
-      await replyRich(ctx, `<blockquote>❌ Jumlah hari tidak valid. Pembuatan voucher dibatalkan.</blockquote>`);
+      await replyRich(ctx, `<p>❌ Jumlah hari tidak valid. Pembuatan voucher dibatalkan.</p>`);
       return;
     }
 
     await replyRich(ctx,
-      `<blockquote>Langkah 3/3: <b>Batas Kuota Pemakaian (Max Uses)</b><br>` +
-      `Durasi: <b>${days === 0 ? '♾️ Lifetime' : `${days} Hari`}</b><br><br>` +
+      `<h3>Langkah 3/3: Batas Kuota Pemakaian (Max Uses)</h3>` +
+      `<p>Durasi: <b>${days === 0 ? '♾️ Lifetime' : `${days} Hari`}</b><br><br>` +
       `Kirimkan kuota maksimal pengguna yang bisa menukarkan kode ini.<br>` +
-      `Contoh: <code>1</code> untuk 1 orang saja, <code>10</code> untuk 10 orang, atau <code>-1</code> untuk kuota tanpa batas.</blockquote>`,
+      `Contoh: <code>1</code> untuk 1 orang saja, <code>10</code> untuk 10 orang, atau <code>-1</code> untuk kuota tanpa batas.</p>`,
       { reply_markup: voucherCancelKeyboard }
     );
 
@@ -150,7 +150,7 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
 
     const maxUses = parseInt(quotaInput, 10);
     if (isNaN(maxUses) || (maxUses < 1 && maxUses !== -1)) {
-      await replyRich(ctx, `<blockquote>❌ Kuota tidak valid. Pembuatan voucher dibatalkan.</blockquote>`);
+      await replyRich(ctx, `<p>❌ Kuota tidak valid. Pembuatan voucher dibatalkan.</p>`);
       return;
     }
 
@@ -189,8 +189,8 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
         `<tr><td>Masa Aktif</td><td><b>${days === 0 ? '♾️ Lifetime' : `${days} Hari`}</b></td></tr>` +
         `<tr><td>Batas Kuota</td><td>${maxUses === -1 ? '♾️ Unlimited' : `${maxUses} Pengguna`}</td></tr>` +
         `</table>` +
-        `<blockquote>📢 <b>Voucher otomatis dibagikan ke Channel</b> dengan tombol klaim instan!<br>` +
-        `Anda juga dapat membagikannya ke chat/channel lain menggunakan tombol di bawah:</blockquote>`,
+        `<h3>📢 Voucher Otomatis Dibagikan ke Channel</h3>` +
+        `<p>Voucher telah dibagikan dengan tombol klaim instan! Anda juga dapat membagikannya ke chat/channel lain menggunakan tombol di bawah:</p>`,
         { reply_markup: keyboard }
       );
     } else {
@@ -199,12 +199,12 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
         .text('👑 Panel Admin', 'rich:admin');
       await replyRich(ctx,
         `<h1 align="center">❌ Gagal Membuat Voucher</h1>` +
-        `<blockquote>${escapeHtml(result.message)}</blockquote>`,
+        `<p>${escapeHtml(result.message)}</p>`,
         { reply_markup: keyboard }
       );
     }
   } catch (err: any) {
     if (err.message === 'USER_CANCELLED') return;
-    await replyRich(ctx, `<blockquote>❌ Terjadi kesalahan: ${escapeHtml(err.message || String(err))}</blockquote>`);
+    await replyRich(ctx, `<p>❌ Terjadi kesalahan: ${escapeHtml(err.message || String(err))}</p>`);
   }
 }

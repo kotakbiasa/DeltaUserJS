@@ -83,7 +83,7 @@ export function buildModuleHtml(moduleName, target = 'main') {
     (desc ? `<tr><td>📝 Deskripsi</td><td>${escapeHtml(desc)}</td></tr>` : '') +
     (usage ? `<tr><td>🚀 Penggunaan</td><td><code>${escapeHtml(usage)}</code></td></tr>` : '') +
     `</table>`;
-  if (detail) {html += `<details><summary>💡 Detail Tambahan</summary>${escapeHtml(detail)}</details>`;}
+  if (detail) {html += `<h3>💡 Detail Tambahan</h3><p>${escapeHtml(detail)}</p>`;}
   return html;
 }
 
@@ -132,7 +132,7 @@ function resolveModuleTarget(moduleName) {
 
 export function buildHelpMenuRichHtml(session, _page = 1, target = 'main') {
   return `<h1 align="center">📖 Help ${target === 'ubot' ? '(Userbot)' : '(Master)'}</h1>` +
-    `<blockquote>Pilih modul untuk melihat command dan detail penggunaan.</blockquote>`;
+    `<p>Pilih modul untuk melihat command dan detail penggunaan.</p>`;
 }
 
 export function helpKeyboardExported(page = 1, target = 'main') {
@@ -160,7 +160,7 @@ export function registerInlineHelpHandlers(bot) {
           id: `help:module:${query}`,
           title: `📦 ${mod.title || formatModuleName(query)}`,
           description: plain(mod.description || '').slice(0, 80),
-          // Rich message penuh (heading, tabel, blockquote expandable)
+          // Rich message penuh (heading, tabel, semantic rich HTML)
           input_message_content: { rich_message: { html } },
           reply_markup: moduleBackKeyboard('ubot'),
         };

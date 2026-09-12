@@ -20,7 +20,7 @@ async function waitForInput(conversation, ctx) {
     try { await result.deleteMessage(); } catch (_e) { /* ignore: already deleted */ }
     // Info batal sementara: hilang sendiri setelah 30 detik
     try {
-      const notice = await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b></blockquote>`);
+      const notice = await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b></p>`);
       const noticeId = notice?.message_id;
       if (noticeId) {
         const t = setTimeout(() => {
@@ -44,7 +44,7 @@ export async function afkReasonConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
 
   try {
-    await replyRich(ctx, `<h1 align="center">📝 Setel Alasan AFK Baru</h1><blockquote>Silakan kirimkan teks alasan AFK Anda yang baru. Contoh:\n<code>Sedang tidur, jangan spam ya!</code></blockquote>`, { reply_markup: cancelKeyboard });
+    await replyRich(ctx, `<h1 align="center">📝 Setel Alasan AFK Baru</h1><p>Silakan kirimkan teks alasan AFK Anda yang baru. Contoh:<br><code>Sedang tidur, jangan spam ya!</code></p>`, { reply_markup: cancelKeyboard });
 
     let newReason;
     try {
@@ -55,20 +55,20 @@ export async function afkReasonConversation(conversation, ctx) {
     }
 
     if (newReason.length > 200) {
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Alasan AFK terlalu panjang! Maksimal 200 karakter. Pengaturan dibatalkan.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Alasan AFK terlalu panjang! Maksimal 200 karakter. Pengaturan dibatalkan.</p>`);
       return;
     }
 
     const { updateUserbotFeature } = await import('../../infrastructure/database.js');
     await updateUserbotFeature(telegramId, 'afk_reason', newReason);
 
-    await replyRich(ctx, `✅ <b>Alasan AFK berhasil diperbarui menjadi:</b>\n<blockquote>"${newReason}"</blockquote>`);
-    await replyRich(ctx, `<blockquote>Gunakan <code>/menu</code> untuk kembali ke Panel Kontrol Utama.</blockquote>`);
+    await replyRich(ctx, `✅ <b>Alasan AFK berhasil diperbarui menjadi:</b><br><p>"${newReason}"</p>`);
+    await replyRich(ctx, `<footer>Gunakan <code>/menu</code> untuk kembali ke Panel Kontrol Utama.</footer>`);
 
   } catch (error) {
     if (error.message !== 'USER_CANCELLED') {
       Logger.logUser(telegramId, `Error in AFK reason conversation: ${error.message}`, 'ERROR');
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem. Gagal mengubah alasan AFK.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem. Gagal mengubah alasan AFK.</p>`);
     }
   }
 }
@@ -121,7 +121,7 @@ export async function manageVarsConv(conversation, ctx) {
         .join('');
       const varTable = varRows
         ? `<table bordered striped><caption>📋 Variabel Aktif</caption><tr><th>#</th><th>Kunci</th><th>Nilai</th></tr>${varRows}</table>`
-        : `<blockquote><i>Belum ada variabel yang diatur.</i></blockquote>`;
+        : `<p><i>Belum ada variabel yang diatur.</i></p>`;
 
       // Tabel template yang tersedia
       const tplRows = USER_VAR_TEMPLATE.map((v, i) => {
@@ -131,7 +131,7 @@ export async function manageVarsConv(conversation, ctx) {
 
       // Kirim menu utama vars
       const menuMsg = await replyRich(ctx, `<h1 align="center">⚙️ Pengaturan Variabel (Vars)</h1>` +
-        `<blockquote>Kelola variabel khusus untuk userbot Anda. Nilai tersembunyi (spoiler) — tap untuk melihat.</blockquote>` +
+        `<p>Kelola variabel khusus untuk userbot Anda. Nilai tersembunyi (spoiler) — tap untuk melihat.</p>` +
         `<table bordered striped><caption>📋 Template Variabel</caption>` +
         `<tr><th>#</th><th>Variabel</th><th>Fungsi</th></tr>` +
         tplRows +
@@ -148,7 +148,7 @@ export async function manageVarsConv(conversation, ctx) {
       try { await ctx.api.deleteMessage(ctx.chat.id, menuMsg.message_id); } catch (_) { /* empty */ }
 
       if (data === 'var:cancel') {
-        await replyRich(ctx, `<blockquote><b>🚪 Selesai</b><br>Keluar dari pengaturan variabel. Gunakan /menu untuk membuka menu utama.</blockquote>`);
+        await replyRich(ctx, `<p><b>🚪 Selesai</b><br>Keluar dari pengaturan variabel. Gunakan /menu untuk membuka menu utama.</p>`);
         loop = false;
         break;
       }
@@ -204,13 +204,13 @@ export async function manageVarsConv(conversation, ctx) {
               await db.updateUserbotFeature(telegramId, 'inline_bot_username', null);
             }
           });
-          await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${keyToDelete}</b> berhasil dihapus.</blockquote>`);
+          await replyRich(ctx, `<p><b>✅ BERHASIL</b><br>Variabel <b>${keyToDelete}</b> berhasil dihapus.</p>`);
           continue;
         }
 
         if (detailData.startsWith('var:edit:')) {
           const editKey = detailData.split('var:edit:')[1];
-          await replyRich(ctx, `<h1 align="center">📝 Mengatur <code>${editKey}</code></h1><blockquote>Silakan kirimkan nilai/value baru untuk <code>${editKey}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
+          await replyRich(ctx, `<h1 align="center">📝 Mengatur <code>${editKey}</code></h1><p>Silakan kirimkan nilai/value baru untuk <code>${editKey}</code>:</p>`, { reply_markup: cancelKeyboard });
 
           let value;
           try {
@@ -221,7 +221,7 @@ export async function manageVarsConv(conversation, ctx) {
           }
 
           // Simpan nilai
-          await replyRich(ctx, `<blockquote>⏳ Menyimpan variabel ${editKey}...</blockquote>`);
+          await replyRich(ctx, `<p>⏳ Menyimpan variabel ${editKey}...</p>`);
 
           if (editKey === 'INLINE_BOT_TOKEN') {
             const botData = await conversation.external(async () => {
@@ -234,7 +234,7 @@ export async function manageVarsConv(conversation, ctx) {
             });
 
             if (!botData.ok) {
-              await replyRich(ctx, `❌ <b>Token Bot tidak valid!</b>\n<blockquote>${botData.description || 'Gagal terhubung ke API'}</blockquote>`);
+              await replyRich(ctx, `❌ <b>Token Bot tidak valid!</b><br><p>${botData.description || 'Gagal terhubung ke API'}</p>`);
               continue;
             }
 
@@ -248,13 +248,13 @@ export async function manageVarsConv(conversation, ctx) {
               const svc = await import('../services/inlineBotService.js');
               await svc.startInlineBotForUser(telegramId, value);
             });
-            await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b><br>Bot Anda: @${botUsername} siap digunakan — menu <code>.help</code> kini memakai tombol.</blockquote>`);
+            await replyRich(ctx, `<p><b>✅ BERHASIL</b><br><b>Token Inline Bot Disimpan!</b><br>Bot Anda: @${botUsername} siap digunakan — menu <code>.help</code> kini memakai tombol.</p>`);
           } else {
             await conversation.external(async () => {
               const db = await import('../../infrastructure/database.js');
               await db.setUserVar(telegramId, editKey, value);
             });
-            await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${editKey}</b> berhasil disimpan!</blockquote>`);
+            await replyRich(ctx, `<p><b>✅ BERHASIL</b><br>Variabel <b>${editKey}</b> berhasil disimpan!</p>`);
           }
           continue;
         }
@@ -264,7 +264,7 @@ export async function manageVarsConv(conversation, ctx) {
       }
 
       if (data === 'var:custom') {
-        await replyRich(ctx, `<h1 align="center">➕ Variabel Kustom Baru</h1><blockquote>Silakan kirimkan <b>NAMA (KUNCI)</b> variabel baru Anda (gunakan huruf besar, contoh: <code>MY_VAR</code>):</blockquote>`, { reply_markup: cancelKeyboard });
+        await replyRich(ctx, `<h1 align="center">➕ Variabel Kustom Baru</h1><p>Silakan kirimkan <b>NAMA (KUNCI)</b> variabel baru Anda (gunakan huruf besar, contoh: <code>MY_VAR</code>):</p>`, { reply_markup: cancelKeyboard });
 
         let key;
         try {
@@ -276,11 +276,11 @@ export async function manageVarsConv(conversation, ctx) {
 
         key = key.toUpperCase().replace(/[^A-Z0-9_]/g, '');
         if (!key) {
-          await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Nama variabel tidak valid!</blockquote>`);
+          await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Nama variabel tidak valid!</p>`);
           continue;
         }
 
-        await replyRich(ctx, `<h1 align="center">📝 Nilai Variabel</h1><blockquote>Silakan kirimkan nilai/value untuk <code>${key}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
+        await replyRich(ctx, `<h1 align="center">📝 Nilai Variabel</h1><p>Silakan kirimkan nilai/value untuk <code>${key}</code>:</p>`, { reply_markup: cancelKeyboard });
 
         let value;
         try {
@@ -293,14 +293,14 @@ export async function manageVarsConv(conversation, ctx) {
         // Validate value: limit length to prevent database bloat
         const MAX_VAR_VALUE_LENGTH = 4096;
         if (value && value.length > MAX_VAR_VALUE_LENGTH) {
-          await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Nilai variabel terlalu panjang! Maksimum ${MAX_VAR_VALUE_LENGTH} karakter.</blockquote>`);
+          await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Nilai variabel terlalu panjang! Maksimum ${MAX_VAR_VALUE_LENGTH} karakter.</p>`);
           continue;
         }
 
         // Restrict sensitive variable names that could be exploited
         const RESTRICTED_VARS = ['BOT_TOKEN', 'API_ID', 'API_HASH', 'MONGO_URI', 'ENCRYPTION_KEY', 'OWNER_ID'];
         if (RESTRICTED_VARS.includes(key)) {
-          await replyRich(ctx, `<blockquote><b>❌ DITOLAK</b><br>Variabel <code>${key}</code> adalah sistem reserved dan tidak boleh diubah melalui menu ini.</blockquote>`);
+          await replyRich(ctx, `<p><b>❌ DITOLAK</b><br>Variabel <code>${key}</code> adalah sistem reserved dan tidak boleh diubah melalui menu ini.</p>`);
           continue;
         }
 
@@ -309,7 +309,7 @@ export async function manageVarsConv(conversation, ctx) {
           await db.setUserVar(telegramId, key, value);
         });
 
-        await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${key}</b> berhasil disimpan!</blockquote>`);
+        await replyRich(ctx, `<p><b>✅ BERHASIL</b><br>Variabel <b>${key}</b> berhasil disimpan!</p>`);
         continue;
       }
 
@@ -320,7 +320,7 @@ export async function manageVarsConv(conversation, ctx) {
         });
         deleteKb.text('❌ Batal', 'var:del_cancel');
 
-        const delMenuMsg = await replyRich(ctx, `<h1 align="center">🗑️ Hapus Variabel</h1><blockquote>Pilih variabel yang ingin Anda hapus:</blockquote>`, { reply_markup: deleteKb });
+        const delMenuMsg = await replyRich(ctx, `<h1 align="center">🗑️ Hapus Variabel</h1><p>Pilih variabel yang ingin Anda hapus:</p>`, { reply_markup: deleteKb });
 
         const delResult = await conversation.waitFor('callback_query:data');
         const delData = delResult.callbackQuery.data;
@@ -341,7 +341,7 @@ export async function manageVarsConv(conversation, ctx) {
               // Inline bot manager removed; only clear stored token/username.
             }
           });
-          await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel <b>${keyToDelete}</b> berhasil dihapus.</blockquote>`);
+          await replyRich(ctx, `<p><b>✅ BERHASIL</b><br>Variabel <b>${keyToDelete}</b> berhasil dihapus.</p>`);
         }
         continue;
       }
@@ -349,7 +349,7 @@ export async function manageVarsConv(conversation, ctx) {
   } catch (error) {
     if (error.message !== 'USER_CANCELLED') {
       Logger.logUser(telegramId, `Error in manageVarsConv: ${error.message}`, 'ERROR');
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</p>`);
     }
   }
 }
@@ -394,7 +394,7 @@ function systemVarTableHtml(currentVars: Record<string, unknown>): string {
     : '';
 
   return `<h1 align="center">⚙️ System Vars</h1>` +
-    `<blockquote>Kelola variabel sistem bot. Ketik <code>KUNCI NILAI</code> untuk set, atau <code>HAPUS KUNCI</code> untuk hapus. Nilai tersembunyi (spoiler) — tap untuk melihat.</blockquote>` +
+    `<p>Kelola variabel sistem bot. Ketik <code>KUNCI NILAI</code> untuk set, atau <code>HAPUS KUNCI</code> untuk hapus. Nilai tersembunyi (spoiler) — tap untuk melihat.</p>` +
     `<table bordered striped><caption>📋 Template Variabel</caption>` +
     `<tr><th>#</th><th>Variabel</th><th>Fungsi</th><th>Nilai</th></tr>` +
     rows +
@@ -429,7 +429,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
 
     const parts = input.trim().split(/\s+/);
     if (parts.length < 2) {
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Format salah! Harus berupa: <code>KUNCI NILAI</code> atau <code>HAPUS KUNCI</code>.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Format salah! Harus berupa: <code>KUNCI NILAI</code> atau <code>HAPUS KUNCI</code>.</p>`);
       return;
     }
 
@@ -441,7 +441,7 @@ export async function manageSystemVarsConv(conversation, ctx) {
         const db = await import('../../infrastructure/database.js');
         await db.deleteSystemVar(key);
       });
-      await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil dihapus.</blockquote>`);
+      await replyRich(ctx, `<p><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil dihapus.</p>`);
       return;
     }
 
@@ -453,12 +453,12 @@ export async function manageSystemVarsConv(conversation, ctx) {
       await db.setSystemVar(key, value);
     });
 
-    await replyRich(ctx, `<blockquote><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil disimpan!</blockquote>`);
+    await replyRich(ctx, `<p><b>✅ BERHASIL</b><br>Variabel sistem <b>${key}</b> berhasil disimpan!</p>`);
 
   } catch (error) {
     if (error.message !== 'USER_CANCELLED') {
       Logger.logUser(telegramId, `Error in manageSystemVarsConv: ${error.message}`, 'ERROR');
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem.</p>`);
     }
   }
 }

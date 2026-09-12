@@ -150,7 +150,7 @@ async function waitForInput(conversation, ctx) {
       try { await result.answerCallbackQuery('Pendaftaran dibatalkan.'); } catch (_) { /* ignore */ }
       try { await result.deleteMessage(); } catch (_) { /* ignore */ }
     }
-    await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali ke Menu Utama.</blockquote>`);
+    await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali ke Menu Utama.</p>`);
     throw new Error('USER_CANCELLED');
   }
 
@@ -179,12 +179,12 @@ export async function otpRegistrationConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
 
   if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {
-    await replyRich(ctx, `<blockquote>🔒 Pendaftaran userbot membutuhkan persetujuan owner.<br>Silakan ajukan <b>🎁 Request Coba Gratis</b> di menu utama terlebih dahulu.</blockquote>`);
+    await replyRich(ctx, `<p>🔒 Pendaftaran userbot membutuhkan persetujuan owner.<br>Silakan ajukan <b>🎁 Request Coba Gratis</b> di menu utama terlebih dahulu.</p>`);
     return;
   }
 
   if (!hasAcceptedTerms(telegramId)) {
-    await replyRich(ctx, `<blockquote>⚠️ Anda harus menyetujui <b>Syarat &amp; Ketentuan Layanan</b> terlebih dahulu sebelum menghubungkan akun.<br>Ketik <code>/daftar</code> atau buka menu untuk menyetujui.</blockquote>`);
+    await replyRich(ctx, `<p>⚠️ Anda harus menyetujui <b>Syarat &amp; Ketentuan Layanan</b> terlebih dahulu sebelum menghubungkan akun.<br>Ketik <code>/daftar</code> atau buka menu untuk menyetujui.</p>`);
     return;
   }
 
@@ -196,7 +196,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       `<tr><td align="center">2</td><td>Masukkan kode OTP yang diterima</td></tr>` +
       `<tr><td align="center">3</td><td>Selesai — userbot aktif 🎉</td></tr>` +
       `</table>` +
-      `<blockquote>Silakan kirimkan nomor HP Anda, contoh: <code>+628123456789</code> atau <code>08123456789</code></blockquote>`, { reply_markup: cancelKeyboard, });
+      `<p>Silakan kirimkan nomor HP Anda, contoh: <code>+628123456789</code> atau <code>08123456789</code></p>`, { reply_markup: cancelKeyboard, });
 
     // Step 1: Wait for phone number
     let phoneNumber;
@@ -223,7 +223,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
     // Validate phone number format (must start with + and at least 9 digits)
     if (!phoneNumber.startsWith('+') || phoneNumber.length < 9) {
-      await replyRich(ctx, `<h1 align="center">❌ Format nomor HP salah!</h1><blockquote>Harus berupa nomor telepon valid dengan kode negara (contoh: <code>+628xxx</code> atau <code>08xxx</code>). Silakan ulangi dengan klik /daftar.</blockquote>`, {  });
+      await replyRich(ctx, `<h1 align="center">❌ Format nomor HP salah!</h1><p>Harus berupa nomor telepon valid dengan kode negara (contoh: <code>+628xxx</code> atau <code>08xxx</code>). Silakan ulangi dengan klik /daftar.</p>`, {  });
       return;
     }
 
@@ -263,7 +263,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       isCodeViaApp = initResult.isCodeViaApp;
     } catch (err) {
       Logger.logUser(telegramId, `[OTP] Error saat init/sendCode: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
-      await replyRich(ctx, `❌ <b>Gagal mengirim OTP:</b>\n<blockquote>${err instanceof Error ? err.message : String(err)}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
+      await replyRich(ctx, `❌ <b>Gagal mengirim OTP:</b><br><p>${err instanceof Error ? err.message : String(err)}</p><br>Silakan ulangi <code>/daftar</code>.`);
       return;
     }
 
@@ -288,13 +288,13 @@ export async function otpRegistrationConversation(conversation, ctx) {
           `<tr><td>2</td><td>Cari chat <b>"Telegram"</b> (✓ centang biru)</td></tr>` +
           `<tr><td>3</td><td>Salin kode 5 digit dari chat tsb</td></tr>` +
           `</table>` +
-          `<blockquote>⚠️ Kode berlaku <b>2 menit</b>. Jika tidak muncul, klik "Kirim Ulang via SMS".</blockquote>`
+          `<p>⚠️ Kode berlaku <b>2 menit</b>. Jika tidak muncul, klik "Kirim Ulang via SMS".</p>`
         : `<table bordered striped><caption>💬 Kode via SMS</caption>` +
           `<tr><th>Langkah</th><th>Aksi</th></tr>` +
           `<tr><td>1</td><td>Cek SMS di nomor <code>${phoneNumber}</code></td></tr>` +
           `<tr><td>2</td><td>Salin kode 5 digit dari SMS</td></tr>` +
           `</table>` +
-          `<blockquote>⚠️ Kode berlaku <b>2 menit</b>. Segera masukkan!</blockquote>`;
+          `<p>⚠️ Kode berlaku <b>2 menit</b>. Segera masukkan!</p>`;
       await replyRich(ctx, prefix + info + antiShareTip + '\n\nKirimkan kode OTP di sini:', { reply_markup: buildOtpKeyboard(viaApp) });
     };
 
@@ -324,7 +324,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
             try { await inputResult.answerCallbackQuery('Pendaftaran dibatalkan.'); } catch (_e) { /* ignore */ }
             try { await inputResult.deleteMessage(); } catch (_e) { /* ignore */ }
           }
-          await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali ke Menu Utama.</blockquote>`);
+          await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali ke Menu Utama.</p>`);
           return;
         }
 
@@ -349,9 +349,9 @@ export async function otpRegistrationConversation(conversation, ctx) {
             phoneCodeHash = resendResult.phoneCodeHash;
           } catch (e) {
             Logger.logUser(telegramId, `[OTP] Gagal resend SMS: ${e.message}`, 'ERROR');
-            await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Gagal mengirim ulang via SMS: ${e.message}</blockquote>`);
+            await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Gagal mengirim ulang via SMS: ${e.message}</p>`);
           }
-          await replyRich(ctx, '💬 <b>Kode OTP dikirim ulang via SMS.</b>\n\n<blockquote>Cek SMS masuk di nomor <code>' + phoneNumber + '</code>.\n⏱️ Segera masukkan kode di sini (berlaku 2 menit).</blockquote>\n\n🛡️ <b>PENTING:</b> Ketik kode dengan <b>spasi</b> antar digit.\n<i>Contoh: <code>12345</code> → ketik <code>1 2 3 4 5</code></i>', { reply_markup: buildOtpKeyboard(false) });
+          await replyRich(ctx, '💬 <b>Kode OTP dikirim ulang via SMS.</b>\n\n<p>Cek SMS masuk di nomor <code>' + phoneNumber + '</code>.<br>⏱️ Segera masukkan kode di sini (berlaku 2 menit).</p>\n\n🛡️ <b>PENTING:</b> Ketik kode dengan <b>spasi</b> antar digit.\n<i>Contoh: <code>12345</code> → ketik <code>1 2 3 4 5</code></i>', { reply_markup: buildOtpKeyboard(false) });
           continue;
         }
 
@@ -406,7 +406,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       } else if (signInResult.status === 'code_expired') {
         // ♻️ Kode expired — kirim kode baru otomatis
         if (attemptCount < MAX_ATTEMPTS) {
-            await replyRich(ctx, `<h1 align="center">⚠️ Kode OTP kadaluarsa!</h1><blockquote>Mengirim kode baru... (Percobaan ${attemptCount}/${MAX_ATTEMPTS})</blockquote>`, {  });
+            await replyRich(ctx, `<h1 align="center">⚠️ Kode OTP kadaluarsa!</h1><p>Mengirim kode baru... (Percobaan ${attemptCount}/${MAX_ATTEMPTS})</p>`, {  });
             try {
               const resendResult = await conversation.external(async () => {
                 const activeClient = activeRegClients.get(telegramId);
@@ -423,17 +423,17 @@ export async function otpRegistrationConversation(conversation, ctx) {
               await showOtpPrompt(isCodeViaApp, true);
             } catch (resendErr) {
               Logger.logUser(telegramId, `[OTP] Gagal resend setelah expired: ${resendErr.message}`, 'ERROR');
-              await replyRich(ctx, `❌ <b>Gagal mengirim kode baru:</b>\n<blockquote>${resendErr.message}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
+              await replyRich(ctx, `❌ <b>Gagal mengirim kode baru:</b><br><p>${resendErr.message}</p><br>Silakan ulangi <code>/daftar</code>.`);
               return;
             }
           } else {
-            await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Kode OTP terus kadaluarsa setelah ${MAX_ATTEMPTS}x percobaan.\n\nSilakan ulangi <code>/daftar</code> dan masukkan kode dengan cepat.</blockquote>`);
+            await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Kode OTP terus kadaluarsa setelah ${MAX_ATTEMPTS}x percobaan.<br><br>Silakan ulangi <code>/daftar</code> dan masukkan kode dengan cepat.</p>`);
             return;
           }
 
       } else if (signInResult.status === '2fa_needed') {
         // 🔒 2FA Password needed
-        await replyRich(ctx, `<h1 align="center">🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>`, { reply_markup: cancelKeyboard, });
+        await replyRich(ctx, `<h1 align="center">🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><p>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</p>`, { reply_markup: cancelKeyboard, });
           let password;
           try {
             password = await waitForInput(conversation, ctx);
@@ -458,28 +458,28 @@ export async function otpRegistrationConversation(conversation, ctx) {
             sessionString = pwdResult.sessionString;
             signInDone = true;
           } else {
-            await replyRich(ctx, `❌ <b>Password 2FA salah:</b>\n<blockquote>${pwdResult.error}</blockquote>\nPendaftaran dibatalkan.`);
+            await replyRich(ctx, `❌ <b>Password 2FA salah:</b><br><p>${pwdResult.error}</p><br>Pendaftaran dibatalkan.`);
             return;
           }
 
       } else if (signInResult.status === 'code_invalid') {
         // ❌ Kode salah — minta input ulang (hash masih valid)
         if (attemptCount < MAX_ATTEMPTS) {
-            await replyRich(ctx, `<h1 align="center">❌ Kode OTP salah!</h1><blockquote>Pastikan kode yang dimasukkan benar dan belum kadaluarsa.\n<i>Percobaan ${attemptCount}/${MAX_ATTEMPTS}. Silakan coba lagi.</i></blockquote>`, { reply_markup: buildOtpKeyboard(false), });
+            await replyRich(ctx, `<h1 align="center">❌ Kode OTP salah!</h1><p>Pastikan kode yang dimasukkan benar dan belum kadaluarsa.<br><i>Percobaan ${attemptCount}/${MAX_ATTEMPTS}. Silakan coba lagi.</i></p>`, { reply_markup: buildOtpKeyboard(false), });
           } else {
-            await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br><b>Kode OTP salah ${MAX_ATTEMPTS}x.</b>\n\nPendaftaran dibatalkan. Silakan ulangi <code>/daftar</code>.</blockquote>`);
+            await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br><b>Kode OTP salah ${MAX_ATTEMPTS}x.</b><br><br>Pendaftaran dibatalkan. Silakan ulangi <code>/daftar</code>.</p>`);
             return;
           }
 
       } else {
         // ❌ Error tidak dikenal
-        await replyRich(ctx, `❌ <b>Gagal login:</b>\n<blockquote>${signInResult.error || 'Unknown error'}</blockquote>\nPendaftaran dibatalkan.`);
+        await replyRich(ctx, `❌ <b>Gagal login:</b><br><p>${signInResult.error || 'Unknown error'}</p><br>Pendaftaran dibatalkan.`);
         return;
       }
     }
 
     if (!signInDone || !sessionString) {
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Gagal login setelah ${MAX_ATTEMPTS}x percobaan. Silakan ulangi <code>/daftar</code>.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Gagal login setelah ${MAX_ATTEMPTS}x percobaan. Silakan ulangi <code>/daftar</code>.</p>`);
       return;
     }
 
@@ -487,7 +487,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
     // Session string sudah didapat dari dalam external() di atas
     await saveUserbotSession(telegramId, phoneNumber, sessionString);
 
-    await replyRich(ctx, `<h1 align="center">✨ Pendaftaran Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
+    await replyRich(ctx, `<h1 align="center">✨ Pendaftaran Berhasil!</h1><p>⏳ Mengaktifkan userbot Anda...</p>`, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
@@ -501,7 +501,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       `<tr><td>Nomor HP</td><td align="center"><code>${phoneNumber}</code></td></tr>` +
       `<tr><td>ID Telegram</td><td align="center"><code>${telegramId}</code></td></tr>` +
       `</table>` +
-      `<blockquote>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</blockquote>`, {
+      `<footer>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</footer>`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' }],
@@ -519,7 +519,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
                         
     if (!isCancelled) {
       Logger.logUser(telegramId, `Error in OTP registration conversation: ${error.message}`, 'ERROR');
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem saat pendaftaran. Silakan coba lagi nanti.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem saat pendaftaran. Silakan coba lagi nanti.</p>`);
     }
   } finally {
     await cleanupClient(telegramId);
@@ -539,12 +539,12 @@ export async function qrRegistrationConversation(conversation, ctx) {
   const chatId = ctx.chat.id;
 
   if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {
-    await replyRich(ctx, `<blockquote>🔒 Pendaftaran userbot membutuhkan persetujuan owner.<br>Silakan ajukan <b>🎁 Request Coba Gratis</b> di menu utama terlebih dahulu.</blockquote>`);
+    await replyRich(ctx, `<p>🔒 Pendaftaran userbot membutuhkan persetujuan owner.<br>Silakan ajukan <b>🎁 Request Coba Gratis</b> di menu utama terlebih dahulu.</p>`);
     return;
   }
 
   if (!hasAcceptedTerms(telegramId)) {
-    await replyRich(ctx, `<blockquote>⚠️ Anda harus menyetujui <b>Syarat &amp; Ketentuan Layanan</b> terlebih dahulu sebelum menghubungkan akun.<br>Ketik <code>/daftar</code> atau buka menu untuk menyetujui.</blockquote>`);
+    await replyRich(ctx, `<p>⚠️ Anda harus menyetujui <b>Syarat &amp; Ketentuan Layanan</b> terlebih dahulu sebelum menghubungkan akun.<br>Ketik <code>/daftar</code> atau buka menu untuk menyetujui.</p>`);
     return;
   }
 
@@ -562,7 +562,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
       `<tr><td align="center">2</td><td>Buka Telegram → Settings → Devices</td></tr>` +
       `<tr><td align="center">3</td><td>Scan QR → userbot aktif 🎉</td></tr>` +
       `</table>` +
-      `<blockquote>⏱️ Anda punya waktu <b>2 menit</b> untuk memindai.</blockquote>`, { reply_markup: cancelKeyboard, });
+      `<footer>⏱️ Anda punya waktu <b>2 menit</b> untuk memindai.</footer>`, { reply_markup: cancelKeyboard, });
 
     // Seluruh proses QR login dilakukan dalam satu external() call
     // karena signInUserWithQrCode adalah operasi blocking yang harus selesai sebelum kita bisa lanjut
@@ -611,11 +611,9 @@ export async function qrRegistrationConversation(conversation, ctx) {
 
                 const qrMsg = await outsideCtx.api.sendPhoto(chatId, new InputFile(qrBuffer), {
                   caption: '📷 <b>SCAN QR CODE INI</b>\n\n' +
-                           '<blockquote>' +
                            '1. Buka Telegram di HP Anda.\n' +
-                           '2. Buka <b>Pengaturan (Settings) > Perangkat (Devices) > Hubungkan Perangkat</b>.\n' +
-                           '3. Arahkan kamera HP ke QR Code di atas.' +
-                           '</blockquote>\n' +
+                           '2. Buka <b>Pengaturan > Perangkat > Hubungkan Perangkat</b>.\n' +
+                           '3. Arahkan kamera HP ke QR Code di atas.\n\n' +
                            '⚠️ <i>QR Code ini berlaku selama 30 detik. Jika kedaluwarsa, bot akan otomatis mengirimkan QR Code yang baru.</i>',
                   parse_mode: 'HTML',
                   reply_markup: cancelKeyboard,
@@ -696,7 +694,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
 
     // --- Handle 2FA jika diperlukan ---
     if (qrResult.status === '2fa_needed') {
-      await replyRich(ctx, `<h1 align="center">🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>`, { reply_markup: cancelKeyboard, });
+      await replyRich(ctx, `<h1 align="center">🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><p>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</p>`, { reply_markup: cancelKeyboard, });
 
       const pwdResult = await conversation.waitFor(['message:text', 'callback_query:data']);
       const pwdCb = pwdResult.callbackQuery?.data;
@@ -704,7 +702,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
 
       if (pwdCb === 'cancel' || pwdCb === 'cancel_reg' || pwdCb === 'cancel_qr' || pwdText?.toLowerCase() === '/cancel') {
         cleanupClient(telegramId);
-        await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali.</blockquote>`);
+        await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali.</p>`);
         return;
       }
       
@@ -738,7 +736,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
       });
 
       if (pwdAuthResult.status !== 'success') {
-        await replyRich(ctx, `❌ <b>Gagal login 2FA:</b>\n<blockquote>${pwdAuthResult.error}</blockquote>\nSilakan ulangi dengan klik /daftar.`);
+        await replyRich(ctx, `❌ <b>Gagal login 2FA:</b><br><p>${pwdAuthResult.error}</p><br>Silakan ulangi dengan klik /daftar.`);
         return;
       }
       qrResult.sessionString = pwdAuthResult.sessionString;
@@ -753,7 +751,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
       await updateUserbotFeature(telegramId, 'custom_name', qrResult.customName);
     }
 
-    await replyRich(ctx, `<h1 align="center">✨ Pendaftaran Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
+    await replyRich(ctx, `<h1 align="center">✨ Pendaftaran Berhasil!</h1><p>⏳ Mengaktifkan userbot Anda...</p>`, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
@@ -768,7 +766,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
       (qrResult.phone ? `<tr><td>Nomor HP</td><td align="center"><code>${qrResult.phone}</code></td></tr>` : '') +
       `<tr><td>ID Telegram</td><td align="center"><code>${telegramId}</code></td></tr>` +
       `</table>` +
-      `<blockquote>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</blockquote>`, {
+      `<footer>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</footer>`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' }],
@@ -788,10 +786,10 @@ export async function qrRegistrationConversation(conversation, ctx) {
                         
     if (!isCancelled) {
       if (error.message === 'TIMEOUT') {
-        await replyRich(ctx, `<blockquote>⏰ <b>Waktu pendaftaran habis (2 menit tanpa pemindaian).</b>\n\nSilakan ulangi <code>/daftar</code>.</blockquote>`);
+        await replyRich(ctx, `<p>⏰ <b>Waktu pendaftaran habis (2 menit tanpa pemindaian).</b><br><br>Silakan ulangi <code>/daftar</code>.</p>`);
       } else {
         Logger.logUser(telegramId, `Error in QR registration conversation: ${error.message}`, 'ERROR');
-        await replyRich(ctx, `❌ <b>Login QR Code gagal:</b>\n<blockquote>${error.message}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
+        await replyRich(ctx, `❌ <b>Login QR Code gagal:</b><br><p>${error.message}</p><br>Silakan ulangi <code>/daftar</code>.`);
       }
     }
   } finally {
@@ -809,12 +807,12 @@ export async function broadcastConversation(conversation, ctx) {
   
   // Double-check if the sender is the owner
   if (Number(telegramId) !== Number(config.ownerId)) {
-    await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Anda tidak memiliki akses ke fitur Administrator ini!</blockquote>`);
+    await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Anda tidak memiliki akses ke fitur Administrator ini!</p>`);
     return;
   }
 
   try {
-    await replyRich(ctx, `<h1 align="center">📢 Panel Broadcast Userbot</h1><blockquote>Silakan kirimkan pesan broadcast yang ingin Anda sebarluaskan ke seluruh pengguna terdaftar.</blockquote>`, { reply_markup: cancelKeyboard, });
+    await replyRich(ctx, `<h1 align="center">📢 Panel Broadcast Userbot</h1><p>Silakan kirimkan pesan broadcast yang ingin Anda sebarluaskan ke seluruh pengguna terdaftar.</p>`, { reply_markup: cancelKeyboard, });
 
     let broadcastMsg;
     try {
@@ -824,7 +822,7 @@ export async function broadcastConversation(conversation, ctx) {
       throw err;
     }
 
-    await replyRich(ctx, `<blockquote>⏳ Memulai proses broadcast...</blockquote>`);
+    await replyRich(ctx, `<p>⏳ Memulai proses broadcast...</p>`);
 
     // Load DB and active list
     const { getAllRegisteredUsers } = await import('../../infrastructure/database.js');
@@ -835,7 +833,7 @@ export async function broadcastConversation(conversation, ctx) {
 
     for (const user of allUsers) {
       try {
-        await ctx.api.sendMessage(user.telegram_id, `📢 <b>PEMBERITAHUAN USERBOT</b>\n\n<blockquote>${broadcastMsg}</blockquote>`, {
+        await ctx.api.sendMessage(user.telegram_id, `📢 <b>PEMBERITAHUAN USERBOT</b>\n\n${broadcastMsg}`, {
           parse_mode: 'HTML',
         });
         successCount++;
@@ -852,12 +850,12 @@ export async function broadcastConversation(conversation, ctx) {
       `<tr><td>✅ Sukses Terkirim</td><td align="center"><code>${successCount} Akun</code></td></tr>` +
       `<tr><td>❌ Gagal Terkirim</td><td align="center"><code>${failCount} Akun</code></td></tr>` +
       `</table>` +
-      `<blockquote>Gunakan <code>/menu</code> untuk kembali ke Menu Utama.</blockquote>`);
+      `<footer>Gunakan <code>/menu</code> untuk kembali ke Menu Utama.</footer>`);
 
   } catch (error) {
     if (error.message !== 'USER_CANCELLED') {
       Logger.logUser(telegramId, `Error in Broadcast Conversation: ${error.message}`, 'ERROR');
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem saat memproses broadcast.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem saat memproses broadcast.</p>`);
     }
   }
 }
@@ -871,7 +869,7 @@ export async function customNameConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
   
   try {
-    await replyRich(ctx, `<h1 align="center">📝 Set Custom Nama Ubot</h1><blockquote>Kirimkan nama/signature baru untuk userbot Anda (Maksimal 30 karakter).\nContoh: <code>Ubot Sultan</code></blockquote>\n\nKetik /cancel untuk membatalkan.`, { reply_markup: cancelKeyboard, });
+    await replyRich(ctx, `<h1 align="center">📝 Set Custom Nama Ubot</h1><p>Kirimkan nama/signature baru untuk userbot Anda (Maksimal 30 karakter).<br>Contoh: <code>Ubot Sultan</code></p><footer>Ketik /cancel untuk membatalkan.</footer>`, { reply_markup: cancelKeyboard, });
 
     let newName;
     try {
@@ -882,7 +880,7 @@ export async function customNameConversation(conversation, ctx) {
     }
 
     if (newName.length > 30) {
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Nama terlalu panjang! Maksimal 30 karakter. Pengaturan dibatalkan.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Nama terlalu panjang! Maksimal 30 karakter. Pengaturan dibatalkan.</p>`);
       return;
     }
 
@@ -890,14 +888,14 @@ export async function customNameConversation(conversation, ctx) {
     const { updateUserbotFeature } = await import('../../infrastructure/database.js');
     await updateUserbotFeature(telegramId, 'custom_name', newName);
 
-    await replyRich(ctx, `✅ <b>Nama Ubot berhasil diperbarui menjadi:</b>\n<blockquote>"${newName}"</blockquote>`);
+    await replyRich(ctx, `✅ <b>Nama Ubot berhasil diperbarui menjadi:</b><br><p>"${newName}"</p>`);
     
-    await ctx.replyWithRichMessage({ html: `<blockquote>Gunakan <code>/menu</code> untuk kembali ke Panel Kontrol Utama.</blockquote>` });
+    await ctx.replyWithRichMessage({ html: `<footer>Gunakan <code>/menu</code> untuk kembali ke Panel Kontrol Utama.</footer>` });
 
   } catch (error) {
     if (error.message !== 'USER_CANCELLED') {
       Logger.logUser(telegramId, `Error in custom name conversation: ${error.message}`, 'ERROR');
-      await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem. Gagal mengubah nama ubot.</blockquote>`);
+      await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Terjadi kesalahan sistem. Gagal mengubah nama ubot.</p>`);
     }
   }
 }

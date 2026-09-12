@@ -8,7 +8,7 @@ export function registerOwnerHandlers(bot) {
   // --- Owner utility commands ---
   bot.command('backup', async (ctx) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
-    await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Menyiapkan backup database...</blockquote>` });
+    await ctx.replyWithRichMessage({ html: `<p>⏳ Menyiapkan backup database...</p>` });
     try {
       const users = await UserbotModel.find({}).lean();
       const backupData = JSON.stringify(users, null, 2);
@@ -20,7 +20,7 @@ export function registerOwnerHandlers(bot) {
       // Clean up temp file after sending
       setTimeout(() => { try { fs.unlinkSync(filename); } catch (_) { /* empty */ } }, 60000);
     } catch (err) {
-      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Gagal backup: ${err instanceof Error ? err.message : String(err)}</blockquote>` });
+      await ctx.replyWithRichMessage({ html: `<p><b>❌ KESALAHAN</b><br>Gagal backup: ${err instanceof Error ? err.message : String(err)}</p>` });
     }
   });
 
@@ -36,13 +36,13 @@ export function registerOwnerHandlers(bot) {
         `<tr><td>✅ Aktif</td><td align="center"><code>${activeUsers}</code></td></tr>` +
         `</table>` });
     } catch (err) {
-      await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>${err instanceof Error ? err.message : String(err)}</blockquote>` });
+      await ctx.replyWithRichMessage({ html: `<p><b>❌ KESALAHAN</b><br>${err instanceof Error ? err.message : String(err)}</p>` });
     }
   });
 
   bot.command('restart', async (ctx) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
-    await ctx.replyWithRichMessage({ html: `<h1 align="center">🔄 Restarting Bot</h1><blockquote>Sistem sedang dimuat ulang. Harap tunggu beberapa saat hingga bot menyala kembali.</blockquote>` });
+    await ctx.replyWithRichMessage({ html: `<h1 align="center">🔄 Restarting Bot</h1><p>Sistem sedang dimuat ulang. Harap tunggu beberapa saat hingga bot menyala kembali.</p>` });
     await Logger.logSystem('🔄 Restart command received from owner. Exiting process...', 'INFO');
     setTimeout(() => {
       // Use exit code 0 for graceful restart (PM2/systemd will restart it)
@@ -56,21 +56,21 @@ export function registerOwnerHandlers(bot) {
     const parts = text.split(/\s+/);
     const targetId = Number(parts[1]);
     if (!targetId || isNaN(targetId)) {
-      return ctx.replyWithRichMessage({ html: `<blockquote><b>Format:</b> <code>/approve &lt;telegram_id&gt;</code></blockquote>` });
+      return ctx.replyWithRichMessage({ html: `<p><b>Format:</b> <code>/approve &lt;telegram_id&gt;</code></p>` });
     }
     const { approveUser } = await import('../state/approvedUsers.js');
     const { setTrialClaimed } = await import('../../infrastructure/database.js');
     approveUser(targetId);
     try { await setTrialClaimed(targetId); } catch (_) { /* ignore */ }
     await ctx.replyWithRichMessage({
-      html: `<blockquote><b>✅ User Disetujui</b><br>ID <code>${targetId}</code> telah disetujui untuk uji coba gratis 7 hari.</blockquote>`
+      html: `<p><b>✅ User Disetujui</b><br>ID <code>${targetId}</code> telah disetujui untuk uji coba gratis 7 hari.</p>`
     });
     try {
       await ctx.api.sendMessage(
         targetId,
         `🎉 <b>Permintaan Uji Coba Disetujui!</b>\n\n` +
-        `<blockquote>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</blockquote>\n\n` +
-        `Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:`,
+        `<p>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</p>\n\n` +
+        `<footer>Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:</footer>`,
         {
           parse_mode: 'HTML',
           reply_markup: {
@@ -90,17 +90,17 @@ export function registerOwnerHandlers(bot) {
     const parts = text.split(/\s+/);
     const targetId = Number(parts[1]);
     if (!targetId || isNaN(targetId)) {
-      return ctx.replyWithRichMessage({ html: `<blockquote><b>Format:</b> <code>/reject &lt;telegram_id&gt;</code></blockquote>` });
+      return ctx.replyWithRichMessage({ html: `<p><b>Format:</b> <code>/reject &lt;telegram_id&gt;</code></p>` });
     }
     const { revokeUser } = await import('../state/approvedUsers.js');
     revokeUser(targetId);
     await ctx.replyWithRichMessage({
-      html: `<blockquote><b>❌ User Ditolak / Dicabut</b><br>Akses ID <code>${targetId}</code> telah ditolak/dicabut.</blockquote>`
+      html: `<p><b>❌ User Ditolak / Dicabut</b><br>Akses ID <code>${targetId}</code> telah ditolak/dicabut.</p>`
     });
     try {
       await ctx.api.sendMessage(
         targetId,
-        `<blockquote>❌ <b>Permintaan Uji Coba Ditolak</b><br>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini.</blockquote>`,
+        `<h3>❌ Permintaan Uji Coba Ditolak</h3><p>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini.</p>`,
         {
           parse_mode: 'HTML',
           reply_markup: {
@@ -118,7 +118,7 @@ export function registerOwnerHandlers(bot) {
     const { getPendingApprovals } = await import('../state/approvedUsers.js');
     const pendingList = getPendingApprovals();
     if (pendingList.length === 0) {
-      return ctx.replyWithRichMessage({ html: `<blockquote>ℹ️ Tidak ada permintaan approval yang pending.</blockquote>` });
+      return ctx.replyWithRichMessage({ html: `<p>ℹ️ Tidak ada permintaan approval yang pending.</p>` });
     }
     const rows = pendingList.map((p) => {
       const username = p.username ? `@${p.username}` : '—';
@@ -135,7 +135,7 @@ export function registerOwnerHandlers(bot) {
 
     await ctx.replyWithRichMessage({
       html: `<h1 align="center">⏳ Permintaan Approval Pending</h1>` +
-        `<blockquote>Total: <b>${pendingList.length}</b> permintaan pending</blockquote>` +
+        `<p>Total: <b>${pendingList.length}</b> permintaan pending</p>` +
         `<table bordered striped>` +
         `<tr><th>ID</th><th>Nama</th><th>Username</th><th>Waktu</th></tr>` +
         rows +

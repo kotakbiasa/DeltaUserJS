@@ -16,7 +16,7 @@ async function waitForInput(conversation: any, ctx: any): Promise<string> {
       try { await result.answerCallbackQuery('Aksi dibatalkan.'); } catch (_) {}
       try { await result.deleteMessage(); } catch (_) {}
     }
-    await replyRich(ctx, `<blockquote><b>❌ Aksi Dibatalkan</b><br>Penjadwalan broadcast dibatalkan.</blockquote>`);
+    await replyRich(ctx, `<p><b>❌ Aksi Dibatalkan</b><br>Penjadwalan broadcast dibatalkan.</p>`);
     throw new Error('USER_CANCELLED');
   }
 
@@ -35,7 +35,7 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
   const telegramId = ctx.from.id;
   const session = getUserbotSession(telegramId);
   if (!session) {
-    await replyRich(ctx, `<blockquote>❌ Anda belum memiliki sesi userbot terdaftar. Silakan registrasi terlebih dahulu.</blockquote>`);
+    await replyRich(ctx, `<p>❌ Anda belum memiliki sesi userbot terdaftar. Silakan registrasi terlebih dahulu.</p>`);
     return;
   }
 
@@ -45,9 +45,9 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
   try {
     await replyRich(ctx,
       `<h1 align="center">⏰ Tambah Jadwal Auto-Loop</h1>` +
-      `<blockquote>Langkah 1/3: <b>Target Obrolan / Grup</b><br>` +
-      `Kirimkan <b>ID Obrolan</b> (misal: <code>-1001234567890</code>), username channel/grup (misal: <code>@grupanda</code>), atau ketik <code>me</code> untuk pesan tersimpan pribadi (Saved Messages).</blockquote>` +
-      `<p><i>Ketik <code>/cancel</code> atau ketuk tombol di bawah untuk membatalkan:</i></p>`,
+      `<h3>Langkah 1/3: Target Obrolan / Grup</h3>` +
+      `<p>Kirimkan <b>ID Obrolan</b> (misal: <code>-1001234567890</code>), username channel/grup (misal: <code>@grupanda</code>), atau ketik <code>me</code> untuk pesan tersimpan pribadi (Saved Messages).</p>` +
+      `<footer>Ketik /cancel atau ketuk tombol di bawah untuk membatalkan:</footer>`,
       { reply_markup: loopCancelKeyboard }
     );
 
@@ -60,9 +60,9 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
     }
 
     await replyRich(ctx,
-      `<blockquote>Langkah 2/3: <b>Interval Pengiriman (Menit)</b><br>` +
-      `Target: <code>${escapeHtml(targetChat)}</code><br><br>` +
-      `Kirimkan interval pengiriman berkala dalam satuan <b>menit</b> (angka minimal 1, contoh: <code>10</code> untuk tiap 10 menit, <code>60</code> untuk tiap 1 jam).</blockquote>`,
+      `<h3>Langkah 2/3: Interval Pengiriman (Menit)</h3>` +
+      `<p>Target: <code>${escapeHtml(targetChat)}</code><br><br>` +
+      `Kirimkan interval pengiriman berkala dalam satuan <b>menit</b> (angka minimal 1, contoh: <code>10</code> untuk tiap 10 menit, <code>60</code> untuk tiap 1 jam).</p>`,
       { reply_markup: loopCancelKeyboard }
     );
 
@@ -76,14 +76,14 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
 
     const minutes = parseInt(minutesInput, 10);
     if (isNaN(minutes) || minutes < 1) {
-      await replyRich(ctx, `<blockquote>❌ Interval tidak valid. Harus berupa angka minimal 1 menit. Penjadwalan dibatalkan.</blockquote>`);
+      await replyRich(ctx, `<p>❌ Interval tidak valid. Harus berupa angka minimal 1 menit. Penjadwalan dibatalkan.</p>`);
       return;
     }
 
     await replyRich(ctx,
-      `<blockquote>Langkah 3/3: <b>Isi Pesan Broadcast</b><br>` +
-      `Target: <code>${escapeHtml(targetChat)}</code> · Interval: <b>${minutes} Menit</b><br><br>` +
-      `Kirimkan teks pesan promosi / pesan broadcast yang ingin dikirimkan secara otomatis.</blockquote>`,
+      `<h3>Langkah 3/3: Isi Pesan Broadcast</h3>` +
+      `<p>Target: <code>${escapeHtml(targetChat)}</code> · Interval: <b>${minutes} Menit</b><br><br>` +
+      `Kirimkan teks pesan promosi / pesan broadcast yang ingin dikirimkan secara otomatis.</p>`,
       { reply_markup: loopCancelKeyboard }
     );
 
@@ -115,14 +115,13 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
       `<tr><td>Interval</td><td><b>Tiap ${minutes} Menit</b></td></tr>` +
       `<tr><td>Status Runtime</td><td>${isRunning ? '🟢 Berjalan Sekarang' : '🟡 Disimpan (Aktif saat bot start)'}</td></tr>` +
       `</table>` +
-      `<blockquote expandable>📝 <b>Isi Pesan Broadcast:</b><br>` +
-      `${escapeHtml(loopMessage)}` +
-      `</blockquote>` +
-      `<p><i>Jadwal ini disimpan permanen dan akan pulih otomatis saat userbot direstart.</i></p>`,
+      `<h3>📝 Isi Pesan Broadcast:</h3>` +
+      `<pre>${escapeHtml(loopMessage)}</pre>` +
+      `<footer>Jadwal ini disimpan permanen dan akan pulih otomatis saat userbot direstart.</footer>`,
       { reply_markup: keyboard }
     );
   } catch (err: any) {
     if (err.message === 'USER_CANCELLED') return;
-    await replyRich(ctx, `<blockquote>❌ Terjadi kesalahan saat menjadwalkan: ${escapeHtml(err.message || String(err))}</blockquote>`);
+    await replyRich(ctx, `<p>❌ Terjadi kesalahan saat menjadwalkan: ${escapeHtml(err.message || String(err))}</p>`);
   }
 }

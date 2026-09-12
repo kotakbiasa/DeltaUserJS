@@ -50,7 +50,6 @@ export async function showSubscriptionMenu(ctx: Context) {
   let text = `<b>💳 MANAJEMEN LANGGANAN</b>\n\n`;
 
   if (sub) {
-    text += `<blockquote>`;
     text += `${getSubscriptionStatusEmoji(sub.status)} <b>Status:</b> ${sub.status.toUpperCase()}\n`;
     text += `📦 <b>Paket:</b> ${sub.planId}\n`;
     text += `📅 <b>Mulai:</b> ${formatDate(sub.startDate)}\n`;
@@ -58,10 +57,9 @@ export async function showSubscriptionMenu(ctx: Context) {
     if (sub.graceEndDate) {
       text += `⏳ <b>Grace Period:</b> ${formatDate(sub.graceEndDate)}\n`;
     }
-    text += `🔄 <b>Auto-renew:</b> ${sub.autoRenew ? 'Ya' : 'Tidak'}\n`;
-    text += `</blockquote>\n\n`;
+    text += `🔄 <b>Auto-renew:</b> ${sub.autoRenew ? 'Ya' : 'Tidak'}\n\n`;
   } else {
-    text += `<blockquote>❌ Belum ada langganan aktif. Trial 3 hari gratis tersedia untuk user baru.</blockquote>\n\n`;
+    text += `❌ <i>Belum ada langganan aktif. Trial 3 hari gratis tersedia untuk user baru.</i>\n\n`;
   }
 
   text += `<b>📋 PAKET TERSEDIA:</b>\n`;

@@ -43,11 +43,9 @@ export async function showBackupMenu(ctx: Context) {
   const backups = listBackups().slice(0, 10);
 
   let text = `<b>💾 BACKUP & RESTORE</b>\n\n`;
-  text += `<blockquote>`;
   text += `📊 Total: ${stats.total} | ✅ ${stats.completed} | ❌ ${stats.failed}\n`;
   text += `💾 Total Size: ${formatBytes(stats.totalSize)}\n`;
-  text += `🕐 Last Backup: ${stats.lastBackup ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(stats.lastBackup)) : 'Belum ada'}\n`;
-  text += `</blockquote>\n\n`;
+  text += `🕐 Last Backup: ${stats.lastBackup ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(stats.lastBackup)) : 'Belum ada'}\n\n`;
 
   text += `<b>📋 RECENT BACKUPS:</b>\n`;
   for (const b of backups) {

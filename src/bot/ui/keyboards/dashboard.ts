@@ -147,8 +147,8 @@ export function panelMain(ctx) {
 
     if (pending) {
       return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
-        `<blockquote>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
-        `Permohonan coba gratis <b>7 Hari</b> Anda sedang menunggu persetujuan owner.</blockquote>` +
+        `<p>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
+        `Permohonan coba gratis <b>7 Hari</b> Anda sedang menunggu persetujuan owner.</p>` +
         `<table bordered striped>` +
         `<tr><th>Tahap Pendaftaran</th><th>Status</th><th>Keterangan</th></tr>` +
         `<tr><td>1. Request Trial</td><td align="center">✅ Selesai</td><td>Terkirim ke Owner</td></tr>` +
@@ -156,16 +156,16 @@ export function panelMain(ctx) {
         `<tr><td>3. Tautkan Akun</td><td align="center">🔒 Terkunci</td><td>Scan QR / OTP</td></tr>` +
         `<tr><td>4. Userbot Aktif</td><td align="center">🔒 Terkunci</td><td>Teleproto 229</td></tr>` +
         `</table>` +
-        `<blockquote expandable>ℹ️ <b>Apa langkah selanjutnya?</b><br>` +
-        `Owner akan meninjau permohonan Anda. Begitu disetujui, bot akan mengirimkan notifikasi agar Anda dapat langsung login via Scan QR Code atau OTP.` +
-        `</blockquote>` +
-        `<p><i>Ketuk tombol <b>🔄 Cek Status Approval</b> di bawah untuk memperbarui status.</i></p>`;
+        `<hr/>` +
+        `<h3>ℹ️ Langkah Selanjutnya</h3>` +
+        `<p>Owner akan meninjau permohonan Anda. Begitu disetujui, bot akan mengirimkan notifikasi agar Anda dapat langsung login via Scan QR Code atau OTP.</p>` +
+        `<footer>Ketuk tombol 🔄 Cek Status Approval di bawah untuk memperbarui status.</footer>`;
     }
 
     if (approved) {
       return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
-        `<blockquote>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
-        `🎉 <b>Akses Disetujui!</b> Akun Anda siap untuk menghubungkan userbot.</blockquote>` +
+        `<p>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
+        `🎉 <b>Akses Disetujui!</b> Akun Anda siap untuk menghubungkan userbot.</p>` +
         `<table bordered striped>` +
         `<tr><th>Tahap Pendaftaran</th><th>Status</th><th>Keterangan</th></tr>` +
         `<tr><td>1. Request Trial</td><td align="center">✅ Selesai</td><td>Disetujui</td></tr>` +
@@ -173,43 +173,47 @@ export function panelMain(ctx) {
         `<tr><td>3. Tautkan Akun</td><td align="center">🔓 Siap Login</td><td>Scan QR / OTP</td></tr>` +
         `<tr><td>4. Userbot Aktif</td><td align="center">🚀 Siap</td><td>Langkah Terakhir</td></tr>` +
         `</table>` +
-        `<p><i>Ketuk tombol <b>🚀 Mulai Daftar Userbot</b> di bawah untuk menghubungkan akun Telegram Anda.</i></p>`;
+        `<footer>Ketuk tombol 🚀 Mulai Daftar Userbot di bawah untuk menghubungkan akun Telegram Anda.</footer>`;
     }
 
     return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
-      `<blockquote>Halo, <b>${escapeHtml(firstName)}</b>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
-      `Platform modular untuk mengelola userbot Telegram Anda dengan mudah, cepat, dan aman.</blockquote>` +
+      `<p>Halo, <b>${escapeHtml(firstName)}</b>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
+      `Platform modular untuk mengelola userbot Telegram Anda dengan mudah, cepat, dan aman.</p>` +
       `<table bordered striped>` +
       `<tr><th>Layanan Platform</th><th>Status</th><th>Keterangan</th></tr>` +
       `<tr><td>🤖 Userbot Engine</td><td align="center">🟢 Online</td><td>Teleproto Layer 229</td></tr>` +
       `<tr><td>🎁 Uji Coba Gratis</td><td align="center">7 Hari</td><td>Request ke Owner</td></tr>` +
       `<tr><td>📦 Modul Tersedia</td><td align="center">${loadedPlugins.length} Plugin</td><td>Siap Digunakan</td></tr>` +
       `</table>` +
-      `<blockquote expandable>🚀 <b>Alur Pendaftaran Cepat (4 Langkah):</b><br>` +
-      `1. Ajukan coba gratis dengan menekan tombol <b>🎁 Request Coba Gratis</b> di bawah.<br>` +
-      `2. Tunggu persetujuan singkat dari owner bot.<br>` +
-      `3. Pindai Scan QR Code atau masukkan kode OTP.<br>` +
-      `4. Userbot Anda langsung online &amp; siap digunakan!` +
-      `</blockquote>` +
-      `<p><i>Silakan pilih menu di bawah untuk memulai:</i></p>`;
+      `<hr/>` +
+      `<h3>🚀 Alur Pendaftaran Cepat (4 Langkah):</h3>` +
+      `<ol>` +
+      `<li>Ajukan coba gratis dengan menekan tombol <b>🎁 Request Coba Gratis</b> di bawah.</li>` +
+      `<li>Tunggu persetujuan singkat dari owner bot.</li>` +
+      `<li>Pindai Scan QR Code atau masukkan kode OTP Telegram.</li>` +
+      `<li>Userbot Anda langsung online &amp; siap digunakan!</li>` +
+      `</ol>` +
+      `<footer>Silakan pilih menu di bawah untuk memulai.</footer>`;
   }
 
   // Tampilan Menu Utama untuk Pengguna Terdaftar (Portal Ringkas)
   return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
-    `<blockquote>Halo, <b>${escapeHtml(firstName)}</b>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
-    `Pusat kendali &amp; portal utama userbot Telegram Anda.</blockquote>` +
+    `<p>Halo, <b>${escapeHtml(firstName)}</b>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
+    `Pusat kendali &amp; portal utama userbot Telegram Anda.</p>` +
     `<table bordered striped>` +
     `<tr><th>Informasi Akun</th><th>Status</th><th>Keterangan</th></tr>` +
     `<tr><td>🤖 Status Userbot</td><td align="center">${statusBadge}</td><td>${running ? 'Teleproto 229' : 'Siap Dijalankan'}</td></tr>` +
     `<tr><td>⏳ Masa Aktif</td><td align="center">${daysLeftText(session?.expired_at, true)}</td><td>Akses Penuh</td></tr>` +
     `<tr><td>⚡ Core Engine</td><td align="center">Teleproto 229</td><td>Layer MTProto</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Akses Cepat Pengguna (Tap untuk Buka):</b><br>` +
-    `• Gunakan tombol <b>🤖 Buka Dashboard Userbot</b> untuk kontrol daya &amp; prefix.<br>` +
-    `• Buka <b>🧩 Plugin Studio</b> untuk mengaktifkan/mematikan ${loadedPlugins.length} modul aktif.<br>` +
-    `• Kirim <code>.help</code> di chat mana pun untuk melihat cheatsheet perintah.` +
-    `</blockquote>` +
-    `<p><i>Ketuk <b>🤖 Buka Dashboard Userbot</b> di bawah untuk mengelola modul, kontrol daya, dan pengaturan akun Anda.</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Akses Cepat Pengguna:</h3>` +
+    `<ul>` +
+    `<li>Gunakan tombol <b>🤖 Buka Dashboard Userbot</b> untuk kontrol daya &amp; prefix.</li>` +
+    `<li>Buka <b>🧩 Plugin Studio</b> untuk mengaktifkan/mematikan ${loadedPlugins.length} modul aktif.</li>` +
+    `<li>Kirim <code>.help</code> di chat mana pun untuk melihat cheatsheet perintah.</li>` +
+    `</ul>` +
+    `<footer>Ketuk 🤖 Buka Dashboard Userbot di bawah untuk mengelola modul, kontrol daya, dan pengaturan akun Anda.</footer>`;
 }
 
 export function panelMenuList(ctx) {
@@ -222,7 +226,7 @@ export function panelMenuList(ctx) {
     : (running ? '🟢 Online &amp; Berjalan' : '🟡 Terdaftar (Offline)');
 
   return `<h1 align="center">🎛️ Panel Menu Kontrol</h1>` +
-    `<blockquote>Status Akun: <b>${statusLine}</b></blockquote>` +
+    `<p>Status Akun: <b>${statusLine}</b></p>` +
     `<table bordered striped>` +
     `<tr><th>Menu Kontrol</th><th>Deskripsi Layanan</th><th>Akses</th></tr>` +
     (hasBot
@@ -235,10 +239,7 @@ export function panelMenuList(ctx) {
         `<tr><td>💎 Paket VIP</td><td>Pilihan durasi berlangganan premium</td><td align="center">🟢 Tersedia</td></tr>`) +
     (isOwner(ctx) ? `<tr><td>👑 Panel Admin</td><td>Operasi owner &amp; maintenance sistem</td><td align="center">🔴 Owner</td></tr>` : '') +
     `</table>` +
-    `<blockquote expandable>💡 <b>Petunjuk Navigasi:</b><br>` +
-    `Gunakan tombol di bawah untuk berpindah menu kontrol. Anda dapat membuka pengaturan bot atau memeriksa modul kapan saja.` +
-    `</blockquote>` +
-    `<p><i>Pilih salah satu menu di bawah untuk melanjutkan:</i></p>`;
+    `<footer>Pilih salah satu menu di bawah untuk melanjutkan.</footer>`;
 }
 
 export function panelUserbot(ctx) {
@@ -247,15 +248,15 @@ export function panelUserbot(ctx) {
     const approved = isOwner(ctx) || isApproved(ctx.from.id);
     if (approved) {
       return `<h1 align="center">🔓 Akses Disetujui: Hubungkan Userbot</h1>` +
-        `<blockquote>Akun Anda <b>sudah disetujui</b> oleh owner, tetapi Anda belum menghubungkan sesi Telegram.</blockquote>` +
+        `<p>Akun Anda <b>sudah disetujui</b> oleh owner, tetapi Anda belum menghubungkan sesi Telegram.</p>` +
         `<table bordered striped><caption>🚀 Status Pendaftaran</caption>` +
         `<tr><th>Tahapan</th><th>Status</th></tr>` +
         `<tr><td>Status Izin</td><td align="center">✅ Disetujui (Approved)</td></tr>` +
         `<tr><td>Sesi Userbot</td><td align="center">⚪ Belum Ditautkan</td></tr>` +
         `</table>` +
-        `<p><i>Silakan ketuk tombol <b>🚀 Mulai Daftar Userbot</b> di bawah untuk menghubungkan via QR Code atau OTP.</i></p>`;
+        `<footer>Silakan ketuk tombol 🚀 Mulai Daftar Userbot di bawah untuk menghubungkan via QR Code atau OTP.</footer>`;
     }
-    return `<h1 align="center">❌ Sesi Tidak Ditemukan</h1><blockquote>Akun Anda belum terdaftar di DeltaUserJS. Silakan hubungkan akun terlebih dahulu via <code>/daftar</code>.</blockquote>`;
+    return `<h1 align="center">❌ Sesi Tidak Ditemukan</h1><p>Akun Anda belum terdaftar di DeltaUserJS. Silakan hubungkan akun terlebih dahulu via <code>/daftar</code>.</p><footer>Ketik /menu untuk membuka menu utama.</footer>`;
   }
   const running = userbotManager.isRunning(ctx.from.id);
   const ubot = userbotManager.clients.get(ctx.from.id);
@@ -296,19 +297,14 @@ export function panelUserbot(ctx) {
     : '<i>Disembunyikan</i>';
 
   const floodBanner = flood.inCooldown
-    ? `<blockquote expandable>⚠️ <b>Mode Hibernasi FloodGuard Aktif:</b><br>Akun dalam jeda aman Telegram (<b>${flood.secondsLeft} detik tersisa</b>) untuk mencegah pembatasan akun. Aksi keluar ditahan otomatis hingga hitungan mundur selesai.</blockquote>`
+    ? `<h3>⚠️ Mode Hibernasi FloodGuard Aktif</h3>` +
+      `<p>Akun dalam jeda aman Telegram (<b>${flood.secondsLeft} detik tersisa</b>) untuk mencegah pembatasan akun. Aksi keluar ditahan otomatis hingga hitungan mundur selesai.</p><hr/>`
     : '';
 
   return `<h1 align="center">🤖 Dashboard ${escapeHtml(botName)}</h1>` +
     floodBanner +
-    `<blockquote>${running ? '🟢 <b>STATUS: USERBOT ONLINE &amp; AKTIF</b>' : '🔴 <b>STATUS: USERBOT OFFLINE / MATI</b>'}<br>` +
-    `Teleproto Layer 229 · Telegram Datacenter DC ${dcId} · Latensi Real-time</blockquote>` +
-    `<blockquote expandable>ℹ️ <b>Detail Engine &amp; Koneksi (Tap untuk Buka):</b><br>` +
-    `• Engine Core: <b>Teleproto Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)<br>` +
-    `• Datacenter: <b>Telegram DC ${dcId}</b><br>` +
-    `• FloodGuard: <b>${flood.inCooldown ? `Hibernasi (${flood.secondsLeft}s)` : 'Normal (Siap Pakai)'}</b><br>` +
-    `• Penyimpanan: <b>MongoDB Cluster</b>` +
-    `</blockquote>` +
+    `<h3>${running ? '🟢 Status: Userbot Online &amp; Aktif' : '🔴 Status: Userbot Offline / Mati'}</h3>` +
+    `<p>Teleproto Layer 229 · Telegram Datacenter DC ${dcId} · Latensi Real-time</p>` +
     `<table bordered striped><caption>🎛️ Panel Kendali &amp; Aksi Interaktif</caption>` +
     `<tr><th>Fitur / Layanan</th><th>Status Saat Ini</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>⚡ Daya Userbot</td><td>${connStatus}</td><td align="center">${powerBtn}${restartBtn}</td></tr>` +
@@ -326,16 +322,18 @@ export function panelUserbot(ctx) {
     `<tr><td>📱 Nomor Telegram</td><td align="center">${phoneText}</td></tr>` +
     `<tr><td>🆔 ID Telegram</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Cheatsheet Perintah Populer (Tap untuk Buka):</b><br>` +
-    `• <code>${escapeHtml(currentPrefix)}ping</code> — Uji kecepatan latensi koneksi respon MTProto<br>` +
-    `• <code>${escapeHtml(currentPrefix)}alive</code> — Tampilkan kartu status userbot &amp; engine di chat<br>` +
-    `• <code>${escapeHtml(currentPrefix)}help</code> — Buka pustaka inline interaktif ${loadedPlugins.length} modul<br>` +
-    `• <code>${escapeHtml(currentPrefix)}afk [alasan]</code> — Aktifkan status &amp; pesan sibuk otomatis<br>` +
-    `• <code>${escapeHtml(currentPrefix)}purge</code> — Hapus pesan massal secara instan (reply pesan)<br>` +
-    `• <code>${escapeHtml(currentPrefix)}tagall [pesan]</code> — Mention seluruh member grup sekaligus<br>` +
-    `• <code>${escapeHtml(currentPrefix)}id</code> — Cek ID obrolan, pengguna, atau channel saat ini` +
-    `</blockquote>` +
-    `<p><i>Ketuk tombol aksi di dalam tabel atau gunakan tombol navigasi di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Cheatsheet Perintah Populer:</h3>` +
+    `<ul>` +
+    `<li><code>${escapeHtml(currentPrefix)}ping</code> — Uji kecepatan latensi koneksi respon MTProto</li>` +
+    `<li><code>${escapeHtml(currentPrefix)}alive</code> — Tampilkan kartu status userbot &amp; engine di chat</li>` +
+    `<li><code>${escapeHtml(currentPrefix)}help</code> — Buka pustaka inline interaktif ${loadedPlugins.length} modul</li>` +
+    `<li><code>${escapeHtml(currentPrefix)}afk [alasan]</code> — Aktifkan status &amp; pesan sibuk otomatis</li>` +
+    `<li><code>${escapeHtml(currentPrefix)}purge</code> — Hapus pesan massal secara instan (reply pesan)</li>` +
+    `<li><code>${escapeHtml(currentPrefix)}tagall [pesan]</code> — Mention seluruh member grup sekaligus</li>` +
+    `<li><code>${escapeHtml(currentPrefix)}id</code> — Cek ID obrolan, pengguna, atau channel saat ini</li>` +
+    `</ul>` +
+    `<footer>Ketuk tombol aksi di dalam tabel atau gunakan tombol navigasi di bawah.</footer>`;
 }
 
 export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
@@ -394,7 +392,7 @@ export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
   return {
     rich:
       `<h1 align="center">🧩 Plugin Studio</h1>` +
-      (notice ? `<blockquote>🔔 <b>${escapeHtml(notice)}</b></blockquote>` : `<blockquote>Kelola ${loadedPlugins.length} modul perintah untuk userbot Telegram Anda.</blockquote>`) +
+      (notice ? `<p>🔔 <b>${escapeHtml(notice)}</b></p>` : `<p>Kelola <b>${loadedPlugins.length}</b> modul perintah untuk userbot Telegram Anda.</p>`) +
       `<table bordered striped><caption>📊 Filter Kategori: ${catIcon} ${escapeHtml(catLabel)}</caption>` +
       `<tr><th>Total Kategori</th><th>Total Aktif</th><th>Total Off</th><th>Halaman</th></tr>` +
       `<tr><td align="center">${total}</td><td align="center">🟢 ${activeCount}</td><td align="center">🔴 ${Math.max(0, loadedPlugins.length - activeCount)}</td><td align="center">${currentPage}/${totalPages}</td></tr>` +
@@ -403,12 +401,14 @@ export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
       `<tr><th>Plugin</th><th align="center">Detail</th><th align="center">Status</th></tr>` +
       rows +
       `</table>` +
-      `<blockquote expandable>💡 <b>Panduan Modul:</b><br>` +
-      `• Ketuk tombol <b>ℹ️ Info</b> untuk melihat fungsi &amp; cheatsheet perintah.<br>` +
-      `• Ketuk tombol status <b>ON/OFF</b> untuk mengaktifkan/mematikan plugin.<br>` +
-      `• Simbol 🔒 menandakan modul inti sistem (protected).` +
-      `</blockquote>` +
-      `<p><i>Pilih kategori atau ketuk tombol modul di atas:</i></p>`,
+      `<hr/>` +
+      `<h3>💡 Panduan Modul:</h3>` +
+      `<ul>` +
+      `<li>Ketuk tombol <b>ℹ️ Info</b> untuk melihat fungsi &amp; cheatsheet perintah.</li>` +
+      `<li>Ketuk tombol status <b>ON/OFF</b> untuk mengaktifkan/mematikan plugin.</li>` +
+      `<li>Simbol 🔒 menandakan modul inti sistem (protected).</li>` +
+      `</ul>` +
+      `<footer>Pilih kategori atau ketuk tombol modul di atas untuk konfigurasi.</footer>`,
     keyboard
   };
 }
@@ -418,7 +418,7 @@ export function panelPluginDetail(ctx, pluginName: string, page = 1, category = 
   const plugin = loadedPlugins.find(p => String(p.name).toLowerCase() === target);
   if (!plugin) {
     return {
-      rich: `<h1 align="center">❌ Modul Tidak Ditemukan</h1><blockquote>Plugin <code>${escapeHtml(pluginName)}</code> tidak ditemukan di pustaka.</blockquote>`,
+      rich: `<h1 align="center">❌ Modul Tidak Ditemukan</h1><p>Plugin <code>${escapeHtml(pluginName)}</code> tidak ditemukan di pustaka.</p><footer>Gunakan tombol di bawah untuk kembali.</footer>`,
       keyboard: { inline_keyboard: [[{ text: '🔙 Kembali ke Plugin Studio', callback_data: `rich:p_cat:${category}:${page}` }]] }
     };
   }
@@ -436,7 +436,7 @@ export function panelPluginDetail(ctx, pluginName: string, page = 1, category = 
   const detail = plugin.help?.detail || 'Gunakan modul ini di chat pribadi atau grup.';
 
   const rich = `<h1 align="center">🧩 Modul: ${escapeHtml(title)}</h1>` +
-    `<blockquote>${escapeHtml(desc)}</blockquote>` +
+    `<p>${escapeHtml(desc)}</p>` +
     `<table bordered striped>` +
     `<tr><th>Parameter</th><th>Keterangan</th></tr>` +
     `<tr><td>🏷️ Nama Modul</td><td><code>${escapeHtml(plugin.name)}</code></td></tr>` +
@@ -444,8 +444,10 @@ export function panelPluginDetail(ctx, pluginName: string, page = 1, category = 
     `<tr><td>⚡ Status Modul</td><td align="center">${isProtected ? '🔒 Terkunci (Sistem)' : (isActive ? '🟢 Aktif' : '🔴 Nonaktif')}</td></tr>` +
     `<tr><td>💬 Sintaks / Usage</td><td><code>${escapeHtml(usage)}</code></td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Petunjuk Penggunaan:</b><br>${escapeHtml(detail)}</blockquote>` +
-    `<p><i>Kelola status aktif modul ini menggunakan tombol di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Petunjuk Penggunaan:</h3>` +
+    `<p>${escapeHtml(detail)}</p>` +
+    `<footer>Kelola status aktif modul ini menggunakan tombol di bawah.</footer>`;
 
   const actionRows: any[] = [];
   if (!isProtected) {
@@ -481,7 +483,7 @@ export function panelSettings(ctx) {
   const helperBtn = `<tg-button type="callback_data" data="rich:setup_helper">⚙️ Setup</tg-button>`;
 
   return `<h1 align="center">⚙️ Pengaturan &amp; Keamanan</h1>` +
-    `<blockquote>Atur preferensi keamanan, identitas bot, dan respons otomatis akun Anda.</blockquote>` +
+    `<p>Atur preferensi keamanan, identitas bot, dan respons otomatis akun Anda.</p>` +
     `<table bordered striped><caption>🛠️ Konfigurasi Fitur Akun</caption>` +
     `<tr><th>Pengaturan</th><th>Nilai / Status</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>💬 Prefix Perintah</td><td><code>${escapeHtml(currentPrefix)}</code></td><td align="center">${prefixBtn}</td></tr>` +
@@ -492,18 +494,18 @@ export function panelSettings(ctx) {
     `<tr><td>🤖 Inline Helper</td><td>${helperUser}</td><td align="center">${helperBtn}</td></tr>` +
     `<tr><td>📦 Database Sesi</td><td>${session ? '🟢 Tersimpan' : '🔴 Kosong'}</td><td align="center">MongoDB</td></tr>` +
     `</table>` +
-    `<blockquote expandable>⚠️ <b>Keamanan Sesi Telegram:</b><br>` +
-    `String sesi akun Anda disimpan aman di database MongoDB. Jika Anda menduga ada aktivitas mencurigakan, gunakan tombol <b>🗑️ Hapus Sesi Akun</b> untuk logout secara permanen dari server.` +
-    `</blockquote>` +
-    `<p><i>💡 Ketuk tombol di tabel atau gunakan tombol di bawah untuk setelan lanjutan:</i></p>`;
+    `<hr/>` +
+    `<h3>⚠️ Keamanan Sesi Telegram:</h3>` +
+    `<p>String sesi akun Anda disimpan aman di database MongoDB. Jika Anda menduga ada aktivitas mencurigakan, gunakan tombol <b>🗑️ Hapus Sesi Akun</b> untuk logout secara permanen dari server.</p>` +
+    `<footer>Ketuk tombol di tabel atau gunakan tombol di bawah untuk setelan lanjutan.</footer>`;
 }
 
 export function panelPrefixPicker(ctx) {
   const session = getUserbotSession(ctx.from.id);
   const currentPrefix = session?.vars?.PREFIX || '.';
   return `<h1 align="center">💬 Ganti Prefix Perintah</h1>` +
-    `<blockquote>Prefix saat ini: <code>${escapeHtml(currentPrefix)}</code><br>` +
-    `Pilih salah satu simbol prefix di bawah untuk mengubah prefix perintah userbot Anda:</blockquote>` +
+    `<p>Prefix saat ini: <code>${escapeHtml(currentPrefix)}</code><br>` +
+    `Pilih salah satu simbol prefix di bawah untuk mengubah prefix perintah userbot Anda:</p>` +
     `<table bordered striped>` +
     `<tr><th>Simbol</th><th>Contoh Perintah</th><th>Keterangan</th></tr>` +
     `<tr><td><code>.</code> (Titik)</td><td><code>.ping</code>, <code>.alive</code></td><td>Standar Default</td></tr>` +
@@ -513,26 +515,29 @@ export function panelPrefixPicker(ctx) {
     `<tr><td><code>?</code> (Tanya)</td><td><code>?ping</code>, <code>?alive</code></td><td>Alternatif</td></tr>` +
     `<tr><td><code>~</code> (Tilde)</td><td><code>~ping</code>, <code>~alive</code></td><td>Alternatif</td></tr>` +
     `</table>` +
-    `<p><i>Ketuk tombol prefix di bawah untuk langsung mengganti:</i></p>`;
+    `<footer>Ketuk tombol prefix di bawah untuk langsung mengganti.</footer>`;
 }
 
 export function panelInlineHelper(ctx) {
   const session = getUserbotSession(ctx.from.id);
   const botUser = session?.inline_bot_username;
   return `<h1 align="center">🤖 Setup Inline Helper Bot</h1>` +
-    `<blockquote>Inline Helper Bot memungkinkan perintah <code>.help</code> di obrolan mana pun memunculkan tombol menu interaktif.</blockquote>` +
+    `<p>Inline Helper Bot memungkinkan perintah <code>.help</code> di obrolan mana pun memunculkan tombol menu interaktif.</p>` +
     `<table bordered striped>` +
     `<tr><th>Parameter</th><th>Status</th></tr>` +
     `<tr><td>Status Helper</td><td align="center">${botUser ? `🟢 Terpasang (@${escapeHtml(botUser)})` : '🔴 Belum Terpasang'}</td></tr>` +
     `<tr><td>Metode Pemasangan</td><td align="center">Via @BotFather</td></tr>` +
     `</table>` +
-    `<blockquote expandable>📝 <b>Cara Mendapatkan Token Bot:</b><br>` +
-    `1. Buka @BotFather di Telegram.<br>` +
-    `2. Kirim perintah <code>/newbot</code> dan ikuti instruksi (beri nama &amp; username akhiran 'bot').<br>` +
-    `3. Kirim perintah <code>/setinline</code> ke @BotFather lalu pilih bot Anda.<br>` +
-    `4. Salin <b>HTTP API Token</b> yang diberikan @BotFather.<br>` +
-    `5. Ketuk tombol <b>🔑 Masukkan Token Bot</b> di bawah untuk menyimpannya.` +
-    `</blockquote>`;
+    `<hr/>` +
+    `<h3>📝 Cara Mendapatkan Token Bot:</h3>` +
+    `<ol>` +
+    `<li>Buka @BotFather di Telegram.</li>` +
+    `<li>Kirim perintah <code>/newbot</code> dan ikuti instruksi (beri nama &amp; username akhiran 'bot').</li>` +
+    `<li>Kirim perintah <code>/setinline</code> ke @BotFather lalu pilih bot Anda.</li>` +
+    `<li>Salin <b>HTTP API Token</b> yang diberikan @BotFather.</li>` +
+    `<li>Ketuk tombol <b>🔑 Masukkan Token Bot</b> di bawah untuk menyimpannya.</li>` +
+    `</ol>` +
+    `<footer>Helper bot hanya digunakan untuk merender menu bantuan inline.</footer>`;
 }
 
 export async function panelUserbotDiag(ctx) {
@@ -565,14 +570,13 @@ export async function panelUserbotDiag(ctx) {
   const backUbotBtn = `<tg-button type="callback_data" data="rich:ubot">🤖 Dashboard</tg-button>`;
 
   const floodInfo = flood.inCooldown
-    ? `<blockquote expandable>⚠️ <b>Peringatan FloodWait Telegram:</b><br>` +
-      `Akun Anda saat ini sedang dalam masa pendinginan aman sebesar <b>${flood.secondsLeft} detik</b>. DeltaUbotJS otomatis menahan seluruh aktivitas perintah keluar agar akun tidak terkena batasan banned dari Telegram. Sistem akan kembali normal secara otomatis begitu hitungan mundur selesai.` +
-      `</blockquote>`
+    ? `<h3>⚠️ Peringatan FloodWait Telegram:</h3>` +
+      `<p>Akun Anda saat ini sedang dalam masa pendinginan aman sebesar <b>${flood.secondsLeft} detik</b>. DeltaUbotJS otomatis menahan seluruh aktivitas perintah keluar agar akun tidak terkena batasan banned dari Telegram. Sistem akan kembali normal secara otomatis begitu hitungan mundur selesai.</p><hr/>`
     : '';
 
   return `<h1 align="center">🩺 Diagnostik &amp; Latensi MTProto</h1>` +
     floodInfo +
-    `<blockquote>Hasil pengujian langsung soket MTProto Telegram dan status runtime engine.</blockquote>` +
+    `<p>Hasil pengujian langsung soket MTProto Telegram dan status runtime engine.</p>` +
     `<table bordered striped><caption>📊 Hasil Pengujian Real-Time</caption>` +
     `<tr><th>Parameter Uji</th><th>Hasil / Nilai</th><th align="center">Aksi</th></tr>` +
     `<tr><td>⚡ Status Client</td><td>${isRunning ? (connected ? '🟢 Online &amp; Terhubung' : '🟡 Menghubungkan...') : '🔴 Offline / Mati'}</td><td align="center">${retryBtn}</td></tr>` +
@@ -583,21 +587,23 @@ export async function panelUserbotDiag(ctx) {
     `<tr><td>🛡️ Filter Anti-PM</td><td>${session?.anti_pm === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Spam Shield</td></tr>` +
     `<tr><td>🤖 Auto-Reply AFK</td><td>${session?.auto_reply === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Auto-Reply</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Panduan Indikator Latensi:</b><br>` +
-    `• <b>&lt; 50 ms</b>: Sangat Cepat (Respon bot instan)<br>` +
-    `• <b>50 - 150 ms</b>: Normal (Kecepatan standar jaringan MTProto Telegram)<br>` +
-    `• <b>&gt; 200 ms</b>: Lambat (Beban jaringan atau antrean di Datacenter Telegram)` +
-    `</blockquote>` +
+    `<hr/>` +
+    `<h3>💡 Panduan Indikator Latensi:</h3>` +
+    `<ul>` +
+    `<li><b>&lt; 50 ms</b>: Sangat Cepat (Respon bot instan)</li>` +
+    `<li><b>50 - 150 ms</b>: Normal (Kecepatan standar jaringan MTProto Telegram)</li>` +
+    `<li><b>&gt; 200 ms</b>: Lambat (Beban jaringan atau antrean di Datacenter Telegram)</li>` +
+    `</ul>` +
     (isRunning
-      ? `<p><i>✅ Koneksi userbot berjalan lancar dan siap mengeksekusi perintah secara instan.</i></p>`
-      : `<p><i>⚠️ Userbot sedang mati. Gunakan tombol Hidupkan Userbot di bawah untuk menyalakan.</i></p>`);
+      ? `<footer>✅ Koneksi userbot berjalan lancar dan siap mengeksekusi perintah secara instan.</footer>`
+      : `<footer>⚠️ Userbot sedang mati. Gunakan tombol Hidupkan Userbot di bawah untuk menyalakan.</footer>`);
 }
 
 export function panelTermsOfService(ctx) {
   const firstName = ctx.from?.first_name || 'User';
   return `<h1 align="center">📜 Syarat &amp; Ketentuan Layanan</h1>` +
-    `<blockquote>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
-    `Sebelum menghubungkan akun Telegram Anda ke platform <b>DeltaUserJS</b>, mohon baca dan pahami ketentuan berikut:</blockquote>` +
+    `<p>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
+    `Sebelum menghubungkan akun Telegram Anda ke platform <b>DeltaUserJS</b>, mohon baca dan pahami ketentuan berikut:</p>` +
     `<table bordered striped>` +
     `<tr><th>Poin Ketentuan</th><th>Penjelasan</th></tr>` +
     `<tr><td>🔐 Keamanan Sesi</td><td>Sesi login Anda dienkripsi aman. Jangan pernah membagikan OTP / Session kepada pihak mana pun.</td></tr>` +
@@ -605,39 +611,41 @@ export function panelTermsOfService(ctx) {
     `<tr><td>🛡️ Batasan Server</td><td>Pengembang tidak bertanggung jawab atas pembatasan (limit/flood) pada nomor akibat aktivitas spam pengguna.</td></tr>` +
     `<tr><td>🗑️ Hak Akses &amp; Sesi</td><td>Anda berhak menghentikan userbot atau menghapus sesi login kapan saja melalui dashboard.</td></tr>` +
     `</table>` +
-    `<blockquote expandable>⚠️ <b>Pernyataan Persetujuan:</b><br>` +
-    `Dengan menekan tombol <b>✅ Saya Setuju &amp; Lanjutkan</b>, Anda menyatakan telah membaca, memahami, dan mematuhi seluruh syarat dan ketentuan layanan di atas.` +
-    `</blockquote>` +
-    `<p><i>Apakah Anda menyetujui ketentuan layanan di atas untuk melanjutkan pendaftaran?</i></p>`;
+    `<hr/>` +
+    `<h3>⚠️ Pernyataan Persetujuan:</h3>` +
+    `<p>Dengan menekan tombol <b>✅ Saya Setuju &amp; Lanjutkan</b>, Anda menyatakan telah membaca, memahami, dan mematuhi seluruh syarat dan ketentuan layanan di atas.</p>` +
+    `<footer>Apakah Anda menyetujui ketentuan layanan di atas untuk melanjutkan pendaftaran?</footer>`;
 }
 
 export function panelTermsDeclined(ctx) {
   const firstName = ctx.from?.first_name || 'User';
   return `<h1 align="center">❌ Pendaftaran Dibatalkan</h1>` +
-    `<blockquote>Halo, <b>${escapeHtml(firstName)}</b>.<br>` +
-    `Anda telah menolak Syarat &amp; Ketentuan Layanan. Akun Telegram Anda <b>tidak akan dihubungkan</b> ke server.</blockquote>` +
-    `<blockquote expandable>ℹ️ <b>Informasi Penting:</b><br>` +
-    `Persetujuan syarat &amp; ketentuan diperlukan demi keamanan bersama dan mencegah penyalahgunaan platform. Anda tetap dapat menjelajahi menu publik bot.` +
-    `</blockquote>` +
-    `<p><i>Jika berubah pikiran, Anda dapat membaca ulang ketentuan kapan saja untuk melanjutkan pendaftaran.</i></p>`;
+    `<p>Halo, <b>${escapeHtml(firstName)}</b>.<br>` +
+    `Anda telah menolak Syarat &amp; Ketentuan Layanan. Akun Telegram Anda <b>tidak akan dihubungkan</b> ke server.</p>` +
+    `<hr/>` +
+    `<h3>ℹ️ Informasi Penting:</h3>` +
+    `<p>Persetujuan syarat &amp; ketentuan diperlukan demi keamanan bersama dan mencegah penyalahgunaan platform. Anda tetap dapat menjelajahi menu publik bot.</p>` +
+    `<footer>Jika berubah pikiran, Anda dapat membaca ulang ketentuan kapan saja untuk melanjutkan pendaftaran.</footer>`;
 }
 
 export function panelRegister(ctx) {
   const claimed = hasClaimedTrial(ctx.from.id);
   const statusTrial = claimed ? 'Sudah Diklaim' : '🎁 Gratis 7 Hari';
   return `<h1 align="center">🚀 Daftar Userbot Telegram</h1>` +
-    `<blockquote>Halo, <b>${escapeHtml(ctx.from.first_name || 'User')}</b>! Pilih metode login untuk mengaktifkan userbot Anda.</blockquote>` +
+    `<p>Halo, <b>${escapeHtml(ctx.from.first_name || 'User')}</b>! Pilih metode login untuk mengaktifkan userbot Anda.</p>` +
     `<table bordered striped>` +
     `<tr><th>Metode Login</th><th>Keterangan</th><th>Trial</th></tr>` +
     `<tr><td>📱 OTP Telegram</td><td>Kode verifikasi via SMS / App</td><td align="center">${statusTrial}</td></tr>` +
     `<tr><td>🔍 Scan QR Code</td><td>Pindai via Settings &gt; Devices</td><td align="center">${statusTrial}</td></tr>` +
     `</table>` +
-    `<blockquote expandable>🛡️ <b>Jaminan Keamanan:</b><br>` +
-    `• Sesi dienkripsi AES-256 aman di database cluster.<br>` +
-    `• Anda dapat membatalkan pendaftaran kapan pun dengan tombol Batal atau ketik /cancel.<br>` +
-    `• Anda dapat menghapus sesi kapan saja melalui menu Pengaturan.` +
-    `</blockquote>` +
-    `<p><i>💡 Ketuk salah satu metode di bawah untuk mulai masuk:</i></p>`;
+    `<hr/>` +
+    `<h3>🛡️ Jaminan Keamanan:</h3>` +
+    `<ul>` +
+    `<li>Sesi dienkripsi AES-256 aman di database cluster.</li>` +
+    `<li>Anda dapat membatalkan pendaftaran kapan pun dengan tombol Batal atau ketik /cancel.</li>` +
+    `<li>Anda dapat menghapus sesi kapan saja melalui menu Pengaturan.</li>` +
+    `</ul>` +
+    `<footer>Ketuk salah satu metode di bawah untuk mulai masuk.</footer>`;
 }
 
 function getSystemVarValue(key: string, fallback: string): string {
@@ -651,17 +659,17 @@ export function panelSubscription(_ctx) {
   const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
   const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
   return `<h1 align="center">💎 Paket Langganan &amp; Voucher</h1>` +
-    `<blockquote>Dapatkan akses penuh ke fitur userbot tanpa batas, prioritas server, dan penukaran kupon promo.</blockquote>` +
+    `<p>Dapatkan akses penuh ke fitur userbot tanpa batas, prioritas server, dan penukaran kupon promo.</p>` +
     `<table bordered striped>` +
     `<tr><th>Pilihan Akses</th><th>Durasi Masa Aktif</th><th>Keterangan</th></tr>` +
     `<tr><td>🎁 Coba Gratis</td><td align="center">${trialDays} Hari</td><td>Request ke Owner</td></tr>` +
     `<tr><td>💎 Premium VIP</td><td align="center">${premiumDays} Hari</td><td>Fitur Lengkap Unlocked</td></tr>` +
     `<tr><td>🎟️ Kupon Promo</td><td align="center">Variatif</td><td>Tukar Kode Voucher</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Punya Kode Voucher Promo?</b><br>` +
-    `Jika Anda memiliki kode voucher dari owner, giveaway, atau promo spesial, tekan tombol <b>🎟️ Tukar Kode Voucher Promo</b> di bawah untuk langsung mengaktifkan atau menambah masa aktif userbot Anda.` +
-    `</blockquote>` +
-    `<p><i>Pilih salah satu menu di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Punya Kode Voucher Promo?</h3>` +
+    `<p>Jika Anda memiliki kode voucher dari owner, giveaway, atau promo spesial, tekan tombol <b>🎟️ Tukar Kode Voucher Promo</b> di bawah untuk langsung mengaktifkan atau menambah masa aktif userbot Anda.</p>` +
+    `<footer>Pilih salah satu menu di bawah:</footer>`;
 }
 
 export function panelAccessDenied(ctx) {
@@ -669,17 +677,17 @@ export function panelAccessDenied(ctx) {
   const pending = isPendingApproval(ctx.from.id);
   const statusText = pending ? '🕐 Menunggu Approval Owner' : '🔴 Belum Disetujui';
   return `<h1 align="center">🔒 Akses Belum Disetujui</h1>` +
-    `<blockquote>Pendaftaran userbot memerlukan persetujuan dari owner.</blockquote>` +
+    `<p>Pendaftaran userbot memerlukan persetujuan dari owner.</p>` +
     `<table bordered striped>` +
     `<tr><th>Informasi Akun</th><th>Status</th></tr>` +
     `<tr><td>ID Telegram</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
     `<tr><td>Status Akses</td><td align="center">${statusText}</td></tr>` +
     `<tr><td>Uji Coba Gratis</td><td align="center">${trialDays} Hari</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Cara Mendapatkan Akses:</b><br>` +
-    `Tekan tombol <b>🎁 Request Coba Gratis</b> di bawah untuk mengirimkan permohonan ke owner. Begitu disetujui, Anda dapat langsung login via scan QR code atau OTP.` +
-    `</blockquote>` +
-    `<p><i>Silakan pilih menu di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Cara Mendapatkan Akses:</h3>` +
+    `<p>Tekan tombol <b>🎁 Request Coba Gratis</b> di bawah untuk mengirimkan permohonan ke owner. Begitu disetujui, Anda dapat langsung login via scan QR code atau OTP.</p>` +
+    `<footer>Silakan pilih menu di bawah:</footer>`;
 }
 
 export function keyboardAccessDenied(ctx) {
@@ -760,7 +768,7 @@ export function panelAdmin(_ctx) {
     : `<b>${registeredUsers.length}</b> Sesi`;
 
   return `<h1 align="center">👑 Admin Command Center</h1>` +
-    `<blockquote>Pusat kendali operasional, manajemen armada userbot, dan pemeliharaan platform.</blockquote>` +
+    `<p>Pusat kendali operasional, manajemen armada userbot, dan pemeliharaan platform.</p>` +
     `<table bordered striped><caption>📊 Metrik Real-Time &amp; Aksi Cepat</caption>` +
     `<tr><th>Komponen Sistem</th><th>Metrik / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>👥 Total Pengguna</td><td align="center">${userMetricsStr}</td><td align="center">${usersBtn}</td></tr>` +
@@ -771,20 +779,22 @@ export function panelAdmin(_ctx) {
     `<tr><td>💾 Backup &amp; Audit</td><td align="center">MongoDB Cluster</td><td align="center">${backupBtn}</td></tr>` +
     `<tr><td>🩺 Kesehatan Server</td><td align="center">${uptimeMin}m · ${formatBytesRef(mem.rss)}</td><td align="center">${healthBtn}</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Status Lingkungan Runtime:</b><br>` +
-    `• Engine: <b>Teleproto Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)<br>` +
-    `• Node.js: <code>${process.version}</code> · PID <code>${process.pid}</code><br>` +
-    `• Alokasi RAM (Heap): ${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}` +
-    `</blockquote>` +
-    `<p><i>Ketuk tombol aksi di tabel atau pilih menu di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Status Lingkungan Runtime:</h3>` +
+    `<ul>` +
+    `<li>Engine: <b>Teleproto Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)</li>` +
+    `<li>Node.js: <code>${process.version}</code> · PID <code>${process.pid}</code></li>` +
+    `<li>Alokasi RAM (Heap): ${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</li>` +
+    `</ul>` +
+    `<footer>Ketuk tombol aksi di tabel atau pilih menu di bawah:</footer>`;
 }
 
 export function panelAdminPending() {
   const pendingList = getPendingApprovals();
   if (pendingList.length === 0) {
     return `<h1 align="center">⏳ Antrean Approval</h1>` +
-      `<blockquote>Tidak ada permohonan coba gratis yang menunggu persetujuan saat ini.</blockquote>` +
-      `<p><i>Semua permohonan sudah diproses atau belum ada user baru yang mengajukan.</i></p>`;
+      `<p>Tidak ada permohonan coba gratis yang menunggu persetujuan saat ini.</p>` +
+      `<footer>Semua permohonan sudah diproses atau belum ada user baru yang mengajukan.</footer>`;
   }
 
   const rows = pendingList.map(p => {
@@ -796,16 +806,18 @@ export function panelAdminPending() {
   }).join('');
 
   return `<h1 align="center">⏳ Antrean Approval (${pendingList.length})</h1>` +
-    `<blockquote>Daftar pengguna yang mengajukan permohonan coba gratis 7 Hari:</blockquote>` +
+    `<p>Daftar pengguna yang mengajukan permohonan coba gratis 7 Hari:</p>` +
     `<table bordered striped><caption>📋 Permohonan Masuk</caption>` +
     `<tr><th>ID Pengguna</th><th>Nama / Username</th><th>Waktu</th><th align="center">Keputusan</th></tr>` +
     rows +
     `</table>` +
-    `<blockquote expandable>💡 <b>Petunjuk Keputusan:</b><br>` +
-    `• Ketuk <b>✅ Terima</b> untuk langsung mengizinkan user mendaftar dan memberikan masa trial 7 Hari.<br>` +
-    `• Ketuk <b>❌ Tolak</b> untuk menolak permohonan akun tersebut.` +
-    `</blockquote>` +
-    `<p><i>Ketuk tombol di atas atau gunakan tombol navigasi di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Petunjuk Keputusan:</h3>` +
+    `<ul>` +
+    `<li>Ketuk <b>✅ Terima</b> untuk langsung mengizinkan user mendaftar dan memberikan masa trial 7 Hari.</li>` +
+    `<li>Ketuk <b>❌ Tolak</b> untuk menolak permohonan akun tersebut.</li>` +
+    `</ul>` +
+    `<footer>Ketuk tombol di atas atau gunakan tombol navigasi di bawah:</footer>`;
 }
 
 export function panelAdminUsers(page = 1) {
@@ -839,18 +851,20 @@ export function panelAdminUsers(page = 1) {
     : '';
 
   return `<h1 align="center">👥 Manajemen Pengguna</h1>` +
-    `<blockquote>Total terdaftar: <b>${allUsers.length}</b> akun${summaryBadge} &bull; Halaman ${currentPage}/${totalPages}</blockquote>` +
+    `<p>Total terdaftar: <b>${allUsers.length}</b> akun${summaryBadge} &bull; Halaman ${currentPage}/${totalPages}</p>` +
     `<table bordered striped><caption>📋 Direktori Akun Userbot</caption>` +
     `<tr><th>Status</th><th>ID Telegram</th><th>Nama Akun</th><th>Expired</th><th align="center">Aksi</th></tr>` +
     rows +
     `</table>` +
-    `<blockquote expandable>ℹ️ <b>Keterangan Status Akun:</b><br>` +
-    `• 🟢 <b>On</b>: Userbot sedang aktif berjalan.<br>` +
-    `• 🟡 <b>Off</b>: Sesi terdaftar namun bot dimatikan.<br>` +
-    `• 🔵 <b>Siap</b>: Sudah disetujui owner, belum menautkan nomor/QR Telegram.<br>` +
-    `• 🔴 <b>Revoked</b>: Izin dinonaktifkan oleh owner.` +
-    `</blockquote>` +
-    `<p><i>Ketuk <b>🔍 Buka</b> pada baris akun untuk menginspeksi konfigurasi atau mencabut izin:</i></p>`;
+    `<hr/>` +
+    `<h3>ℹ️ Keterangan Status Akun:</h3>` +
+    `<ul>` +
+    `<li>🟢 <b>On</b>: Userbot sedang aktif berjalan.</li>` +
+    `<li>🟡 <b>Off</b>: Sesi terdaftar namun bot dimatikan.</li>` +
+    `<li>🔵 <b>Siap</b>: Sudah disetujui owner, belum menautkan nomor/QR Telegram.</li>` +
+    `<li>🔴 <b>Revoked</b>: Izin dinonaktifkan oleh owner.</li>` +
+    `</ul>` +
+    `<footer>Ketuk <b>🔍 Buka</b> pada baris akun untuk menginspeksi konfigurasi atau mencabut izin:</footer>`;
 }
 
 export function panelAdminUserDetail(targetId: number) {
@@ -866,7 +880,7 @@ export function panelAdminUserDetail(targetId: number) {
       const revokeBtn = `<tg-button type="callback_data" data="rich:admin_revoke_user:${targetId}">🚫 Cabut Izin</tg-button>`;
 
       return `<h1 align="center">👤 Detail Calon User: ${escapeHtml(name)}</h1>` +
-        `<blockquote>Akun ini <b>telah disetujui (Approved)</b> oleh Owner, tetapi <b>belum menghubungkan sesi userbot</b> (belum login via OTP atau Scan QR).</blockquote>` +
+        `<p>Akun ini <b>telah disetujui (Approved)</b> oleh Owner, tetapi <b>belum menghubungkan sesi userbot</b> (belum login via OTP atau Scan QR).</p>` +
         `<table bordered striped><caption>ℹ️ Status Izin &amp; Akses</caption>` +
         `<tr><th>Parameter Akun</th><th>Nilai / Status</th><th align="center">Aksi Langsung</th></tr>` +
         `<tr><td>ID Telegram</td><td><code>${targetId}</code></td><td align="center">Whitelist</td></tr>` +
@@ -876,10 +890,10 @@ export function panelAdminUserDetail(targetId: number) {
         `<tr><td>Waktu Disetujui</td><td>${approvedAtStr}</td><td align="center">Timestamp</td></tr>` +
         `<tr><td>Tindakan Keamanan</td><td>Batalkan hak registrasi akun</td><td align="center">${revokeBtn}</td></tr>` +
         `</table>` +
-        `<p><i>Jika izin dicabut, status akun dikembalikan ke tamu dan pengguna tidak dapat mendaftar tanpa permohonan baru.</i></p>`;
+        `<footer>Jika izin dicabut, status akun dikembalikan ke tamu dan pengguna tidak dapat mendaftar tanpa permohonan baru.</footer>`;
     }
 
-    return `<h1 align="center">❌ User Tidak Ditemukan</h1><blockquote>Sesi akun untuk ID <code>${targetId}</code> tidak ditemukan di database.</blockquote>`;
+    return `<h1 align="center">❌ User Tidak Ditemukan</h1><p>Sesi akun untuk ID <code>${targetId}</code> tidak ditemukan di database.</p><footer>Gunakan tombol di bawah untuk kembali.</footer>`;
   }
   const isRunning = userbotManager.isRunning(targetId);
   const disabledCount = getDisabledPlugins(targetId).length;
@@ -893,7 +907,7 @@ export function panelAdminUserDetail(targetId: number) {
   const deleteBtn = `<tg-button type="callback_data" data="rich:admin_delete_user:${targetId}">🗑️ Hapus</tg-button>`;
 
   return `<h1 align="center">👤 Detail Akun: ${escapeHtml(session.custom_name || String(targetId))}</h1>` +
-    `<blockquote>Inspeksi konfigurasi dan kontrol langsung untuk akun userbot ini.</blockquote>` +
+    `<p>Inspeksi konfigurasi dan kontrol langsung untuk akun userbot ini.</p>` +
     `<table bordered striped><caption>🛠️ Pengaturan &amp; Status Sesi</caption>` +
     `<tr><th>Parameter Akun</th><th>Nilai / Status</th><th align="center">Aksi Langsung</th></tr>` +
     `<tr><td>ID Telegram</td><td><code>${targetId}</code></td><td align="center">${powerBtn}</td></tr>` +
@@ -906,28 +920,31 @@ export function panelAdminUserDetail(targetId: number) {
     `<tr><td>Plugin Dinonaktifkan</td><td>${disabledCount} Modul</td><td align="center">Studio</td></tr>` +
     `<tr><td>Tindakan Keamanan</td><td>Izin &amp; Basis Data</td><td align="center">${revokeBtn} ${deleteBtn}</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Panduan Aksi Administrator:</b><br>` +
-    `• <b>➕ 7H / ➕ 30H</b>: Perpanjang masa aktif akun secara bertahap.<br>` +
-    `• <b>♾️ Unlim</b>: Berikan akses unlimited permanen.<br>` +
-    `• <b>🚫 Revoke</b>: Cabut akses dan matikan userbot.<br>` +
-    `• <b>🗑️ Hapus</b>: Hapus sesi userbot secara permanen dari database.` +
-    `</blockquote>` +
-    `<p><i>Ketuk tombol aksi langsung di tabel atau gunakan tombol di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Panduan Aksi Administrator:</h3>` +
+    `<ul>` +
+    `<li><b>➕ 7H / ➕ 30H</b>: Perpanjang masa aktif akun secara bertahap.</li>` +
+    `<li><b>♾️ Unlim</b>: Berikan akses unlimited permanen.</li>` +
+    `<li><b>🚫 Revoke</b>: Cabut akses dan matikan userbot.</li>` +
+    `<li><b>🗑️ Hapus</b>: Hapus sesi userbot secara permanen dari database.</li>` +
+    `</ul>` +
+    `<footer>Ketuk tombol aksi langsung di tabel atau gunakan tombol di bawah:</footer>`;
 }
 
 export function panelAdminBroadcast() {
   const totalUsers = getAllRegisteredUsers().length;
   return `<h1 align="center">📢 Panel Broadcast Pengumuman</h1>` +
-    `<blockquote>Kirimkan pengumuman masal ke seluruh pengguna userbot terdaftar.</blockquote>` +
+    `<p>Kirimkan pengumuman masal ke seluruh pengguna userbot terdaftar.</p>` +
     `<table bordered striped><caption>📢 Parameter Siaran Masal</caption>` +
     `<tr><th>Parameter</th><th>Keterangan</th></tr>` +
     `<tr><td>Total Target</td><td align="center"><b>${totalUsers}</b> Pengguna Terdaftar</td></tr>` +
     `<tr><td>Dukungan Format</td><td align="center">HTML Telegram (b, i, code, quote)</td></tr>` +
     `<tr><td>Kecepatan Pengiriman</td><td align="center">Anti-Flood Delay (100ms)</td></tr>` +
     `</table>` +
-    `<blockquote expandable>ℹ️ <b>Petunjuk Penggunaan:</b><br>` +
-    `Tekan tombol <b>📢 Tulis Pesan Broadcast</b> di bawah. Anda akan dipandu untuk memasukkan teks pesan yang ingin disebarkan. Tekan ❌ Batal kapan saja jika ingin membatalkan.` +
-    `</blockquote>`;
+    `<hr/>` +
+    `<h3>ℹ️ Petunjuk Penggunaan:</h3>` +
+    `<p>Tekan tombol <b>📢 Tulis Pesan Broadcast</b> di bawah. Anda akan dipandu untuk memasukkan teks pesan yang ingin disebarkan. Tekan ❌ Batal kapan saja jika ingin membatalkan.</p>` +
+    `<footer>Broadcast diproses berurutan secara aman untuk mencegah rate-limit.</footer>`;
 }
 
 export function panelAdminFleet() {
@@ -941,7 +958,7 @@ export function panelAdminFleet() {
   const restartBotBtn = `<tg-button type="callback_data" data="rich:admin_restart_bot">🔄 Restart Master</tg-button>`;
 
   return `<h1 align="center">⚡ Fleet &amp; Userbot Control</h1>` +
-    `<blockquote>Operasi massal dan kontrol darurat untuk seluruh client userbot di server.</blockquote>` +
+    `<p>Operasi massal dan kontrol darurat untuk seluruh client userbot di server.</p>` +
     `<table bordered striped><caption>🚀 Operasi Armada Server</caption>` +
     `<tr><th>Operasi Armada</th><th>Status / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>⚡ Userbot Berjalan</td><td align="center"><b>${running}</b> / ${users.length} Client</td><td align="center">${startAllBtn}</td></tr>` +
@@ -951,10 +968,10 @@ export function panelAdminFleet() {
     `<tr><td>🧠 Memori RAM (RSS)</td><td align="center">${formatBytesRef(mem.rss)}</td><td align="center">Server RAM</td></tr>` +
     `<tr><td>⏱️ Uptime Node.js</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td align="center">Uptime</td></tr>` +
     `</table>` +
-    `<blockquote expandable>⚠️ <b>Peringatan Emergency Stop:</b><br>` +
-    `Menghentikan armada akan memutuskan koneksi seluruh userbot yang sedang berjalan. Anda dapat menyalakannya kembali menggunakan tombol <b>🚀 Start Fleet</b>.` +
-    `</blockquote>` +
-    `<p><i>Ketuk tombol aksi langsung di tabel atau gunakan tombol di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>⚠️ Peringatan Emergency Stop:</h3>` +
+    `<p>Menghentikan armada akan memutuskan koneksi seluruh userbot yang sedang berjalan. Anda dapat menyalakannya kembali menggunakan tombol <b>🚀 Start Fleet</b>.</p>` +
+    `<footer>Ketuk tombol aksi langsung di tabel atau gunakan tombol di bawah:</footer>`;
 }
 
 export async function panelAdminSubs() {
@@ -972,7 +989,7 @@ export async function panelAdminSubs() {
   const refreshBtn = `<tg-button type="callback_data" data="rich:admin_subs">🔄 Refresh</tg-button>`;
 
   return `<h1 align="center">💎 Statistik Langganan &amp; Finansial</h1>` +
-    `<blockquote>Ringkasan metrik pelanggan, status aktif, dan pendapatan platform.</blockquote>` +
+    `<p>Ringkasan metrik pelanggan, status aktif, dan pendapatan platform.</p>` +
     `<table bordered striped><caption>📊 Analisis Finansial &amp; Akun</caption>` +
     `<tr><th>Kategori Metrik</th><th>Statistik</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>💰 Total Pendapatan</td><td align="center"><b>${formattedRev}</b></td><td align="center">Semua Transaksi</td></tr>` +
@@ -981,13 +998,15 @@ export async function panelAdminSubs() {
     `<tr><td>⏳ Masa Tenggang</td><td align="center"><b>${stats.grace}</b> Akun</td><td align="center">Grace Period</td></tr>` +
     `<tr><td>🔴 Kedaluwarsa</td><td align="center"><b>${stats.expired}</b> Akun</td><td align="center">${expiredUsersBtn}</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Keterangan Status Langganan:</b><br>` +
-    `• <b>VIP Aktif</b>: Akun yang memiliki durasi langganan berjalan.<br>` +
-    `• <b>Akun Trial</b>: Pengguna dalam masa coba gratis 7 hari.<br>` +
-    `• <b>Masa Tenggang</b>: Akun habis tempo dalam 3 hari terakhir (Grace Period).<br>` +
-    `• <b>Kedaluwarsa</b>: Akun yang masa aktifnya telah habis sepenuhnya.` +
-    `</blockquote>` +
-    `<p><i>Data diperbarui secara real-time dari riwayat pembayaran. ${refreshBtn}</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Keterangan Status Langganan:</h3>` +
+    `<ul>` +
+    `<li><b>VIP Aktif</b>: Akun yang memiliki durasi langganan berjalan.</li>` +
+    `<li><b>Akun Trial</b>: Pengguna dalam masa coba gratis 7 hari.</li>` +
+    `<li><b>Masa Tenggang</b>: Akun habis tempo dalam 3 hari terakhir (Grace Period).</li>` +
+    `<li><b>Kedaluwarsa</b>: Akun yang masa aktifnya telah habis sepenuhnya.</li>` +
+    `</ul>` +
+    `<footer>Data diperbarui secara real-time dari riwayat pembayaran. ${refreshBtn}</footer>`;
 }
 
 export function panelAdminBackup() {
@@ -997,16 +1016,16 @@ export function panelAdminBackup() {
   const auditBtn = `<tg-button type="callback_data" data="rich:admin_view_audit">📜 10 Log Terakhir</tg-button>`;
 
   return `<h1 align="center">💾 Backup Database &amp; Riwayat Audit</h1>` +
-    `<blockquote>Pencadangan database MongoDB dan inspeksi riwayat kepatuhan sistem.</blockquote>` +
+    `<p>Pencadangan database MongoDB dan inspeksi riwayat kepatuhan sistem.</p>` +
     `<table bordered striped><caption>📦 Manajemen Data &amp; Audit</caption>` +
     `<tr><th>Layanan Database</th><th>Status / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>📦 Backup MongoDB</td><td align="center">${users.length} Akun Terdaftar</td><td align="center">${downloadBtn}</td></tr>` +
     `<tr><td>📜 Riwayat Audit</td><td align="center">Log Aktivitas Sistem</td><td align="center">${auditBtn}</td></tr>` +
     `</table>` +
-    `<blockquote expandable>ℹ️ <b>Format Backup:</b><br>` +
-    `File backup dikirimkan dalam format JSON terstruktur lengkap dengan session string dan custom variables masing-masing userbot. Simpan file ini di tempat aman.` +
-    `</blockquote>` +
-    `<p><i>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>ℹ️ Format Backup:</h3>` +
+    `<p>File backup dikirimkan dalam format JSON terstruktur lengkap dengan session string dan custom variables masing-masing userbot. Simpan file ini di tempat aman.</p>` +
+    `<footer>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</footer>`;
 }
 
 export function panelAdminSettings() {
@@ -1018,18 +1037,20 @@ export function panelAdminSettings() {
   const editVarsBtn = `<tg-button type="callback_data" data="rich:edit_system_vars">✏️ Edit Nilai</tg-button>`;
 
   return `<h1 align="center">⚙️ Pengaturan Cepat Sistem</h1>` +
-    `<blockquote>Konfigurasi parameter global platform tanpa restart server atau edit file .env.</blockquote>` +
+    `<p>Konfigurasi parameter global platform tanpa restart server atau edit file .env.</p>` +
     `<table bordered striped><caption>🛠️ Parameter Global Platform</caption>` +
     `<tr><th>Parameter Sistem</th><th>Setelan Saat Ini</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>🛡️ Mode Registrasi</td><td align="center"><b>${autoApprove ? '🌐 Buka Bebas' : '🔒 Butuh Approval'}</b></td><td align="center">${toggleApproveBtn}</td></tr>` +
     `<tr><td>🎁 Durasi Trial Default</td><td align="center"><b>${trialDays} Hari</b></td><td align="center">${editVarsBtn}</td></tr>` +
     `<tr><td>💎 Durasi VIP Default</td><td align="center"><b>${vipDays} Hari</b></td><td align="center">${editVarsBtn}</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Penjelasan Mode Registrasi:</b><br>` +
-    `• <b>🔒 Butuh Approval</b>: Setiap pendaftar baru wajib disetujui owner secara manual sebelum bisa scan QR / OTP.<br>` +
-    `• <b>🌐 Buka Bebas</b>: Pengguna baru langsung dapat mendaftar tanpa menunggu konfirmasi owner.` +
-    `</blockquote>` +
-    `<p><i>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Penjelasan Mode Registrasi:</h3>` +
+    `<ul>` +
+    `<li><b>🔒 Butuh Approval</b>: Setiap pendaftar baru wajib disetujui owner secara manual sebelum bisa scan QR / OTP.</li>` +
+    `<li><b>🌐 Buka Bebas</b>: Pengguna baru langsung dapat mendaftar tanpa menunggu konfirmasi owner.</li>` +
+    `</ul>` +
+    `<footer>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</footer>`;
 }
 
 export function panelStats(_ctx) {
@@ -1037,7 +1058,7 @@ export function panelStats(_ctx) {
   const running = userbotManager.clients.size;
   const mem = process.memoryUsage();
   return `<h1 align="center">📊 System Analytics</h1>` +
-    `<blockquote>Ringkasan performa server dan konsumsi memori runtime.</blockquote>` +
+    `<p>Ringkasan performa server dan konsumsi memori runtime.</p>` +
     `<table bordered striped>` +
     `<tr><th>Metrik Performa</th><th>Statistik</th><th>Keterangan</th></tr>` +
     `<tr><td>👥 Total Pengguna</td><td align="center">${users.length} Akun</td><td>Terdaftar di DB</td></tr>` +
@@ -1046,11 +1067,14 @@ export function panelStats(_ctx) {
     `<tr><td>💾 RAM Resident (RSS)</td><td align="center">${formatBytesRef(mem.rss)}</td><td>Total Memori Fisik</td></tr>` +
     `<tr><td>🧠 Heap Memory</td><td align="center">${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</td><td>Alokasi V8 Engine</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Keterangan Metrik Server:</b><br>` +
-    `• <b>Heap Memory</b>: Memori objek JavaScript &amp; cache runtime V8 engine.<br>` +
-    `• <b>RAM RSS</b>: Total penggunaan memori fisik proses Node.js di server VPS.<br>` +
-    `• <b>Teleproto Clients</b>: Seluruh userbot berjalan hemat resource dalam single event loop.` +
-    `</blockquote>`;
+    `<hr/>` +
+    `<h3>💡 Keterangan Metrik Server:</h3>` +
+    `<ul>` +
+    `<li><b>Heap Memory</b>: Memori objek JavaScript &amp; cache runtime V8 engine.</li>` +
+    `<li><b>RAM RSS</b>: Total penggunaan memori fisik proses Node.js di server VPS.</li>` +
+    `<li><b>Teleproto Clients</b>: Seluruh userbot berjalan hemat resource dalam single event loop.</li>` +
+    `</ul>` +
+    `<footer>Monitoring performa server Node.js &amp; Teleproto Layer 229.</footer>`;
 }
 
 const LOOPS_PER_PAGE = 5;
@@ -1085,20 +1109,22 @@ export function panelUserLoops(ctx: any, page = 1) {
   const addBtn = `<tg-button type="callback_data" data="rich:add_loop">➕ Tambah Jadwal Baru</tg-button>`;
 
   return `<h1 align="center">⏰ Visual Broadcast Scheduler</h1>` +
-    `<blockquote>Jadwal pengiriman pesan berkala otomatis tanpa mengetik perintah manual.</blockquote>` +
+    `<p>Jadwal pengiriman pesan berkala otomatis tanpa mengetik perintah manual.</p>` +
     `<table bordered striped><caption>🔁 Jadwal Loop Aktif (${loops.length} Jadwal)</caption>` +
     `<tr><th>Target Chat</th><th align="center">Interval</th><th>Cuplikan Pesan</th><th align="center">Aksi</th></tr>` +
     rows +
     `</table>` +
     `<p align="center">${addBtn}</p>` +
-    `<blockquote expandable>💡 <b>Panduan &amp; Tips Auto-Loop:</b><br>` +
-    `• Pesan dikirim otomatis setiap interval menit yang ditentukan.<br>` +
-    `• Seluruh jadwal disimpan permanen di database dan akan dipulihkan otomatis saat userbot direstart.<br>` +
-    `• Anda juga dapat mengontrol loop langsung dari obrolan manapun menggunakan perintah <code>.loop &lt;menit&gt; &lt;pesan&gt;</code> dan <code>.rmloop</code>.` +
-    `</blockquote>` +
+    `<hr/>` +
+    `<h3>💡 Panduan &amp; Tips Auto-Loop:</h3>` +
+    `<ul>` +
+    `<li>Pesan dikirim otomatis setiap interval menit yang ditentukan.</li>` +
+    `<li>Seluruh jadwal disimpan permanen di database dan akan dipulihkan otomatis saat userbot direstart.</li>` +
+    `<li>Anda juga dapat mengontrol loop langsung dari obrolan manapun menggunakan perintah <code>.loop &lt;menit&gt; &lt;pesan&gt;</code> dan <code>.rmloop</code>.</li>` +
+    `</ul>` +
     (running
-      ? `<p><i>🟢 Userbot online: Jadwal broadcast di atas sedang berjalan otomatis.</i></p>`
-      : `<p><i>🟡 Userbot offline: Jadwal tersimpan dan akan langsung aktif saat userbot dinyalakan.</i></p>`);
+      ? `<footer>🟢 Userbot online: Jadwal broadcast di atas sedang berjalan otomatis.</footer>`
+      : `<footer>🟡 Userbot offline: Jadwal tersimpan dan akan langsung aktif saat userbot dinyalakan.</footer>`);
 }
 
 const VOUCHERS_PER_PAGE = 5;
@@ -1130,24 +1156,26 @@ export function panelAdminVouchers(page = 1) {
   const createBtn = `<tg-button type="callback_data" data="rich:admin_new_voucher">➕ Buat Voucher Baru</tg-button>`;
 
   return `<h1 align="center">🎟️ Kelola Voucher Promo</h1>` +
-    `<blockquote>Pusat manajemen kupon promo dan perpanjangan masa aktif userbot.</blockquote>` +
+    `<p>Pusat manajemen kupon promo dan perpanjangan masa aktif userbot.</p>` +
     `<table bordered striped><caption>🎟️ Daftar Voucher (${vouchers.length} Kupon)</caption>` +
     `<tr><th>Kode Voucher</th><th align="center">Durasi</th><th align="center">Kuota</th><th align="center">Status</th><th align="center">Aksi</th></tr>` +
     rows +
     `</table>` +
     `<p align="center">${createBtn}</p>` +
-    `<blockquote expandable>💡 <b>Ketentuan Kode Voucher:</b><br>` +
-    `• Durasi: Memberikan penambahan masa aktif userbot (atau lifetime jika 0 hari).<br>` +
-    `• Auto-Approval: Pengguna baru yang menukarkan kode voucher otomatis di-approve whitelist!<br>` +
-    `• Kuota: Tiap pengguna hanya dapat menukarkan 1 kali per kode unik.` +
-    `</blockquote>` +
-    `<p><i>Ketuk tombol aksi di tabel atau gunakan tombol navigasi di bawah:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Ketentuan Kode Voucher:</h3>` +
+    `<ul>` +
+    `<li><b>Durasi</b>: Memberikan penambahan masa aktif userbot (atau lifetime jika 0 hari).</li>` +
+    `<li><b>Auto-Approval</b>: Pengguna baru yang menukarkan kode voucher otomatis di-approve whitelist!</li>` +
+    `<li><b>Kuota</b>: Tiap pengguna hanya dapat menukarkan 1 kali per kode unik.</li>` +
+    `</ul>` +
+    `<footer>Ketuk tombol aksi di tabel atau gunakan tombol navigasi di bawah:</footer>`;
 }
 
 export function panelQuickHelp(_ctx) {
   return `<h1 align="center">📚 Pusat Bantuan &amp; Panduan</h1>` +
-    `<blockquote>Selamat datang di Pusat Bantuan <b>DeltaUserJS</b>.<br>` +
-    `Temukan panduan lengkap, cheatsheet perintah, dan solusi kendala di bawah ini.</blockquote>` +
+    `<p>Selamat datang di Pusat Bantuan <b>DeltaUserJS</b>.<br>` +
+    `Temukan panduan lengkap, cheatsheet perintah, dan solusi kendala di bawah ini.</p>` +
     `<table bordered striped>` +
     `<tr><th>Topik Bantuan</th><th>Deskripsi</th></tr>` +
     `<tr><td>🚀 Panduan Mulai</td><td>Langkah pertama konfigurasi userbot baru</td></tr>` +
@@ -1155,15 +1183,15 @@ export function panelQuickHelp(_ctx) {
     `<tr><td>❓ FAQ &amp; Kendala</td><td>Pertanyaan umum dan solusi troubleshooting</td></tr>` +
     `<tr><td>💬 Hubungi Owner</td><td>Konsultasi langsung untuk bantuan teknis</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Perintah Bantuan Cepat:</b><br>` +
-    `Kirim perintah <code>.help</code> di chat mana pun untuk membuka pustaka bantuan interaktif ${loadedPlugins.length} modul bawaan.` +
-    `</blockquote>` +
-    `<p><i>Pilih topik panduan di bawah untuk membaca lebih detail:</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Perintah Bantuan Cepat:</h3>` +
+    `<p>Kirim perintah <code>.help</code> di chat mana pun untuk membuka pustaka bantuan interaktif ${loadedPlugins.length} modul bawaan.</p>` +
+    `<footer>Pilih topik panduan di bawah untuk membaca lebih detail:</footer>`;
 }
 
 export function panelHelpQuickstart() {
   return `<h1 align="center">🚀 Panduan Mulai Cepat (Quickstart)</h1>` +
-    `<blockquote>4 langkah mudah memaksimalkan userbot Anda setelah berhasil login:</blockquote>` +
+    `<p>4 langkah mudah memaksimalkan userbot Anda setelah berhasil login:</p>` +
     `<table bordered striped>` +
     `<tr><th>Langkah</th><th>Tindakan</th><th>Keterangan</th></tr>` +
     `<tr><td>1. Tes Koneksi</td><td>Kirim <code>.alive</code></td><td>Menampilkan kartu status bot di chat</td></tr>` +
@@ -1171,11 +1199,14 @@ export function panelHelpQuickstart() {
     `<tr><td>3. Amankan Akun</td><td>Aktifkan Anti-PM</td><td>Mencegah spam pesan pribadi</td></tr>` +
     `<tr><td>4. Buka Modul</td><td>Kirim <code>.help</code></td><td>Membuka pustaka ${loadedPlugins.length} plugin aktif</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Tips Penting:</b><br>` +
-    `• Anda dapat mengganti prefix default (<code>.</code>) menjadi simbol lain di menu <b>Pengaturan &gt; Ganti Prefix</b>.<br>` +
-    `• Jangan membagikan session string akun Anda kepada siapa pun demi keamanan.<br>` +
-    `• Gunakan tombol <b>Matikan Userbot</b> di Dashboard jika ingin berhenti sementara.` +
-    `</blockquote>`;
+    `<hr/>` +
+    `<h3>💡 Tips Penting:</h3>` +
+    `<ul>` +
+    `<li>Anda dapat mengganti prefix default (<code>.</code>) menjadi simbol lain di menu <b>Pengaturan &gt; Ganti Prefix</b>.</li>` +
+    `<li>Jangan membagikan session string akun Anda kepada siapa pun demi keamanan.</li>` +
+    `<li>Gunakan tombol <b>Matikan Userbot</b> di Dashboard jika ingin berhenti sementara.</li>` +
+    `</ul>` +
+    `<footer>Panduan resmi onboarding DeltaUserJS.</footer>`;
 }
 
 export function panelHelpCommands(ctx?: any) {
@@ -1183,7 +1214,7 @@ export function panelHelpCommands(ctx?: any) {
   const p = session?.vars?.PREFIX || '.';
 
   return `<h1 align="center">📜 Cheatsheet 16 Perintah Terpopuler</h1>` +
-    `<blockquote>Perintah yang sering digunakan untuk aktivitas harian (Prefix aktif: <code>${escapeHtml(p)}</code>):</blockquote>` +
+    `<p>Perintah yang sering digunakan untuk aktivitas harian (Prefix aktif: <code>${escapeHtml(p)}</code>):</p>` +
     `<table bordered striped>` +
     `<tr><th>Perintah</th><th>Kategori</th><th>Fungsi Utama</th></tr>` +
     `<tr><td><code>${p}alive</code></td><td>Informasi</td><td>Kartu status userbot &amp; engine</td></tr>` +
@@ -1203,17 +1234,19 @@ export function panelHelpCommands(ctx?: any) {
     `<tr><td><code>${p}weather [kota]</code></td><td>Utilitas</td><td>Prakiraan cuaca terkini</td></tr>` +
     `<tr><td><code>${p}help</code></td><td>Bantuan</td><td>Buka katalog inline ${loadedPlugins.length} modul</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💡 <b>Tips Penggunaan Perintah:</b><br>` +
-    `• Seluruh perintah di atas dapat langsung dijalankan di grup atau chat pribadi.<br>` +
-    `• Balas (reply) pesan target saat memakai perintah moderasi seperti <code>${p}purge</code> atau <code>${p}kang</code>.<br>` +
-    `• Eksekusi perintah diproses langsung via protokol MTProto Layer 229 tanpa perantara.` +
-    `</blockquote>` +
-    `<p><i>Kirim <code>${p}help [nama_modul]</code> di obrolan mana pun untuk melihat panduan lengkap suatu modul.</i></p>`;
+    `<hr/>` +
+    `<h3>💡 Tips Penggunaan Perintah:</h3>` +
+    `<ul>` +
+    `<li>Seluruh perintah di atas dapat langsung dijalankan di grup atau chat pribadi.</li>` +
+    `<li>Balas (reply) pesan target saat memakai perintah moderasi seperti <code>${p}purge</code> atau <code>${p}kang</code>.</li>` +
+    `<li>Eksekusi perintah diproses langsung via protokol MTProto Layer 229 tanpa perantara.</li>` +
+    `</ul>` +
+    `<footer>Kirim <code>${p}help [nama_modul]</code> di obrolan mana pun untuk melihat panduan lengkap suatu modul.</footer>`;
 }
 
 export function panelHelpFaq() {
   return `<h1 align="center">❓ FAQ &amp; Solusi Kendala</h1>` +
-    `<blockquote>Jawaban atas pertanyaan yang paling sering diajukan:</blockquote>` +
+    `<p>Jawaban atas pertanyaan yang paling sering diajukan:</p>` +
     `<table bordered striped>` +
     `<tr><th>Pertanyaan</th><th>Solusi / Penjelasan</th></tr>` +
     `<tr><td>Kenapa userbot offline?</td><td>Server melakukan restart atau sesi terputus. Buka <b>Dashboard Userbot</b> lalu klik <b>⚡ Hidupkan Userbot</b>.</td></tr>` +
@@ -1221,9 +1254,10 @@ export function panelHelpFaq() {
     `<tr><td>Bagaimana cara ubah nama bot?</td><td>Buka menu <b>Pengaturan</b> &gt; <b>🏷️ Ganti Nama Bot</b>, lalu kirim nama yang Anda inginkan.</td></tr>` +
     `<tr><td>Bagaimana jika kena limit Telegram?</td><td>Hindari broadcast masal ke terlalu banyak grup dalam waktu berdekatan. Gunakan jeda wajar.</td></tr>` +
     `</table>` +
-    `<blockquote expandable>🆘 <b>Masih butuh bantuan?</b><br>` +
-    `Jika kendala Anda belum terselesaikan, silakan hubungi owner langsung melalui tombol di menu bantuan.` +
-    `</blockquote>`;
+    `<hr/>` +
+    `<h3>🆘 Masih butuh bantuan?</h3>` +
+    `<p>Jika kendala Anda belum terselesaikan, silakan hubungi owner langsung melalui tombol di menu bantuan.</p>` +
+    `<footer>Pusat Layanan Bantuan DeltaUserJS.</footer>`;
 }
 
 export function panelDonate(_ctx) {
@@ -1236,15 +1270,16 @@ export function panelDonate(_ctx) {
   const bankCell = bank ? `<tg-spoiler><code>${bank}</code></tg-spoiler>` : '<i>Belum diset</i>';
 
   return `<h1 align="center">💰 Dukungan &amp; Donasi</h1>` +
-    `<blockquote>Dukungan Anda membantu operasional server dan maintenance berkelanjutan. Nomor tersembunyi — tap untuk melihat.</blockquote>` +
+    `<p>Dukungan Anda membantu operasional server dan maintenance berkelanjutan. Nomor tersembunyi — tap untuk melihat.</p>` +
     `<table bordered striped>` +
     `<tr><th>Metode Donasi</th><th>Nomor / Akun</th><th>Keterangan</th></tr>` +
     `<tr><td>${escapeHtml(ewalletName)}</td><td align="center">${ewalletCell}</td><td>Tap untuk salin</td></tr>` +
     `<tr><td>${escapeHtml(bankName)}</td><td align="center">${bankCell}</td><td>Tap untuk salin</td></tr>` +
     `</table>` +
-    `<blockquote expandable>💖 <b>Konfirmasi &amp; Reward Donasi:</b><br>` +
-    `Setelah melakukan transfer atau donasi, silakan kirimkan bukti transfer ke kontak Owner untuk mendapatkan status VIP atau perpanjangan masa aktif userbot.` +
-    `</blockquote>`;
+    `<hr/>` +
+    `<h3>💖 Konfirmasi &amp; Reward Donasi:</h3>` +
+    `<p>Setelah melakukan transfer atau donasi, silakan kirimkan bukti transfer ke kontak Owner untuk mendapatkan status VIP atau perpanjangan masa aktif userbot.</p>` +
+    `<footer>Terima kasih atas dukungan Anda terhadap pengembangan platform ini.</footer>`;
 }
 
 export function panelHealth(mongoStatus = 'Unknown') {
@@ -1255,7 +1290,7 @@ export function panelHealth(mongoStatus = 'Unknown') {
   }).join('') || '<tr><td colspan="3" align="center">Belum ada userbot</td></tr>';
 
   return `<h1 align="center">🩺 Server Health</h1>` +
-    `<blockquote>Status runtime, database cluster, dan kesehatan userbot aktif.</blockquote>` +
+    `<p>Status runtime, database cluster, dan kesehatan userbot aktif.</p>` +
     `<table bordered striped>` +
     `<tr><th>Komponen</th><th>Status</th><th>Keterangan</th></tr>` +
     `<tr><td>🍃 MongoDB Cluster</td><td align="center">${mongoStatus}</td><td>Primary Replica</td></tr>` +
@@ -1264,11 +1299,11 @@ export function panelHealth(mongoStatus = 'Unknown') {
     `<tr><td>📦 Runtime Versi</td><td align="center">Node ${process.version}</td><td>${process.platform} ${process.arch}</td></tr>` +
     `<tr><td>🧩 Modul Plugin</td><td align="center">${loadedPlugins.length} Modul</td><td>Hot-Reload Siap</td></tr>` +
     `</table>` +
-    `<details><summary>👥 Snapshot Sesi Pengguna (Tap)</summary>` +
-    `<table bordered striped>` +
+    `<table bordered striped><caption>👥 Snapshot Sesi Pengguna</caption>` +
     `<tr><th>ID Pengguna</th><th>Status</th><th>Langganan</th></tr>` +
     rows +
-    `</table></details>`;
+    `</table>` +
+    `<footer>Monitoring kesehatan sistem &amp; kluster basis data.</footer>`;
 }
 
 /** Format bytes human-readable (tanpa import tambahan). */
@@ -1894,7 +1929,7 @@ async function sendRich(ctx, rich, reply_markup, { deleteOld = false, edit = tru
     }
   } catch (err) {
     Logger.logSystem(`sendRichMessage failed: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
-    await ctx.replyWithRichMessage({ html: `<blockquote><b>❌</b> Gagal kirim rich message. Kirim /menu lagi.</blockquote>` });
+    await ctx.replyWithRichMessage({ html: `<p>❌ <b>Gagal kirim pesan.</b> Silakan kirim /menu kembali.</p>` });
   }
 }
 
@@ -1928,7 +1963,7 @@ export function registerRichHandlers(bot) {
 
   bot.command(['start', 'menu'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
-      await replyRich(ctx, `🤖 <b>${ctx.me.first_name} Aktif!</b>\n\n<blockquote>Silakan kirim pesan secara privat (PM) untuk mengelola bot Anda.</blockquote>`, {
+      await replyRich(ctx, `🤖 <b>${ctx.me.first_name} Aktif!</b>\n\n<p>Silakan kirim pesan secara privat (PM) untuk mengelola bot Anda.</p>`, {
         reply_markup: {
           inline_keyboard: [[{ text: '💬 Buka Private Chat', url: `https://t.me/${ctx.me.username}?start=true` }]]
         }
@@ -1954,10 +1989,10 @@ export function registerRichHandlers(bot) {
         return replyRich(ctx,
           result.success
             ? `<h1 align="center">🎉 Penukaran Voucher Berhasil!</h1>` +
-              `<blockquote>${result.message}</blockquote>` +
-              `<p><i>Layanan userbot Anda telah siap digunakan.</i></p>`
+              `<p>${result.message}</p>` +
+              `<footer>Layanan userbot Anda telah siap digunakan.</footer>`
             : `<h1 align="center">❌ Gagal Menukarkan Voucher</h1>` +
-              `<blockquote>${escapeHtml(result.message)}</blockquote>`,
+              `<p>${escapeHtml(result.message)}</p>`,
           { reply_markup: keyboard }
         );
       }
@@ -1968,7 +2003,7 @@ export function registerRichHandlers(bot) {
 
   bot.command(['claim', 'voucher', 'tukar'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
-      return replyRich(ctx, `<blockquote>Silakan lakukan penukaran voucher di Private Chat bot.</blockquote>`);
+      return replyRich(ctx, `<p>Silakan lakukan penukaran voucher di Private Chat bot.</p>`);
     }
     const code = String(ctx.match || '').trim();
     if (!code) {
@@ -1988,10 +2023,10 @@ export function registerRichHandlers(bot) {
     return replyRich(ctx,
       result.success
         ? `<h1 align="center">🎉 Penukaran Voucher Berhasil!</h1>` +
-          `<blockquote>${result.message}</blockquote>` +
-          `<p><i>Layanan userbot Anda telah siap digunakan.</i></p>`
+          `<p>${result.message}</p>` +
+          `<footer>Layanan userbot Anda telah siap digunakan.</footer>`
         : `<h1 align="center">❌ Gagal Menukarkan Voucher</h1>` +
-          `<blockquote>${escapeHtml(result.message)}</blockquote>`,
+          `<p>${escapeHtml(result.message)}</p>`,
       { reply_markup: keyboard }
     );
   });
@@ -2000,19 +2035,19 @@ export function registerRichHandlers(bot) {
     if (!isOwner(ctx)) return;
     const code = String(ctx.match || '').trim();
     if (!code) {
-      return replyRich(ctx, `<blockquote>💡 Format: <code>/sharevoucher KODE</code><br>Contoh: <code>/sharevoucher PROMO-RAMADHAN</code></blockquote>`);
+      return replyRich(ctx, `<h3>💡 Petunjuk Berbagi Voucher</h3><p>Format: <code>/sharevoucher KODE</code><br>Contoh: <code>/sharevoucher PROMO-RAMADHAN</code></p>`);
     }
     const res = await broadcastVoucherToChannel(code);
     if (res.success) {
-      return replyRich(ctx, `<blockquote>✅ Voucher <code>${escapeHtml(code)}</code> berhasil dibagikan ke channel notifikasi dengan tombol klaim!</blockquote>`);
+      return replyRich(ctx, `<p>✅ Voucher <code>${escapeHtml(code)}</code> berhasil dibagikan ke channel notifikasi dengan tombol klaim!</p>`);
     } else {
-      return replyRich(ctx, `<blockquote>❌ ${escapeHtml(res.message)}</blockquote>`);
+      return replyRich(ctx, `<p>❌ ${escapeHtml(res.message)}</p>`);
     }
   });
 
   bot.command(['daftar', 'login', 'register'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
-      return replyRich(ctx, `<blockquote>Silakan kirim pesan secara privat (PM) untuk mendaftar userbot.</blockquote>`);
+      return replyRich(ctx, `<p>Silakan kirim pesan secara privat (PM) untuk mendaftar userbot.</p>`);
     }
     const session = getUserbotSession(ctx.from.id);
     if (session) {
@@ -2044,7 +2079,7 @@ export function registerRichHandlers(bot) {
       }
     } catch (_) { /* empty */ }
     await ctx.conversation.exitAll();
-    await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b><br>Ketik /menu untuk membuka Menu Utama.</blockquote>`);
+    await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b><br>Ketik /menu untuk membuka Menu Utama.</p>`);
   });
 
   bot.command('health', async (ctx) => {
@@ -2056,10 +2091,10 @@ export function registerRichHandlers(bot) {
     const telegramId = ctx.from.id;
     const session = getUserbotSession(telegramId);
     if (!session) {
-      return ctx.replyWithRichMessage({ html: `<blockquote>❌ Anda belum memiliki sesi bot yang aktif.</blockquote>` });
+      return ctx.replyWithRichMessage({ html: `<p>❌ Anda belum memiliki sesi bot yang aktif.</p>` });
     }
 
-    await ctx.replyWithRichMessage({ html: `<blockquote>⏳ Menghapus sesi dan logout...</blockquote>` });
+    await ctx.replyWithRichMessage({ html: `<p>⏳ Menghapus sesi dan logout...</p>` });
 
     try {
       const ubot = userbotManager.clients.get(telegramId);
@@ -2073,7 +2108,7 @@ export function registerRichHandlers(bot) {
     await userbotManager.stopUserbot(telegramId);
     await deleteUserbot(telegramId);
 
-    await ctx.replyWithRichMessage({ html: `<blockquote><b>✅ Berhasil</b>\nSesi dihapus sepenuhnya. Ketik /menu untuk mendaftar ulang.</blockquote>` });
+    await ctx.replyWithRichMessage({ html: `<p><b>✅ Berhasil</b><br>Sesi dihapus sepenuhnya. Ketik /menu untuk mendaftar ulang.</p>` });
   });
 
   bot.callbackQuery(/^rich:(.+)$/, async (ctx) => {
@@ -2105,7 +2140,7 @@ export function registerRichHandlers(bot) {
           await userbotManager.startUserbot(telegramId, session.session_string);
           updateUserbotStatus(telegramId, true);
         } catch (err) {
-          return ctx.replyWithRichMessage({ html: `<blockquote>❌ <b>Gagal menghidupkan:</b> ${escapeHtml(err.message)}</blockquote>` });
+          return ctx.replyWithRichMessage({ html: `<p>❌ <b>Gagal menghidupkan:</b> ${escapeHtml(err.message)}</p>` });
         }
       }
       return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { edit: true });
@@ -2128,7 +2163,7 @@ export function registerRichHandlers(bot) {
         await ctx.answerCallbackQuery({ text: '✅ Userbot berhasil direstart & online!' });
       } catch (err) {
         return ctx.replyWithRichMessage({
-          html: `<blockquote>❌ <b>Gagal restart:</b> ${escapeHtml(err instanceof Error ? err.message : String(err))}</blockquote>`
+          html: `<p>❌ <b>Gagal restart:</b> ${escapeHtml(err instanceof Error ? err.message : String(err))}</p>`
         });
       }
       return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { edit: true });
@@ -2340,7 +2375,7 @@ export function registerRichHandlers(bot) {
         await userbotManager.stopUserbot(telegramId);
       }
       await deleteUserbot(telegramId);
-      await ctx.replyWithRichMessage({ html: `<blockquote>🗑️ <b>Sesi dihapus permanen.</b></blockquote>` });
+      await ctx.replyWithRichMessage({ html: `<p>🗑️ <b>Sesi dihapus permanen.</b></p>` });
       return openMain(ctx, { deleteOld: true });
     }
 
@@ -2384,7 +2419,7 @@ export function registerRichHandlers(bot) {
       const session = getUserbotSession(userId);
       if (session) {
         return ctx.replyWithRichMessage({
-          html: `<blockquote>ℹ️ Anda sudah memiliki userbot yang aktif. Buka dashboard untuk mengelolanya.</blockquote>`
+          html: `<p>ℹ️ Anda sudah memiliki userbot yang aktif. Buka dashboard untuk mengelolanya.</p>`
         });
       }
 
@@ -2394,13 +2429,13 @@ export function registerRichHandlers(bot) {
 
       if (hasClaimedTrial(userId)) {
         return ctx.replyWithRichMessage({
-          html: `<blockquote>❌ Anda sudah pernah menggunakan masa uji coba gratis sebelumnya. Hubungi owner atau pesan paket VIP.</blockquote>`
+          html: `<p>❌ Anda sudah pernah menggunakan masa uji coba gratis sebelumnya. Hubungi owner atau pesan paket VIP.</p>`
         });
       }
 
       if (isPendingApproval(userId)) {
         return ctx.replyWithRichMessage({
-          html: `<blockquote>⏳ <b>Permintaan Sedang Diproses</b><br>Permintaan coba gratis Anda sudah dikirim sebelumnya dan sedang menunggu persetujuan owner.<br>Harap tunggu notifikasi dari bot.</blockquote>`
+          html: `<h3>⏳ Permintaan Sedang Diproses</h3><p>Permintaan coba gratis Anda sudah dikirim sebelumnya dan sedang menunggu persetujuan owner.<br>Harap tunggu notifikasi dari bot.</p>`
         });
       }
 
@@ -2448,7 +2483,7 @@ export function registerRichHandlers(bot) {
 
       const confirmationHtml =
         `<h1 align="center">🎁 Permintaan Uji Coba Terkirim</h1>` +
-        `<blockquote>Permintaan uji coba gratis <b>${trialDays} Hari</b> berhasil diajukan kepada owner.</blockquote>` +
+        `<p>Permintaan uji coba gratis <b>${trialDays} Hari</b> berhasil diajukan kepada owner.</p>` +
         `<table bordered striped>` +
         `<tr><th>Detail Permintaan</th><th>Keterangan</th></tr>` +
         `<tr><td>ID Telegram</td><td align="center"><code>${userId}</code></td></tr>` +
@@ -2456,10 +2491,9 @@ export function registerRichHandlers(bot) {
         `<tr><td>Durasi Akses</td><td align="center">${trialDays} Hari</td></tr>` +
         `<tr><td>Status Permohonan</td><td align="center">🕐 Menunggu Persetujuan</td></tr>` +
         `</table>` +
-        `<blockquote expandable>ℹ️ <b>Apa langkah selanjutnya?</b><br>` +
-        `Owner akan meninjau permohonan Anda. Setelah disetujui, bot akan otomatis mengirimkan notifikasi agar Anda dapat langsung login via Scan QR Code atau OTP.` +
-        `</blockquote>` +
-        `<p><i>Harap menunggu konfirmasi persetujuan dari owner.</i></p>`;
+        `<h3>ℹ️ Apa langkah selanjutnya?</h3>` +
+        `<p>Owner akan meninjau permohonan Anda. Setelah disetujui, bot akan otomatis mengirimkan notifikasi agar Anda dapat langsung login via Scan QR Code atau OTP.</p>` +
+        `<footer>Harap menunggu konfirmasi persetujuan dari owner.</footer>`;
 
       return sendRich(ctx, confirmationHtml, {
         inline_keyboard: [
@@ -2533,8 +2567,8 @@ export function registerRichHandlers(bot) {
           await ctx.api.sendMessage(
             targetId,
             `🎉 <b>Permintaan Uji Coba Disetujui!</b>\n\n` +
-            `<blockquote>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</blockquote>\n\n` +
-            `Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:`,
+            `<p>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</p>\n\n` +
+            `<footer>Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:</footer>`,
             {
               parse_mode: 'HTML',
               reply_markup: {
@@ -2559,7 +2593,8 @@ export function registerRichHandlers(bot) {
         try {
           await ctx.api.sendMessage(
             targetId,
-            `<blockquote>❌ <b>Permintaan Uji Coba Ditolak</b><br>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini.</blockquote>`,
+            `<h3>❌ Permintaan Uji Coba Ditolak</h3>\n` +
+            `<p>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini.</p>`,
             {
               parse_mode: 'HTML',
               reply_markup: {
@@ -2584,8 +2619,8 @@ export function registerRichHandlers(bot) {
           await ctx.api.sendMessage(
             p.userId,
             `🎉 <b>Permintaan Uji Coba Disetujui!</b>\n\n` +
-            `<blockquote>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</blockquote>\n\n` +
-            `Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:`,
+            `<p>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</p>\n\n` +
+            `<footer>Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:</footer>`,
             {
               parse_mode: 'HTML',
               reply_markup: {
@@ -2731,7 +2766,7 @@ export function registerRichHandlers(bot) {
     if (action === 'admin_restart_bot') {
       if (!isOwner(ctx)) {return;}
       await ctx.answerCallbackQuery({ text: '🔄 Merestart Master Bot...' });
-      await ctx.replyWithRichMessage({ html: '<blockquote>🔄 <b>Master Bot sedang direstart...</b><br>Layanan akan kembali aktif dalam beberapa detik melalui PM2.</blockquote>' });
+      await ctx.replyWithRichMessage({ html: '<h3>🔄 Master Bot sedang direstart...</h3><p>Layanan akan kembali aktif dalam beberapa detik melalui PM2.</p>' });
       setTimeout(() => { process.exit(0); }, 1000);
       return;
     }
@@ -2752,7 +2787,7 @@ export function registerRichHandlers(bot) {
         return `<tr><td><code>${u.telegram_id}</code></td><td>${escapeHtml(u.custom_name || 'User')}</td><td align="center">${dateStr}</td></tr>`;
       }).join('') || '<tr><td colspan="3" align="center">Tidak ada user expired</td></tr>';
       const expiredHtml = `<h1 align="center">🔴 Daftar User Expired (${expired.length})</h1>` +
-        `<blockquote>Pengguna yang masa aktifnya telah habis:</blockquote>` +
+        `<p>Pengguna yang masa aktifnya telah habis:</p>` +
         `<table bordered striped>` +
         `<tr><th>ID Pengguna</th><th>Nama Akun</th><th>Tanggal Expired</th></tr>` +
         rows +
@@ -2778,7 +2813,7 @@ export function registerRichHandlers(bot) {
         });
         setTimeout(() => { try { fs.unlinkSync(filename); } catch (_) {} }, 60000);
       } catch (err) {
-        await ctx.replyWithRichMessage({ html: `<blockquote>❌ Gagal membuat backup: ${err instanceof Error ? err.message : String(err)}</blockquote>` });
+        await ctx.replyWithRichMessage({ html: `<p>❌ <b>Gagal membuat backup:</b> ${escapeHtml(err instanceof Error ? err.message : String(err))}</p>` });
       }
       return;
     }
@@ -2793,14 +2828,14 @@ export function registerRichHandlers(bot) {
           return `<tr><td>${time}</td><td><b>${escapeHtml(l.action)}</b></td><td><code>${l.userId || '—'}</code></td><td>${escapeHtml(l.resource)}</td></tr>`;
         }).join('') || '<tr><td colspan="4" align="center">Belum ada log audit</td></tr>';
         const auditHtml = `<h1 align="center">📜 10 Riwayat Audit Terakhir</h1>` +
-          `<blockquote>Aktivitas perubahan data dan akses sistem:</blockquote>` +
+          `<p>Aktivitas perubahan data dan akses sistem:</p>` +
           `<table bordered striped>` +
           `<tr><th>Waktu</th><th>Aksi</th><th>User</th><th>Resource</th></tr>` +
           logRows +
           `</table>`;
         return sendRich(ctx, auditHtml, keyboardAdminBackup(), { edit: true });
       } catch (err) {
-        return ctx.replyWithRichMessage({ html: `<blockquote>❌ Gagal memuat audit log: ${err instanceof Error ? err.message : String(err)}</blockquote>` });
+        return ctx.replyWithRichMessage({ html: `<p>❌ <b>Gagal memuat audit log:</b> ${escapeHtml(err instanceof Error ? err.message : String(err))}</p>` });
       }
     }
     if (action === 'admin_settings') {

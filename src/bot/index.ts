@@ -71,7 +71,7 @@ bot.use(limit({
   limit: 3,
   keyGenerator: (ctx) => ctx.from?.id?.toString(),
   onLimitExceeded: async (ctx) => {
-    try { await ctx.replyWithRichMessage({ html: `<blockquote><b>❌ KESALAHAN</b><br>Terlalu cepat. Tunggu beberapa detik dulu.</blockquote>` }); } catch (_) { /* empty */ }
+    try { await ctx.replyWithRichMessage({ html: `<p>❌ <b>Terlalu cepat.</b> Tunggu beberapa detik dulu.</p>` }); } catch (_) { /* empty */ }
   },
 }));
 

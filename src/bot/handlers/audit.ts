@@ -14,10 +14,10 @@ function formatAuditEntry(log: any): string {
   text += `📦 Resource: <b>${log.resource}</b> (${log.resourceId || 'N/A'})\n`;
 
   if (log.before || log.after) {
-    text += `<blockquote>`;
+    text += `<pre>`;
     if (log.before) {text += `Before: ${JSON.stringify(log.before).slice(0, 200)}\n`;}
     if (log.after) {text += `After: ${JSON.stringify(log.after).slice(0, 200)}`;}
-    text += `</blockquote>`;
+    text += `</pre>`;
   }
 
   return text;

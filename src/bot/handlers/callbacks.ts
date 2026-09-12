@@ -102,13 +102,13 @@ export function registerLegacyCallbacks(bot) {
     approveUser(targetId);
     try { await setTrialClaimed(targetId); } catch (_) { /* ignore */ }
     const nowWib = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
-    await editRich(ctx, `<blockquote><b>✅ UJI COBA DISETUJUI</b><br>Pengguna <code>${targetId}</code> telah disetujui untuk uji coba gratis 7 hari.<br>Waktu: <code>${nowWib} WIB</code></blockquote>`);
+    await editRich(ctx, `<p><b>✅ UJI COBA DISETUJUI</b><br>Pengguna <code>${targetId}</code> telah disetujui untuk uji coba gratis 7 hari.<br>Waktu: <code>${nowWib} WIB</code></p>`);
     try {
       await ctx.api.sendMessage(
         targetId,
         `🎉 <b>Permintaan Uji Coba Disetujui!</b>\n\n` +
-        `<blockquote>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</blockquote>\n\n` +
-        `Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda (via Scan QR Code atau OTP):`,
+        `<p>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</p>\n\n` +
+        `<footer>Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda (via Scan QR Code atau OTP):</footer>`,
         {
           parse_mode: 'HTML',
           reply_markup: {
@@ -131,11 +131,12 @@ export function registerLegacyCallbacks(bot) {
     await ctx.answerCallbackQuery();
     const targetId = Number(ctx.match[1]);
     revokeUser(targetId);
-    await editRich(ctx, `<blockquote><b>❌ UJI COBA DITOLAK</b><br>Permohonan untuk pengguna <code>${targetId}</code> telah ditolak.</blockquote>`);
+    await editRich(ctx, `<p><b>❌ UJI COBA DITOLAK</b><br>Permohonan untuk pengguna <code>${targetId}</code> telah ditolak.</p>`);
     try {
       await ctx.api.sendMessage(
         targetId,
-        `<blockquote>❌ <b>Permintaan Uji Coba Ditolak</b><br>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini. Hubungi owner atau pesan paket VIP jika Anda memiliki pertanyaan.</blockquote>`,
+        `<h3>❌ Permintaan Uji Coba Ditolak</h3>\n` +
+        `<p>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini. Hubungi owner atau pesan paket VIP jika Anda memiliki pertanyaan.</p>`,
         {
           parse_mode: 'HTML',
           reply_markup: {
@@ -159,7 +160,7 @@ export function registerLegacyCallbacks(bot) {
     try { await ctx.answerCallbackQuery('Pendaftaran dibatalkan.'); } catch (_) { /* empty */ }
     await ctx.conversation.exitAll();
     try { await ctx.deleteMessage(); } catch (_) { /* empty */ }
-    await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b><br>Proses pendaftaran dibatalkan.</blockquote>`);
+    await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b><br>Proses pendaftaran dibatalkan.</p>`);
     await sendMainRich(ctx);
   });
 }
