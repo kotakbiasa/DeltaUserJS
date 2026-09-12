@@ -155,7 +155,7 @@ export const list = (items = []) =>
   `<ul>${items.map((it) => `<li>${it}</li>`).join('')}</ul>`;
 
 /** Section heading (rich-message only; degrades to bold text in classic mode). */
-export const heading = (t) => `<h3>${t}</h3>`;
+export const heading = (t) => `<h3 align="center">${t}</h3>`;
 
 /** Collapsible details block (rich-message only). */
 export const details = (summary, body, { open = false } = {}) =>

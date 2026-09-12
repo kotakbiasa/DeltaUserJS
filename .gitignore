@@ -16,4 +16,7 @@ test_*.js
 backups/
 session.json
 *.session
+approvals_meta.json
+pending_approvals.json
+vouchers.json
 dist

@@ -78,9 +78,9 @@ export async function sendWithStreamEffect(
   const draftId = nextDraftId();
 
   if (mode === 1) {
-    // ⚡ Full instant: placeholder sesaat → finalize full text
-    await draftPost(api, chatId, draftId, '<blockquote>▌</blockquote>');
-    await sleep(900);
+    // ⚡ Full instant: native thinking draft sesaat → finalize full text
+    await draftPost(api, chatId, draftId, '<tg-thinking>Memuat dashboard…</tg-thinking>');
+    await sleep(600);
     return finalSend();
   }
 
@@ -106,7 +106,7 @@ export async function sendWithStreamEffect(
   let wordCount = 0;
   let sinceUpdate = 0;
 
-  await draftPost(api, chatId, draftId, '<blockquote>▌</blockquote>');
+  await draftPost(api, chatId, draftId, '<tg-thinking>Memuat dashboard…</tg-thinking>');
   await sleep(DRAFT_DELAY_MS);
 
   for (const piece of pieces) {
@@ -125,7 +125,31 @@ export async function sendWithStreamEffect(
   return finalSend();
 }
 
+/**
+ * Kirim draft dengan animasi native thinking Telegram Bot API 10.3 sesaat sebelum finalize.
+ */
+export async function sendWithNativeDraft(
+  finalSend: () => Promise<unknown>,
+  api: DraftApi,
+  chatId: number,
+  thinkingText: string = 'Memuat dashboard…',
+): Promise<unknown> {
+  const isPrivate = Number.isInteger(chatId) && chatId > 0;
+  if (!isPrivate || typeof api.sendRichMessageDraft !== 'function') {
+    return finalSend();
+  }
+  const draftId = nextDraftId();
+  try {
+    await draftPost(api, chatId, draftId, `<tg-thinking>${thinkingText}</tg-thinking>`);
+    await sleep(350);
+  } catch {
+    // Abaikan error draft, biarkan finalSend yang mengirim pesan
+  }
+  return finalSend();
+}
+
 /** Baca stream_mode dari sesi userbot (0=off, 1=full, 2=per-kata). */
 export function streamModeOf(session: { stream_mode?: number } | null | undefined): number {
   return Number(session?.stream_mode || 0);
 }
+

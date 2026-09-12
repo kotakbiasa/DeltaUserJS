@@ -8,12 +8,18 @@ import {
   otpRegistrationConversation,
   qrRegistrationConversation,
   customNameConversation,
+  broadcastConversation,
 } from './conversations/registration.js';
 import {
   afkReasonConversation,
   manageVarsConv,
   manageSystemVarsConv,
 } from './conversations/settings.js';
+import {
+  userRedeemVoucherConversation,
+  adminCreateVoucherConversation,
+} from './conversations/voucher.js';
+import { userAddLoopConversation } from './conversations/scheduler.js';
 import { registerRichHandlers } from './ui/keyboards/dashboard.js';
 import { registerInlineHelpHandlers } from './handlers/inlineHelp.js';
 import { registerSubscriptionHandlers } from './handlers/subscription.js';
@@ -76,6 +82,10 @@ bot.use(createConversation(customNameConversation, 'custom-name-conv'));
 bot.use(createConversation(afkReasonConversation, 'afk-reason-conv'));
 bot.use(createConversation(manageVarsConv, 'manage-vars-conv'));
 bot.use(createConversation(manageSystemVarsConv, 'manage-system-vars-conv'));
+bot.use(createConversation(broadcastConversation, 'broadcast-conv'));
+bot.use(createConversation(userRedeemVoucherConversation, 'user-redeem-voucher-conv'));
+bot.use(createConversation(adminCreateVoucherConversation, 'admin-create-voucher-conv'));
+bot.use(createConversation(userAddLoopConversation, 'user-add-loop-conv'));
 
 setLoggerBot(bot);
 const { setNotifyBot } = await import('../services/notifyService.js');
@@ -111,6 +121,9 @@ export async function setupBotCommands() {
     await bot.api.setMyCommands([
       { command: 'start', description: 'Buka dashboard utama' },
       { command: 'menu', description: 'Buka menu bot' },
+      { command: 'claim', description: 'Tukar kode voucher promo (/claim <kode>)' },
+      { command: 'daftar', description: 'Daftar userbot baru' },
+      { command: 'cancel', description: 'Batalkan proses pendaftaran yang aktif' },
       { command: 'health', description: 'Cek status server (owner only)' },
       { command: 'revoke', description: 'Hapus sesi userbot Anda' },
     ]);

@@ -26,6 +26,9 @@ export class UserbotClient {
   public sessionString: string;
   public client: TelegramClient | null;
   public isActive: boolean;
+  public floodWaitUntil: number | null;
+  public lastFloodSeconds: number;
+  public lastError: string | null;
   private _stopping: boolean;
   /**
    * @param {number} telegramId
@@ -36,7 +39,54 @@ export class UserbotClient {
     this.sessionString = sessionString;
     this.client = null;
     this.isActive = false;
+    this.floodWaitUntil = null;
+    this.lastFloodSeconds = 0;
+    this.lastError = null;
     this._stopping = false;
+  }
+
+  /**
+   * Returns true if client is in temporary FloodWait hibernation
+   */
+  isFloodWaiting(): boolean {
+    return Boolean(this.floodWaitUntil && Date.now() < this.floodWaitUntil);
+  }
+
+  /**
+   * Returns seconds remaining in FloodWait hibernation, or 0 if none
+   */
+  getFloodWaitSecondsLeft(): number {
+    if (!this.floodWaitUntil || Date.now() >= this.floodWaitUntil) {
+      return 0;
+    }
+    return Math.max(0, Math.ceil((this.floodWaitUntil - Date.now()) / 1000));
+  }
+
+  /**
+   * Record Telegram FLOOD_WAIT and enter safe hibernation mode
+   */
+  recordFloodWait(seconds: number) {
+    const sec = Math.max(1, Number(seconds) || 1);
+    this.floodWaitUntil = Date.now() + sec * 1000;
+    this.lastFloodSeconds = sec;
+    this.lastError = `FLOOD_WAIT_${sec}`;
+    Logger.logUser(
+      this.telegramId,
+      `🛡️ [FloodGuard] FLOOD_WAIT_${sec} terdeteksi! Akun memasuki mode hibernasi aman selama ${sec} detik untuk mencegah banned.`,
+      'WARN'
+    );
+  }
+
+  /**
+   * Inspect any error for Telegram FloodWait signatures
+   */
+  handlePossibleFloodError(err: unknown) {
+    const errStr = String(err || '');
+    const match = errStr.match(/FLOOD_WAIT_(\d+)/i) || (typeof (err as any)?.seconds === 'number' ? [null, String((err as any).seconds)] : null);
+    if (match && match[1]) {
+      const seconds = parseInt(match[1], 10);
+      this.recordFloodWait(seconds);
+    }
   }
 
   /**
@@ -91,7 +141,7 @@ export class UserbotClient {
   async restartSchedules() {
     try {
       const { getSchedules } = await import('../../infrastructure/database.js');
-      const { startLoop } = await import('../handlers/util/schedule.js');
+      const { startLoop } = await import('../handlers/util/loop.js');
       
       const schedules = getSchedules(this.telegramId);
       for (const s of schedules) {
@@ -124,7 +174,7 @@ export class UserbotClient {
 
     // Cleanup: stop all active loops for this userbot to prevent memory leaks
     try {
-      const { loopStore } = await import('../handlers/util/schedule.js');
+      const { loopStore } = await import('../handlers/util/loop.js');
       const loops = loopStore.get(Number(this.telegramId));
       if (loops) {
         const loopCount = loops.size;
@@ -161,6 +211,12 @@ export class UserbotClient {
     this.client.addEventHandler(async (event) => {
       const message = event.message;
       if (!message) {return;}
+
+      // 0. FloodWait guard — if in hibernation, suppress commands to prevent ban
+      if (this.isFloodWaiting()) {
+        Logger.logUser(this.telegramId, `🛡️ FloodGuard Active (${this.getFloodWaitSecondsLeft()}s left) — suppressing command execution.`, 'WARN');
+        return;
+      }
 
       // 1. Ambil setelan terkini dari in-memory cache (0ms)
       const settings = getUserbotSession(this.telegramId);
@@ -202,6 +258,7 @@ export class UserbotClient {
         try {
           await plugin.execute(this.client, message, settings, this.telegramId);
         } catch (err) {
+          this.handlePossibleFloodError(err);
           Logger.logUser(this.telegramId, `Error in plugin ${plugin.name}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         }
       }
@@ -212,6 +269,7 @@ export class UserbotClient {
     // Menggunakan Raw event untuk menangkap UpdateBotCallbackQuery
     // ==========================================
     this.client.addEventHandler(async (event) => {
+      if (this.isFloodWaiting()) {return;}
       const update = event.update;
 
       // Objek event yang kompatibel dengan plugin
@@ -226,6 +284,7 @@ export class UserbotClient {
             callbackEvent.message = msgs[0] || null;
             return msgs[0] || null;
           } catch (err) {
+            this.handlePossibleFloodError(err);
             Logger.logUser(this.telegramId, `❌ Error fetching callback message for [${this.telegramId}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             return null;
           }
@@ -239,6 +298,7 @@ export class UserbotClient {
               buttons: options.buttons,
             });
           } catch (err) {
+            this.handlePossibleFloodError(err);
             if (!String(err).includes('not modified')) {
               Logger.logUser(this.telegramId, `❌ Error editing callback message: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
             }
@@ -254,6 +314,7 @@ export class UserbotClient {
               })
             );
           } catch (err) {
+            this.handlePossibleFloodError(err);
             Logger.logUser(this.telegramId, `❌ Error answering callback for [${this.telegramId}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
           }
         }
@@ -271,6 +332,7 @@ export class UserbotClient {
           const handled = await plugin.onCallbackQuery(this.client, callbackEvent, settings, this.telegramId);
           if (handled) {break;} // Stop jika sudah ditangani
         } catch (err) {
+          this.handlePossibleFloodError(err);
           Logger.logUser(this.telegramId, `Error in plugin ${plugin.name} callback: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
         }
       }

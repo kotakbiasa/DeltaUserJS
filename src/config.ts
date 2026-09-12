@@ -11,8 +11,10 @@ const config = {
   apiId: process.env.API_ID ? parseInt(process.env.API_ID) : 2496,
   apiHash: process.env.API_HASH || "8da85b0d5bfe62527e5b244c209159c3",
   ownerId: process.env.OWNER_ID ? parseInt(process.env.OWNER_ID) : undefined,
-  logGroupId: process.env.LOG_GROUP_ID ? parseInt(process.env.LOG_GROUP_ID) : 0,
-  logTopicId: process.env.LOG_TOPIC_ID ? parseInt(process.env.LOG_TOPIC_ID) : 0,
+  logGroupId: process.env.LOG_GROUP_ID
+    ? (process.env.LOG_GROUP_ID.startsWith('@') ? process.env.LOG_GROUP_ID : (parseInt(process.env.LOG_GROUP_ID, 10) || 0))
+    : 0,
+  logTopicId: process.env.LOG_TOPIC_ID ? parseInt(process.env.LOG_TOPIC_ID, 10) : 0,
   mongoUri: process.env.MONGO_URI,
   dbName: 'DeltaUbotJS',
   muslimSalatApiKey: process.env.MUSLIM_SALAT_API_KEY || undefined,

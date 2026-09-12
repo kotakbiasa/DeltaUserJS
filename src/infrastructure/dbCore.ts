@@ -90,6 +90,19 @@ const groupConfigSchema = new mongoose.Schema({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const GroupConfigModel: mongoose.Model<any> = (mongoose.models.GroupConfig || mongoose.model('GroupConfig', groupConfigSchema)) as mongoose.Model<any>;
 
+const voucherSchema = new mongoose.Schema({
+  code: { type: String, required: true, unique: true, uppercase: true, index: true },
+  days: { type: Number, required: true },
+  max_uses: { type: Number, default: 1 },
+  used_by: { type: [Number], default: [] },
+  created_at: { type: Date, default: Date.now },
+  expires_at: { type: Date, default: null },
+  created_by: { type: Number, default: 0 },
+}, { strict: false });
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const VoucherModel: mongoose.Model<any> = (mongoose.models.Voucher || mongoose.model('Voucher', voucherSchema)) as mongoose.Model<any>;
+
 export const dbCache = new Map();
 export let isMongo = false;
 export let systemConfigCache = { vars: {} };
@@ -290,6 +303,9 @@ export async function initDatabaseAndCache() {
       // Seed default subscription plans
       const { seedDefaultPlans } = await import('../services/SubscriptionService.js');
       await seedDefaultPlans();
+
+      const { initVouchers } = await import('../services/VoucherService.js');
+      await initVouchers();
 
       Logger.logSystem(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`, 'INFO');
       return;

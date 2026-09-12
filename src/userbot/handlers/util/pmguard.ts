@@ -124,9 +124,9 @@ export default {
   version: '1.0.0',
   description: 'Anti-PM sederhana: warn 1x ke PM tak dikenal, whitelist via .pmallow, tanpa auto-block.',
   help: {
-    title: '🛡️ PM Guard (.pmguard / .pmallow / .pmlist)',
+    title: '🛡️ PM Guard (.pmguard / .approve / .disapprove / .approved)',
     description: 'Anti-PM ala getter pmpermit: saat aktif, PM masuk dari user di luar whitelist otomatis dibalas sekali "owner sedang away", lalu diabaikan. Tidak ada auto-block.',
-    usage: '• `.pmguard on` — aktifkan\n• `.pmguard off` — matikan\n• `.pmallow <id>` — whitelist via user ID\n• `.pmallow` (reply pesan user) — whitelist via reply\n• `.pmlist` — lihat daftar whitelist',
+    usage: '• `.pmguard on / off` — aktifkan atau matikan\n• `.approve <id>` atau balas pesan — izinkan user PM\n• `.disapprove <id>` atau balas pesan — hapus izin user\n• `.approved` atau `.pmlist` — lihat daftar user diizinkan',
     detail: 'Hanya pesan masuk di private chat (non-out) yang diwarn, 1x per user per sesi. ' +
       'User yang di-whitelist lewat begitu saja. Whitelist tetap tersimpan walau guard dimatikan. ' +
       'Status dan whitelist dipersist ke database per userbot (field pmguard_data) dan di-load ulang otomatis saat userbot start. ' +
@@ -142,7 +142,13 @@ export default {
       if (!text) {return;}
       const parts = text.trim().split(/\s+/);
       const cmd = (parts[0] || '').toLowerCase();
-      if (cmd !== '.pmguard' && cmd !== '.pmallow' && cmd !== '.pmlist') {return;}
+      const allowCmds = ['.pmallow', '.approve', '.a'];
+      const disallowCmds = ['.pmdisallow', '.disapprove', '.da'];
+      const listCmds = ['.pmlist', '.approved'];
+
+      if (cmd !== '.pmguard' && !allowCmds.includes(cmd) && !disallowCmds.includes(cmd) && !listCmds.includes(cmd)) {
+        return;
+      }
 
       const state = getState(idNum);
 
@@ -164,7 +170,7 @@ export default {
           state.enabled = true;
           await persistPmGuard(idNum);
           await message.edit({
-            text: '<blockquote>✅ <b>PM Guard AKTIF.</b>\nPesan masuk (private) dari user di luar whitelist akan diwarn 1x — tanpa auto-block.\nWhitelist: <code>.pmallow &lt;id&gt;</code> atau reply pesan user.</blockquote>',
+            text: '<blockquote>✅ <b>PM Guard AKTIF.</b>\nPesan masuk (private) dari user di luar whitelist akan diwarn 1x — tanpa auto-block.\nWhitelist: <code>.approve &lt;id&gt;</code> atau reply pesan user.</blockquote>',
             parseMode: 'html'
           });
           return;
@@ -189,7 +195,8 @@ export default {
         return;
       }
 
-      if (cmd === '.pmallow') {
+      // Allow / Approve
+      if (allowCmds.includes(cmd)) {
         let targetId = parts[1] ? parsePositiveId(parts[1]) : null;
         if (targetId === null) {
           const replied = await message.getReplyMessage();
@@ -199,14 +206,14 @@ export default {
         }
         if (targetId === null) {
           await message.edit({
-            text: '<blockquote>📚 <b>Penggunaan:</b> <code>.pmallow &lt;user_id&gt;</code>\natau balas pesan user yang ingin di-whitelist.</blockquote>',
+            text: '<blockquote>📚 <b>Penggunaan:</b> <code>.approve &lt;user_id&gt;</code>\natau balas pesan user yang ingin diizinkan.</blockquote>',
             parseMode: 'html'
           });
           return;
         }
         if (state.whitelist.has(targetId)) {
           await message.edit({
-            text: `<blockquote>ℹ️ User <code>${targetId}</code> sudah ada di whitelist.</blockquote>`,
+            text: `<blockquote>ℹ️ User <code>${targetId}</code> sudah ada di whitelist PM Guard.</blockquote>`,
             parseMode: 'html'
           });
           return;
@@ -215,31 +222,65 @@ export default {
         state.warned.delete(targetId);
         await persistPmGuard(idNum);
         await message.edit({
-          text: `<blockquote>✅ <b>User Di-whitelist</b>\n<code>${targetId}</code> kini bisa langsung PM tanpa diwarn.\nTotal whitelist: <b>${state.whitelist.size}</b></blockquote>`,
+          text: `<blockquote>✅ <b>Pengguna Diizinkan (Approved)!</b>\n<code>${targetId}</code> kini bisa langsung PM tanpa diwarn.\nTotal whitelist: <b>${state.whitelist.size}</b></blockquote>`,
           parseMode: 'html'
         });
         return;
       }
 
-      // .pmlist
-      if (state.whitelist.size === 0) {
+      // Disallow / Disapprove
+      if (disallowCmds.includes(cmd)) {
+        let targetId = parts[1] ? parsePositiveId(parts[1]) : null;
+        if (targetId === null) {
+          const replied = await message.getReplyMessage();
+          if (replied && replied.senderId) {
+            targetId = parsePositiveId(replied.senderId);
+          }
+        }
+        if (targetId === null) {
+          await message.edit({
+            text: '<blockquote>📚 <b>Penggunaan:</b> <code>.disapprove &lt;user_id&gt;</code>\natau balas pesan user yang ingin dihapus.</blockquote>',
+            parseMode: 'html'
+          });
+          return;
+        }
+        if (!state.whitelist.has(targetId)) {
+          await message.edit({
+            text: `<blockquote>ℹ️ User <code>${targetId}</code> tidak ada di whitelist.</blockquote>`,
+            parseMode: 'html'
+          });
+          return;
+        }
+        state.whitelist.delete(targetId);
+        await persistPmGuard(idNum);
         await message.edit({
-          text: '<blockquote>📭 Whitelist kosong. Tambahkan dengan <code>.pmallow &lt;id&gt;</code> atau reply pesan user.</blockquote>',
+          text: `<blockquote>❌ <b>Pengguna Dihapus (Disapproved)!</b>\n<code>${targetId}</code> dihapus dari whitelist PM Guard.</blockquote>`,
           parseMode: 'html'
         });
         return;
       }
-      let rows = '';
-      let i = 1;
-      for (const uid of state.whitelist) {
-        rows += `${i}. <code>${uid}</code>\n`;
-        i++;
+
+      // List / Approved
+      if (listCmds.includes(cmd)) {
+        if (state.whitelist.size === 0) {
+          await message.edit({
+            text: '<blockquote>📭 <b>Daftar Approved Kosong.</b>\nBelum ada pengguna yang Anda masukkan ke whitelist. Tambahkan dengan <code>.approve &lt;id&gt;</code>.</blockquote>',
+            parseMode: 'html'
+          });
+          return;
+        }
+        let rows = '';
+        let i = 1;
+        for (const uid of state.whitelist) {
+          rows += `${i}. <code>${uid}</code>\n`;
+          i++;
+        }
+        await message.edit({
+          text: `🛡️ <b>Daftar Pengguna Aman (Approved) — ${state.whitelist.size}</b>\n\n<blockquote>${rows.trim()}</blockquote>`,
+          parseMode: 'html'
+        });
+        return;
       }
-      await message.edit({
-        text: `🛡️ <b>Whitelist PM Guard (${state.whitelist.size})</b>\n\n<blockquote>${rows.trim()}</blockquote>`,
-        parseMode: 'html'
-      });
-      return;
     }
 
     // ===== 2. Pesan masuk: warn 1x tanpa auto-block =====

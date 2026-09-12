@@ -131,7 +131,7 @@ function resolveModuleTarget(moduleName) {
 // --- Exported for dashboard ---
 
 export function buildHelpMenuRichHtml(session, _page = 1, target = 'main') {
-  return `<h1>📖 Help ${target === 'ubot' ? '(Userbot)' : '(Master)'}</h1>` +
+  return `<h1 align="center">📖 Help ${target === 'ubot' ? '(Userbot)' : '(Master)'}</h1>` +
     `<blockquote>Pilih modul untuk melihat command dan detail penggunaan.</blockquote>`;
 }
 
@@ -223,16 +223,19 @@ export function registerInlineHelpHandlers(bot) {
     await ctx.answerCallbackQuery();
   });
 
-  bot.callbackQuery('help:close', async (ctx) => {
-    await ctx.answerCallbackQuery('Menu ditutup');
-    // Hapus pesan menu help. Pesan dari inline result mungkin milik userbot
-    // (via-bot), jadi coba deleteMessage dulu; kalau gagal, edit jadi kosong+tanpa tombol.
+  bot.callbackQuery(/^(help:close|close)$/, async (ctx) => {
+    try { await ctx.answerCallbackQuery('Menu ditutup'); } catch (_) { /* empty */ }
+    // Coba delete message dulu (jika chat pribadi / pesan bot normal)
     try {
       await ctx.deleteMessage();
       return;
-    } catch (_e) { /* fall through */ }
+    } catch (_e) { /* fall through to edit for inline messages */ }
+    // Fallback: edit teks dan kosongkan keyboard (bekerja pada inline message)
     try {
-      await ctx.editMessageText({ html: '<i>Menu help ditutup.</i>' }, { reply_markup: undefined });
+      await ctx.editMessageText('<i>Menu help ditutup.</i>', {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [] },
+      });
     } catch (_e2) { /* ignore */ }
   });
 }

@@ -2,7 +2,7 @@ import { UserbotClient } from './client.js';
 import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../../infrastructure/database.js';
 import { dbCache } from '../../infrastructure/dbCore.js';
 import { Logger } from '../../utils/logger.js';
-import { stopAllLoops } from '../handlers/util/schedule.js';
+import { stopAllLoops } from '../handlers/util/loop.js';
 import { startInlineBotForUser, stopInlineBotForUser } from '../../bot/services/inlineBotService.js';
 
 function sleep(ms) {
@@ -196,6 +196,10 @@ class UserbotManager {
       if (this.clients.has(id)) {
         const existing = this.clients.get(id);
         if (existing?.isConnected()) {continue;}
+        if (existing?.isFloodWaiting()) {
+          Logger.logUser(id, `🛡️ Watchdog skipping reconnect for [${id}]: FloodWait active (${existing.getFloodWaitSecondsLeft()}s remaining).`, 'INFO');
+          continue;
+        }
       }
 
       if (this.reconnecting.has(id)) {continue;}
@@ -218,6 +222,21 @@ class UserbotManager {
         this.reconnecting.delete(id);
       }
     }
+  }
+
+  getFloodStatus(telegramId: number | string): { inCooldown: boolean; secondsLeft: number; floodUntil: number | null } {
+    const id = Number(telegramId);
+    const client = this.clients.get(id);
+    if (!client) {
+      return { inCooldown: false, secondsLeft: 0, floodUntil: null };
+    }
+    const inCooldown = client.isFloodWaiting();
+    const secondsLeft = client.getFloodWaitSecondsLeft();
+    return {
+      inCooldown,
+      secondsLeft,
+      floodUntil: client.floodWaitUntil,
+    };
   }
 
   isRunning(telegramId) {

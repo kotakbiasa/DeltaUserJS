@@ -37,3 +37,30 @@ export async function notifyOwner(html) {
   const { default: config } = await import('../config.js');
   return notifyUser(config.ownerId, html);
 }
+
+/**
+ * Kirim notifikasi ke channel/grup log (config.logGroupId atau config.ownerId).
+ * Mendukung forum topic (config.logTopicId) dan tombol inline (reply_markup).
+ */
+export async function notifyChannel(html: string, options?: { reply_markup?: any }) {
+  const { default: config } = await import('../config.js');
+  const targetChat = config.logGroupId || config.ownerId;
+  if (!botRef || !targetChat) {return false;}
+  try {
+    const extraParams: Record<string, unknown> = {
+      parse_mode: 'HTML',
+    };
+    if (options?.reply_markup) {
+      extraParams.reply_markup = options.reply_markup;
+    }
+    if (config.logGroupId && config.logTopicId) {
+      extraParams.message_thread_id = config.logTopicId;
+    }
+    await botRef.api.sendMessage(targetChat, html, extraParams);
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(`[NOTIFY] gagal kirim ke channel log ${targetChat}: ${msg}`);
+    return false;
+  }
+}

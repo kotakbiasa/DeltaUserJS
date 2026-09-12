@@ -7,6 +7,7 @@ import qrcode from 'qrcode';
 import config from '../../config.js';
 import { saveUserbotSession } from '../../infrastructure/database.js';
 import userbotManager from '../../userbot/engine/manager.js';
+import { isApproved } from '../state/approvedUsers.js';
 
 // Custom prototype extension — teleproto's TelegramClient type doesn't declare signIn.
 declare module 'teleproto' {
@@ -26,7 +27,7 @@ declare module 'teleproto' {
   }
 }
 
-export const cancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel');
+export const cancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel_reg');
 
 // ==========================================
 // 🔧 Custom Prototype Extension for GramJS
@@ -50,6 +51,9 @@ TelegramClient.prototype.signIn = async function ({ phoneNumber, phoneCodeHash, 
         phoneCode,
       })
     );
+    if (result instanceof Api.auth.AuthorizationSignUpRequired) {
+      throw new Error('NOMOR_BELUM_TERDAFTAR: Nomor ini belum terdaftar di Telegram. Silakan buat akun Telegram terlebih dahulu di aplikasi resmi.');
+    }
     return result.user;
   }
 };
@@ -57,10 +61,29 @@ TelegramClient.prototype.signIn = async function ({ phoneNumber, phoneCodeHash, 
 // Global map to track active registration clients
 export const activeRegClients = new Map(); // userId -> GramJS TelegramClient
 
+// Global map to track active QR login sessions with AbortController
+export const activeQrSessions = new Map<number, {
+  abortController: AbortController;
+  chatId: number;
+  qrMessageId?: number;
+}>();
+
+/**
+ * Abort active QR login process instantly and remove QR images from chat
+ */
+export async function abortActiveQr(telegramId: number, api?: any) {
+  const session = activeQrSessions.get(telegramId);
+  if (session) {
+    try { session.abortController.abort(); } catch (_) { /* ignore */ }
+    if (session.qrMessageId && api) {
+      try { await api.deleteMessage(session.chatId, session.qrMessageId); } catch (_) { /* ignore */ }
+    }
+    activeQrSessions.delete(telegramId);
+  }
+}
+
 // Global map untuk menyimpan state OTP sementara antar replay Grammy
 // Kunci: telegramId, Nilai: { phoneCodeHash, isCodeViaApp }
-// Ini mencegah sendCode dipanggil ulang saat Grammy me-resume conversation dari checkpoint,
-// yang menyebabkan client baru dibuat dengan server session berbeda → PHONE_CODE_EXPIRED.
 const pendingOtpState = new Map();
 
 /**
@@ -72,9 +95,9 @@ function getOrCreateClient(telegramId, phoneNumber) {
   if (client) {return client;}
 
   const session = new StringSession('');
-  // Preset DC 5 untuk nomor Indonesia
+  // Preset DC 5 untuk nomor Indonesia dengan port 443 (standar MTProto TLS)
   if (phoneNumber && phoneNumber.startsWith('+62')) {
-    session.setDC(5, '91.108.56.121', 80);
+    session.setDC(5, '91.108.56.121', 443);
   }
   client = new TelegramClient(session, config.apiId, config.apiHash, {
     connectionRetries: 5,
@@ -119,12 +142,19 @@ async function cleanupClient(telegramId) {
 async function waitForInput(conversation, ctx) {
   const result = await conversation.waitFor(['message:text', 'callback_query:data']);
 
-  if (result.callbackQuery?.data === 'cancel_reg') {
-    await result.answerCallbackQuery('Pendaftaran dibatalkan.');
-    try {
-      await result.deleteMessage();
-    } catch (_e) { /* ignore: already deleted */ }
-    await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
+  const cbData = result.callbackQuery?.data;
+  const textMsg = result.message?.text?.trim().toLowerCase();
+
+  if (cbData === 'cancel' || cbData === 'cancel_reg' || cbData === 'cancel_qr' || textMsg === '/cancel') {
+    if (result.callbackQuery) {
+      try { await result.answerCallbackQuery('Pendaftaran dibatalkan.'); } catch (_) { /* ignore */ }
+      try { await result.deleteMessage(); } catch (_) { /* ignore */ }
+    }
+    await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali ke Menu Utama.</blockquote>`);
+    throw new Error('USER_CANCELLED');
+  }
+
+  if (!result.message?.text) {
     throw new Error('USER_CANCELLED');
   }
 
@@ -148,15 +178,20 @@ async function waitForInput(conversation, ctx) {
 export async function otpRegistrationConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
 
+  if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {
+    await replyRich(ctx, `<blockquote>🔒 Pendaftaran userbot membutuhkan persetujuan owner.<br>Silakan ajukan <b>🎁 Request Coba Gratis</b> di menu utama terlebih dahulu.</blockquote>`);
+    return;
+  }
+
   try {
-    await replyRich(ctx, `<h1>📱 Pendaftaran via OTP</h1>` +
+    await replyRich(ctx, `<h1 align="center">📱 Pendaftaran via OTP</h1>` +
       `<table bordered striped><caption>📋 Langkah</caption>` +
       `<tr><th>#</th><th>Aksi</th></tr>` +
-      `<tr><td align="center">1</td><td>Kirim nomor HP (format internasional)</td></tr>` +
+      `<tr><td align="center">1</td><td>Kirim nomor HP (format internasional / 08xx)</td></tr>` +
       `<tr><td align="center">2</td><td>Masukkan kode OTP yang diterima</td></tr>` +
       `<tr><td align="center">3</td><td>Selesai — userbot aktif 🎉</td></tr>` +
       `</table>` +
-      `<blockquote>Silakan kirimkan nomor HP Anda dalam format internasional, contoh: <code>+628123456789</code></blockquote>`, { reply_markup: cancelKeyboard, });
+      `<blockquote>Silakan kirimkan nomor HP Anda, contoh: <code>+628123456789</code> atau <code>08123456789</code></blockquote>`, { reply_markup: cancelKeyboard, });
 
     // Step 1: Wait for phone number
     let phoneNumber;
@@ -167,15 +202,23 @@ export async function otpRegistrationConversation(conversation, ctx) {
       throw err;
     }
 
-    // 🧹 Sanitize Phone Number: Bersihkan spasi, strip, dll. (misal: "+62 812-345" -> "+62812345")
+    // 🧹 Auto-format Phone Number:
+    // Bersihkan karakter non-digit kecuali tanda plus
     if (phoneNumber) {
-      const cleaned = phoneNumber.replace(/[^0-9]/g, '');
-      phoneNumber = (phoneNumber.startsWith('+') ? '+' : '') + cleaned;
+      let cleaned = phoneNumber.replace(/[^0-9+]/g, '');
+      if (cleaned.startsWith('08')) {
+        cleaned = '+628' + cleaned.slice(2);
+      } else if (cleaned.startsWith('628')) {
+        cleaned = '+' + cleaned;
+      } else if (!cleaned.startsWith('+')) {
+        cleaned = '+' + cleaned;
+      }
+      phoneNumber = cleaned;
     }
 
-    // Validate phone number format (must start with +)
-    if (!phoneNumber.startsWith('+')) {
-      await replyRich(ctx, `<h1>❌ Format nomor HP salah!</h1><blockquote>Harus diawali dengan kode negara (contoh: <code>+628xxx</code>). Silakan ulangi proses <code>/daftar</code>.</blockquote>`, {  });
+    // Validate phone number format (must start with + and at least 9 digits)
+    if (!phoneNumber.startsWith('+') || phoneNumber.length < 9) {
+      await replyRich(ctx, `<h1 align="center">❌ Format nomor HP salah!</h1><blockquote>Harus berupa nomor telepon valid dengan kode negara (contoh: <code>+628xxx</code> atau <code>08xxx</code>). Silakan ulangi dengan klik /daftar.</blockquote>`, {  });
       return;
     }
 
@@ -271,10 +314,12 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
         const cbData = inputResult.callbackQuery?.data;
 
-        if (cbData === 'cancel_reg') {
-          await inputResult.answerCallbackQuery('Pendaftaran dibatalkan.');
-          try { await inputResult.deleteMessage(); } catch (_e) { /* ignore */ }
-          await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
+        if (cbData === 'cancel' || cbData === 'cancel_reg' || cbData === 'cancel_qr' || inputResult.message?.text?.trim().toLowerCase() === '/cancel') {
+          if (inputResult.callbackQuery) {
+            try { await inputResult.answerCallbackQuery('Pendaftaran dibatalkan.'); } catch (_e) { /* ignore */ }
+            try { await inputResult.deleteMessage(); } catch (_e) { /* ignore */ }
+          }
+          await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali ke Menu Utama.</blockquote>`);
           return;
         }
 
@@ -356,7 +401,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       } else if (signInResult.status === 'code_expired') {
         // ♻️ Kode expired — kirim kode baru otomatis
         if (attemptCount < MAX_ATTEMPTS) {
-            await replyRich(ctx, `<h1>⚠️ Kode OTP kadaluarsa!</h1><blockquote>Mengirim kode baru... (Percobaan ${attemptCount}/${MAX_ATTEMPTS})</blockquote>`, {  });
+            await replyRich(ctx, `<h1 align="center">⚠️ Kode OTP kadaluarsa!</h1><blockquote>Mengirim kode baru... (Percobaan ${attemptCount}/${MAX_ATTEMPTS})</blockquote>`, {  });
             try {
               const resendResult = await conversation.external(async () => {
                 const activeClient = activeRegClients.get(telegramId);
@@ -383,7 +428,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
       } else if (signInResult.status === '2fa_needed') {
         // 🔒 2FA Password needed
-        await replyRich(ctx, `<h1>🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>`, { reply_markup: cancelKeyboard, });
+        await replyRich(ctx, `<h1 align="center">🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>`, { reply_markup: cancelKeyboard, });
           let password;
           try {
             password = await waitForInput(conversation, ctx);
@@ -415,7 +460,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       } else if (signInResult.status === 'code_invalid') {
         // ❌ Kode salah — minta input ulang (hash masih valid)
         if (attemptCount < MAX_ATTEMPTS) {
-            await replyRich(ctx, `<h1>❌ Kode OTP salah!</h1><blockquote>Pastikan kode yang dimasukkan benar dan belum kadaluarsa.\n<i>Percobaan ${attemptCount}/${MAX_ATTEMPTS}. Silakan coba lagi.</i></blockquote>`, { reply_markup: buildOtpKeyboard(false), });
+            await replyRich(ctx, `<h1 align="center">❌ Kode OTP salah!</h1><blockquote>Pastikan kode yang dimasukkan benar dan belum kadaluarsa.\n<i>Percobaan ${attemptCount}/${MAX_ATTEMPTS}. Silakan coba lagi.</i></blockquote>`, { reply_markup: buildOtpKeyboard(false), });
           } else {
             await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br><b>Kode OTP salah ${MAX_ATTEMPTS}x.</b>\n\nPendaftaran dibatalkan. Silakan ulangi <code>/daftar</code>.</blockquote>`);
             return;
@@ -437,20 +482,28 @@ export async function otpRegistrationConversation(conversation, ctx) {
     // Session string sudah didapat dari dalam external() di atas
     await saveUserbotSession(telegramId, phoneNumber, sessionString);
 
-    await replyRich(ctx, `<h1>✨ Pendaftaran Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
+    await replyRich(ctx, `<h1 align="center">✨ Pendaftaran Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
       await userbotManager.startUserbot(telegramId, sessionString);
     });
 
-    await replyRich(ctx, `<h1>🟢 Userbot AKTIF!</h1>` +
+    await replyRich(ctx, `<h1 align="center">🟢 Userbot AKTIF!</h1>` +
       `<table bordered striped><caption>🎉 Akun Berhasil Didaftarkan</caption>` +
       `<tr><th>Item</th><th>Detail</th></tr>` +
       `<tr><td>Status</td><td align="center">🟢 Aktif</td></tr>` +
-      `<tr><td>ID</td><td align="center"><code>${telegramId}</code></td></tr>` +
+      `<tr><td>Nomor HP</td><td align="center"><code>${phoneNumber}</code></td></tr>` +
+      `<tr><td>ID Telegram</td><td align="center"><code>${telegramId}</code></td></tr>` +
       `</table>` +
-      `<blockquote>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</blockquote>`, {  });
+      `<blockquote>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</blockquote>`, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' }],
+            [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
+          ]
+        }
+      });
 
   } catch (error) {
     const isCancelled = error.message === 'USER_CANCELLED' || 
@@ -480,8 +533,19 @@ export async function qrRegistrationConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
   const chatId = ctx.chat.id;
 
+  if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {
+    await replyRich(ctx, `<blockquote>🔒 Pendaftaran userbot membutuhkan persetujuan owner.<br>Silakan ajukan <b>🎁 Request Coba Gratis</b> di menu utama terlebih dahulu.</blockquote>`);
+    return;
+  }
+
   try {
-    await replyRich(ctx, `<h1>🔍 Pendaftaran via Scan QR Code</h1>` +
+    const abortController = new AbortController();
+    activeQrSessions.set(telegramId, {
+      abortController,
+      chatId,
+    });
+
+    await replyRich(ctx, `<h1 align="center">🔍 Pendaftaran via Scan QR Code</h1>` +
       `<table bordered striped><caption>📋 Langkah</caption>` +
       `<tr><th>#</th><th>Aksi</th></tr>` +
       `<tr><td align="center">1</td><td>QR Code muncul di bawah</td></tr>` +
@@ -509,14 +573,19 @@ export async function qrRegistrationConversation(conversation, ctx) {
         let qrImageMessageId = null;
         let isScanned = false;
 
-        // QR login with timeout
+        const sessionState = activeQrSessions.get(telegramId);
+        const signal = sessionState?.abortController?.signal || abortController.signal;
+
+        // QR login with timeout and abortSignal
         const loginPromise = client.signInUserWithQrCode(
           {
             apiId: config.apiId,
             apiHash: config.apiHash,
           },
           {
+            abortSignal: signal,
             qrCode: async (token) => {
+              if (signal.aborted) {return;}
               try {
                 const url = `tg://login?token=${token.token.toString('base64url')}`;
                 const qrBuffer = await qrcode.toBuffer(url, { scale: 8 });
@@ -528,6 +597,8 @@ export async function qrRegistrationConversation(conversation, ctx) {
                   } catch (_e) { /* ignore: may be already deleted */ }
                 }
 
+                if (signal.aborted) {return;}
+
                 const qrMsg = await outsideCtx.api.sendPhoto(chatId, new InputFile(qrBuffer), {
                   caption: '📷 <b>SCAN QR CODE INI</b>\n\n' +
                            '<blockquote>' +
@@ -535,17 +606,22 @@ export async function qrRegistrationConversation(conversation, ctx) {
                            '2. Buka <b>Pengaturan (Settings) > Perangkat (Devices) > Hubungkan Perangkat</b>.\n' +
                            '3. Arahkan kamera HP ke QR Code di atas.' +
                            '</blockquote>\n' +
-                           '⚠️ <i>QR Code ini berlaku selama 30 detik. Jika kedaluwarsa, bot akan mengirimkan QR Code yang baru.</i>',
+                           '⚠️ <i>QR Code ini berlaku selama 30 detik. Jika kedaluwarsa, bot akan otomatis mengirimkan QR Code yang baru.</i>',
                   parse_mode: 'HTML',
                   reply_markup: cancelKeyboard,
                 });
                 qrImageMessageId = qrMsg.message_id;
+                if (sessionState) {
+                  sessionState.qrMessageId = qrImageMessageId;
+                }
               } catch (qrErr) {
-                Logger.logUser(telegramId, `Error generating/sending QR: ${qrErr.message}`, 'ERROR');
+                if (!signal.aborted) {
+                  Logger.logUser(telegramId, `Error generating/sending QR: ${qrErr.message}`, 'ERROR');
+                }
               }
             },
             onError: (err) => {
-              if (!isScanned) {
+              if (!isScanned && !signal.aborted) {
                 Logger.logUser(telegramId, `QR Sign-in Error: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
               }
             }
@@ -562,6 +638,9 @@ export async function qrRegistrationConversation(conversation, ctx) {
           isScanned = true;
           result = { status: 'success' };
         } catch (e) {
+          if (signal.aborted || e.name === 'AbortError' || e.message?.includes('aborted')) {
+            throw new Error('USER_CANCELLED');
+          }
           if (e.message?.includes('Account has 2FA enabled') || e.message === 'SESSION_PASSWORD_NEEDED') {
             isScanned = true;
             result = { status: '2fa_needed' };
@@ -581,16 +660,24 @@ export async function qrRegistrationConversation(conversation, ctx) {
           return { status: '2fa_needed' };
         }
 
-        // Berhasil login tanpa 2FA - simpan session
+        // Berhasil login tanpa 2FA - simpan session & profil
         const sessionString = client.session.save();
+        let phone: string | null = null;
+        let customName: string | undefined;
+        try {
+          const me: any = await client.getMe();
+          phone = me?.phone ? (me.phone.startsWith('+') ? me.phone : `+${me.phone}`) : null;
+          customName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || undefined;
+        } catch (_) { /* ignore */ }
 
         // Disconnect client setelah session disimpan
         try {
           await client.disconnect();
         } catch (_e) { /* ignore */ }
         activeRegClients.delete(telegramId);
+        activeQrSessions.delete(telegramId);
 
-        return { status: 'success', sessionString };
+        return { status: 'success', sessionString, phone, customName };
       },
       // Data dari external() harus serializable - sessionString adalah string
       beforeStore: (data) => data,
@@ -599,16 +686,19 @@ export async function qrRegistrationConversation(conversation, ctx) {
 
     // --- Handle 2FA jika diperlukan ---
     if (qrResult.status === '2fa_needed') {
-      await replyRich(ctx, `<h1>🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>`, { reply_markup: cancelKeyboard, });
+      await replyRich(ctx, `<h1 align="center">🔒 Akun Anda menggunakan Verifikasi 2 Langkah (2FA).</h1><blockquote>Silakan ketik <b>Password 2FA</b> Anda di bawah ini.</blockquote>`, { reply_markup: cancelKeyboard, });
 
-      const pwdResult = await conversation.waitFor('message:text');
-      if (pwdResult.message?.text?.trim() === '/cancel') {
+      const pwdResult = await conversation.waitFor(['message:text', 'callback_query:data']);
+      const pwdCb = pwdResult.callbackQuery?.data;
+      const pwdText = pwdResult.message?.text?.trim();
+
+      if (pwdCb === 'cancel' || pwdCb === 'cancel_reg' || pwdCb === 'cancel_qr' || pwdText?.toLowerCase() === '/cancel') {
         cleanupClient(telegramId);
-        await replyRich(ctx, `<blockquote><b>❌ KESALAHAN</b><br>Pendaftaran dibatalkan.</blockquote>`);
+        await replyRich(ctx, `<blockquote><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali.</blockquote>`);
         return;
       }
       
-      const password = pwdResult.message.text.trim();
+      const password = pwdText;
 
       const pwdAuthResult = await conversation.external(async () => {
         const activeClient = activeRegClients.get(telegramId);
@@ -617,44 +707,70 @@ export async function qrRegistrationConversation(conversation, ctx) {
         try {
           await activeClient.signInWithPassword({ apiId: config.apiId, apiHash: config.apiHash }, { password: async () => password });
           const sess = activeClient.session.save();
+          let phone: string | null = null;
+          let customName: string | undefined;
+          try {
+            const me: any = await activeClient.getMe();
+            phone = me?.phone ? (me.phone.startsWith('+') ? me.phone : `+${me.phone}`) : null;
+            customName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || undefined;
+          } catch (_) { /* ignore */ }
+
           try { await activeClient.disconnect(); } catch (_e) { /* ignore */ }
           activeRegClients.delete(telegramId);
-          return { status: 'success', sessionString: sess };
+          activeQrSessions.delete(telegramId);
+          return { status: 'success', sessionString: sess, phone, customName };
         } catch (err) {
           try { await activeClient.disconnect(); } catch (_e) { /* ignore */ }
           activeRegClients.delete(telegramId);
+          activeQrSessions.delete(telegramId);
           return { status: 'error', error: err.message };
         }
       });
 
       if (pwdAuthResult.status !== 'success') {
-        await replyRich(ctx, `❌ <b>Gagal login 2FA:</b>\n<blockquote>${pwdAuthResult.error}</blockquote>\nSilakan ulangi <code>/daftar</code>.`);
+        await replyRich(ctx, `❌ <b>Gagal login 2FA:</b>\n<blockquote>${pwdAuthResult.error}</blockquote>\nSilakan ulangi dengan klik /daftar.`);
         return;
       }
       qrResult.sessionString = pwdAuthResult.sessionString;
+      if (pwdAuthResult.phone) {qrResult.phone = pwdAuthResult.phone;}
+      if (pwdAuthResult.customName) {qrResult.customName = pwdAuthResult.customName;}
     }
 
     // Save to Database
-    await saveUserbotSession(telegramId, null, qrResult.sessionString);
+    await saveUserbotSession(telegramId, qrResult.phone || null, qrResult.sessionString);
+    if (qrResult.customName) {
+      const { updateUserbotFeature } = await import('../../infrastructure/database.js');
+      await updateUserbotFeature(telegramId, 'custom_name', qrResult.customName);
+    }
 
-    await replyRich(ctx, `<h1>✨ Pendaftaran Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
+    await replyRich(ctx, `<h1 align="center">✨ Pendaftaran Berhasil!</h1><blockquote>⏳ Mengaktifkan userbot Anda...</blockquote>`, {  });
 
     // Start userbot in manager
     await conversation.external(async () => {
       await userbotManager.startUserbot(telegramId, qrResult.sessionString);
     });
 
-    await replyRich(ctx, `<h1>🟢 Userbot AKTIF!</h1>` +
+    await replyRich(ctx, `<h1 align="center">🟢 Userbot AKTIF!</h1>` +
       `<table bordered striped><caption>🎉 Akun Berhasil Didaftarkan</caption>` +
       `<tr><th>Item</th><th>Detail</th></tr>` +
       `<tr><td>Metode</td><td align="center">🔍 QR Code</td></tr>` +
       `<tr><td>Status</td><td align="center">🟢 Aktif</td></tr>` +
-      `<tr><td>ID</td><td align="center"><code>${telegramId}</code></td></tr>` +
+      (qrResult.phone ? `<tr><td>Nomor HP</td><td align="center"><code>${qrResult.phone}</code></td></tr>` : '') +
+      `<tr><td>ID Telegram</td><td align="center"><code>${telegramId}</code></td></tr>` +
       `</table>` +
-      `<blockquote>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</blockquote>`, {  });
+      `<blockquote>💡 Coba kirim <code>.ping</code> di chat mana pun — userbot akan membalas <b>Pong</b>!</blockquote>`, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' }],
+            [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
+          ]
+        }
+      });
 
   } catch (error) {
     const isCancelled = error.message === 'USER_CANCELLED' || 
+                        error.name === 'AbortError' ||
+                        error.message?.includes('aborted') ||
                         error.message?.includes('disconnected') || 
                         error.message?.includes('disconnect') ||
                         error.message?.includes('Closed') ||
@@ -669,6 +785,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
       }
     }
   } finally {
+    await abortActiveQr(telegramId, ctx.api);
     await cleanupClient(telegramId);
   }
 }
@@ -687,7 +804,7 @@ export async function broadcastConversation(conversation, ctx) {
   }
 
   try {
-    await replyRich(ctx, `<h1>📢 Panel Broadcast Userbot</h1><blockquote>Silakan kirimkan pesan broadcast yang ingin Anda sebarluaskan ke seluruh pengguna terdaftar.</blockquote>`, { reply_markup: cancelKeyboard, });
+    await replyRich(ctx, `<h1 align="center">📢 Panel Broadcast Userbot</h1><blockquote>Silakan kirimkan pesan broadcast yang ingin Anda sebarluaskan ke seluruh pengguna terdaftar.</blockquote>`, { reply_markup: cancelKeyboard, });
 
     let broadcastMsg;
     try {
@@ -719,7 +836,7 @@ export async function broadcastConversation(conversation, ctx) {
       }
     }
 
-    await replyRich(ctx, `<h1>✅ Broadcast Selesai!</h1>` +
+    await replyRich(ctx, `<h1 align="center">✅ Broadcast Selesai!</h1>` +
       `<table bordered striped><caption>📊 Ringkasan Pengiriman</caption>` +
       `<tr><th>Item</th><th>Jumlah</th></tr>` +
       `<tr><td>✅ Sukses Terkirim</td><td align="center"><code>${successCount} Akun</code></td></tr>` +
@@ -744,7 +861,7 @@ export async function customNameConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
   
   try {
-    await replyRich(ctx, `<h1>📝 Set Custom Nama Ubot</h1><blockquote>Kirimkan nama/signature baru untuk userbot Anda (Maksimal 30 karakter).\nContoh: <code>Ubot Sultan</code></blockquote>\n\nKetik /cancel untuk membatalkan.`, { reply_markup: cancelKeyboard, });
+    await replyRich(ctx, `<h1 align="center">📝 Set Custom Nama Ubot</h1><blockquote>Kirimkan nama/signature baru untuk userbot Anda (Maksimal 30 karakter).\nContoh: <code>Ubot Sultan</code></blockquote>\n\nKetik /cancel untuk membatalkan.`, { reply_markup: cancelKeyboard, });
 
     let newName;
     try {

@@ -31,10 +31,17 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
   const ms = minutes * 60 * 1000;
   const intervalId = setInterval(async () => {
     try {
+      if (typeof (client as any)?.isFloodWaiting === 'function' && (client as any).isFloodWaiting()) {
+        Logger.logUser(idNum, `[Loop:${chatKey}] Dilewati sementara karena akun sedang dalam proteksi FloodWait.`, 'WARN');
+        return;
+      }
       await client.sendMessage(chatId, {
         message: loopMessage
       });
     } catch (err) {
+      if (typeof (client as any)?.handlePossibleFloodError === 'function') {
+        (client as any).handlePossibleFloodError(err);
+      }
       Logger.logUser(idNum, `Loop Error [${chatKey}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
     }
   }, ms);
@@ -95,9 +102,9 @@ export function stopAllLoops(telegramId) {
 }
 
 export default {
-  name: 'schedule',
+  name: 'loop',
   help: {
-    title: 'Schedule / Auto Post',
+    title: 'Auto-Loop Broadcast (.loop)',
     description: 'Mengirimkan pesan secara otomatis dan berulang di sebuah obrolan (Loop). Sangat berguna untuk broadcast promosi atau keperluan roleplay.',
     usage: '• `.loop <menit> <pesan>` (Mulai loop)\n• `.rmloop` (Hentikan loop di chat ini)\n• `.listloop` (Lihat semua loop berjalan)',
     detail: 'Pesan loop disimpan di database dan akan dipulihkan otomatis ketika bot direstart.'

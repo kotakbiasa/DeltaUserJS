@@ -44,7 +44,7 @@ export async function afkReasonConversation(conversation, ctx) {
   const telegramId = ctx.from.id;
 
   try {
-    await replyRich(ctx, `<h1>📝 Setel Alasan AFK Baru</h1><blockquote>Silakan kirimkan teks alasan AFK Anda yang baru. Contoh:\n<code>Sedang tidur, jangan spam ya!</code></blockquote>`, { reply_markup: cancelKeyboard });
+    await replyRich(ctx, `<h1 align="center">📝 Setel Alasan AFK Baru</h1><blockquote>Silakan kirimkan teks alasan AFK Anda yang baru. Contoh:\n<code>Sedang tidur, jangan spam ya!</code></blockquote>`, { reply_markup: cancelKeyboard });
 
     let newReason;
     try {
@@ -130,7 +130,7 @@ export async function manageVarsConv(conversation, ctx) {
       }).join('');
 
       // Kirim menu utama vars
-      const menuMsg = await replyRich(ctx, `<h1>⚙️ Pengaturan Variabel (Vars)</h1>` +
+      const menuMsg = await replyRich(ctx, `<h1 align="center">⚙️ Pengaturan Variabel (Vars)</h1>` +
         `<blockquote>Kelola variabel khusus untuk userbot Anda. Nilai tersembunyi (spoiler) — tap untuk melihat.</blockquote>` +
         `<table bordered striped><caption>📋 Template Variabel</caption>` +
         `<tr><th>#</th><th>Variabel</th><th>Fungsi</th></tr>` +
@@ -173,7 +173,7 @@ export async function manageVarsConv(conversation, ctx) {
           detailKb.text('🔙 Kembali', 'var:back');
 
           await replyRich(ctx,
-            `<h1>📦 Variabel <code>${key}</code></h1>` +
+            `<h1 align="center">📦 Variabel <code>${key}</code></h1>` +
             `<table bordered striped><caption>📋 Detail</caption>` +
             `<tr><th>Item</th><th>Detail</th></tr>` +
             `<tr><td>Status</td><td align="center">${hasValue ? '🟢 Sudah diset' : '⚪ Belum diset'}</td></tr>` +
@@ -210,7 +210,7 @@ export async function manageVarsConv(conversation, ctx) {
 
         if (detailData.startsWith('var:edit:')) {
           const editKey = detailData.split('var:edit:')[1];
-          await replyRich(ctx, `<h1>📝 Mengatur <code>${editKey}</code></h1><blockquote>Silakan kirimkan nilai/value baru untuk <code>${editKey}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
+          await replyRich(ctx, `<h1 align="center">📝 Mengatur <code>${editKey}</code></h1><blockquote>Silakan kirimkan nilai/value baru untuk <code>${editKey}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
 
           let value;
           try {
@@ -264,7 +264,7 @@ export async function manageVarsConv(conversation, ctx) {
       }
 
       if (data === 'var:custom') {
-        await replyRich(ctx, `<h1>➕ Variabel Kustom Baru</h1><blockquote>Silakan kirimkan <b>NAMA (KUNCI)</b> variabel baru Anda (gunakan huruf besar, contoh: <code>MY_VAR</code>):</blockquote>`, { reply_markup: cancelKeyboard });
+        await replyRich(ctx, `<h1 align="center">➕ Variabel Kustom Baru</h1><blockquote>Silakan kirimkan <b>NAMA (KUNCI)</b> variabel baru Anda (gunakan huruf besar, contoh: <code>MY_VAR</code>):</blockquote>`, { reply_markup: cancelKeyboard });
 
         let key;
         try {
@@ -280,7 +280,7 @@ export async function manageVarsConv(conversation, ctx) {
           continue;
         }
 
-        await replyRich(ctx, `<h1>📝 Nilai Variabel</h1><blockquote>Silakan kirimkan nilai/value untuk <code>${key}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
+        await replyRich(ctx, `<h1 align="center">📝 Nilai Variabel</h1><blockquote>Silakan kirimkan nilai/value untuk <code>${key}</code>:</blockquote>`, { reply_markup: cancelKeyboard });
 
         let value;
         try {
@@ -320,7 +320,7 @@ export async function manageVarsConv(conversation, ctx) {
         });
         deleteKb.text('❌ Batal', 'var:del_cancel');
 
-        const delMenuMsg = await replyRich(ctx, `<h1>🗑️ Hapus Variabel</h1><blockquote>Pilih variabel yang ingin Anda hapus:</blockquote>`, { reply_markup: deleteKb });
+        const delMenuMsg = await replyRich(ctx, `<h1 align="center">🗑️ Hapus Variabel</h1><blockquote>Pilih variabel yang ingin Anda hapus:</blockquote>`, { reply_markup: deleteKb });
 
         const delResult = await conversation.waitFor('callback_query:data');
         const delData = delResult.callbackQuery.data;
@@ -393,7 +393,7 @@ function systemVarTableHtml(currentVars: Record<string, unknown>): string {
       extraKeys.map(k => `<tr><td align="center">•</td><td>🟢 <code>${k}</code></td><td><i>kustom</i></td><td align="center">${spoiler(String(currentVars[k]))}</td></tr>`).join('')
     : '';
 
-  return `<h1>⚙️ System Vars</h1>` +
+  return `<h1 align="center">⚙️ System Vars</h1>` +
     `<blockquote>Kelola variabel sistem bot. Ketik <code>KUNCI NILAI</code> untuk set, atau <code>HAPUS KUNCI</code> untuk hapus. Nilai tersembunyi (spoiler) — tap untuk melihat.</blockquote>` +
     `<table bordered striped><caption>📋 Template Variabel</caption>` +
     `<tr><th>#</th><th>Variabel</th><th>Fungsi</th><th>Nilai</th></tr>` +

@@ -15,13 +15,20 @@ export async function saveUserbotSession(telegramId, phone, sessionString) {
   // Owner's userbot never expires
   const isOwnerBot = idNum === Number(config.ownerId);
 
+  let expDate = isOwnerBot ? null : (existing.expired_at || undefined);
+  if (!isOwnerBot && !expDate) {
+    // Beri masa aktif trial default (7 hari) jika pengguna baru belum memiliki masa aktif
+    const trialDays = 7;
+    expDate = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+  }
+
   const botData = normalizeBot({
     ...existing,
     telegram_id: idNum,
     phone: phone || null,
     session_string: encryptedSession,
     is_active: 1,
-    expired_at: isOwnerBot ? null : (existing.expired_at || undefined),
+    expired_at: expDate,
   }, idNum);
 
   dbCache.set(idNum, botData);

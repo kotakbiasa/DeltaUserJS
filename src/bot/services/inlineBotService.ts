@@ -119,9 +119,18 @@ export async function startInlineBotForUser(telegramId: number, token: string): 
       await ctx.answerCallbackQuery().catch(() => {});
     });
 
-    bot.callbackQuery('help:close', async (ctx) => {
+    bot.callbackQuery(/^(help:close|close)$/, async (ctx) => {
       await ctx.answerCallbackQuery('Menu ditutup').catch(() => {});
-      try { await ctx.deleteMessage(); } catch (_e) { /* ignore */ }
+      try {
+        await ctx.deleteMessage();
+        return;
+      } catch (_e) { /* ignore */ }
+      try {
+        await ctx.editMessageText('<i>Menu help ditutup.</i>', {
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [] },
+        });
+      } catch (_e2) { /* ignore */ }
     });
 
     // Polling start (non-blocking)

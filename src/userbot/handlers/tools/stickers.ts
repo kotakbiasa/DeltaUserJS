@@ -312,10 +312,10 @@ export default {
   version: '1.0.0',
   description: 'Kang sticker/foto/video ke pack pribadi & buat quote sticker via @QuotLyBot.',
   help: {
-    title: 'Sticker Tools (.kang / .q)',
+    title: 'Sticker & Quote Tools (.kang / .q / .quote)',
     description: 'Mencuri (kang) sticker/foto/video ke pack pribadi Anda dan membuat quote sticker dari pesan yang di-reply.',
-    usage: 'Balas sticker/foto/video lalu ketik `.kang [emoji] [nomor_pack]` • Balas pesan lalu ketik `.q [jumlah_pesan]`',
-    detail: '.kang menyalin media ke pack pribadi Anda secara instan: sticker webp/tgs/webm langsung disalin, foto & gambar di-resize 512px, video dikonversi webm maksimal 3 detik. Pack otomatis pindah ke volume berikutnya (Vol.1, Vol.2, ...) kalau penuh — animasi & video punya pack terpisah. `.q` polos ditangani plugin Quote Maker (.q); di sini tersedia `.q N` untuk multi-quote N pesan sekaligus via @QuotLyBot (maks 10, contoh: .q 5).'
+    usage: '• Balas media lalu ketik `.kang [emoji] [nomor_pack]`\n• Balas pesan lalu ketik `.q` atau `.quote` [jumlah_pesan]',
+    detail: '.kang menyalin media ke pack pribadi Anda secara instan: sticker webp/tgs/webm langsung disalin, foto & gambar di-resize 512px, video dikonversi webm maksimal 3 detik. `.q` atau `.quote` membuat quote stiker kutipan dari pesan yang di-reply via @QuotLyBot (bisa juga `.q N` untuk multi-quote N pesan berurutan, maks 10).'
   },
   async execute(client, message, _settings, telegramId) {
     if (!message.out || !message.message) {return;}
@@ -453,12 +453,8 @@ export default {
       return;
     }
 
-    // ------------------------- .q (multi-quote) -------------------------
-    // CATATAN: `.q` / `.quote` polos sudah ditangani plugin tools/quote.ts.
-    // Handler ini hanya mengambil `.q N` (multi-quote N pesan) agar tidak
-    // terjadi double-send; quote.ts memakai exact-match sehingga tidak
-    // ikut jalan untuk `.q N`.
-    const qMatch = text.match(/^\.q(?:uote)?\s+(\d+)$/i);
+    // ------------------------- .q / .quote (single & multi-quote) -------------------------
+    const qMatch = text.match(/^\.q(?:uote)?(?:\s+(\d+))?$/i);
     if (qMatch) {
       const replied = await message.getReplyMessage();
       if (!replied) {
