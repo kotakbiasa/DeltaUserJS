@@ -19,4 +19,5 @@ session.json
 approvals_meta.json
 pending_approvals.json
 vouchers.json
+terms_accepted*.json
 dist

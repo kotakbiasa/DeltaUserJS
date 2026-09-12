@@ -7,7 +7,7 @@ import qrcode from 'qrcode';
 import config from '../../config.js';
 import { saveUserbotSession } from '../../infrastructure/database.js';
 import userbotManager from '../../userbot/engine/manager.js';
-import { isApproved } from '../state/approvedUsers.js';
+import { isApproved, hasAcceptedTerms } from '../state/approvedUsers.js';
 
 // Custom prototype extension — teleproto's TelegramClient type doesn't declare signIn.
 declare module 'teleproto' {
@@ -180,6 +180,11 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
   if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {
     await replyRich(ctx, `<blockquote>🔒 Pendaftaran userbot membutuhkan persetujuan owner.<br>Silakan ajukan <b>🎁 Request Coba Gratis</b> di menu utama terlebih dahulu.</blockquote>`);
+    return;
+  }
+
+  if (!hasAcceptedTerms(telegramId)) {
+    await replyRich(ctx, `<blockquote>⚠️ Anda harus menyetujui <b>Syarat &amp; Ketentuan Layanan</b> terlebih dahulu sebelum menghubungkan akun.<br>Ketik <code>/daftar</code> atau buka menu untuk menyetujui.</blockquote>`);
     return;
   }
 
@@ -535,6 +540,11 @@ export async function qrRegistrationConversation(conversation, ctx) {
 
   if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {
     await replyRich(ctx, `<blockquote>🔒 Pendaftaran userbot membutuhkan persetujuan owner.<br>Silakan ajukan <b>🎁 Request Coba Gratis</b> di menu utama terlebih dahulu.</blockquote>`);
+    return;
+  }
+
+  if (!hasAcceptedTerms(telegramId)) {
+    await replyRich(ctx, `<blockquote>⚠️ Anda harus menyetujui <b>Syarat &amp; Ketentuan Layanan</b> terlebih dahulu sebelum menghubungkan akun.<br>Ketik <code>/daftar</code> atau buka menu untuk menyetujui.</blockquote>`);
     return;
   }
 

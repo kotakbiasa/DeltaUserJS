@@ -39,6 +39,8 @@ import {
   getPendingApprovals,
   getApprovedUsers,
   getApprovedUserMeta,
+  hasAcceptedTerms,
+  setAcceptedTerms,
 } from '../../state/approvedUsers.js';
 import { setUserVar } from '../../../services/SystemVarService.js';
 
@@ -570,6 +572,35 @@ export async function panelUserbotDiag(ctx) {
     (isRunning
       ? `<p><i>✅ Koneksi userbot berjalan lancar dan siap mengeksekusi perintah secara instan.</i></p>`
       : `<p><i>⚠️ Userbot sedang mati. Gunakan tombol Hidupkan Userbot di bawah untuk menyalakan.</i></p>`);
+}
+
+export function panelTermsOfService(ctx) {
+  const firstName = ctx.from?.first_name || 'User';
+  return `<h1 align="center">📜 Syarat &amp; Ketentuan Layanan</h1>` +
+    `<blockquote>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
+    `Sebelum menghubungkan akun Telegram Anda ke platform <b>DeltaUserJS</b>, mohon baca dan pahami ketentuan berikut:</blockquote>` +
+    `<table bordered striped>` +
+    `<tr><th>Poin Ketentuan</th><th>Penjelasan</th></tr>` +
+    `<tr><td>🔐 Keamanan Sesi</td><td>Sesi login Anda dienkripsi aman. Jangan pernah membagikan OTP / Session kepada pihak mana pun.</td></tr>` +
+    `<tr><td>⚖️ Tanggung Jawab</td><td>Penggunaan userbot sepenuhnya tanggung jawab pemilik akun. Hindari spamming liar atau pelanggaran ToS Telegram.</td></tr>` +
+    `<tr><td>🛡️ Batasan Server</td><td>Pengembang tidak bertanggung jawab atas pembatasan (limit/flood) pada nomor akibat aktivitas spam pengguna.</td></tr>` +
+    `<tr><td>🗑️ Hak Akses &amp; Sesi</td><td>Anda berhak menghentikan userbot atau menghapus sesi login kapan saja melalui dashboard.</td></tr>` +
+    `</table>` +
+    `<blockquote expandable>⚠️ <b>Pernyataan Persetujuan:</b><br>` +
+    `Dengan menekan tombol <b>✅ Saya Setuju &amp; Lanjutkan</b>, Anda menyatakan telah membaca, memahami, dan mematuhi seluruh syarat dan ketentuan layanan di atas.` +
+    `</blockquote>` +
+    `<p><i>Apakah Anda menyetujui ketentuan layanan di atas untuk melanjutkan pendaftaran?</i></p>`;
+}
+
+export function panelTermsDeclined(ctx) {
+  const firstName = ctx.from?.first_name || 'User';
+  return `<h1 align="center">❌ Pendaftaran Dibatalkan</h1>` +
+    `<blockquote>Halo, <b>${escapeHtml(firstName)}</b>.<br>` +
+    `Anda telah menolak Syarat &amp; Ketentuan Layanan. Akun Telegram Anda <b>tidak akan dihubungkan</b> ke server.</blockquote>` +
+    `<blockquote expandable>ℹ️ <b>Informasi Penting:</b><br>` +
+    `Persetujuan syarat &amp; ketentuan diperlukan demi keamanan bersama dan mencegah penyalahgunaan platform. Anda tetap dapat menjelajahi menu publik bot.` +
+    `</blockquote>` +
+    `<p><i>Jika berubah pikiran, Anda dapat membaca ulang ketentuan kapan saja untuk melanjutkan pendaftaran.</i></p>`;
 }
 
 export function panelRegister(ctx) {
@@ -1461,10 +1492,29 @@ export function keyboardDangerDelete() {
   ] };
 }
 
+export function keyboardTermsOfService() {
+  return { inline_keyboard: [
+    [
+      { text: '✅ Saya Setuju & Lanjutkan', callback_data: 'rich:tos_agree' },
+      { text: '❌ Tolak & Batal', callback_data: 'rich:tos_decline' }
+    ],
+    [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
+  ] };
+}
+
+export function keyboardTermsDeclined() {
+  return { inline_keyboard: [
+    [
+      { text: '🔄 Baca Ulang Ketentuan', callback_data: 'rich:tos_view' },
+      { text: '🔙 Menu Utama', callback_data: 'rich:main' }
+    ],
+  ] };
+}
+
 export function keyboardRegister() {
   return { inline_keyboard: [
     [{ text: '📱 Login via OTP', callback_data: 'rich:otp' }, { text: '🔍 Scan QR Code', callback_data: 'rich:qr' }],
-    [{ text: '💎 Paket VIP', callback_data: 'rich:subscription' }],
+    [{ text: '📜 Syarat & Ketentuan', callback_data: 'rich:tos_view' }, { text: '💎 Paket VIP', callback_data: 'rich:subscription' }],
     [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
@@ -1927,7 +1977,15 @@ export function registerRichHandlers(bot) {
     if (!isOwner(ctx) && !isApproved(ctx.from.id)) {
       return sendRich(ctx, panelAccessDenied(ctx), keyboardAccessDenied(ctx));
     }
+    if (!hasAcceptedTerms(ctx.from.id)) {
+      return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: false });
+    }
     await sendRich(ctx, panelRegister(ctx), keyboardRegister());
+  });
+
+  bot.command(['tos', 'rules', 'syarat', 'ketentuan'], async (ctx) => {
+    if (ctx.chat.type !== 'private') {return;}
+    return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: false });
   });
 
   bot.command('cancel', async (ctx) => {
@@ -2247,7 +2305,26 @@ export function registerRichHandlers(bot) {
       if (!isOwner(ctx) && !isApproved(ctx.from.id)) {
         return sendAccessDeniedRich(ctx);
       }
+      if (!hasAcceptedTerms(ctx.from.id)) {
+        return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
+      }
       return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { edit: true });
+    }
+
+    if (action === 'tos_agree') {
+      setAcceptedTerms(ctx.from.id, true);
+      await ctx.answerCallbackQuery({ text: '✅ Syarat & Ketentuan disetujui!' });
+      return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { edit: true });
+    }
+
+    if (action === 'tos_decline') {
+      await ctx.answerCallbackQuery({ text: 'Pendaftaran dibatalkan.' });
+      return sendRich(ctx, panelTermsDeclined(ctx), keyboardTermsDeclined(), { edit: true });
+    }
+
+    if (action === 'tos_view') {
+      await ctx.answerCallbackQuery();
+      return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
     }
 
     if (action === 'claim_trial') {
@@ -2755,11 +2832,17 @@ export function registerRichHandlers(bot) {
       if (!isOwner(ctx) && !isApproved(ctx.from.id)) {
         return sendAccessDeniedRich(ctx);
       }
+      if (!hasAcceptedTerms(ctx.from.id)) {
+        return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
+      }
       return ctx.conversation.enter('otp-reg');
     }
     if (action === 'qr') {
       if (!isOwner(ctx) && !isApproved(ctx.from.id)) {
         return sendAccessDeniedRich(ctx);
+      }
+      if (!hasAcceptedTerms(ctx.from.id)) {
+        return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
       }
       return ctx.conversation.enter('qr-reg');
     }

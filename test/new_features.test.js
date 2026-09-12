@@ -13,6 +13,11 @@ import {
   stopLoop,
   loopStore,
 } from '../dist/userbot/handlers/util/loop.js';
+import {
+  hasAcceptedTerms,
+  setAcceptedTerms,
+} from '../dist/bot/state/approvedUsers.js';
+import config from '../dist/config.js';
 
 async function runFeatureTests() {
   console.log('🧪 Running Tests for Feature 2, 3 & 4...\n');
@@ -163,6 +168,36 @@ async function runFeatureTests() {
   assert.strictEqual(stopped, true, 'stopLoop should return true');
   assert.strictEqual(userLoops.has('-100987654321'), false, 'loop should be removed');
   console.log('  ✅ Scheduler: stopLoop gracefully stops and cleans up broadcast loop');
+  passed++;
+
+  // ==========================================
+  // FEATURE 5: TERMS OF SERVICE (AGREEMENT GATE) TESTS
+  // ==========================================
+  console.log('\n--- [Feature 5: Syarat & Ketentuan Layanan (TOS Gate)] ---');
+
+  // Test 16: New regular user has not accepted terms by default
+  const testUserId = 77777777;
+  setAcceptedTerms(testUserId, false);
+  assert.strictEqual(hasAcceptedTerms(testUserId), false, 'New user should not have accepted terms');
+  console.log('  ✅ hasAcceptedTerms: returns false for unaccepted regular user');
+  passed++;
+
+  // Test 17: Setting accepted terms returns true
+  setAcceptedTerms(testUserId, true);
+  assert.strictEqual(hasAcceptedTerms(testUserId), true, 'User should have accepted terms');
+  console.log('  ✅ setAcceptedTerms: registers user acceptance successfully');
+  passed++;
+
+  // Test 18: Unsetting / declining terms reverts to false
+  setAcceptedTerms(testUserId, false);
+  assert.strictEqual(hasAcceptedTerms(testUserId), false, 'User should not have accepted terms after decline');
+  console.log('  ✅ setAcceptedTerms: allows revoking or declining terms');
+  passed++;
+
+  // Test 19: Owner is automatically accepted
+  const ownerId = Number(config.ownerId);
+  assert.strictEqual(hasAcceptedTerms(ownerId), true, 'Owner should always be auto-accepted');
+  console.log('  ✅ hasAcceptedTerms: automatically authorizes owner');
   passed++;
 
   console.log(`\n============================================================`);

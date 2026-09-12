@@ -7,12 +7,15 @@
  */
 import fs from 'fs';
 import path from 'path';
+import config from '../../config.js';
 
 const approvalsFile = path.join(process.cwd(), 'approvals.json');
 const approvalsMetaFile = path.join(process.cwd(), 'approvals_meta.json');
 const pendingFile = path.join(process.cwd(), 'pending_approvals.json');
+const termsAcceptedFile = path.join(process.cwd(), 'terms_accepted.json');
 
 const approvedUsers: Set<number> = new Set();
+const acceptedTermsUsers: Set<number> = new Set();
 
 export interface ApprovedUserMeta {
   userId: number;
@@ -71,6 +74,24 @@ try {
     }
   }
 } catch (_) { /* ignore */ }
+
+// Load terms accepted users on init
+try {
+  if (fs.existsSync(termsAcceptedFile)) {
+    const loaded = JSON.parse(fs.readFileSync(termsAcceptedFile, 'utf8'));
+    if (Array.isArray(loaded)) {
+      for (const id of loaded) {
+        acceptedTermsUsers.add(Number(id));
+      }
+    }
+  }
+} catch (_) { /* ignore */ }
+
+function saveAcceptedTerms() {
+  try {
+    fs.writeFileSync(termsAcceptedFile, JSON.stringify([...acceptedTermsUsers]));
+  } catch (_) { /* ignore */ }
+}
 
 function saveApprovals() {
   try {
@@ -148,4 +169,23 @@ export function removePendingApproval(userId: number): void {
 
 export function getPendingApprovals(): PendingRequest[] {
   return [...pendingApprovals.values()];
+}
+
+export function hasAcceptedTerms(userId: number): boolean {
+  if (Number(userId) === Number(config.ownerId)) {return true;}
+  return acceptedTermsUsers.has(Number(userId));
+}
+
+export function setAcceptedTerms(userId: number, accepted = true): void {
+  const idNum = Number(userId);
+  if (accepted) {
+    acceptedTermsUsers.add(idNum);
+  } else {
+    acceptedTermsUsers.delete(idNum);
+  }
+  saveAcceptedTerms();
+}
+
+export function getAcceptedTermsUsers(): number[] {
+  return [...acceptedTermsUsers];
 }
