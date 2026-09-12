@@ -601,9 +601,14 @@ export async function panelUserbotDiag(ctx) {
 
 export function panelTermsOfService(ctx) {
   const firstName = ctx.from?.first_name || 'User';
+  const agreeBtn = `<tg-button type="callback_data" data="rich:tos_agree" style="success">✅ Saya Setuju &amp; Lanjutkan</tg-button>`;
+  const declineBtn = `<tg-button type="callback_data" data="rich:tos_decline" style="danger">❌ Tolak &amp; Batal</tg-button>`;
+
   return `<h1 align="center">📜 Syarat &amp; Ketentuan Layanan</h1>` +
     `<p>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
     `Sebelum menghubungkan akun Telegram Anda ke platform <b>DeltaUserJS</b>, mohon baca dan pahami ketentuan berikut:</p>` +
+    `<details open>` +
+    `<summary>📋 <b>Rincian 4 Poin Ketentuan Layanan</b> (Klik Buka/Tutup)</summary>` +
     `<table bordered striped>` +
     `<tr><th>Poin Ketentuan</th><th>Penjelasan</th></tr>` +
     `<tr><td>🔐 Keamanan Sesi</td><td>Sesi login Anda dienkripsi aman. Jangan pernah membagikan OTP / Session kepada pihak mana pun.</td></tr>` +
@@ -611,20 +616,34 @@ export function panelTermsOfService(ctx) {
     `<tr><td>🛡️ Batasan Server</td><td>Pengembang tidak bertanggung jawab atas pembatasan (limit/flood) pada nomor akibat aktivitas spam pengguna.</td></tr>` +
     `<tr><td>🗑️ Hak Akses &amp; Sesi</td><td>Anda berhak menghentikan userbot atau menghapus sesi login kapan saja melalui dashboard.</td></tr>` +
     `</table>` +
+    `</details>` +
     `<hr/>` +
     `<h3>⚠️ Pernyataan Persetujuan:</h3>` +
-    `<p>Dengan menekan tombol <b>✅ Saya Setuju &amp; Lanjutkan</b>, Anda menyatakan telah membaca, memahami, dan mematuhi seluruh syarat dan ketentuan layanan di atas.</p>` +
-    `<footer>Apakah Anda menyetujui ketentuan layanan di atas untuk melanjutkan pendaftaran?</footer>`;
+    `<p>Dengan menekan tombol persetujuan di bawah, Anda menyatakan telah membaca, memahami, dan mematuhi seluruh syarat dan ketentuan layanan di atas.</p>` +
+    `<table bordered striped>` +
+    `<tr><th>⚖️ Pilihan Persetujuan</th></tr>` +
+    `<tr><td align="center">${agreeBtn}</td></tr>` +
+    `<tr><td align="center">${declineBtn}</td></tr>` +
+    `</table>` +
+    `<footer>Silakan tentukan persetujuan Anda untuk melanjutkan pendaftaran.</footer>`;
 }
 
 export function panelTermsDeclined(ctx) {
   const firstName = ctx.from?.first_name || 'User';
+  const retryBtn = `<tg-button type="callback_data" data="rich:tos_view" style="primary">🔄 Baca Ulang Ketentuan</tg-button>`;
+  const menuBtn = `<tg-button type="callback_data" data="rich:main">🔙 Menu Utama</tg-button>`;
+
   return `<h1 align="center">❌ Pendaftaran Dibatalkan</h1>` +
     `<p>Halo, <b>${escapeHtml(firstName)}</b>.<br>` +
     `Anda telah menolak Syarat &amp; Ketentuan Layanan. Akun Telegram Anda <b>tidak akan dihubungkan</b> ke server.</p>` +
     `<hr/>` +
     `<h3>ℹ️ Informasi Penting:</h3>` +
     `<p>Persetujuan syarat &amp; ketentuan diperlukan demi keamanan bersama dan mencegah penyalahgunaan platform. Anda tetap dapat menjelajahi menu publik bot.</p>` +
+    `<table bordered striped>` +
+    `<tr><th>🔄 Opsi Lanjutan</th></tr>` +
+    `<tr><td align="center">${retryBtn}</td></tr>` +
+    `<tr><td align="center">${menuBtn}</td></tr>` +
+    `</table>` +
     `<footer>Jika berubah pikiran, Anda dapat membaca ulang ketentuan kapan saja untuk melanjutkan pendaftaran.</footer>`;
 }
 
@@ -1573,20 +1592,16 @@ export function keyboardDangerDelete() {
 
 export function keyboardTermsOfService() {
   return { inline_keyboard: [
-    [
-      { text: '✅ Saya Setuju & Lanjutkan', callback_data: 'rich:tos_agree' },
-      { text: '❌ Tolak & Batal', callback_data: 'rich:tos_decline' }
-    ],
+    [{ text: '✅ Saya Setuju & Lanjutkan', callback_data: 'rich:tos_agree', style: 'success' } as any],
+    [{ text: '❌ Tolak & Batal', callback_data: 'rich:tos_decline', style: 'danger' } as any],
     [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
 
 export function keyboardTermsDeclined() {
   return { inline_keyboard: [
-    [
-      { text: '🔄 Baca Ulang Ketentuan', callback_data: 'rich:tos_view' },
-      { text: '🔙 Menu Utama', callback_data: 'rich:main' }
-    ],
+    [{ text: '🔄 Baca Ulang Ketentuan', callback_data: 'rich:tos_view', style: 'primary' } as any],
+    [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
 

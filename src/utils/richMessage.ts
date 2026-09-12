@@ -195,6 +195,7 @@ export function stripRichTags(html: string): string {
     .replace(/<\/?tg-spoiler[^>]*>/g, '')
     .replace(/<\/?tg-collage[^>]*>/g, '')
     .replace(/<\/?tg-reference[^>]*>/g, '')
+    .replace(/<\/?tg-button[^>]*>/g, '')
     .replace(/<br\s*\/?>/g, '\n')
     .replace(/\s+/g, ' ')
     .trim();
