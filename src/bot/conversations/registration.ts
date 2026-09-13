@@ -647,7 +647,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
           result = { status: 'success' };
         } catch (e) {
           if (signal.aborted || e.name === 'AbortError' || e.message?.includes('aborted')) {
-            throw new Error('USER_CANCELLED');
+            throw new Error('USER_CANCELLED', { cause: e });
           }
           if (e.message?.includes('Account has 2FA enabled') || e.message === 'SESSION_PASSWORD_NEEDED') {
             isScanned = true;

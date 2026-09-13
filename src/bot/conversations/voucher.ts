@@ -14,8 +14,8 @@ async function waitForInput(conversation: any, ctx: any): Promise<string> {
 
   if (cbData === 'cancel_voucher' || cbData === 'cancel' || textMsg === '/cancel') {
     if (result.callbackQuery) {
-      try { await result.answerCallbackQuery('Aksi dibatalkan.'); } catch (_) {}
-      try { await result.deleteMessage(); } catch (_) {}
+      try { await result.answerCallbackQuery('Aksi dibatalkan.'); } catch { /* diabaikan */ }
+      try { await result.deleteMessage(); } catch { /* diabaikan */ }
     }
     await replyRich(ctx, `<p><b>❌ Aksi Dibatalkan</b><br>Operasi voucher telah dibatalkan.</p>`);
     throw new Error('USER_CANCELLED');
@@ -27,7 +27,9 @@ async function waitForInput(conversation: any, ctx: any): Promise<string> {
 
   try {
     await result.react('👍');
-  } catch (_) {}
+  } catch {
+    /* diabaikan */
+  }
 
   return result.message.text.trim();
 }
@@ -48,7 +50,9 @@ export async function userRedeemVoucherConversation(conversation: any, ctx: any)
     try {
       rawCode = await waitForInput(conversation, ctx);
     } catch (err: any) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {
+        return;
+      }
       throw err;
     }
 
@@ -78,7 +82,9 @@ export async function userRedeemVoucherConversation(conversation: any, ctx: any)
       );
     }
   } catch (err: any) {
-    if (err.message === 'USER_CANCELLED') return;
+    if (err.message === 'USER_CANCELLED') {
+        return;
+      }
     await replyRich(ctx, `<p>❌ Terjadi kesalahan saat memproses voucher: ${escapeHtml(err.message || String(err))}</p>`);
   }
 }
@@ -102,7 +108,9 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
     try {
       codeInput = await waitForInput(conversation, ctx);
     } catch (err: any) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {
+        return;
+      }
       throw err;
     }
 
@@ -122,7 +130,9 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
     try {
       daysInput = await waitForInput(conversation, ctx);
     } catch (err: any) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {
+        return;
+      }
       throw err;
     }
 
@@ -144,7 +154,9 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
     try {
       quotaInput = await waitForInput(conversation, ctx);
     } catch (err: any) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {
+        return;
+      }
       throw err;
     }
 
@@ -204,7 +216,9 @@ export async function adminCreateVoucherConversation(conversation: any, ctx: any
       );
     }
   } catch (err: any) {
-    if (err.message === 'USER_CANCELLED') return;
+    if (err.message === 'USER_CANCELLED') {
+        return;
+      }
     await replyRich(ctx, `<p>❌ Terjadi kesalahan: ${escapeHtml(err.message || String(err))}</p>`);
   }
 }

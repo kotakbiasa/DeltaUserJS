@@ -35,7 +35,6 @@ import {
 import { loadedPlugins } from '../userbot/engine/pluginRegistry.js';
 import { redeemVoucher } from '../services/VoucherService.js';
 import { isApproved } from '../bot/state/approvedUsers.js';
-import { dbCache } from '../infrastructure/dbCore.js';
 import { Logger } from '../utils/logger.js';
 
 interface AuthenticatedRequest extends IncomingMessage {

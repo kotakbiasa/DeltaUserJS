@@ -1,45 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { Spinner } from '@telegram-apps/telegram-ui';
-import { Power, ShieldCheck, ShieldAlert, Cpu, Activity, Phone, Star, RefreshCw, Eye, EyeOff, CheckCircle2, Zap } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Power, ShieldCheck, ShieldAlert, Cpu, Activity, Phone, Star, Eye, EyeOff, Zap, Server, Clock, Layers,
+} from 'lucide-react';
 import { api, UserMe, UserbotStatus } from '../api';
 import { triggerHaptic } from '../telegram';
+import {
+  Card, SectionLabel, Row, Tile, Banner, Skeleton, Spinner, Badge,
+  formatUptime, maskPhone,
+} from '../ui';
 
 interface OverviewTabProps {
   user: UserMe | null;
   onRefreshUser: () => void;
   onStatusChange?: (online: boolean) => void;
+  active?: boolean;
 }
 
-export const OverviewTab: React.FC<OverviewTabProps> = ({ user, onRefreshUser, onStatusChange }) => {
+export const OverviewTab: React.FC<OverviewTabProps> = ({ user, onRefreshUser, onStatusChange, active = true }) => {
   const [status, setStatus] = useState<UserbotStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       setErrorMsg(null);
       const res = await api.getUserbotStatus();
       if (res.success) {
         setStatus(res);
-        onStatusChange?.(res.connected);
+        onStatusChange?.(Boolean(res.connected));
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Gagal memuat status userbot');
     } finally {
       setLoading(false);
     }
-  };
+  }, [onStatusChange]);
 
   useEffect(() => {
+    if (!active) return;
     fetchStatus();
-    const interval = setInterval(fetchStatus, 4000);
+    const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [active, fetchStatus]);
 
   const handleToggle = async () => {
-    if (!status) return;
+    if (!status || toggling) return;
     triggerHaptic('medium');
     setToggling(true);
     try {
@@ -51,7 +58,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ user, onRefreshUser, o
       }
     } catch (err) {
       triggerHaptic('error');
-      setErrorMsg(err instanceof Error ? err.message : 'Gagal mengubah status daya userbot');
+      setErrorMsg(err instanceof Error ? err.message : 'Gagal mengubah status userbot');
     } finally {
       setToggling(false);
     }
@@ -59,323 +66,178 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ user, onRefreshUser, o
 
   if (loading && !status) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Spinner size="l" />
+      <div className="page stack gap-12">
+        <Skeleton height={236} count={1} />
+        <div className="grid-2">
+          <Skeleton height={78} count={2} />
+        </div>
+        <Skeleton height={188} count={1} />
       </div>
     );
   }
 
   const isConnected = Boolean(status?.connected);
-  const inFloodCooldown = Boolean(status?.floodGuard?.inCooldown);
-
-  const formatUptime = (seconds: number) => {
-    const d = Math.floor(seconds / (3600 * 24));
-    const h = Math.floor((seconds % (3600 * 24)) / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (d > 0) return `${d}h ${h}j`;
-    if (h > 0) return `${h}j ${m}m`;
-    return `${m}m ${Math.floor(seconds % 60)}d`;
-  };
+  const inFlood = Boolean(status?.floodGuard?.inCooldown);
+  const plugins = status?.stats?.pluginsCount ?? 0;
 
   return (
-    <div style={{ padding: '16px 16px 40px 16px', maxWidth: 600, margin: '0 auto' }}>
-      {errorMsg && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#fca5a5',
-            fontSize: 13,
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <ShieldAlert size={18} style={{ flexShrink: 0 }} />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+    <div className="page stack gap-14">
+      {errorMsg && <Banner tone="danger" icon={<ShieldAlert size={17} />}>{errorMsg}</Banner>}
 
-      {/* Hero Power & Connection Card */}
-      <div
-        className="glass-card"
-        style={{
-          padding: '24px 20px',
-          textAlign: 'center',
-          position: 'relative',
-          overflow: 'hidden',
-          marginBottom: 16,
-          background: isConnected
-            ? 'linear-gradient(180deg, rgba(34, 197, 94, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)'
-            : 'linear-gradient(180deg, rgba(239, 68, 68, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)',
-          borderColor: isConnected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-        }}
-      >
-        {/* Glow backdrop effect */}
+      {/* ------------------------------ HERO ------------------------------ */}
+      <section className="hero stagger">
         <div
-          style={{
-            position: 'absolute',
-            top: '20%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 140,
-            height: 140,
-            borderRadius: '50%',
-            background: isConnected ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)',
-            filter: 'blur(40px)',
-            pointerEvents: 'none',
-          }}
+          className="hero-glow"
+          style={{ background: isConnected ? 'var(--ok)' : 'var(--danger)' }}
         />
 
-        {/* Big Circular Power Button */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+        <div className="center" style={{ justifyContent: 'center', marginBottom: 14 }}>
           <button
+            className="power"
+            data-on={isConnected}
             onClick={handleToggle}
             disabled={toggling}
-            className={`tap-effect ${isConnected ? 'pulse-green' : 'pulse-red'}`}
+            aria-label={isConnected ? 'Matikan userbot' : 'Nyalakan userbot'}
             style={{
-              width: 88,
-              height: 88,
-              borderRadius: '50%',
-              border: `3px solid ${isConnected ? '#22c55e' : '#ef4444'}`,
               background: isConnected
-                ? 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)'
-                : 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
+                ? 'linear-gradient(140deg, #22c55e, #0f9d58)'
+                : 'linear-gradient(140deg, #ff6b6b, #d92d20)',
+              color: isConnected ? '#16a34a' : '#ef4444',
               boxShadow: isConnected
-                ? '0 10px 28px rgba(34, 197, 94, 0.45)'
-                : '0 10px 28px rgba(239, 68, 68, 0.45)',
-              transition: 'all 0.3s ease',
+                ? '0 14px 34px rgba(34, 197, 94, 0.4)'
+                : '0 14px 34px rgba(239, 68, 68, 0.36)',
             }}
           >
-            {toggling ? (
-              <Spinner size="m" />
-            ) : (
-              <Power size={40} strokeWidth={2.5} />
-            )}
+            <span style={{ color: '#fff', display: 'grid', placeItems: 'center' }}>
+              {toggling ? <Spinner size={30} /> : <Power size={40} strokeWidth={2.5} />}
+            </span>
           </button>
         </div>
 
-        {/* Connection Status Label */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: isConnected ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)', border: `1px solid ${isConnected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, marginBottom: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? '#22c55e' : '#ef4444', display: 'inline-block' }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: isConnected ? '#4ade80' : '#f87171' }}>
-            {isConnected ? 'USERBOT ONLINE' : 'USERBOT OFFLINE'}
-          </span>
+        <div className={`status-pill ${isConnected ? 'ok' : 'off'}`}>
+          <span className="dot" style={isConnected ? undefined : { background: 'var(--danger)', boxShadow: 'none' }} />
+          {isConnected ? 'USERBOT ONLINE' : 'USERBOT OFFLINE'}
         </div>
 
-        <p style={{ margin: '0 0 16px 0', fontSize: 13, color: 'var(--tg-hint, #94a3b8)', lineHeight: 1.4 }}>
+        <p className="fs-13 hint m-0" style={{ lineHeight: 1.5, maxWidth: 300, margin: '0 auto 16px' }}>
           {isConnected
-            ? 'Semua 58 plugin otomatisasi aktif dan merespon perintah Telegram'
-            : 'Userbot nonaktif. Ketuk tombol daya di atas untuk menyalakan'}
+            ? 'Mesin otomatisasi aktif — semua modul merespon perintah Telegram Anda.'
+            : 'Sesi nonaktif. Ketuk tombol daya untuk menghidupkan kembali.'}
         </p>
 
-        {/* Action Toggle Switch Button */}
         <button
+          className={`btn press ${isConnected ? 'danger' : 'primary'}`}
+          style={{ maxWidth: 300, margin: '0 auto' }}
           onClick={handleToggle}
           disabled={toggling}
-          className="tap-effect"
-          style={{
-            width: '100%',
-            maxWidth: 280,
-            margin: '0 auto',
-            padding: '12px 20px',
-            borderRadius: 12,
-            border: isConnected ? '1px solid rgba(239, 68, 68, 0.4)' : 'none',
-            background: isConnected ? 'rgba(239, 68, 68, 0.15)' : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-            color: isConnected ? '#f87171' : '#ffffff',
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}
         >
           <Power size={17} />
-          <span>{isConnected ? 'Matikan Sesi Userbot' : 'Nyalakan Sesi Userbot'}</span>
+          <span>{isConnected ? 'Matikan Sesi' : 'Nyalakan Sesi'}</span>
         </button>
-      </div>
+      </section>
 
-      {/* FloodGuard Protection Status Banner */}
-      {inFloodCooldown ? (
-        <div
-          style={{
-            padding: '14px 16px',
-            borderRadius: 14,
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
-            border: '1px solid rgba(245, 158, 11, 0.35)',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 12,
-          }}
-        >
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <ShieldAlert size={20} color="#f59e0b" />
+      {/* --------------------------- FLOODGUARD --------------------------- */}
+      {inFlood ? (
+        <Banner tone="warn" icon={<ShieldAlert size={17} />}>
+          <div className="fw-7">FloodGuard: mode hibernasi</div>
+          <div className="fs-12 op-75 mt-6" style={{ lineHeight: 1.45 }}>
+            Telegram mendeteksi laju pesan tinggi. Sesi dijeda sementara untuk mencegah banned.
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#f59e0b', marginBottom: 2 }}>
-              🛡️ FloodGuard: Mode Hibernasi Aktif
-            </div>
-            <div style={{ fontSize: 13, opacity: 0.8, lineHeight: 1.4, marginBottom: 8 }}>
-              Telegram mendeteksi laju pesan tinggi. Akun dihibernasikan sementara untuk mencegah banned.
-            </div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 6, background: 'rgba(245, 158, 11, 0.2)', fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>
-              ⏱️ {status?.floodGuard.remainingSeconds} Detik Tersisa
-            </div>
+          <div className="mt-10">
+            <Badge tone="warn">⏱ {status?.floodGuard.remainingSeconds}s tersisa</Badge>
           </div>
-        </div>
+        </Banner>
       ) : (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: 'rgba(34, 197, 94, 0.08)',
-            border: '1px solid rgba(34, 197, 94, 0.2)',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <ShieldCheck size={20} color="#22c55e" style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#4ade80' }}>
-            Proteksi FloodGuard Siaga
-          </div>
-          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', fontWeight: 700 }}>
-            AMAN
-          </span>
+        <div className="banner ok">
+          <ShieldCheck size={18} className="shrink-0" />
+          <span className="grow fw-6 fs-13">Proteksi FloodGuard siaga</span>
+          <Badge tone="ok">Aman</Badge>
         </div>
       )}
 
-      {/* 4 Metrics Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        {/* Metric 1: Uptime */}
-        <div className="glass-card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tg-hint)', fontSize: 12, marginBottom: 6 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(56, 189, 248, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Activity size={15} color="#38bdf8" />
-            </div>
-            <span>Uptime Mesin</span>
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc' }}>
-            {status ? formatUptime(status.uptime) : '-'}
-          </div>
-          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Node.js runtime</div>
+      {/* ---------------------------- METRICS ----------------------------- */}
+      <section>
+        <SectionLabel>Ringkasan Mesin</SectionLabel>
+        <div className="grid-2">
+          <Tile
+            icon={<Clock size={15} />}
+            label="Uptime Mesin"
+            value={status ? formatUptime(status.uptime) : '—'}
+            foot="Node.js runtime"
+            accent="var(--info)"
+          />
+          <Tile
+            icon={<Cpu size={15} />}
+            label="Pemakaian RAM"
+            value={status ? `${status.stats.memoryUsageMb} MB` : '—'}
+            foot="Heap memory"
+            accent="var(--violet)"
+          />
+          <Tile
+            icon={<Zap size={15} />}
+            label="Modul Plugin"
+            value={plugins ? `${plugins}` : '—'}
+            foot="Siap digunakan"
+            accent="var(--ok)"
+          />
+          <Tile
+            icon={<Layers size={15} />}
+            label="MTProto Layer"
+            value="229"
+            foot="Teleproto engine"
+            accent="var(--gold)"
+          />
         </div>
+      </section>
 
-        {/* Metric 2: Memory RAM */}
-        <div className="glass-card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tg-hint)', fontSize: 12, marginBottom: 6 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(168, 85, 247, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Cpu size={15} color="#a855f7" />
-            </div>
-            <span>Pemakaian RAM</span>
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc' }}>
-            {status ? `${status.stats.memoryUsageMb} MB` : '-'}
-          </div>
-          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Heap memory</div>
-        </div>
-
-        {/* Metric 3: Active Plugins */}
-        <div className="glass-card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tg-hint)', fontSize: 12, marginBottom: 6 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(34, 197, 94, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={15} color="#22c55e" />
-            </div>
-            <span>Modul Plugin</span>
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#22c55e' }}>
-            {status?.stats.pluginsCount || 58} Modul
-          </div>
-          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Siap digunakan</div>
-        </div>
-
-        {/* Metric 4: Telegram Engine */}
-        <div className="glass-card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tg-hint)', fontSize: 12, marginBottom: 6 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(234, 179, 8, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle2 size={15} color="#eab308" />
-            </div>
-            <span>MTProto Layer</span>
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc' }}>
-            Layer 229
-          </div>
-          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Teleproto engine</div>
-        </div>
-      </div>
-
-      {/* Account Info Card */}
-      <div className="glass-card" style={{ padding: '16px 18px' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>📱 Detail Akun Telegram</span>
-        </div>
-
-        {/* Phone number row with show/hide spoiler */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Phone size={17} color="#38bdf8" />
-            <span style={{ fontSize: 13, opacity: 0.8 }}>Nomor Telepon</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: 'monospace' }}>
-              {status?.phone ? (showPhone ? status.phone : `${status.phone.substring(0, 5)}••••${status.phone.slice(-3)}`) : 'Belum ditautkan'}
-            </span>
-            {status?.phone && (
-              <button
-                onClick={() => setShowPhone(!showPhone)}
-                className="tap-effect"
-                style={{ background: 'none', border: 'none', color: 'var(--tg-hint)', cursor: 'pointer', padding: 2 }}
-              >
-                {showPhone ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Telegram Premium status row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Star size={17} color="#eab308" />
-            <span style={{ fontSize: 13, opacity: 0.8 }}>Telegram Premium</span>
-          </div>
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: 6,
-              background: user?.isPremium ? 'rgba(234, 179, 8, 0.18)' : 'rgba(255, 255, 255, 0.06)',
-              color: user?.isPremium ? '#eab308' : 'inherit',
-              border: user?.isPremium ? '1px solid rgba(234, 179, 8, 0.4)' : 'none',
-            }}
-          >
-            {user?.isPremium ? '⭐ Ya (Premium)' : '⚪ Tidak (Reguler)'}
-          </span>
-        </div>
-
-        {/* Telegram ID row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 14 }}>🆔</span>
-            <span style={{ fontSize: 13, opacity: 0.8 }}>Telegram ID</span>
-          </div>
-          <span className="code-pill">
-            {user?.id || '-'}
-          </span>
-        </div>
-      </div>
+      {/* ----------------------------- ACCOUNT ---------------------------- */}
+      <section>
+        <SectionLabel>Detail Akun</SectionLabel>
+        <Card>
+          <Row
+            icon={<Phone size={16} />}
+            title="Nomor Telepon"
+            value={
+              <span className="center gap-8">
+                <span className="mono fw-7 fs-12">
+                  {status?.phone ? (showPhone ? status.phone : maskPhone(status.phone)) : 'Belum ditautkan'}
+                </span>
+                {status?.phone && (
+                  <button
+                    className="icon-btn"
+                    style={{ width: 28, height: 28, borderRadius: 9, border: 0, background: 'transparent' }}
+                    onClick={() => setShowPhone((v) => !v)}
+                    aria-label={showPhone ? 'Sembunyikan nomor' : 'Tampilkan nomor'}
+                  >
+                    {showPhone ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                )}
+              </span>
+            }
+          />
+          <Row
+            icon={<Star size={16} />}
+            title="Telegram Premium"
+            value={user?.isPremium ? <Badge tone="gold">⭐ Premium</Badge> : <Badge tone="muted">Reguler</Badge>}
+          />
+          <Row
+            icon={<Server size={16} />}
+            title="Telegram ID"
+            value={<span className="pill">{user?.id || '—'}</span>}
+          />
+          <Row
+            icon={<Activity size={16} />}
+            title="Status Sesi"
+            value={
+              status?.hasSession ? (
+                <Badge tone={isConnected ? 'ok' : 'warn'}>{isConnected ? 'Terhubung' : 'Terputus'}</Badge>
+              ) : (
+                <Badge tone="danger">Belum login</Badge>
+              )
+            }
+          />
+        </Card>
+      </section>
     </div>
   );
 };

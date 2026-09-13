@@ -11,6 +11,7 @@ export interface TelegramWebApp {
       username?: string;
       language_code?: string;
       is_premium?: boolean;
+      photo_url?: string;
     };
     auth_date?: number;
     hash?: string;
@@ -24,6 +25,12 @@ export interface TelegramWebApp {
   viewportStableHeight: number;
   headerColor: string;
   backgroundColor: string;
+  setHeaderColor?(color: string): void;
+  setBackgroundColor?(color: string): void;
+  onEvent?(event: string, handler: () => void): void;
+  offEvent?(event: string, handler: () => void): void;
+  disableVerticalSwipes?(): void;
+  enableClosingConfirmation?(): void;
   BackButton: {
     isVisible: boolean;
     show(): void;
@@ -72,14 +79,27 @@ declare global {
 
 export const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
 
-export function initTelegramApp() {
-  if (tg) {
-    tg.ready();
-    tg.expand();
-  }
+/** Terapkan tema Telegram ke <html data-theme> supaya CSS token ikut berubah. */
+export function applyTheme() {
+  if (typeof document === 'undefined') return;
+  const scheme = tg?.colorScheme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', scheme);
+  return scheme;
 }
 
-export function triggerHaptic(style: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selectionChanged' = 'light') {
+export function initTelegramApp() {
+  applyTheme();
+  if (!tg) return;
+  tg.ready();
+  tg.expand();
+  // Sinkronkan ulang bila pengguna mengganti tema Telegram saat app terbuka.
+  tg.onEvent?.('themeChanged', applyTheme);
+  return tg.colorScheme === 'light' ? 'light' : 'dark';
+}
+
+export function triggerHaptic(
+  style: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selectionChanged' = 'light'
+) {
   try {
     if (!tg?.HapticFeedback) return;
     if (style === 'selectionChanged') {

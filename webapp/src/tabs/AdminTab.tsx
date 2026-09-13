@@ -1,186 +1,189 @@
-import React, { useState, useEffect } from 'react';
-import { Spinner } from '@telegram-apps/telegram-ui';
-import { ShieldCheck, Users, Server, Cpu, Terminal, RefreshCw, Smartphone, Key } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Users, Server, Cpu, Terminal, RefreshCw, Smartphone, ShieldCheck, Search, X, Crown, Activity,
+} from 'lucide-react';
 import { api } from '../api';
 import { triggerHaptic } from '../telegram';
+import { Card, SectionLabel, Tile, Skeleton, Empty, Badge, Banner, formatDate, relativeTime } from '../ui';
 
-export const AdminTab: React.FC = () => {
-  const [stats, setStats] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([]);
+interface AdminUserRow {
+  telegramId: number | string;
+  phone?: string | null;
+  expiredAt?: string | null;
+  isRunning?: boolean;
+  firstName?: string;
+  username?: string;
+}
+
+interface AdminStats {
+  totalRegisteredUsers?: number;
+  activeRunningClients?: number;
+  memoryRssMb?: number;
+  nodeVersion?: string;
+  totalPlugins?: number;
+  uptimeSeconds?: number;
+}
+
+export const AdminTab: React.FC<{ active?: boolean }> = ({ active = true }) => {
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [statsRes, usersRes] = await Promise.all([
-        api.getAdminStats(),
-        api.getAdminUsers(),
-      ]);
+      setError(null);
+      const [statsRes, usersRes] = await Promise.all([api.getAdminStats(), api.getAdminUsers()]);
       if (statsRes.success) setStats(statsRes.stats);
       if (usersRes.success) setUsers(usersRes.users);
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Gagal memuat data armada.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    if (!active) return;
     fetchData();
-  }, []);
+  }, [active, fetchData]);
 
   const handleRefresh = () => {
     triggerHaptic('medium');
-    setLoading(true);
+    setRefreshing(true);
     fetchData();
   };
 
   if (loading && !stats) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Spinner size="l" />
+      <div className="page stack gap-12">
+        <Skeleton height={78} count={2} />
+        <Skeleton height={74} count={4} />
       </div>
     );
   }
 
+  const q = search.toLowerCase().trim();
+  const filtered = users.filter(
+    (u) =>
+      !q ||
+      String(u.telegramId).includes(q) ||
+      (u.username || '').toLowerCase().includes(q) ||
+      (u.firstName || '').toLowerCase().includes(q) ||
+      (u.phone || '').includes(q)
+  );
+
+  const online = users.filter((u) => u.isRunning).length;
+
   return (
-    <div style={{ padding: '16px 16px 40px 16px', maxWidth: 600, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(234, 179, 8, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ShieldCheck size={20} color="#eab308" />
-          </div>
+    <div className="page stack gap-14">
+      <div className="between">
+        <div className="center gap-10">
+          <span className="row-icon" style={{ background: 'var(--gold-soft)', color: 'var(--gold)', width: 36, height: 36 }}>
+            <Crown size={19} />
+          </span>
           <div>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Pusat Kontrol Armada</h2>
-            <div style={{ fontSize: 11, color: '#eab308', fontWeight: 600 }}>KHUSUS OWNER BOT</div>
+            <div className="fw-8" style={{ fontSize: 16.5, letterSpacing: '-0.2px' }}>Pusat Kontrol Armada</div>
+            <div className="fs-11 fw-7" style={{ color: 'var(--gold)', letterSpacing: '0.05em' }}>AKSES OWNER</div>
           </div>
         </div>
-        <button
-          onClick={handleRefresh}
-          className="tap-effect"
-          style={{
-            padding: '6px 12px',
-            borderRadius: 8,
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            color: 'var(--tg-text)',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          <RefreshCw size={14} />
-          <span>Refresh</span>
+        <button className="icon-btn" onClick={handleRefresh} aria-label="Muat ulang">
+          <RefreshCw size={17} className={refreshing ? 'spin' : ''} />
         </button>
       </div>
 
-      {/* 4 Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-        <div className="glass-card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tg-hint)', fontSize: 12, marginBottom: 6 }}>
-            <Users size={16} color="#38bdf8" />
-            <span>Total Pengguna</span>
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#f8fafc' }}>
-            {stats?.totalRegisteredUsers || 0}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--tg-hint)', marginTop: 2 }}>Terdaftar di DB</div>
+      {error && <Banner tone="danger" icon={<ShieldCheck size={17} />}>{error}</Banner>}
+
+      {/* ------------------------------ STATS ------------------------------ */}
+      <section>
+        <SectionLabel>Statistik server</SectionLabel>
+        <div className="grid-2">
+          <Tile icon={<Users size={15} />} label="Total pengguna" value={stats?.totalRegisteredUsers ?? 0} foot="Terdaftar di DB" accent="var(--info)" />
+          <Tile icon={<Server size={15} />} label="Userbot online" value={stats?.activeRunningClients ?? online} foot="Sedang berjalan" accent="var(--ok)" />
+          <Tile icon={<Cpu size={15} />} label="Memory RSS" value={`${stats?.memoryRssMb ?? 0} MB`} foot="RAM server" accent="var(--violet)" />
+          <Tile icon={<Terminal size={15} />} label="Engine runtime" value={stats?.nodeVersion || '—'} foot="Node.js · Teleproto" accent="var(--gold)" />
         </div>
+      </section>
 
-        <div className="glass-card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tg-hint)', fontSize: 12, marginBottom: 6 }}>
-            <Server size={16} color="#22c55e" />
-            <span>Userbot Online</span>
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#22c55e' }}>
-            {stats?.activeRunningClients || 0}
-          </div>
-          <div style={{ fontSize: 11, color: '#22c55e', marginTop: 2 }}>Sedang berjalan</div>
-        </div>
+      {/* ------------------------------- FLEET ----------------------------- */}
+      <section>
+        <SectionLabel right={<Badge tone="muted">{users.length} akun</Badge>}>
+          <Activity size={13} /> Daftar akun terdaftar
+        </SectionLabel>
 
-        <div className="glass-card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tg-hint)', fontSize: 12, marginBottom: 6 }}>
-            <Cpu size={16} color="#a855f7" />
-            <span>Memory RSS</span>
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#f8fafc' }}>
-            {stats?.memoryRssMb || 0} MB
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--tg-hint)', marginTop: 2 }}>RAM Server</div>
-        </div>
-
-        <div className="glass-card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tg-hint)', fontSize: 12, marginBottom: 6 }}>
-            <Terminal size={16} color="#f59e0b" />
-            <span>Engine Runtime</span>
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc' }}>
-            {stats?.nodeVersion || 'v24'}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--tg-hint)', marginTop: 2 }}>Node.js & Teleproto</div>
-        </div>
-      </div>
-
-      {/* Fleet User List */}
-      <div style={{ marginBottom: 12 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>📋 Daftar Akun Terdaftar ({users.length})</span>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {users.map((u) => (
-          <div
-            key={u.telegramId}
-            className="glass-card"
-            style={{
-              padding: '14px 16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: u.isRunning ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+        {users.length > 0 && (
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <Search
+              size={16}
+              className="hint"
+              style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            />
+            <input
+              className="input"
+              type="search"
+              placeholder="Cari ID, username, atau nomor…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ paddingLeft: 36, paddingRight: search ? 38 : 12, fontSize: 15 }}
+            />
+            {search && (
+              <button
+                className="icon-btn"
+                onClick={() => setSearch('')}
+                aria-label="Bersihkan"
+                style={{ position: 'absolute', right: 5, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28, border: 0, background: 'transparent' }}
               >
-                <Smartphone size={18} color={u.isRunning ? '#22c55e' : '#ef4444'} />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tg-text)' }}>
-                  ID: {u.telegramId}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--tg-hint)', marginTop: 2 }}>
-                  {u.phone || 'No phone'} • Exp: {u.expiredAt ? new Date(u.expiredAt).toLocaleDateString('id-ID') : 'Lifetime'}
-                </div>
-              </div>
-            </div>
-
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '3px 8px',
-                borderRadius: 6,
-                background: u.isRunning ? 'rgba(34, 197, 94, 0.18)' : 'rgba(239, 68, 68, 0.18)',
-                color: u.isRunning ? '#4ade80' : '#f87171',
-                border: `1px solid ${u.isRunning ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
-              }}
-            >
-              {u.isRunning ? 'ONLINE' : 'STOPPED'}
-            </span>
+                <X size={15} />
+              </button>
+            )}
           </div>
-        ))}
-      </div>
+        )}
+
+        <Card>
+          {users.length === 0 ? (
+            <Empty icon="🚀" title="Belum ada akun" desc="Belum ada pengguna yang mendaftarkan userbot." />
+          ) : filtered.length === 0 ? (
+            <Empty icon="🔍" title="Tidak ditemukan" desc={`Tidak ada akun cocok dengan "${search}".`} />
+          ) : (
+            <div className="list-scroll no-scrollbar">
+              {filtered.map((u) => {
+                const exp = u.expiredAt;
+                const expSoon = exp ? new Date(exp).getTime() - Date.now() < 3 * 86400000 : false;
+                return (
+                  <div key={String(u.telegramId)} className="row">
+                    <span
+                      className="row-icon"
+                      style={
+                        u.isRunning
+                          ? { background: 'var(--ok-soft)', color: 'var(--ok)' }
+                          : { background: 'var(--danger-soft)', color: 'var(--danger)' }
+                      }
+                    >
+                      <Smartphone size={17} />
+                    </span>
+                    <span className="row-body">
+                      <span className="row-title truncate" style={{ display: 'block' }}>
+                        {u.firstName || `ID ${u.telegramId}`}
+                      </span>
+                      <span className="row-desc truncate" style={{ display: 'block' }}>
+                        {u.username ? `@${u.username} · ` : ''}
+                        {u.phone || 'tanpa nomor'}
+                      </span>
+                      <span className="fs-11 hint truncate" style={{ display: 'block', marginTop: 2 }}>
+                        {exp ? `${expSoon ? '⚠ ' : ''}Berakhir ${formatDate(exp)} · ${relativeTime(exp)}` : 'Lifetime / tanpa batas'}
+                      </span>
+                    </span>
+                    <Badge tone={u.isRunning ? 'ok' : 'danger'}>{u.isRunning ? 'Online' : 'Stop'}</Badge>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </section>
     </div>
   );
 };

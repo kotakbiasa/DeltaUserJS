@@ -13,8 +13,8 @@ async function waitForInput(conversation: any, ctx: any): Promise<string> {
 
   if (cbData === 'cancel_loop' || cbData === 'cancel' || textMsg === '/cancel') {
     if (result.callbackQuery) {
-      try { await result.answerCallbackQuery('Aksi dibatalkan.'); } catch (_) {}
-      try { await result.deleteMessage(); } catch (_) {}
+      try { await result.answerCallbackQuery('Aksi dibatalkan.'); } catch { /* diabaikan */ }
+      try { await result.deleteMessage(); } catch { /* diabaikan */ }
     }
     await replyRich(ctx, `<p><b>❌ Aksi Dibatalkan</b><br>Penjadwalan broadcast dibatalkan.</p>`);
     throw new Error('USER_CANCELLED');
@@ -26,7 +26,9 @@ async function waitForInput(conversation: any, ctx: any): Promise<string> {
 
   try {
     await result.react('👍');
-  } catch (_) {}
+  } catch {
+    /* diabaikan */
+  }
 
   return result.message.text.trim();
 }
@@ -55,7 +57,9 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
     try {
       targetChat = await waitForInput(conversation, ctx);
     } catch (err: any) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {
+        return;
+      }
       throw err;
     }
 
@@ -70,7 +74,9 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
     try {
       minutesInput = await waitForInput(conversation, ctx);
     } catch (err: any) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {
+        return;
+      }
       throw err;
     }
 
@@ -91,7 +97,9 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
     try {
       loopMessage = await waitForInput(conversation, ctx);
     } catch (err: any) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {
+        return;
+      }
       throw err;
     }
 
@@ -121,7 +129,9 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
       { reply_markup: keyboard }
     );
   } catch (err: any) {
-    if (err.message === 'USER_CANCELLED') return;
+    if (err.message === 'USER_CANCELLED') {
+        return;
+      }
     await replyRich(ctx, `<p>❌ Terjadi kesalahan saat menjadwalkan: ${escapeHtml(err.message || String(err))}</p>`);
   }
 }

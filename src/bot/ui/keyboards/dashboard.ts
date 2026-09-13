@@ -156,9 +156,6 @@ export function panelMain(ctx) {
   const isRegistered = !!session;
   const isTgPremium = isTelegramPremium(ctx, session);
   const running = isRegistered && userbotManager.isRunning(ctx.from.id);
-  const statusBadge = !isRegistered
-    ? '🔴 Belum Terdaftar'
-    : (running ? '🟢 Aktif &amp; Berjalan' : '🟡 Terdaftar (Mati)');
 
   if (!isRegistered) {
     const approved = isOwner(ctx) || isApproved(ctx.from.id);
@@ -217,7 +214,6 @@ export function panelMain(ctx) {
   }
 
   // Tampilan Menu Utama untuk Pengguna Terdaftar (Portal Ringkas)
-  const roleBadge = isOwner(ctx) ? 'Owner' : 'VIP Member';
   return `<h1 align="center">⚡ DeltaUserJS <sup>v2.4</sup></h1>` +
     `<p>Halo, <b>${escapeHtml(firstName)}</b>! Selamat datang di <b>${escapeHtml(botName)}</b>.<br>` +
     `Pusat kendali &amp; portal utama userbot Telegram Anda.</p>` +
@@ -1364,7 +1360,7 @@ export function panelUserLoops(ctx: any, page = 1) {
   const start = (currentPage - 1) * LOOPS_PER_PAGE;
   const pageItems = loops.slice(start, start + LOOPS_PER_PAGE);
 
-  let rows = '';
+  let rows: string;
   if (pageItems.length === 0) {
     rows = `<tr><td colspan="4" align="center"><i>Belum ada jadwal loop/broadcast yang tersimpan.</i></td></tr>`;
   } else {
@@ -1410,7 +1406,7 @@ export function panelAdminVouchers(page = 1) {
   const start = (currentPage - 1) * VOUCHERS_PER_PAGE;
   const pageItems = vouchers.slice(start, start + VOUCHERS_PER_PAGE);
 
-  let rows = '';
+  let rows: string;
   if (pageItems.length === 0) {
     rows = `<tr><td colspan="5" align="center"><i>Belum ada voucher promo yang dibuat.</i></td></tr>`;
   } else {
@@ -1885,7 +1881,6 @@ export function keyboardBuySubscription(_ctx?: any) {
 }
 
 export function keyboardSubscription(ctx?: any) {
-  const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
   const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
@@ -1921,7 +1916,7 @@ export function keyboardSubscription(ctx?: any) {
     const isExpired = !isUnlimited && diffDays <= 0;
 
     rows.push([
-      { text: '🛒 Beli / Perpanjang VIP', callback_data: 'rich:buy_premium', style: 'primary' },
+      { text: isExpired ? '🔴 Masa Aktif Habis — Perpanjang VIP' : '🛒 Beli / Perpanjang VIP', callback_data: 'rich:buy_premium', style: 'primary' },
       { text: '🎟️ Tukar Voucher Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
     ]);
     rows.push([
@@ -2371,7 +2366,9 @@ export function registerRichHandlers(bot) {
   });
 
   bot.command(['sharevoucher', 'postvoucher'], async (ctx) => {
-    if (!isOwner(ctx)) return;
+    if (!isOwner(ctx)) {
+      return;
+    }
     const code = String(ctx.match || '').trim();
     if (!code) {
       return replyRich(ctx, `<h3>💡 Petunjuk Berbagi Voucher</h3><p>Format: <code>/sharevoucher KODE</code><br>Contoh: <code>/sharevoucher PROMO-RAMADHAN</code></p>`);
@@ -3157,7 +3154,7 @@ export function registerRichHandlers(bot) {
           caption: `📦 <b>Backup Database MongoDB</b>\nTotal: ${users.length} userbot terdaftar.\nTanggal: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`,
           parse_mode: 'HTML'
         });
-        setTimeout(() => { try { fs.unlinkSync(filename); } catch (_) {} }, 60000);
+        setTimeout(() => { try { fs.unlinkSync(filename); } catch { /* diabaikan */ } }, 60000);
       } catch (err) {
         await ctx.replyWithRichMessage({ html: `<p>❌ <b>Gagal membuat backup:</b> ${escapeHtml(err instanceof Error ? err.message : String(err))}</p>` });
       }
