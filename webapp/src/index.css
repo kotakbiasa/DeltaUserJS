@@ -172,6 +172,61 @@ textarea {
   animation: pageIn 0.34s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ============================== SHEET (overflow) ============================== */
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease;
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 10px 16px calc(16px + var(--safe-bottom));
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: color-mix(in srgb, var(--tg-surface) 96%, transparent);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-top: var(--hairline) solid var(--tg-separator);
+  box-shadow: var(--shadow-3);
+  animation: sheetUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sheet-grip {
+  width: 38px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--tg-hint) 45%, transparent);
+  margin: 0 auto 12px;
+}
+
+.sheet-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: var(--hairline) solid var(--tg-separator);
+  background: var(--tg-section);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.sheet-item:active {
+  transform: scale(0.985);
+  background: color-mix(in srgb, var(--tg-section) 50%, var(--tg-text) 7%);
+}
+
 /* ================================ HEADER ================================ */
 .appbar {
   position: sticky;
@@ -1063,6 +1118,7 @@ textarea.input {
 .fs-11 { font-size: 11px; }
 .fs-12 { font-size: 12px; }
 .fs-13 { font-size: 13px; }
+.fs-15 { font-size: 15px; }
 .fw-6 { font-weight: 600; }
 .fw-7 { font-weight: 700; }
 .fw-8 { font-weight: 800; }
@@ -1092,6 +1148,16 @@ textarea.input {
 @keyframes toastIn {
   from { opacity: 0; transform: translateY(14px) scale(0.98); }
   to { opacity: 1; transform: none; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheetUp {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to { transform: none; opacity: 1; }
 }
 
 @keyframes shimmer {
