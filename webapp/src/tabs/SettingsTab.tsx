@@ -52,6 +52,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ user, active = true })
 
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  // Token inline bot hanya dikirim ke server bila user benar-benar mengubahnya.
+  // Tanpa ini, form yang gagal memuat data (state default '') akan menghapus token saat disimpan.
+  const [tokenTouched, setTokenTouched] = useState(false);
 
   const showToast = useCallback((text: string, ok: boolean) => {
     setToast({ text, ok });
@@ -62,7 +65,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ user, active = true })
     setLoading(true);
     try {
       const [s, v] = await Promise.all([api.getSettings(), api.getVars()]);
-      if (s.success) setSettings(s.settings);
+      if (s.success) {
+        setSettings(s.settings);
+        setTokenTouched(false);
+      }
       if (v.success) setVars({ userVars: v.userVars || {}, systemVars: v.systemVars || {} });
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Gagal memuat konfigurasi.', false);
@@ -98,7 +104,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ user, active = true })
     setSaving(true);
     triggerHaptic('medium');
     try {
-      const res = await api.updateSettings(settings);
+      // Kirim token HANYA kalau user mengubahnya — cegah penghapusan tak sengaja
+      // (mis. form dimuat dari state default karena GET /api/settings gagal).
+      const { inlineBotToken, ...rest } = settings;
+      const payload = tokenTouched ? { ...rest, inlineBotToken } : rest;
+      const res = await api.updateSettings(payload);
       if (res.success) {
         triggerHaptic('success');
         showToast(res.message || 'Setelan disimpan.', true);
@@ -505,6 +515,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ user, active = true })
                 </div>
                 <p className="fs-11 hint m-0 mb-12" style={{ lineHeight: 1.5 }}>
                   Token HTTP API dari @BotFather — mengaktifkan tombol navigasi interaktif pada menu <b>.help</b>.
+                  {' '}Kosongkan field ini lalu simpan untuk mencopot token.
                 </p>
                 <input
                   className="input mono"
@@ -512,7 +523,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ user, active = true })
                   placeholder="123456789:ABCDefgh…"
                   autoComplete="off"
                   value={settings.inlineBotToken}
-                  onChange={(e) => setSettings((p) => ({ ...p, inlineBotToken: e.target.value }))}
+                  onChange={(e) => {
+                    setTokenTouched(true);
+                    setSettings((p) => ({ ...p, inlineBotToken: e.target.value }));
+                  }}
                 />
               </div>
             </Card>
