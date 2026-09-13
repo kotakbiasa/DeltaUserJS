@@ -71,12 +71,22 @@
   --tg-subtitle: var(--tg-theme-subtitle-text-color, #667085);
   --tg-hint: var(--tg-theme-hint-color, #7c8798);
 
-  --ok-soft: rgba(18, 168, 84, 0.12);
-  --warn-soft: rgba(214, 128, 12, 0.12);
-  --danger-soft: rgba(214, 48, 48, 0.1);
-  --info-soft: rgba(17, 122, 214, 0.1);
-  --violet-soft: rgba(122, 74, 214, 0.1);
-  --gold-soft: rgba(196, 140, 8, 0.12);
+  /* Aksen versi gelap: warna cerah dari dark theme hanya mencapai kontras
+     ~1.4-2.7:1 di atas surface terang — di bawah ambang WCAG AA (4.5:1).
+     Nilai di bawah ini sudah dihitung ulang dan lolos >= 4.5:1. */
+  --ok: #0d7a44;
+  --warn: #9a5800;
+  --danger: #b42318;
+  --info: #0b69be;
+  --violet: #6e38c8;
+  --gold: #926600;
+
+  --ok-soft: rgba(13, 122, 68, 0.12);
+  --warn-soft: rgba(154, 88, 0, 0.12);
+  --danger-soft: rgba(180, 35, 24, 0.1);
+  --info-soft: rgba(11, 105, 190, 0.1);
+  --violet-soft: rgba(110, 56, 200, 0.1);
+  --gold-soft: rgba(146, 102, 0, 0.12);
 
   --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06);
   --shadow-2: 0 6px 18px rgba(16, 24, 40, 0.09);
@@ -170,6 +180,158 @@ textarea {
   padding: 14px 16px 28px;
   flex: 1;
   animation: pageIn 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ============================ SIDEBAR (desktop) ============================ */
+/* Tersembunyi di mobile; muncul penuh pada layar lebar (lihat media query). */
+.sidebar {
+  display: none;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.side-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 4px 6px 16px;
+  margin-bottom: 6px;
+  border-bottom: var(--hairline) solid var(--tg-separator);
+}
+
+.side-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #fff;
+  background: linear-gradient(140deg, #2f9bf5, #7c4dff);
+  box-shadow: 0 6px 18px rgba(47, 155, 245, 0.34);
+}
+
+.side-title {
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: -0.2px;
+}
+
+.side-sub {
+  font-size: 11.5px;
+  color: var(--tg-hint);
+  margin-top: 1px;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.side-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  border: var(--hairline) solid transparent;
+  background: none;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.side-item:hover {
+  background: var(--tg-section);
+}
+
+.side-item.on {
+  background: var(--info-soft);
+  border-color: color-mix(in srgb, var(--info) 32%, transparent);
+}
+
+.side-item-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.side-item-title {
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: -0.1px;
+  color: var(--tg-text);
+}
+
+.side-item.on .side-item-title {
+  color: var(--info);
+  font-weight: 750;
+}
+
+.side-item-desc {
+  font-size: 11px;
+  color: var(--tg-hint);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-item-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--info);
+  box-shadow: 0 0 0 3px var(--info-soft);
+}
+
+.side-foot {
+  padding-top: 12px;
+  margin-top: 6px;
+  border-top: var(--hairline) solid var(--tg-separator);
+}
+
+.side-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 6px;
+  border-radius: var(--r-md);
+  background: var(--tg-section);
+  border: var(--hairline) solid var(--tg-separator);
+}
+
+.side-user-name {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-user-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--tg-hint);
+  margin-top: 1px;
 }
 
 /* ============================== SHEET (overflow) ============================== */
@@ -602,7 +764,8 @@ textarea {
 }
 
 .btn.solid-danger {
-  background: var(--danger);
+  /* #b42318 + teks putih = 6.57:1 (var(--danger) terlalu gelap untuk teks putih). */
+  background: color-mix(in srgb, var(--danger) 92%, #7a1208 8%);
   color: #fff;
 }
 
@@ -1200,5 +1363,117 @@ textarea.input {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   DESKTOP LAYOUT (>= 1000px)
+   Sidebar tetap di kiri + konten melebar; bottom bar & sheet disembunyikan.
+   Di bawah breakpoint ini, Mini App tetap mobile-first seperti sebelumnya.
+   ========================================================================== */
+@media (min-width: 1000px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: 272px minmax(0, 1fr);
+    padding-bottom: 0;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 16px 14px;
+    gap: 0;
+    background: color-mix(in srgb, var(--tg-surface) 72%, transparent);
+    backdrop-filter: saturate(180%) blur(22px);
+    -webkit-backdrop-filter: saturate(180%) blur(22px);
+    border-right: var(--hairline) solid var(--tg-separator);
+    z-index: 30;
+  }
+
+  /* Bottom bar & sheet: hanya untuk mobile. */
+  .tabbar,
+  .sheet,
+  .sheet-scrim {
+    display: none !important;
+  }
+
+  /* Identitas user sudah ada di kaki sidebar pada desktop — header profil
+     dihilangkan supaya tidak tampil dobel. Header tetap dipakai di mobile. */
+  .appbar {
+    display: none;
+  }
+
+  .page {
+    max-width: 1180px;
+    padding: 22px 32px 48px;
+  }
+
+  /* Grid metrik: 4 kolom sejajar. auto-fit supaya grid berisi 2 item
+     (mis. tile diagnostik) tetap mengisi lebar, bukan menyisakan kolom kosong. */
+  .grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  /* Kartu lebih lega karena ruangnya ada. */
+  .card-pad {
+    padding: 18px 20px;
+  }
+
+  .hero {
+    padding: 28px 24px 24px;
+  }
+
+  .hero-glow {
+    width: 300px;
+    height: 300px;
+  }
+
+  /* Hover halus khusus pointer presisi. */
+  .row-btn:hover {
+    background: color-mix(in srgb, var(--tg-section) 60%, var(--tg-text) 5%);
+  }
+
+  .tile:hover {
+    border-color: color-mix(in srgb, var(--tg-hint) 34%, transparent);
+  }
+
+  .plan:hover {
+    border-color: color-mix(in srgb, var(--info) 42%, transparent);
+  }
+
+  /* Target sentuh tidak perlu besar-besar di desktop. */
+  .btn {
+    width: auto;
+    min-width: 168px;
+  }
+
+  /* Tombol di dalam kartu hero: jangan dipaksa 168px, biar proporsional. */
+  .hero .btn {
+    min-width: 220px;
+  }
+
+  .btn.wide {
+    width: 100%;
+  }
+
+  /* Daftar plugin/akun tampil lebih banyak baris. */
+  .list-scroll {
+    max-height: 460px;
+  }
+}
+
+/* Tablet & desktop sempit: cukup lebarkan konten, bottom bar tetap dipakai. */
+@media (min-width: 700px) and (max-width: 999px) {
+  .page {
+    max-width: 720px;
+  }
+
+  .appbar-inner {
+    max-width: 720px;
   }
 }

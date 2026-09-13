@@ -14,18 +14,28 @@ import { Spinner, Banner } from './ui';
 
 type TabId = 'overview' | 'plugins' | 'broadcast' | 'settings' | 'subscription' | 'admin';
 
-/** Slot utama di tab bar — bahasa desain Telegram terbaru: maksimal 4 tab. */
-const PRIMARY: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: 'overview', label: 'Beranda', icon: Power },
-  { id: 'plugins', label: 'Plugin', icon: Puzzle },
-  { id: 'broadcast', label: 'Siaran', icon: Radio },
-  { id: 'settings', label: 'Setelan', icon: Sliders },
-];
+interface NavItem {
+  id: TabId;
+  label: string;
+  short: string;
+  icon: React.ElementType;
+  desc?: string;
+  accent?: string;
+  ownerOnly?: boolean;
+}
 
-/** Sisanya pindah ke sheet "Lainnya" — pola overflow ala Telegram. */
-const SECONDARY: { id: TabId; label: string; desc: string; icon: React.ElementType; accent: string }[] = [
-  { id: 'subscription', label: 'Paket & Langganan', desc: 'Masa aktif, voucher, perpanjangan', icon: CreditCard, accent: 'var(--gold)' },
-  { id: 'admin', label: 'Pusat Kontrol Armada', desc: 'Statistik server & daftar akun', icon: ShieldCheck, accent: 'var(--violet)' },
+/**
+ * Katalog navigasi tunggal.
+ * - Mobile: 4 slot primer di bottom bar + sisanya lewat sheet "Lainnya".
+ * - Desktop (>=1000px): semua tampil di sidebar kiri, bottom bar disembunyikan.
+ */
+const NAV: NavItem[] = [
+  { id: 'overview', label: 'Beranda', short: 'Beranda', icon: Power, accent: 'var(--ok)', desc: 'Status sesi & ringkasan mesin' },
+  { id: 'plugins', label: 'Plugin', short: 'Plugin', icon: Puzzle, accent: 'var(--violet)', desc: '58 modul otomatisasi' },
+  { id: 'broadcast', label: 'Siaran', short: 'Siaran', icon: Radio, accent: 'var(--info)', desc: 'Kirim pesan massal' },
+  { id: 'settings', label: 'Setelan', short: 'Setelan', icon: Sliders, accent: 'var(--warn)', desc: 'Preferensi, vars & diagnostik' },
+  { id: 'subscription', label: 'Paket & Langganan', short: 'Paket', icon: CreditCard, accent: 'var(--gold)', desc: 'Masa aktif, voucher, perpanjangan' },
+  { id: 'admin', label: 'Pusat Kontrol Armada', short: 'Admin', icon: ShieldCheck, accent: 'var(--violet)', desc: 'Statistik server & daftar akun', ownerOnly: true },
 ];
 
 export default function App() {
@@ -63,12 +73,14 @@ export default function App() {
     return () => clearInterval(t);
   }, [fetchUser]);
 
-  const secondary = user?.isOwner ? SECONDARY : SECONDARY.filter((t) => t.id !== 'admin');
-  const inSecondary = secondary.some((t) => t.id === activeTab);
+  const nav = user?.isOwner ? NAV : NAV.filter((n) => !n.ownerOnly);
+  const primary = nav.slice(0, 4);
+  const secondary = nav.slice(4);
+  const inSecondary = secondary.some((n) => n.id === activeTab);
 
-  /** Semua slot yang tampil di bar: 4 primer + tombol "Lainnya". */
+  /** Slot bottom bar (mobile): 4 primer + "Lainnya". */
   const slots: { id: TabId | 'more'; label: string; icon: React.ElementType }[] = [
-    ...PRIMARY,
+    ...primary.map((n) => ({ id: n.id as TabId | 'more', label: n.short, icon: n.icon })),
     { id: 'more', label: 'Lainnya', icon: MoreHorizontal },
   ];
 
@@ -126,7 +138,7 @@ export default function App() {
     }
     // Pindah ke tab primer saat sheet terbuka: tutup sheet-nya sekalian.
     if (sheetOpen) setSheetOpen(false);
-    if (id === activeTab && !sheetOpen) return;
+    if (id === activeTab) return;
     goTo(id);
   };
 
@@ -177,7 +189,7 @@ export default function App() {
           <p className="fs-13 op-75 m-0" style={{ lineHeight: 1.6, maxWidth: 340 }}>
             {error}
           </p>
-          <button className="btn primary press" style={{ maxWidth: 220 }} onClick={() => fetchUser(true)}>
+          <button className="btn primary press" style={{ maxWidth: 220, margin: '0 auto' }} onClick={() => fetchUser(true)}>
             <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
             <span>Coba Lagi</span>
           </button>
@@ -192,50 +204,113 @@ export default function App() {
     <div className="app-shell">
       <div className="app-bg" />
 
-      <header className="appbar">
-        <div className="appbar-inner">
-          <div className="avatar">{initial}</div>
+      {/* --------------------------- SIDEBAR (desktop) --------------------------- */}
+      <aside className="sidebar" aria-label="Navigasi utama">
+        <div className="side-brand">
+          <span className="side-logo">
+            <Zap size={19} />
+          </span>
+          <span className="grow" style={{ minWidth: 0 }}>
+            <span className="side-title" style={{ display: 'block' }}>DeltaUserJS</span>
+            <span className="side-sub" style={{ display: 'block' }}>Userbot Panel</span>
+          </span>
+        </div>
 
-          <div className="identity">
-            <div className="identity-top">
-              <span className="name">{user?.firstName || 'User'}</span>
-              {user?.isPremium && <Star size={14} fill="var(--gold)" color="var(--gold)" className="shrink-0" />}
-              {user?.isOwner && <span className="badge gold">Owner</span>}
-            </div>
-            <div className="identity-sub">
-              <span className="truncate">@{user?.username || `id:${user?.id ?? '—'}`}</span>
-              <span>·</span>
-              <span className="center gap-6">
-                <span className={`dot ${isOnline ? '' : 'off'}`} />
-                {isOnline ? 'Aktif' : 'Offline'}
+        <nav className="side-nav">
+          {nav.map((item) => {
+            const Icon = item.icon;
+            const on = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                className={`side-item ${on ? 'on' : ''}`}
+                onClick={() => goTo(item.id)}
+                aria-current={on}
+              >
+                <span
+                  className="side-item-icon"
+                  style={{ background: `color-mix(in srgb, ${item.accent} 15%, transparent)`, color: item.accent }}
+                >
+                  <Icon size={18} />
+                </span>
+                <span className="grow" style={{ minWidth: 0, textAlign: 'left' }}>
+                  <span className="side-item-title" style={{ display: 'block' }}>{item.label}</span>
+                  {item.desc && <span className="side-item-desc" style={{ display: 'block' }}>{item.desc}</span>}
+                </span>
+                {on && <span className="side-item-dot" />}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="side-foot">
+          <div className="side-user">
+            <span className="avatar" style={{ width: 36, height: 36, borderRadius: 11, fontSize: 14 }}>{initial}</span>
+            <span className="grow" style={{ minWidth: 0 }}>
+              <span className="side-user-name" style={{ display: 'block' }}>
+                {user?.firstName || 'User'}
+                {user?.isPremium && <Star size={12} fill="var(--gold)" color="var(--gold)" style={{ marginLeft: 5, verticalAlign: -1 }} />}
               </span>
-            </div>
+              <span className="side-user-sub" style={{ display: 'block' }}>
+                <span className={`dot ${isOnline ? '' : 'off'}`} style={{ width: 6, height: 6, boxShadow: 'none' }} />
+                {isOnline ? 'Aktif' : 'Offline'}
+                {user?.isOwner ? ' · Owner' : ''}
+              </span>
+            </span>
+            <button className="icon-btn" onClick={handleManualRefresh} aria-label="Muat ulang data" style={{ width: 32, height: 32 }}>
+              <RefreshCw size={15} className={refreshing ? 'spin' : ''} />
+            </button>
           </div>
-
-          <button className="icon-btn" onClick={handleManualRefresh} aria-label="Muat ulang data">
-            <RefreshCw size={17} className={refreshing ? 'spin' : ''} />
-          </button>
         </div>
-      </header>
+      </aside>
 
-      {error && (
-        <div className="page" style={{ paddingBottom: 0 }}>
-          <Banner tone="danger" icon={<ShieldCheck size={17} />}>{error}</Banner>
-        </div>
-      )}
+      {/* ------------------------------- KONTEN ------------------------------- */}
+      <div className="app-main">
+        <header className="appbar">
+          <div className="appbar-inner">
+            <div className="avatar">{initial}</div>
 
-      <main key={activeTab} className="grow">
-        {activeTab === 'overview' && (
-          <OverviewTab user={user} onRefreshUser={() => fetchUser(false)} onStatusChange={setIsOnline} active={true} />
+            <div className="identity">
+              <div className="identity-top">
+                <span className="name">{user?.firstName || 'User'}</span>
+                {user?.isPremium && <Star size={14} fill="var(--gold)" color="var(--gold)" className="shrink-0" />}
+                {user?.isOwner && <span className="badge gold">Owner</span>}
+              </div>
+              <div className="identity-sub">
+                <span className="truncate">@{user?.username || `id:${user?.id ?? '—'}`}</span>
+                <span>·</span>
+                <span className="center gap-6">
+                  <span className={`dot ${isOnline ? '' : 'off'}`} />
+                  {isOnline ? 'Aktif' : 'Offline'}
+                </span>
+              </div>
+            </div>
+
+            <button className="icon-btn" onClick={handleManualRefresh} aria-label="Muat ulang data">
+              <RefreshCw size={17} className={refreshing ? 'spin' : ''} />
+            </button>
+          </div>
+        </header>
+
+        {error && (
+          <div className="page" style={{ paddingBottom: 0 }}>
+            <Banner tone="danger" icon={<ShieldCheck size={17} />}>{error}</Banner>
+          </div>
         )}
-        {activeTab === 'plugins' && <PluginsTab active={visited.has('plugins')} />}
-        {activeTab === 'broadcast' && <BroadcastTab active={visited.has('broadcast')} />}
-        {activeTab === 'settings' && <SettingsTab user={user} active={visited.has('settings')} />}
-        {activeTab === 'subscription' && <SubscriptionTab active={visited.has('subscription')} />}
-        {activeTab === 'admin' && user?.isOwner && <AdminTab active={visited.has('admin')} />}
-      </main>
 
-      {/* ------------------------- SHEET "LAINNYA" ------------------------- */}
+        <main key={activeTab} className="grow">
+          {activeTab === 'overview' && (
+            <OverviewTab user={user} onRefreshUser={() => fetchUser(false)} onStatusChange={setIsOnline} active={true} />
+          )}
+          {activeTab === 'plugins' && <PluginsTab active={visited.has('plugins')} />}
+          {activeTab === 'broadcast' && <BroadcastTab active={visited.has('broadcast')} />}
+          {activeTab === 'settings' && <SettingsTab user={user} active={visited.has('settings')} />}
+          {activeTab === 'subscription' && <SubscriptionTab active={visited.has('subscription')} />}
+          {activeTab === 'admin' && user?.isOwner && <AdminTab active={visited.has('admin')} />}
+        </main>
+      </div>
+
+      {/* ------------------------- SHEET "LAINNYA" (mobile) ------------------------- */}
       {sheetOpen && (
         <>
           <div className="sheet-scrim" onClick={() => setSheetOpen(false)} aria-hidden="true" />
@@ -283,7 +358,7 @@ export default function App() {
         </>
       )}
 
-      {/* ---------------------------- TAB BAR ---------------------------- */}
+      {/* ---------------------------- TAB BAR (mobile) ---------------------------- */}
       <nav className="tabbar">
         <div className="tabbar-track" ref={trackRef}>
           <span className="tabbar-pill" style={{ left: pill.left, width: pill.width }} />

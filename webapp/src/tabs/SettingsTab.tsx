@@ -532,7 +532,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ user, active = true })
             </Card>
           </section>
 
-          <button className="btn primary press" onClick={saveGeneral} disabled={saving}>
+          <button className="btn primary wide press" onClick={saveGeneral} disabled={saving}>
             {saving ? <Spinner size={17} /> : <Save size={17} />}
             <span>{saving ? 'Menyimpan…' : 'Simpan setelan'}</span>
           </button>
@@ -620,7 +620,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ user, active = true })
                     right={<Switch checked={isSystemVar} onChange={setIsSystemVar} label="System var" />}
                   />
                 )}
-                <button className="btn primary press" onClick={saveVar}>
+                <button className="btn primary wide press" onClick={saveVar}>
                   <Plus size={16} />
                   <span>{editing ? 'Perbarui variabel' : 'Simpan variabel'}</span>
                 </button>

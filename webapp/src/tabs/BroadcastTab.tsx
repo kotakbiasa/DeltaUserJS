@@ -268,7 +268,7 @@ export const BroadcastTab: React.FC<{ active?: boolean }> = ({ active = true }) 
         </Card>
       </section>
 
-      <button className={`btn ${canSend ? 'primary' : 'ghost'} press`} onClick={handleSend} disabled={!canSend}>
+      <button className={`btn wide ${canSend ? 'primary' : 'ghost'} press`} onClick={handleSend} disabled={!canSend}>
         {sending ? <Spinner size={18} /> : <Send size={17} />}
         <span>Kirim siaran {selected.length > 0 ? `(${selected.length})` : ''}</span>
       </button>
