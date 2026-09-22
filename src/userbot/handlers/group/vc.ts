@@ -151,9 +151,9 @@ export default {
     usage:
       '• `.joinvc` — gabung ke obrolan suara (standby/idle)\n' +
       '• `.play <url>` — streaming musik dari YouTube/tautan\n' +
-      '• `.play <url> --video` — streaming audio + video\n' +
+      '• `.play <url> --video` atau `.vplay` — streaming audio + video\n' +
       '• `.play /path/file.mp3` — streaming file lokal\n' +
-      '• Reply media (lagu/video/voice) + `.play` — putar media Telegram\n' +
+      '• Reply media (lagu/video/voice) + `.play` / `.vplay` — putar media Telegram\n' +
       '• `.skip` — hentikan pemutaran audio (tetap di VC)\n' +
       '• `.pause` / `.resume` — jeda / lanjutkan musik\n' +
       '• `.mute` / `.unmute` — bisukan / bunyikan mic userbot\n' +
@@ -171,14 +171,14 @@ export default {
     if (!match) {return;}
     const cmd = (match[1] ?? '').toLowerCase();
     const args = (match[2] ?? '').trim();
-    if (!['play', 'skip', 'pause', 'resume', 'mute', 'unmute', 'vctime', 'joinvc', 'startvc', 'openvc', 'leavevc', 'vcmode'].includes(cmd)) {return;}
+    if (!['play', 'vplay', 'skip', 'pause', 'resume', 'mute', 'unmute', 'vctime', 'joinvc', 'startvc', 'openvc', 'leavevc', 'vcmode'].includes(cmd)) {return;}
 
     let chat;
     try {
       chat = await message.getChat();
     } catch (_e) {chat = undefined;}
     if (!chat || (chat.className !== 'Channel' && chat.className !== 'Chat')) {
-      if (['play', 'joinvc', 'startvc', 'openvc'].includes(cmd)) {
+      if (['play', 'vplay', 'joinvc', 'startvc', 'openvc'].includes(cmd)) {
         await message.edit({ text: '<blockquote>❌ Perintah VC hanya bisa digunakan di grup.</blockquote>', parseMode: 'html' });
       }
       return;
@@ -215,14 +215,15 @@ export default {
           await busy('Membuka & menghubungkan ke obrolan suara');
           await tg.joinIdle(chatId, { allowCreate: true });
           await message.edit({
-            text: `🎧 <b>Obrolan Suara</b>\n<blockquote>✅ Obrolan suara aktif & userbot bergabung (standby).\n▶️ Putar musik: <code>.play &lt;url/link&gt;</code>\n👋 Keluar: <code>.leavevc</code></blockquote>`,
+            text: `🎧 <b>Obrolan Suara</b>\n<blockquote>✅ Obrolan suara aktif & userbot bergabung (standby).\n▶️ Putar musik: <code>.play &lt;url/link&gt;</code>\n📹 Putar video: <code>.play &lt;url&gt; --video</code> atau <code>.vplay</code>\n👋 Keluar: <code>.leavevc</code></blockquote>`,
             parseMode: 'html',
           });
           return;
         }
+        case 'vplay':
         case 'play': {
-          const withVideo = /--video\b/i.test(args);
-          const cleanArgs = args.replace(/--video\b/i, '').trim();
+          const withVideo = cmd === 'vplay' || /--video\b/i.test(args);
+          const cleanArgs = (cmd === 'vplay' ? args : args.replace(/--video\b/i, '')).trim();
 
           // Reply mode: `.play` me-reply pesan media
           if (!cleanArgs) {
@@ -233,18 +234,27 @@ export default {
             const dl = replyMsg ? await downloadTgMedia(client, replyMsg) : null;
             if (dl === null) {
               await message.edit({
-                text: `🎵 <b>PUTAR MUSIK</b>\n<blockquote>Gunakan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.play &lt;url&gt; --video</code>\n<code>.play /path/file.mp3</code>\nAtau <b>reply media</b> dengan <code>.play</code></blockquote>`,
+                text: `🎵 <b>PUTAR MEDIA</b>\n<blockquote>Gunakan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.play &lt;url&gt; --video</code> atau <code>.vplay &lt;url&gt;</code>\n<code>.play /path/file.mp3</code>\nAtau <b>reply media (audio/video)</b> dengan <code>.play</code> atau <code>.play --video</code></blockquote>`,
                 parseMode: 'html',
               });
               return;
             }
-            await busy('Mengunduh media');
+            await busy(withVideo ? 'Menyiapkan video' : 'Mengunduh media');
             const label = mediaLabel(replyMsg);
             const source = { kind: 'file' as const, path: dl.path };
 
             if (tg.isActive(chatId)) {
-              await busy('Mengganti track');
-              await tg.setSource(chatId, source);
+              if (withVideo) {
+                await busy('Mengaktifkan video di obrolan suara');
+                await tg.leave(chatId);
+                await tg.join(chatId, source, {
+                  allowCreate: true,
+                  video: { width: 1280, height: 720, fps: 24 },
+                });
+              } else {
+                await busy('Mengganti track');
+                await tg.setSource(chatId, source);
+              }
             } else {
               await busy('Menghubungkan ke obrolan suara');
               await tg.join(chatId, source, {
@@ -263,16 +273,25 @@ export default {
           const source = await toSource(cleanArgs, tg);
 
           if (tg.isActive(chatId)) {
-            await busy('Mengganti lagu');
-            await tg.setSource(chatId, source);
+            if (withVideo) {
+              await busy('Mengaktifkan video di obrolan suara');
+              await tg.leave(chatId);
+              await tg.join(chatId, source, {
+                allowCreate: true,
+                video: { width: 1280, height: 720, fps: 24 },
+              });
+            } else {
+              await busy('Mengganti lagu');
+              await tg.setSource(chatId, source);
+            }
             await message.edit({
-              text: `🎵 <b>Obrolan Suara</b>\n<blockquote>⏭ Ganti track: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+              text: `🎵 <b>Obrolan Suara</b>\n<blockquote>⏭ Ganti track: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON' : ''}\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;
           }
 
-          await busy('Menyiapkan audio');
+          await busy(withVideo ? 'Menyiapkan audio + video' : 'Menyiapkan audio');
           await tg.join(chatId, source, {
             allowCreate: true,
             ...(withVideo ? { video: { width: 1280, height: 720, fps: 24 } } : {}),
