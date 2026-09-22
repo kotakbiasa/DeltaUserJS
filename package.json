@@ -8,9 +8,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "bun run src/index.ts",
+    "start": "node --no-warnings dist/index.js",
     "start:prod": "pm2 start ecosystem.config.js",
-    "dev": "bun --watch run src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "rm -rf dist && tsc && cd webapp && npm run build",
     "build:webapp": "cd webapp && npm run build",
     "test": "node test/runner.js",

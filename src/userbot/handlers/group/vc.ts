@@ -1,51 +1,27 @@
 import { Api } from 'teleproto';
-import { spawn, type ChildProcess } from 'child_process';
 import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
 // ============================================================
-// VC — voice chat streaming via tgcalls-js + RTMP livestream mode.
+// VC — native Telegram Voice Chat (Obrolan Suara) via tgcalls-js (WebRTC).
 //
-// Dua jalur streaming:
-//   1. RTC (WebRTC native via ntgcalls) — butuh UDP keluar, dipakai otomatis
-//      kalau VPS tidak diblokir UDP (deteksi runtime sekali, di-cache).
-//   2. RTMP livestream (TCP:443) — fallback untuk VPS UDP-blocked seperti
-//      VPS ini. Audio di-push ke rtmps://dcX.rtmp.t.me:443 sebagai livestream
-//      yang tampil di grup. Gak butuh UDP sama sekali.
-//
-// Perintah:
-//   .joinvc                       gabung VC (idle)
-//   .play <url|file> [--video]    streaming (RTMP di host UDP-blocked)
-//   .skip                         hentikan track
-//   .pause/.resume/.mute/.unmute  kontrol native (mode RTC)
-//   .vctime                       durasi streaming
-//   .leavevc                      keluar VC / stop livestream
-//   .vcmode                       info mode aktif (RTC / RTMP)
-//
-// State di globalThis agar survive hot-reload plugin.
+// Fitur:
+//   • Pure WebRTC Voice Chat (bukan RTMP livestream / siaran langsung)
+//   • Masuk sebagai peserta obrolan suara dengan ikon mic/speaker
+//   • Mendukung streaming musik dari YouTube/URL/file lokal & media reply Telegram
+//   • Video sharing via WebRTC (--video)
 // ============================================================
-
-interface RTMPStream {
-  ffmpeg: ChildProcess;
-  chatId: bigint;
-  startedAt: number;
-  title: string;
-}
-
-function asBigIntChat(chatId: number | bigint): bigint {
-  return typeof chatId === 'bigint' ? chatId : BigInt(Math.trunc(chatId));
-}
 
 interface VCState {
   clients: Map<string, unknown>;
-  rtmpStreams: Map<string, RTMPStream>;
-  rtcWorks: boolean | null; // null = belum dideteksi
 }
 
 const g = globalThis as unknown as { __deltaVCState?: VCState };
 if (!g.__deltaVCState) {
-  g.__deltaVCState = { clients: new Map(), rtmpStreams: new Map(), rtcWorks: null };
+  g.__deltaVCState = { clients: new Map() };
 }
 const state = g.__deltaVCState;
 
@@ -70,7 +46,6 @@ async function getClient(client: unknown): Promise<TgClient> {
   if (existing) {return existing as TgClient;}
   const mod = await import('tgcalls-js');
   const TgCallsClient = mod.TgCallsClient;
-  // GramJS client satisfies MTProtoLike at runtime (invoke/getEntity/handlers).
   const inst = new TgCallsClient({ client: client as never, Api });
   state.clients.set(key, inst);
   return inst;
@@ -85,12 +60,12 @@ async function toSource(
   args: string,
   tg: TgClient,
 ): Promise<{ kind: 'file'; path: string } | { kind: 'url'; url: string }> {
-  const isLocal = args.startsWith('/') || args.startsWith('./') || args.startsWith('~');
+  const isLocal = args.startsWith('/') || args.startsWith('./') || args.startsWith('~') || /^[a-zA-Z]:[/\\]/.test(args);
   if (isLocal) {
     return { kind: 'file', path: args };
   }
   if (!/^https?:\/\//i.test(args)) {
-    throw new Error('Argumen harus URL atau path file lokal');
+    throw new Error('Argumen harus URL (YouTube/link) atau path file lokal');
   }
   const direct = await tg.resolveYouTube(args);
   if (direct === null) {
@@ -99,146 +74,95 @@ async function toSource(
   return { kind: 'url', url: direct };
 }
 
-// ------------------------------------------------------------ RTMP mode
-
-/** Get a FRESH RTMP key for this chat. Empirically (9 Sep 2026): the RTMP key
- * is one-shot per call session — after a publish ends, the key is dead even
- * if the call object still exists. So every .play must discard the old call
- * and create a brand-new rtmpStream call. */
-async function getRtmpUrl(client: unknown, chatId: bigint): Promise<{ url: string; key: string }> {
-  const invoker = client as unknown as {
-    invoke: (r: unknown) => Promise<never>;
-  };
-  // Discard any existing call — its RTMP key is already burnt.
-  const full = await invoker.invoke(new Api.channels.GetFullChannel({ channel: chatId as never })) as {
-    fullChat?: { call?: unknown };
-  };
-  if (full.fullChat?.call) {
-    await invoker.invoke(new Api.phone.DiscardGroupCall({
-      call: full.fullChat.call as never,
-    }));
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  // Create a brand-new livestream call (fresh RTMP key).
-  await invoker.invoke(new Api.phone.CreateGroupCall({
-    peer: chatId as never,
-    randomId: Math.floor(Math.random() * 2 ** 31),
-    title: 'Live',
-    rtmpStream: true,
-  }));
-  await new Promise((r) => setTimeout(r, 2000));
-  const url = await invoker.invoke(new Api.phone.GetGroupCallStreamRtmpUrl({
-    peer: chatId as never,
-  })) as unknown as { url: string; key: string };
-  // rtmps default port 443 works over TCP; 1935 is commonly blocked.
-  // NOTE: url already ends with "/s/" so the final URL is url + key (no extra slash).
-  return { url: url.url.replace(':1935', ':443'), key: url.key };
-}
-
 /**
- * Spawn ffmpeg to push audio (+ optional video) into the Telegram RTMP
- * endpoint. TCP:443 only (port 1935 is blocked on UDP-restricted hosts).
- */
-function spawnRtmpPush(
-  inputUrl: string | undefined,
-  inputPath: string | undefined,
-  rtmpUrl: string,
-  rtmpKey: string,
-  withVideo: boolean,
-): ChildProcess {
-  const args: string[] = ['-re'];
-  if (inputUrl !== undefined) {
-    args.push('-reconnect', '1', '-reconnect_at_eof', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '2', '-i', inputUrl);
-  } else if (inputPath !== undefined) {
-    args.push('-i', inputPath);
-  } else {
-    args.push('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo');
-  }
-  args.push('-c:a', 'aac', '-b:a', '96k', '-ar', '48000', '-ac', '2');
-  if (withVideo) {
-    args.push('-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency',
-      '-b:v', '1200k', '-maxrate', '1200k', '-bufsize', '2400k',
-      '-vf', 'scale=1280:720', '-r', '24', '-pix_fmt', 'yuv420p', '-g', '48');
-  } else {
-    args.push('-vn');
-  }
-  // url already ends with "/s/" — final URL is url + key (no extra slash).
-  args.push('-f', 'flv', `rtmps://${rtmpUrl.replace(/^rtmps?:\/\//, '')}${rtmpKey}`);
-  const ff = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });
-  ff.stderr?.on('data', () => { /* drain to avoid pipe backpressure */ });
-  return ff;
-}
-
-// ------------------------------------------------------- Telegram media
-
-/**
- * Download a replied/quoted Telegram media message to /tmp and return the
- * local path. Supports audio, video, voice, document. Returns null when the
- * message has no downloadable media.
+ * Download a replied/quoted Telegram media message to temp and return local path.
  */
 async function downloadTgMedia(
   client: unknown,
   replyMsg: unknown,
 ): Promise<{ path: string; cleanup: () => void } | null> {
   const m = replyMsg as {
-    audio?: unknown;
-    video?: unknown;
-    voice?: unknown;
+    audio?: { mimeType?: string };
+    video?: { mimeType?: string };
+    voice?: { mimeType?: string };
     videoNote?: unknown;
-    document?: unknown;
+    document?: { mimeType?: string; attributes?: Array<{ className?: string; fileName?: string }> };
   };
   const hasMedia = Boolean(m?.audio || m?.video || m?.voice || m?.videoNote || m?.document);
   if (!hasMedia) {return null;}
+
+  let ext = '.mp3';
+  if (m.voice) {
+    ext = '.ogg';
+  } else if (m.video || m.videoNote) {
+    ext = '.mp4';
+  } else if (m.document?.attributes) {
+    for (const attr of m.document.attributes) {
+      if (attr.className === 'DocumentAttributeFilename' && attr.fileName) {
+        const fileExt = path.extname(attr.fileName);
+        if (fileExt) {ext = fileExt;}
+        break;
+      }
+    }
+  }
+
   const downloader = client as unknown as {
     downloadMedia: (handle: unknown, opts?: unknown) => Promise<string | Buffer | undefined>;
   };
-  const tmpPath = `/tmp/vcplay-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-  const saved = await downloader.downloadMedia(replyMsg, { filePath: tmpPath });
-  if (typeof saved !== 'string') {
-    // Buffer fallback: write manually
-    if (Buffer.isBuffer(saved)) {
+  const tmpDir = process.env.TEMP || process.env.TMP || os.tmpdir();
+  const tmpPath = path.join(tmpDir, `vcplay-${Date.now()}-${Math.floor(Math.random() * 1e6)}${ext}`);
+
+  try {
+    Logger.logUser(0, `📥 Mengunduh media Telegram ke: ${tmpPath}`, 'INFO');
+    const saved = await downloader.downloadMedia(replyMsg, { filePath: tmpPath });
+    if (typeof saved !== 'string' && Buffer.isBuffer(saved)) {
       fs.writeFileSync(tmpPath, saved);
-    } else {
-      return null;
     }
+    if (fs.existsSync(tmpPath)) {
+      const stats = fs.statSync(tmpPath);
+      if (stats.size > 0) {
+        Logger.logUser(0, `✅ Media berhasil diunduh: ${tmpPath} (${stats.size} bytes)`, 'SUCCESS');
+        return { path: tmpPath, cleanup: () => { try { fs.unlinkSync(tmpPath); } catch {} } };
+      }
+    }
+    Logger.logUser(0, '❌ Media hasil unduhan kosong (0 bytes)', 'ERROR');
+  } catch (err) {
+    Logger.logUser(0, `❌ Gagal mengunduh media Telegram: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
   }
-  return { path: tmpPath, cleanup: () => fs.unlink(tmpPath, () => {}) };
+  return null;
 }
 
-/** Infer media kind for nicer titles. */
 function mediaLabel(replyMsg: unknown): string {
   const m = replyMsg as { audio?: { title?: string }; video?: unknown; voice?: unknown; document?: { fileName?: string } };
   if (m?.audio?.title) {return m.audio.title;}
   if (m?.video) {return 'video';}
-  if (m?.voice) {return 'voice';}
+  if (m?.voice) {return 'pesan suara';}
   if (m?.document?.fileName) {return m.document.fileName;}
   return 'media';
 }
 
 export default {
   name: 'vc',
-  version: '2.0.0',
-  description: 'Streaming audio/video ke voice chat grup. Auto-fallback ke RTMP livestream di host UDP-blocked.',
+  version: '2.1.0',
+  description: 'Streaming audio/video ke obrolan suara (Voice Chat) grup via WebRTC.',
   help: {
-    title: 'Voice Chat (.joinvc / .play)',
-    description: 'Join voice chat & streaming audio/video. Otomatis pakai RTMP livestream kalau WebRTC diblokir.',
+    title: 'Obrolan Suara (.joinvc / .play)',
+    description: 'Gabung ke obrolan suara Telegram & streaming musik/audio.',
     usage:
-      '• `.joinvc` — gabung voice chat (idle)\n' +
+      '• `.joinvc` — gabung ke obrolan suara (standby/idle)\n' +
       '• `.play <url>` — streaming musik dari YouTube/tautan\n' +
-      '• `.play <url> --video` — audio+video livestream (720p)\n' +
-      '• `.play /path/file.mp3` — file lokal\n' +
+      '• `.play <url> --video` — streaming audio + video\n' +
+      '• `.play /path/file.mp3` — streaming file lokal\n' +
       '• Reply media (lagu/video/voice) + `.play` — putar media Telegram\n' +
-      '• `.skip` — hentikan track\n' +
-      '• `.pause` / `.resume` / `.vctime` — kontrol\n' +
-      '• `.vcmode` — mode streaming aktif (RTC/RTMP)\n' +
-      '• `.leavevc` — keluar VC',
-    detail:
-      'Di VPS UDP-blocked (seperti VPS utama), streaming otomatis lewat RTMP ' +
-      'livestream (TCP:443) dan tampil sebagai live stream di grup. Di host biasa, ' +
-      'streaming masuk sebagai participant VC biasa (WebRTC).',
+      '• `.skip` — hentikan pemutaran audio (tetap di VC)\n' +
+      '• `.pause` / `.resume` — jeda / lanjutkan musik\n' +
+      '• `.mute` / `.unmute` — bisukan / bunyikan mic userbot\n' +
+      '• `.vctime` — durasi streaming aktif\n' +
+      '• `.leavevc` — keluar dari obrolan suara',
+    detail: 'Murni menggunakan WebRTC Voice Chat resmi Telegram, bukan siaran langsung / RTMP.',
   },
   onLoad: () => {
-    Logger.logSystem('🎵 Plugin VC v2.0 loaded (RTC + RTMP fallback, .joinvc/.play/.skip/.leavevc/.vcmode)', 'INFO');
+    Logger.logSystem('🎵 Plugin VC v2.1 loaded (Pure WebRTC Voice Chat)', 'INFO');
   },
   async execute(client, message, _settings, _telegramId) {
     if (!message.out || !message.message) {return;}
@@ -247,50 +171,51 @@ export default {
     if (!match) {return;}
     const cmd = (match[1] ?? '').toLowerCase();
     const args = (match[2] ?? '').trim();
-    if (!['play', 'skip', 'pause', 'resume', 'mute', 'unmute', 'vctime', 'joinvc', 'leavevc', 'vcmode'].includes(cmd)) {return;}
+    if (!['play', 'skip', 'pause', 'resume', 'mute', 'unmute', 'vctime', 'joinvc', 'startvc', 'openvc', 'leavevc', 'vcmode'].includes(cmd)) {return;}
 
     let chat;
     try {
       chat = await message.getChat();
     } catch (_e) {chat = undefined;}
     if (!chat || (chat.className !== 'Channel' && chat.className !== 'Chat')) {
-      if (cmd === 'play' || cmd === 'joinvc') {
-        await message.edit({ text: '<blockquote>❌ Perintah VC hanya di grup.</blockquote>', parseMode: 'html' });
+      if (['play', 'joinvc', 'startvc', 'openvc'].includes(cmd)) {
+        await message.edit({ text: '<blockquote>❌ Perintah VC hanya bisa digunakan di grup.</blockquote>', parseMode: 'html' });
       }
       return;
     }
-    const chatId = Number(chat.id.toString()) * (chat.className === 'Channel' ? -1 : 1) -
-      (chat.className === 'Channel' ? 1_000_000_000_000 : 0);
-    const rtmpKey = String(chatId);
+    const rawId = BigInt(chat.id.toString());
+    const chatId = chat.className === 'Channel'
+      ? -(1_000_000_000_000n + rawId)
+      : -rawId;
 
     const tg = await getClient(client);
     const busy = (action: string) =>
       message.edit({
-        text: `🎵 <b>VC</b> — ${action}…`,
+        text: `🎵 <b>Obrolan Suara</b> — ${action}…`,
         parseMode: 'html',
       });
 
     try {
       switch (cmd) {
         case 'vcmode': {
-          const s = state.rtmpStreams.get(rtmpKey);
-          const mode = s ? 'RTMP livestream (TCP:443)' : tg.isActive(chatId) ? 'RTC (WebRTC native)' : '—';
+          const active = tg.isActive(chatId);
           await message.edit({
-            text: `🛠 <b>VC MODE</b>\n<blockquote>Mode chat ini: <b>${mode}</b>${s ? `\n▶️ Live sejak ${Math.floor((Date.now() - s.startedAt) / 60000)}m lalu` : ''}</blockquote>`,
+            text: `🛠 <b>STATUS VC</b>\n<blockquote>Status: <b>${active ? 'Aktif (WebRTC Voice Chat)' : 'Tidak aktif'}</b></blockquote>`,
             parseMode: 'html',
           });
           return;
         }
+        case 'startvc':
+        case 'openvc':
         case 'joinvc': {
-          const existing = state.rtmpStreams.get(rtmpKey);
-          if (existing || tg.isActive(chatId)) {
-            await message.edit({ text: '<blockquote>✅ Sudah ada di voice chat ini.</blockquote>', parseMode: 'html' });
+          if (tg.isActive(chatId)) {
+            await message.edit({ text: '<blockquote>✅ Sudah berada di obrolan suara ini.</blockquote>', parseMode: 'html' });
             return;
           }
-          await busy('Joining voice chat');
+          await busy('Membuka & menghubungkan ke obrolan suara');
           await tg.joinIdle(chatId, { allowCreate: true });
           await message.edit({
-            text: `🎧 <b>VC</b>\n<blockquote>✅ Masuk voice chat.\n▶️ Putar musik: <code>.play &lt;url&gt;</code>\n👋 Keluar: <code>.leavevc</code></blockquote>`,
+            text: `🎧 <b>Obrolan Suara</b>\n<blockquote>✅ Obrolan suara aktif & userbot bergabung (standby).\n▶️ Putar musik: <code>.play &lt;url/link&gt;</code>\n👋 Keluar: <code>.leavevc</code></blockquote>`,
             parseMode: 'html',
           });
           return;
@@ -299,7 +224,7 @@ export default {
           const withVideo = /--video\b/i.test(args);
           const cleanArgs = args.replace(/--video\b/i, '').trim();
 
-          // Reply mode: `.play` (or `.play --video`) replying to a media message.
+          // Reply mode: `.play` me-reply pesan media
           if (!cleanArgs) {
             let replyMsg: unknown = null;
             try {
@@ -308,210 +233,108 @@ export default {
             const dl = replyMsg ? await downloadTgMedia(client, replyMsg) : null;
             if (dl === null) {
               await message.edit({
-                text: `🎵 <b>PLAY</b>\n<blockquote>Penggunaan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.play <url> --video</code> — audio+video livestream\n<code>.play /path/file.mp3</code> — file lokal\nAtau <b>reply</b> media (audio/video/voice/dokumen) dengan <code>.play</code></blockquote>`,
+                text: `🎵 <b>PUTAR MUSIK</b>\n<blockquote>Gunakan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.play &lt;url&gt; --video</code>\n<code>.play /path/file.mp3</code>\nAtau <b>reply media</b> dengan <code>.play</code></blockquote>`,
                 parseMode: 'html',
               });
               return;
             }
-            // Telegram media path — always RTMP (works on UDP-blocked hosts).
-            await busy('Downloading media');
+            await busy('Mengunduh media');
             const label = mediaLabel(replyMsg);
-            const { url, key } = await getRtmpUrl(client, asBigIntChat(chatId));
-            const ff = spawnRtmpPush(undefined, dl.path, url, key, withVideo);
-            ff.on('close', () => {dl.cleanup();});
-            ff.on('error', () => {dl.cleanup();});
-            await new Promise((r) => setTimeout(r, 4000));
-            if (ff.exitCode !== null) {
-              dl.cleanup();
-              throw new Error('ffmpeg gagal start (media tidak bisa dibaca)');
-            }
-            state.rtmpStreams.set(rtmpKey, {
-              ffmpeg: ff,
-              chatId: asBigIntChat(chatId),
-              startedAt: Date.now(),
-              title: label,
-            });
-            await message.edit({
-              text: `📺 <b>LIVE</b>\n<blockquote>🔴 Streaming media Telegram: <i>${escapeHtml(label.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON (720p)' : '\n🎵 Audio only'}\n⏹ Stop: <code>.skip</code> / <code>.leavevc</code></blockquote>`,
-              parseMode: 'html',
-            });
-            return;
-          }
-          const existing = state.rtmpStreams.get(rtmpKey);
-          if (existing) {
-            await message.edit({
-              text: '⚠️ <blockquote>RTMP livestream sudah jalan di chat ini — <code>.skip</code> dulu buat ganti.</blockquote>',
-              parseMode: 'html',
-            });
-            return;
-          }
-          if (tg.isActive(chatId)) {
-            await busy('Ganti track');
-            await tg.setSource(chatId, await toSource(cleanArgs, tg));
-            await message.edit({
-              text: `🎵 <b>VC</b>\n<blockquote>⏭ Ganti track: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
-              parseMode: 'html',
-            });
-            return;
-          }
-          await busy('Preparing stream');
-          // Try native RTC first; fall back to RTMP livestream when the host
-          // cannot reach Telegram's UDP media servers (ICE timeout / kick).
-          let useRtmp = state.rtcWorks === false;
-          if (state.rtcWorks === null) {
-            // First-ever play: detect by attempting RTC join; if it fails or
-            // times out quickly, mark RTMP for this session.
-            try {
-              await tg.join(chatId, await toSource(cleanArgs, tg), { allowCreate: true });
-              state.rtcWorks = true;
-              await message.edit({
-                text: `🎵 <b>VC</b>\n<blockquote>▶️ Streaming (RTC): <i>${escapeHtml(cleanArgs.slice(0, 80))}</i></blockquote>`,
-                parseMode: 'html',
+            const source = { kind: 'file' as const, path: dl.path };
+
+            if (tg.isActive(chatId)) {
+              await busy('Mengganti track');
+              await tg.setSource(chatId, source);
+            } else {
+              await busy('Menghubungkan ke obrolan suara');
+              await tg.join(chatId, source, {
+                allowCreate: true,
+                ...(withVideo ? { video: { width: 1280, height: 720, fps: 24 } } : {}),
               });
-              return;
-            } catch (rtcErr) {
-              Logger.logUser(0, `RTC join failed, falling back to RTMP: ${errText(rtcErr)}`, 'WARN');
-              state.rtcWorks = false;
-              useRtmp = true;
-              await tg.leave(chatId).catch(() => {});
             }
-          }
-          if (!useRtmp) {
-            await tg.join(chatId, await toSource(cleanArgs, tg), {
-              allowCreate: true,
-              ...(withVideo ? { video: { width: 1280, height: 720, fps: 24 } } : {}),
-            });
+
             await message.edit({
-              text: `🎬 <b>VC</b>\n<blockquote>▶️ Streaming (RTC): <i>${escapeHtml(cleanArgs.slice(0, 80))}</i></blockquote>`,
+              text: `🎵 <b>Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON' : ''}\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;
           }
-          // ---- RTMP livestream path (TCP:443, no UDP needed)
-          const resolved = await toSource(cleanArgs, tg);
-          const { url, key } = await getRtmpUrl(client, asBigIntChat(chatId));
-          const ff = spawnRtmpPush(
-            resolved.kind === 'url' ? resolved.url : undefined,
-            resolved.kind === 'file' ? resolved.path : undefined,
-            url,
-            key,
-            withVideo,
-          );
-          let failed = false;
-          ff.on('exit', (code) => {
-            if (code !== 0 && code !== null && !failed) {
-              Logger.logUser(0, `RTMP ffmpeg exited code=${code}`, 'WARN');
-            }
-            state.rtmpStreams.delete(rtmpKey);
-          });
-          // small grace period: if ffmpeg dies instantly (bad input), fail fast
-          await new Promise((r) => setTimeout(r, 4000));
-          if (ff.exitCode !== null) {
-            failed = true;
-            throw new Error('ffmpeg gagal start (input tidak valid atau RTMP ditolak)');
+
+          const source = await toSource(cleanArgs, tg);
+
+          if (tg.isActive(chatId)) {
+            await busy('Mengganti lagu');
+            await tg.setSource(chatId, source);
+            await message.edit({
+              text: `🎵 <b>Obrolan Suara</b>\n<blockquote>⏭ Ganti track: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+              parseMode: 'html',
+            });
+            return;
           }
-          state.rtmpStreams.set(rtmpKey, {
-            ffmpeg: ff,
-            chatId: asBigIntChat(chatId),
-            startedAt: Date.now(),
-            title: cleanArgs.slice(0, 100),
+
+          await busy('Menyiapkan audio');
+          await tg.join(chatId, source, {
+            allowCreate: true,
+            ...(withVideo ? { video: { width: 1280, height: 720, fps: 24 } } : {}),
           });
+
           await message.edit({
-            text: `📺 <b>LIVE</b>\n<blockquote>🔴 Livestream jalan (RTMP via TCP): <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON (720p)' : '\n🎵 Audio only'}\n⏹ Stop: <code>.skip</code> / <code>.leavevc</code></blockquote>`,
+            text: `🎵 <b>Obrolan Suara</b>\n<blockquote>▶️ Memutar di VC: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON' : ''}</blockquote>`,
             parseMode: 'html',
           });
           return;
         }
         case 'skip': {
-          const existing = state.rtmpStreams.get(rtmpKey);
-          if (existing) {
-            await busy('Stopping live');
-            existing.ffmpeg.kill('SIGKILL');
-            state.rtmpStreams.delete(rtmpKey);
-            await message.edit({ text: '⏹ <blockquote>Livestream dihentikan.</blockquote>', parseMode: 'html' });
-            return;
-          }
           if (!tg.isActive(chatId)) {
-            await message.edit({ text: '<blockquote>⚠️ Tidak ada streaming di chat ini.</blockquote>', parseMode: 'html' });
+            await message.edit({ text: '<blockquote>⚠️ Tidak ada audio yang sedang diputar di chat ini.</blockquote>', parseMode: 'html' });
             return;
           }
-          await busy('Skipping');
-          // Stop audio but stay in the call: swap to a silent source.
+          await busy('Menghentikan track');
           await tg.setSource(chatId, { kind: 'shell', command: 'ffmpeg -f lavfi -i anullsrc=r=48000:cl=stereo -loglevel panic -f s16le -ac 2 -ar 48000 pipe:1' });
           await message.edit({
-            text: '⏭ <blockquote>Track dihentikan (masih di VC — <code>.leavevc</code> buat keluar).</blockquote>',
+            text: '⏭ <blockquote>Audio dihentikan (tetap berada di VC — ketik <code>.leavevc</code> untuk keluar).</blockquote>',
             parseMode: 'html',
           });
           return;
         }
         case 'pause': {
-          const s = state.rtmpStreams.get(rtmpKey);
-          if (s) {
-            s.ffmpeg.kill('SIGSTOP');
-            await message.edit({ text: '⏸ <blockquote>Livestream dipause.</blockquote>', parseMode: 'html' });
-            return;
-          }
           const ok = await tg.pause(chatId);
-          await message.edit({ text: ok ? '⏸ <blockquote>Streaming dipause.</blockquote>' : '⚠️ <blockquote>Gagal pause.</blockquote>', parseMode: 'html' });
+          await message.edit({ text: ok ? '⏸ <blockquote>Pemutaran dijeda.</blockquote>' : '⚠️ <blockquote>Gagal menjeda audio.</blockquote>', parseMode: 'html' });
           return;
         }
         case 'resume': {
-          const s = state.rtmpStreams.get(rtmpKey);
-          if (s) {
-            s.ffmpeg.kill('SIGCONT');
-            await message.edit({ text: '▶️ <blockquote>Livestream dilanjutkan.</blockquote>', parseMode: 'html' });
-            return;
-          }
           const ok = await tg.resume(chatId);
-          await message.edit({ text: ok ? '▶️ <blockquote>Streaming dilanjutkan.</blockquote>' : '⚠️ <blockquote>Gagal resume.</blockquote>', parseMode: 'html' });
+          await message.edit({ text: ok ? '▶️ <blockquote>Pemutaran dilanjutkan.</blockquote>' : '⚠️ <blockquote>Gagal melanjutkan audio.</blockquote>', parseMode: 'html' });
           return;
         }
         case 'mute':
         case 'unmute': {
-          if (state.rtmpStreams.has(rtmpKey)) {
-            await message.edit({ text: 'ℹ️ <blockquote>Mode RTMP: mute/unmute gak relevan (livestream terpisah).</blockquote>', parseMode: 'html' });
-            return;
-          }
           const ok = cmd === 'mute' ? await tg.mute(chatId) : await tg.unmute(chatId);
           await message.edit({
             text: ok
-              ? (cmd === 'mute' ? '🔇 <blockquote>Mic dimute.</blockquote>' : '🔊 <blockquote>Mic di-unmute.</blockquote>')
-              : '⚠️ <blockquote>Gagal.</blockquote>',
+              ? (cmd === 'mute' ? '🔇 <blockquote>Mic userbot dibisukan.</blockquote>' : '🔊 <blockquote>Mic userbot di-unmute.</blockquote>')
+              : '⚠️ <blockquote>Gagal mengatur mic.</blockquote>',
             parseMode: 'html',
           });
           return;
         }
         case 'vctime': {
-          const s = state.rtmpStreams.get(rtmpKey);
-          if (s) {
-            const t = Math.floor((Date.now() - s.startedAt) / 1000);
-            await message.edit({ text: `⏱ <blockquote><b>${Math.floor(t / 60)}m ${t % 60}s</b> live.</blockquote>`, parseMode: 'html' });
-            return;
-          }
           if (!tg.isActive(chatId)) {
-            await message.edit({ text: '<blockquote>⚠️ Tidak ada streaming.</blockquote>', parseMode: 'html' });
+            await message.edit({ text: '<blockquote>⚠️ Tidak ada sesi streaming aktif di chat ini.</blockquote>', parseMode: 'html' });
             return;
           }
           const t = Math.floor(await tg.time(chatId));
-          await message.edit({ text: `⏱ <blockquote><b>${Math.floor(t / 60)}m ${t % 60}s</b> streaming.</blockquote>`, parseMode: 'html' });
+          await message.edit({ text: `⏱ <blockquote>Telah berjalan: <b>${Math.floor(t / 60)}m ${t % 60}s</b>.</blockquote>`, parseMode: 'html' });
           return;
         }
         case 'leavevc': {
-          const s = state.rtmpStreams.get(rtmpKey);
-          if (s) {
-            await busy('Stopping live');
-            s.ffmpeg.kill('SIGKILL');
-            state.rtmpStreams.delete(rtmpKey);
-            await message.edit({ text: '👋 <blockquote>Livestream dihentikan.</blockquote>', parseMode: 'html' });
-            return;
-          }
           if (!tg.isActive(chatId)) {
-            await message.edit({ text: '<blockquote>⚠️ Belum ada di voice chat ini.</blockquote>', parseMode: 'html' });
+            await message.edit({ text: '<blockquote>⚠️ Userbot belum berada di obrolan suara grup ini.</blockquote>', parseMode: 'html' });
             return;
           }
-          await busy('Leaving');
+          await busy('Keluar dari obrolan suara');
           await tg.leave(chatId);
-          await message.edit({ text: '👋 <blockquote>Keluar dari voice chat.</blockquote>', parseMode: 'html' });
+          await message.edit({ text: '👋 <blockquote>Berhasil keluar dari obrolan suara.</blockquote>', parseMode: 'html' });
           return;
         }
         default:
@@ -520,14 +343,14 @@ export default {
     } catch (err) {
       const msg = errText(err);
       const hint = /no active voice chat/i.test(msg)
-        ? '\nℹ️ Grup ini belum punya voice chat aktif.'
+        ? '\nℹ️ Grup ini belum membuka Obrolan Suara.'
         : /yt-dlp/i.test(msg)
-          ? '\nℹ️ yt-dlp gagal resolve tautan itu.'
+          ? '\nℹ️ yt-dlp gagal memproses tautan.'
           : /ffmpeg/i.test(msg)
-            ? '\nℹ️ ffmpeg error — cek format file/URL.'
+            ? '\nℹ️ Format media tidak didukung.'
             : '';
       await message.edit({
-        text: `🎵 <b>VC</b>\n<blockquote>❌ ${escapeHtml(msg.slice(0, 200))}${hint}</blockquote>`,
+        text: `🎵 <b>Obrolan Suara</b>\n<blockquote>❌ ${escapeHtml(msg.slice(0, 200))}${hint}</blockquote>`,
         parseMode: 'html',
       });
       Logger.logUser(0, `Error in vc plugin: ${msg}`, 'ERROR');

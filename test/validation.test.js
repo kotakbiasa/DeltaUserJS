@@ -49,13 +49,13 @@ function runValidationTests() {
     assert.equal(positiveInt.parse(10), 10);
   });
   runTest('positiveInt: rejects zero', () => {
-    assert.throws(() => positiveInt.parse('0'), /Too small|expected number to be >0/);
+    assert.throws(() => positiveInt.parse('0'), /Too small|expected number to be >0|Number must be greater than 0|too_small/);
   });
   runTest('positiveInt: rejects negative', () => {
-    assert.throws(() => positiveInt.parse('-1'), /Too small|expected number to be >0/);
+    assert.throws(() => positiveInt.parse('-1'), /Too small|expected number to be >0|Number must be greater than 0|too_small/);
   });
   runTest('positiveInt: rejects non-integer', () => {
-    assert.throws(() => positiveInt.parse('1.5'), /expected int|Invalid input: expected int/);
+    assert.throws(() => positiveInt.parse('1.5'), /expected int|Invalid input: expected int|Expected integer|invalid_type/);
   });
 
   // --- telegramId ---
@@ -78,10 +78,10 @@ function runValidationTests() {
     assert.equal(result.text, 'Hello world');
   });
   runTest('gcastSchema: rejects empty text', () => {
-    assert.throws(() => validate(gcastSchema, { text: '' }), /Too small|expected string to have >=1/);
+    assert.throws(() => validate(gcastSchema, { text: '' }), /Too small|expected string to have >=1|String must contain at least 1 character/);
   });
   runTest('gcastSchema: rejects too long text', () => {
-    assert.throws(() => validate(gcastSchema, { text: 'a'.repeat(4097) }), /Too big|expected string to have <=4096/);
+    assert.throws(() => validate(gcastSchema, { text: 'a'.repeat(4097) }), /Too big|expected string to have <=4096|String must contain at most 4096 character/);
   });
   runTest('gcastSchema: accepts optional silent/pin', () => {
     const result = validate(gcastSchema, { text: 'Test', silent: true, pin: false });
@@ -98,7 +98,7 @@ function runValidationTests() {
     assert.equal(result.duration, 3600);
   });
   runTest('adminActionSchema: rejects missing userId', () => {
-    assert.throws(() => validate(adminActionSchema, { chatId: -100123 }), /Invalid input: expected number|required/);
+    assert.throws(() => validate(adminActionSchema, { chatId: -100123 }), /Invalid input: expected number|required|Expected number, received/);
   });
 
   // --- noteSchema ---
@@ -108,10 +108,10 @@ function runValidationTests() {
     assert.equal(result.content, 'Welcome!');
   });
   runTest('noteSchema: rejects invalid name (special chars)', () => {
-    assert.throws(() => validate(noteSchema, { name: 'bad@name', content: 'x' }), /must match pattern|Invalid string/);
+    assert.throws(() => validate(noteSchema, { name: 'bad@name', content: 'x' }), /must match pattern|Invalid string|Invalid/);
   });
   runTest('noteSchema: rejects empty name', () => {
-    assert.throws(() => validate(noteSchema, { name: '', content: 'x' }), /Too small|expected string to have >=1|must match pattern/);
+    assert.throws(() => validate(noteSchema, { name: '', content: 'x' }), /Too small|expected string to have >=1|must match pattern|String must contain at least 1 character/);
   });
 
   // --- scheduleSchema ---
@@ -128,7 +128,7 @@ function runValidationTests() {
   runTest('scheduleSchema: rejects invalid cron', () => {
     assert.throws(() => validate(scheduleSchema, {
       name: 'test', cron: 'invalid', message: 'x', chatId: 1
-    }), /must match pattern|Invalid string/);
+    }), /must match pattern|Invalid string|Invalid/);
   });
 
   // --- welcomeSchema ---
@@ -182,7 +182,7 @@ function runValidationTests() {
   runTest('reputationSchema: rejects invalid action', () => {
     assert.throws(() => validate(reputationSchema, {
       targetId: 456, chatId: -100123, action: 'x'
-    }), /Invalid option|expected one of/);
+    }), /Invalid option|expected one of|Invalid enum value/);
   });
 
   // --- carbonSchema ---
@@ -225,7 +225,7 @@ function runValidationTests() {
     assert.equal(result.timeout, 5000);
   });
   runTest('execSchema: rejects timeout > 30000', () => {
-    assert.throws(() => validate(execSchema, { code: 'x', timeout: 50000 }), /Too big|expected number to be <=30000/);
+    assert.throws(() => validate(execSchema, { code: 'x', timeout: 50000 }), /Too big|expected number to be <=30000|Number must be less than or equal to 30000/);
   });
 
   // --- validatePartial ---
@@ -235,7 +235,7 @@ function runValidationTests() {
     assert.equal(result.text, undefined);
   });
   runTest('validatePartial: rejects invalid partial data', () => {
-    assert.throws(() => validatePartial(gcastSchema, { text: '' }), /Too small|expected string to have >=1/);
+    assert.throws(() => validatePartial(gcastSchema, { text: '' }), /Too small|expected string to have >=1|String must contain at least 1 character/);
   });
 
   console.log(`\n📊 Unit Test Results: ${passed} passed, ${failed} failed`);

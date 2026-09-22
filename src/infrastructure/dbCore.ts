@@ -284,7 +284,7 @@ export async function initDatabaseAndCache() {
       Logger.logSystem('🔌 Connecting to MongoDB Cluster...', 'INFO');
       await mongoose.connect(MONGO_URI, {
         dbName: DB_NAME,
-        serverSelectionTimeoutMS: 15000
+        serverSelectionTimeoutMS: 30000
       });
       isMongo = true;
       Logger.logSystem(`✅ Connected successfully to MongoDB: "${mongoose.connection.name}"`, 'SUCCESS');
