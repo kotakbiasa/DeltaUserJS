@@ -249,7 +249,7 @@ export default {
                 await tg.leave(chatId);
                 await tg.join(chatId, source, {
                   allowCreate: true,
-                  video: { width: 1280, height: 720, fps: 24 },
+                  video: { width: 1280, height: 720, fps: 30 },
                 });
               } else {
                 await busy('Mengganti track');
@@ -259,7 +259,7 @@ export default {
               await busy('Menghubungkan ke obrolan suara');
               await tg.join(chatId, source, {
                 allowCreate: true,
-                ...(withVideo ? { video: { width: 1280, height: 720, fps: 24 } } : {}),
+                ...(withVideo ? { video: { width: 1280, height: 720, fps: 30 } } : {}),
               });
             }
 
@@ -278,7 +278,7 @@ export default {
               await tg.leave(chatId);
               await tg.join(chatId, source, {
                 allowCreate: true,
-                video: { width: 1280, height: 720, fps: 24 },
+                video: { width: 1280, height: 720, fps: 30 },
               });
             } else {
               await busy('Mengganti lagu');
@@ -294,7 +294,7 @@ export default {
           await busy(withVideo ? 'Menyiapkan audio + video' : 'Menyiapkan audio');
           await tg.join(chatId, source, {
             allowCreate: true,
-            ...(withVideo ? { video: { width: 1280, height: 720, fps: 24 } } : {}),
+            ...(withVideo ? { video: { width: 1280, height: 720, fps: 30 } } : {}),
           });
 
           await message.edit({
