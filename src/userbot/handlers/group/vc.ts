@@ -154,10 +154,10 @@ export default {
     usage:
       '• `.joinvc` — gabung ke obrolan suara (standby/idle)\n' +
       '• `.play <url>` — streaming musik dari YouTube/tautan\n' +
-      '• `.play <url> --video` atau `.vplay` — streaming audio + video\n' +
+      '• `.play <url> --video` atau `.vplay` — streaming video HD jernih (WebRTC)\n' +
       '• `.play /path/file.mp3` — streaming file lokal\n' +
       '• Reply media (lagu/video/voice) + `.play` / `.vplay` — putar media Telegram\n' +
-      '• `.skip` — hentikan pemutaran audio (tetap di VC)\n' +
+      '• `.skip` — hentikan pemutaran audio/video (tetap di VC)\n' +
       '• `.pause` / `.resume` — jeda / lanjutkan musik\n' +
       '• `.mute` / `.unmute` — bisukan / bunyikan mic userbot\n' +
       '• `.vctime` — durasi streaming aktif\n' +
@@ -218,7 +218,7 @@ export default {
           await busy('Membuka & menghubungkan ke obrolan suara');
           await tg.joinIdle(chatId, { allowCreate: true });
           await message.edit({
-            text: `🎧 <b>Obrolan Suara</b>\n<blockquote>✅ Obrolan suara aktif & userbot bergabung (standby).\n▶️ Putar musik: <code>.play &lt;url/link&gt;</code>\n📹 Putar video: <code>.vplay &lt;url&gt;</code>\n🖥 Berbagi Layar HD: <code>.screenplay &lt;url&gt;</code>\n👋 Keluar: <code>.leavevc</code></blockquote>`,
+            text: `🎧 <b>Obrolan Suara</b>\n<blockquote>✅ Obrolan suara aktif & userbot bergabung (standby).\n▶️ Putar musik: <code>.play &lt;url/link&gt;</code>\n📹 Putar video HD: <code>.vplay &lt;url&gt;</code>\n👋 Keluar: <code>.leavevc</code></blockquote>`,
             parseMode: 'html',
           });
           return;
@@ -226,8 +226,7 @@ export default {
         case 'screenplay':
         case 'vplay':
         case 'play': {
-          const withScreen = cmd === 'screenplay' || /--screen\b/i.test(args);
-          const withVideo = withScreen || cmd === 'vplay' || /--video\b/i.test(args);
+          const withVideo = cmd === 'vplay' || cmd === 'screenplay' || /--(video|screen)\b/i.test(args);
           const cleanArgs = (cmd === 'vplay' || cmd === 'screenplay' ? args : args.replace(/--(video|screen)\b/gi, '')).trim();
 
           // Reply mode: me-reply pesan media
@@ -239,7 +238,7 @@ export default {
             const dl = replyMsg ? await downloadTgMedia(client, replyMsg) : null;
             if (dl === null) {
               await message.edit({
-                text: `🎵 <b>PUTAR MEDIA</b>\n<blockquote>Gunakan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.vplay &lt;url&gt;</code> (Video Kamera)\n<code>.screenplay &lt;url&gt;</code> (Berbagi Layar HD)\n<code>.play /path/file.mp3</code>\nAtau <b>reply media (audio/video)</b> dengan <code>.vplay</code> / <code>.screenplay</code></blockquote>`,
+                text: `🎵 <b>PUTAR MEDIA</b>\n<blockquote>Gunakan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.vplay &lt;url&gt;</code> (Video HD Jernih)\n<code>.play /path/file.mp3</code>\nAtau <b>reply media (audio/video)</b> dengan <code>.play</code> / <code>.vplay</code></blockquote>`,
                 parseMode: 'html',
               });
               return;
@@ -247,30 +246,21 @@ export default {
             const label = mediaLabel(replyMsg);
             const source = { kind: 'file' as const, path: dl.path };
 
-            if (withScreen) {
-              await busy('Mengaktifkan Berbagi Layar HD');
+            if (withVideo) {
+              await busy('Mengaktifkan video HD di obrolan suara');
               if (tg.isActive(chatId)) {
                 await tg.leave(chatId);
               }
               await tg.join(chatId, source, { allowCreate: true, video: false });
               await tg.startPresentation(chatId, source, { width: 1280, height: 720, fps: 30 });
               await message.edit({
-                text: `📺 <b>Berbagi Layar HD</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>\n🖥 Mode: Berbagi Layar (HD Clear)\n⏹ <code>.skip</code> • 👋 <code>.leavevc</code></blockquote>`,
+                text: `📺 <b>Video Obrolan Suara (HD)</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>\n📹 Mode: Video HD (Jernih)\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
                 parseMode: 'html',
               });
               return;
             }
 
-            if (withVideo) {
-              await busy('Mengaktifkan video di obrolan suara');
-              if (tg.isActive(chatId)) {
-                await tg.leave(chatId);
-              }
-              await tg.join(chatId, source, {
-                allowCreate: true,
-                video: { width: 854, height: 480, fps: 30 },
-              });
-            } else if (tg.isActive(chatId)) {
+            if (tg.isActive(chatId)) {
               await busy('Mengganti track');
               await tg.setSource(chatId, source);
             } else {
@@ -279,55 +269,43 @@ export default {
             }
 
             await message.edit({
-              text: `🎵 <b>Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON (Kamera)' : ''}\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+              text: `🎵 <b>Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;
           }
 
-          const source = await toSource(cleanArgs, tg, withVideo || withScreen);
+          const source = await toSource(cleanArgs, tg, withVideo);
 
-          if (withScreen) {
-            await busy('Mengaktifkan Berbagi Layar HD');
+          if (withVideo) {
+            await busy('Mengaktifkan video HD di obrolan suara');
             if (tg.isActive(chatId)) {
               await tg.leave(chatId);
             }
             await tg.join(chatId, source, { allowCreate: true, video: false });
             await tg.startPresentation(chatId, source, { width: 1280, height: 720, fps: 30 });
             await message.edit({
-              text: `📺 <b>Berbagi Layar HD</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n🖥 Mode: Berbagi Layar (HD Clear)\n⏹ <code>.skip</code> • 👋 <code>.leavevc</code></blockquote>`,
+              text: `📺 <b>Video Obrolan Suara (HD)</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n📹 Mode: Video HD (Jernih)\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;
           }
 
           if (tg.isActive(chatId)) {
-            if (withVideo) {
-              await busy('Mengaktifkan video di obrolan suara');
-              await tg.leave(chatId);
-              await tg.join(chatId, source, {
-                allowCreate: true,
-                video: { width: 854, height: 480, fps: 30 },
-              });
-            } else {
-              await busy('Mengganti lagu');
-              await tg.setSource(chatId, source);
-            }
+            await busy('Mengganti lagu');
+            await tg.setSource(chatId, source);
             await message.edit({
-              text: `🎵 <b>Obrolan Suara</b>\n<blockquote>⏭ Ganti track: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON (Kamera)' : ''}\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+              text: `🎵 <b>Obrolan Suara</b>\n<blockquote>⏭ Ganti track: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;
           }
 
-          await busy(withVideo ? 'Menyiapkan audio + video' : 'Menyiapkan audio');
-          await tg.join(chatId, source, {
-            allowCreate: true,
-            ...(withVideo ? { video: { width: 854, height: 480, fps: 30 } } : {}),
-          });
+          await busy('Menyiapkan audio');
+          await tg.join(chatId, source, { allowCreate: true });
 
           await message.edit({
-            text: `🎵 <b>Obrolan Suara</b>\n<blockquote>▶️ Memutar di VC: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>${withVideo ? '\n📹 Video: ON (Kamera)' : ''}</blockquote>`,
+            text: `🎵 <b>Obrolan Suara</b>\n<blockquote>▶️ Memutar di VC: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
             parseMode: 'html',
           });
           return;
