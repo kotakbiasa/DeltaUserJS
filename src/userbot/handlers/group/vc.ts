@@ -39,7 +39,7 @@ type TgClient = {
   unmute: (chat: string | number | bigint) => Promise<boolean>;
   time: (chat: string | number | bigint) => Promise<number>;
   isActive: (chat: string | number | bigint) => boolean;
-  resolveYouTube: (url: string) => Promise<string | null>;
+  resolveYouTube: (url: string, video?: boolean) => Promise<string | null>;
 };
 
 async function getClient(client: unknown): Promise<TgClient> {
@@ -61,6 +61,7 @@ function errText(err: unknown): string {
 async function toSource(
   args: string,
   tg: TgClient,
+  video = false,
 ): Promise<{ kind: 'file'; path: string } | { kind: 'url'; url: string }> {
   const isLocal = args.startsWith('/') || args.startsWith('./') || args.startsWith('~') || /^[a-zA-Z]:[/\\]/.test(args);
   if (isLocal) {
@@ -69,7 +70,7 @@ async function toSource(
   if (!/^https?:\/\//i.test(args)) {
     throw new Error('Argumen harus URL (YouTube/link) atau path file lokal');
   }
-  const direct = await tg.resolveYouTube(args);
+  const direct = await tg.resolveYouTube(args, video);
   if (direct === null) {
     throw new Error(`yt-dlp gagal resolve: ${args.slice(0, 100)}`);
   }
@@ -284,7 +285,7 @@ export default {
             return;
           }
 
-          const source = await toSource(cleanArgs, tg);
+          const source = await toSource(cleanArgs, tg, withVideo || withScreen);
 
           if (withScreen) {
             await busy('Mengaktifkan Berbagi Layar HD');
