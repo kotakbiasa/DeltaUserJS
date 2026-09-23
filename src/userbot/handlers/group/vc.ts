@@ -247,14 +247,13 @@ export default {
             const source = { kind: 'file' as const, path: dl.path };
 
             if (withVideo) {
-              await busy('Mengaktifkan video HD di obrolan suara');
+              await busy('Mengaktifkan video di obrolan suara');
               if (tg.isActive(chatId)) {
                 await tg.leave(chatId);
               }
-              await tg.join(chatId, source, { allowCreate: true, video: false });
-              await tg.startPresentation(chatId, source, { width: 1280, height: 720, fps: 30 });
+              await tg.join(chatId, source, { allowCreate: true, video: true });
               await message.edit({
-                text: `📺 <b>Video Obrolan Suara (HD)</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>\n📹 Mode: Video HD (Jernih)\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+                text: `📹 <b>Video Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>\n📹 Video: ON (Lancar & Sinkron)\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
                 parseMode: 'html',
               });
               return;
@@ -278,14 +277,13 @@ export default {
           const source = await toSource(cleanArgs, tg, withVideo);
 
           if (withVideo) {
-            await busy('Mengaktifkan video HD di obrolan suara');
+            await busy('Mengaktifkan video di obrolan suara');
             if (tg.isActive(chatId)) {
               await tg.leave(chatId);
             }
-            await tg.join(chatId, source, { allowCreate: true, video: false });
-            await tg.startPresentation(chatId, source, { width: 1280, height: 720, fps: 30 });
+            await tg.join(chatId, source, { allowCreate: true, video: true });
             await message.edit({
-              text: `📺 <b>Video Obrolan Suara (HD)</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n📹 Mode: Video HD (Jernih)\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+              text: `📹 <b>Video Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n📹 Video: ON (Lancar & Sinkron)\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;
