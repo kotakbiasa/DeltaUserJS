@@ -139,6 +139,8 @@ bot.command(['app', 'webapp', 'dashboard'], async (ctx) => {
     'Dashboard visual interaktif untuk manajemen userbot Anda:\n' +
     '• 📊 Pantau status live, ping, RAM & FloodGuard\n' +
     '• 🧩 Toggle saklar 58+ plugin on/off instan\n' +
+    '• 🛍️ Toko plugin digital dengan pesanan manual owner\n' +
+    '• 🧮 Kalkulator, teks, dan password generator lokal\n' +
     '• 📢 Broadcast studio dengan chat selector\n' +
     '• 💎 Cek masa aktif & klaim kode voucher promo\n' +
     '• 👑 Pusat kontrol armada (khusus owner)\n\n' +

@@ -63,6 +63,7 @@ const userbotSchema = new mongoose.Schema({
   stream_mode: { type: Number, default: 0 }, // 0=off, 1=full instant, 2=per-kata
   afk_reason: { type: String, default: DEFAULT_AFK_REASON },
   expired_at: Date,
+  trial_claimed_at: Date,
   created_at: { type: Date, default: Date.now },
   inline_bot_token: String,
   inline_bot_username: String,
@@ -132,9 +133,13 @@ export function normalizeBot(raw: any = {}, id?: any) {
     }
   }
 
-  // Owner's userbot never expires (expired_at = null → expiration checker skips)
+  // Owner's userbot never expires. An explicit null expiry also means
+  // lifetime; only a missing legacy value receives the default trial.
   const isOwnerBot = idNum === Number(config.ownerId);
-  const expiredAt = isOwnerBot ? null : (raw.expired_at || addDays(createdAt, SUBSCRIPTION_DAYS).toISOString());
+  const hasExplicitExpiry = Object.prototype.hasOwnProperty.call(raw, 'expired_at');
+  const expiredAt = isOwnerBot
+    ? null
+    : (hasExplicitExpiry ? raw.expired_at : addDays(createdAt, SUBSCRIPTION_DAYS).toISOString());
 
   return {
     telegram_id: idNum,
@@ -147,6 +152,7 @@ export function normalizeBot(raw: any = {}, id?: any) {
     anti_pm: pick('anti_pm', 0),
     afk_reason: raw.afk_reason || DEFAULT_AFK_REASON,
     expired_at: expiredAt,
+    trial_claimed_at: raw.trial_claimed_at || null,
     created_at: createdAt,
     inline_bot_token: raw.inline_bot_token || null,
     inline_bot_username: raw.inline_bot_username || null,

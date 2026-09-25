@@ -9,11 +9,16 @@ import {
   initTrialSubscription,
   cancelAutoRenew,
   createPayment,
+  attachPaymentCheckout,
   getSubscriptionStats,
   updatePaymentStatus,
+  claimPaidPayment,
+  fulfillSubscriptionPayment,
 } from '../../services/SubscriptionService.js';
 import { handlePaymentWebhook, createPaymentViaGateway, generateOrderId } from '../../services/PaymentGateway.js';
-import { getUserVar } from '../../infrastructure/database.js';
+import { PaymentModel, type PaymentDoc } from '../../infrastructure/subscriptionModels.js';
+import { getUserVar, getUserbotSession } from '../../infrastructure/database.js';
+import { isMongo } from '../../infrastructure/dbCore.js';
 
 const GRACE_PERIOD_DAYS = 3;
 
@@ -37,12 +42,26 @@ function getSubscriptionStatusEmoji(status: string): string {
   return emojis[status] || '⚪';
 }
 
+function getConfiguredGateway(): 'midtrans' | 'xendit' | null {
+  if (config.midtransServerKey) {return 'midtrans';}
+  if (config.xenditApiKey) {return 'xendit';}
+  return null;
+}
+
 /**
  * Main subscription menu
  */
 export async function showSubscriptionMenu(ctx: Context) {
   const userId = ctx.from?.id;
   if (!userId) {return;}
+  if (!isMongo) {
+    const session = getUserbotSession(userId);
+    await ctx.reply(
+      `💳 **LANGGANAN USERBOT**\n\nStatus: ${session?.is_active === 1 ? 'Aktif' : 'Tidak aktif'}\n` +
+      'Checkout otomatis membutuhkan MongoDB. Hubungi owner untuk perpanjangan manual.'
+    );
+    return;
+  }
 
   const sub = await getUserSubscription(userId);
   const plans = await getActivePlans();
@@ -104,17 +123,32 @@ export function registerSubscriptionHandlers(bot: Bot) {
     const planId = ctx.match[1];
     const userId = ctx.from?.id;
     if (!userId) {return;}
+    if (!isMongo) {
+      await ctx.reply('Checkout otomatis belum tersedia. Hubungi owner untuk pembelian manual.');
+      return;
+    }
 
     const plan = await getPlan(planId);
-    if (!plan) {
-      await ctx.reply('❌ Paket tidak ditemukan.');
+    if (!plan || !plan.isActive) {
+      await ctx.reply('❌ Paket tidak ditemukan atau sudah nonaktif.');
       return;
     }
 
     if (plan.price === 0) {
-      // Free trial
+      const existing = await getUserSubscription(userId);
+      const session = getUserbotSession(userId);
+      if (session?.trial_claimed_at || (existing?.planId === 'trial' && existing.metadata?.isTrial)) {
+        await ctx.reply('Trial gratis sudah pernah diklaim.');
+        return;
+      }
       await initTrialSubscription(userId);
       await ctx.reply(`✅ Trial ${plan.name} diaktifkan untuk ${plan.trialDays} hari!`);
+      return;
+    }
+
+    const gateway = getConfiguredGateway();
+    if (!gateway) {
+      await ctx.reply('❌ Payment gateway belum dikonfigurasi. Hubungi owner untuk pembelian manual.');
       return;
     }
 
@@ -122,18 +156,20 @@ export function registerSubscriptionHandlers(bot: Bot) {
     const orderId = generateOrderId(userId, planId);
     const userEmail = `${userId}@telegram.local`; // fallback
     const userPhone = getUserVar(userId, 'PHONE') || undefined;
+    let payment: PaymentDoc | null = null;
 
     try {
-      const _payment = await createPayment({
+      payment = await createPayment({
         userId,
         planId,
         amount: plan.price,
         currency: 'IDR',
-        gateway: 'midtrans',
+        gateway,
+        externalId: orderId,
         metadata: { orderId },
       });
 
-      const result = await createPaymentViaGateway('midtrans', {
+      const result = await createPaymentViaGateway(gateway, {
         orderId,
         amount: plan.price,
         userId,
@@ -141,13 +177,14 @@ export function registerSubscriptionHandlers(bot: Bot) {
         userPhone,
         itemName: `Langganan ${plan.name}`,
       });
+      await attachPaymentCheckout(payment._id.toString(), result);
 
       await ctx.reply(
         `<b>💳 PEMBAYARAN ${plan.name.toUpperCase()}</b>\n\n` +
         `📦 Paket: ${plan.name}\n` +
         `💰 Harga: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(plan.price)}\n` +
         `⏰ Expired: 30 menit\n\n` +
-        `<a href="${result.paymentUrl}">👉 BAYAR SEKARANG VIA MIDTRANS</a>\n\n` +
+        `<a href="${result.paymentUrl}">👉 BAYAR SEKARANG VIA ${gateway.toUpperCase()}</a>\n\n` +
         `<i>Setelah bayar, langganan otomatis aktif. Cek status di menu ini.</i>`,
         {
           parse_mode: 'HTML',
@@ -159,6 +196,9 @@ export function registerSubscriptionHandlers(bot: Bot) {
         }
       );
     } catch (err) {
+      if (payment?.externalId) {
+        await updatePaymentStatus(payment.externalId, { status: 'cancelled', payload: { error: String(err) } }).catch(() => undefined);
+      }
       Logger.logSystem(`Payment creation failed: ${err}`, 'ERROR');
       await ctx.reply('❌ Gagal membuat pembayaran. Coba lagi nanti.');
     }
@@ -169,6 +209,10 @@ export function registerSubscriptionHandlers(bot: Bot) {
     await ctx.answerCallbackQuery();
     const userId = ctx.from?.id;
     if (!userId) {return;}
+    if (!isMongo) {
+      await ctx.reply('Perpanjangan otomatis belum tersedia. Hubungi owner untuk pembayaran manual.');
+      return;
+    }
 
     const sub = await getUserSubscription(userId);
     if (!sub) {
@@ -177,32 +221,41 @@ export function registerSubscriptionHandlers(bot: Bot) {
     }
 
     const plan = await getPlan(sub.planId);
-    if (!plan) {
-      await ctx.reply('❌ Paket tidak ditemukan.');
+    if (!plan || !plan.isActive) {
+      await ctx.reply('❌ Paket tidak ditemukan atau sudah nonaktif.');
+      return;
+    }
+
+    const gateway = getConfiguredGateway();
+    if (!gateway) {
+      await ctx.reply('❌ Payment gateway belum dikonfigurasi. Hubungi owner untuk pembelian manual.');
       return;
     }
 
     // Same flow as buy
     const orderId = generateOrderId(userId, plan._id);
     const userEmail = `${userId}@telegram.local`;
+    let payment: PaymentDoc | null = null;
 
     try {
-      await createPayment({
+      payment = await createPayment({
         userId,
         planId: plan._id,
         amount: plan.price,
         currency: 'IDR',
-        gateway: 'midtrans',
+        gateway,
+        externalId: orderId,
         metadata: { orderId, isRenewal: true },
       });
 
-      const result = await createPaymentViaGateway('midtrans', {
+      const result = await createPaymentViaGateway(gateway, {
         orderId,
         amount: plan.price,
         userId,
         userEmail,
         itemName: `Perpanjangan ${plan.name}`,
       });
+      await attachPaymentCheckout(payment._id.toString(), result);
 
       await ctx.reply(
         `<b>🔄 PERPANJANGAN ${plan.name.toUpperCase()}</b>\n\n` +
@@ -219,6 +272,9 @@ export function registerSubscriptionHandlers(bot: Bot) {
         }
       );
     } catch (err) {
+      if (payment?.externalId) {
+        await updatePaymentStatus(payment.externalId, { status: 'cancelled', payload: { error: String(err) } }).catch(() => undefined);
+      }
       Logger.logSystem(`Renewal payment failed: ${err}`, 'ERROR');
       await ctx.reply('❌ Gagal membuat pembayaran perpanjangan.');
     }
@@ -229,6 +285,10 @@ export function registerSubscriptionHandlers(bot: Bot) {
     await ctx.answerCallbackQuery('Auto-renew dibatalkan');
     const userId = ctx.from?.id;
     if (!userId) {return;}
+    if (!isMongo) {
+      await ctx.reply('Auto-renew tidak tersedia pada mode database lokal.');
+      return;
+    }
 
     await cancelAutoRenew(userId, 'User cancelled via bot');
     await ctx.reply('✅ Auto-renew dibatalkan. Langganan tetap aktif hingga tanggal berakhir.');
@@ -239,6 +299,10 @@ export function registerSubscriptionHandlers(bot: Bot) {
     await ctx.answerCallbackQuery();
     const userId = ctx.from?.id;
     if (!userId) {return;}
+    if (!isMongo) {
+      await ctx.reply('Riwayat pembayaran membutuhkan MongoDB.');
+      return;
+    }
 
     const payments = await getUserPayments(userId, 10);
 
@@ -317,6 +381,36 @@ export function registerSubscriptionHandlers(bot: Bot) {
   });
 }
 
+interface PaymentWebhookVerification {
+  payment?: PaymentDoc;
+  unknown?: boolean;
+  invalid?: boolean;
+}
+
+async function verifyPaymentForWebhook(
+  gateway: 'midtrans' | 'xendit',
+  orderId: string,
+  payload: any,
+  requireAmount: boolean
+): Promise<PaymentWebhookVerification> {
+  const payment = await PaymentModel.findOne({ externalId: orderId });
+  if (!payment) {return {unknown: true};}
+  if (payment.gateway !== gateway || payment.currency !== 'IDR') {
+    return {invalid: true};
+  }
+
+  if (requireAmount) {
+    const expected = Number(payment.amount);
+    const actual = gateway === 'midtrans'
+      ? Number(payload?.gross_amount)
+      : Number(payload?.amount_paid ?? payload?.amount);
+    if (!Number.isFinite(expected) || !Number.isFinite(actual) || actual < expected) {
+      return {invalid: true};
+    }
+  }
+  return {payment};
+}
+
 /**
  * Webhook endpoints for payment gateways
  */
@@ -328,34 +422,45 @@ export async function handleMidtransWebhook(payload: any, headers: Record<string
   Logger.logSystem(`Midtrans webhook: ${orderId} -> ${status}`, 'INFO');
 
   if (status === 'paid') {
-    // Find payment by externalId
-    const { PaymentModel } = await import('../../infrastructure/subscriptionModels.js');
-    const payment = await PaymentModel.findOne({ externalId: orderId });
-    if (payment && payment.status !== 'paid') {
-      await updatePaymentStatus(orderId, { status: 'paid', payload, paidAt: new Date() });
+    const verification = await verifyPaymentForWebhook('midtrans', orderId, payload, true);
+    if (verification.invalid) {
+      Logger.logSystem(`Midtrans payment amount/gateway mismatch: ${orderId}`, 'WARN');
+      return { success: false, message: 'Payment mismatch' };
+    }
+    if (verification.unknown) {return { success: true };}
 
-      // Activate subscription
-      const { activateSubscription, renewSubscription } = await import('../../services/SubscriptionService.js');
-      const isRenewal = payment.metadata?.isRenewal;
-      if (isRenewal) {
-        await renewSubscription(payment.userId, payment.planId, payment._id.toString());
-      } else {
-        await activateSubscription(payment.userId, payment.planId, payment._id.toString());
-      }
-
-      // Notify user
-      // TODO: send notification via bot
+    // Atomically claim the payment so duplicate notifications are idempotent.
+    const payment = await claimPaidPayment(orderId, payload);
+    if (payment) {
+      await fulfillSubscriptionPayment(payment);
     }
 
     return { success: true };
   }
 
-  if (status === 'failed' || status === 'expired') {
-    await updatePaymentStatus(orderId, { status, payload });
+  if (status === 'failed' || status === 'expired' || status === 'refunded') {
+    const verification = await verifyPaymentForWebhook('midtrans', orderId, payload, false);
+    if (verification.invalid) {
+      return { success: false, message: 'Payment mismatch' };
+    }
+    if (verification.payment) {
+      await updatePaymentStatus(orderId, { status, payload });
+      if (status === 'refunded' && verification.payment.userId) {
+        const { cancelSubscription } = await import('../../services/SubscriptionService.js');
+        await cancelSubscription(verification.payment.userId, 'Payment refunded');
+        const { notifyUser } = await import('../../services/notifyService.js');
+        await notifyUser(
+          verification.payment.userId,
+          '⚠️ <b>Pembayaran dikembalikan</b>\n\nSubscription Anda dinonaktifkan. Hubungi owner jika ini tidak disengaja.'
+        );
+      }
+    }
     return { success: true };
   }
 
-  return { success: false, message: 'Unhandled status' };
+  // Acknowledge pending/challenge notifications; the payment remains pending
+  // until the gateway sends a final status.
+  return { success: true };
 }
 
 export async function handleXenditWebhook(payload: any, headers: Record<string, string>) {
@@ -365,6 +470,30 @@ export async function handleXenditWebhook(payload: any, headers: Record<string, 
   const { orderId, status } = result;
   Logger.logSystem(`Xendit webhook: ${orderId} -> ${status}`, 'INFO');
 
-  // Similar handling as Midtrans
+  if (status === 'paid') {
+    const verification = await verifyPaymentForWebhook('xendit', orderId, payload, true);
+    if (verification.invalid) {
+      Logger.logSystem(`Xendit payment amount/gateway mismatch: ${orderId}`, 'WARN');
+      return { success: false, message: 'Payment mismatch' };
+    }
+    if (verification.unknown) {return { success: true };}
+
+    const payment = await claimPaidPayment(orderId, payload);
+    if (payment) {
+      await fulfillSubscriptionPayment(payment);
+    }
+    return { success: true };
+  }
+
+  if (status === 'failed' || status === 'expired') {
+    const verification = await verifyPaymentForWebhook('xendit', orderId, payload, false);
+    if (verification.invalid) {return { success: false, message: 'Payment mismatch' };}
+    if (verification.payment) {
+      await updatePaymentStatus(orderId, { status, payload });
+    }
+    return { success: true };
+  }
+
+  // Acknowledge pending notifications so the gateway does not retry forever.
   return { success: true };
 }

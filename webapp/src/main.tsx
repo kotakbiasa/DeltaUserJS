@@ -4,10 +4,11 @@ import { AppRoot } from '@telegram-apps/telegram-ui';
 import '@telegram-apps/telegram-ui/dist/styles.css';
 import './index.css';
 import App from './App';
-import { initTelegramApp, tg } from './telegram';
+import { applyTheme, initTelegramApp, tg } from './telegram';
 
-initTelegramApp();
-
+// Terapkan tema sebelum render pertama, lalu sinalkan ready setelah React
+// memiliki opportunity untuk melakukan paint pertama.
+applyTheme();
 const appearance = tg?.colorScheme === 'light' ? 'light' : 'dark';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -17,3 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </AppRoot>
   </React.StrictMode>
 );
+
+window.requestAnimationFrame(() => {
+  initTelegramApp();
+});

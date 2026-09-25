@@ -64,7 +64,7 @@ export interface TelegramWebApp {
   expand(): void;
   close(): void;
   openTelegramLink(url: string): void;
-  openLink(url: string): void;
+  openLink(url: string, options?: { try_instant_view?: boolean }): void;
   showAlert(message: string, callback?: () => void): void;
   showConfirm(message: string, callback?: (confirmed: boolean) => void): void;
 }
@@ -87,11 +87,13 @@ export function applyTheme() {
   return scheme;
 }
 
-export function initTelegramApp() {
+export function initTelegramApp(signalReady = true) {
   applyTheme();
   if (!tg) return;
-  tg.ready();
-  tg.expand();
+  if (signalReady) {
+    tg.ready();
+    tg.expand();
+  }
   // Sinkronkan ulang bila pengguna mengganti tema Telegram saat app terbuka.
   tg.onEvent?.('themeChanged', applyTheme);
   return tg.colorScheme === 'light' ? 'light' : 'dark';
@@ -111,5 +113,74 @@ export function triggerHaptic(
     }
   } catch {
     // Ignore if not supported
+  }
+}
+
+export function showConfirm(message: string): Promise<boolean> {
+  if (tg?.showConfirm) {
+    return new Promise((resolve) => tg.showConfirm(message, resolve));
+  }
+  return Promise.resolve(window.confirm(message));
+}
+
+export async function copyText(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // Fall through to the textarea fallback.
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
+export function openExternalLink(url: string): void {
+  if (tg?.openLink) {
+    tg.openLink(url, { try_instant_view: false });
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+/** Open only HTTPS payment pages hosted by supported gateways. */
+export function openPaymentLink(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const trustedHost =
+      host === 'midtrans.com' || host.endsWith('.midtrans.com') ||
+      host === 'xendit.co' || host.endsWith('.xendit.co');
+    if (parsed.protocol !== 'https:' || !trustedHost || parsed.username || parsed.password) {
+      return false;
+    }
+    openExternalLink(parsed.toString());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function openTelegramUser(userId: number | undefined): void {
+  if (!userId) return;
+  const url = `tg://user?id=${userId}`;
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(url);
+  } else {
+    window.location.href = url;
   }
 }

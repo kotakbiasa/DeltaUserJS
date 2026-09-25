@@ -36,6 +36,14 @@ services:
       - API_HASH=${API_HASH}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - MUSLIM_SALAT_API_KEY=${MUSLIM_SALAT_API_KEY}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+      - DIGITAL_STORE_PATH=/app/data/digital-store.json
+      - MIDTRANS_SERVER_KEY=${MIDTRANS_SERVER_KEY:-}
+      - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-false}
+      - XENDIT_API_KEY=${XENDIT_API_KEY:-}
+      - XENDIT_CALLBACK_TOKEN=${XENDIT_CALLBACK_TOKEN:-}
+      - XENDIT_CALLBACK_VA_ID=${XENDIT_CALLBACK_VA_ID:-}
+      - XENDIT_IS_PRODUCTION=${XENDIT_IS_PRODUCTION:-false}
     ports:
       - "3000:3000"
     depends_on:
@@ -43,6 +51,8 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
+      - deltauserjs_store_data:/app/data
 
 volumes:
   deltauserjs_mongo_data:
+  deltauserjs_store_data:

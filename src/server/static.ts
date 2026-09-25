@@ -31,8 +31,21 @@ export function serveStaticFiles(
     return false;
   }
 
-  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-  let pathname = decodeURIComponent(url.pathname).replace(/^\/ubot/, '');
+  const url = new URL(req.url || '/', 'http://localhost');
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname).replace(/^\/ubot(?=\/|$)/, '');
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Bad Request');
+    return true;
+  }
+  if (pathname.includes('\u0000')) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Bad Request');
+    return true;
+  }
+  pathname = pathname.replace(/\/+$/, '') || '/';
 
   // Jangan tangani route webhook atau api
   if (pathname.startsWith('/api') || pathname.startsWith('/webhook') || pathname.startsWith('/health')) {
@@ -75,10 +88,11 @@ export function serveStaticFiles(
     pathname = '/index.html';
   }
 
-  let filePath = path.join(webappDistDir, pathname);
+  const rootDir = path.resolve(webappDistDir);
+  let filePath = path.resolve(rootDir, pathname.replace(/^\/+/, ''));
 
-  // Mencegah directory traversal
-  if (!filePath.startsWith(webappDistDir)) {
+  // Mencegah directory traversal, termasuk path yang sudah di-decode.
+  if (filePath !== rootDir && !filePath.startsWith(rootDir + path.sep)) {
     res.writeHead(403);
     res.end('Forbidden');
     return true;
@@ -123,6 +137,10 @@ export function serveStaticFiles(
   const headers: Record<string, string | number> = {
     'Content-Type': contentType,
     'Content-Length': stat.size,
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline'; connect-src 'self' https://telegram.org; img-src 'self' data: blob: https:; font-src 'self' data:; frame-ancestors 'self' https://web.telegram.org https://*.telegram.org",
   };
 
   // Cache assets berekstensi hash selama 1 tahun, index.html no-cache

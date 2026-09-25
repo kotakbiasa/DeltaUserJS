@@ -15,6 +15,7 @@ test_*.js
 
 # runtime data
 backups/
+data/
 session.json
 *.session
 approvals_meta.json

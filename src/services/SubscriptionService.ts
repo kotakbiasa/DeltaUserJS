@@ -1,21 +1,35 @@
 import { PlanModel, PaymentModel, SubscriptionModel, AuditLogModel, DEFAULT_PLANS, PlanDoc, PaymentDoc, SubscriptionDoc } from '../infrastructure/subscriptionModels.js';
 import config from '../config.js';
 import { Logger } from '../utils/logger.js';
-import { UserbotModel } from '../infrastructure/dbCore.js';
+import { dbCache, persistField } from '../infrastructure/dbCore.js';
 import { notifyUser, notifyOwner } from './notifyService.js';
 
 const GRACE_PERIOD_DAYS = 3;
 const TRIAL_PLAN_ID = 'trial';
+const FULFILLMENT_LEASE_MS = 5 * 60 * 1000;
 
 /**
  * Ensure default plans exist in database
  */
 export async function seedDefaultPlans() {
+  // Versi lama salah menyimpan rupiah dalam satuan sent sehingga paket
+  // tampak 100× lebih mahal. Migrasikan hanya nilai persis dari seed lama;
+  // harga yang sudah diubah owner tidak disentuh.
+  const legacyPrices: Record<string, number> = {
+    monthly: 5_000_000,
+    quarterly: 13_500_000,
+    yearly: 48_000_000,
+    lifetime: 150_000_000,
+  };
+
   for (const plan of DEFAULT_PLANS) {
     const existing = await PlanModel.findById(plan._id);
     if (!existing) {
       await PlanModel.create(plan);
       Logger.logSystem(`📦 Created default plan: ${plan._id} (${plan.name})`, 'INFO');
+    } else if (legacyPrices[plan._id] === existing.price && plan.price !== existing.price) {
+      await PlanModel.findByIdAndUpdate(plan._id, { price: plan.price, updatedAt: new Date() });
+      Logger.logSystem(`📦 Corrected legacy price for default plan: ${plan._id}`, 'INFO');
     }
   }
 }
@@ -70,15 +84,35 @@ export async function createPayment(data: {
   currency?: string;
   gateway: 'midtrans' | 'xendit' | 'manual' | 'trial';
   externalId?: string;
+  paymentUrl?: string;
+  expiredAt?: Date;
   metadata?: any;
 }): Promise<PaymentDoc> {
   const payment = await PaymentModel.create({
     ...data,
     currency: data.currency || 'IDR',
     status: 'pending',
+    fulfillmentStatus: 'pending',
   });
   await logAudit('payment.create', 'payment', payment._id.toString(), null, payment.toObject(), data.userId);
   return payment;
+}
+
+/** Attach gateway checkout details to an existing pending payment. */
+export async function attachPaymentCheckout(
+  paymentId: string,
+  data: { externalId: string; paymentUrl: string; expiresAt: Date }
+): Promise<PaymentDoc | null> {
+  return PaymentModel.findByIdAndUpdate(
+    paymentId,
+    {
+      externalId: data.externalId,
+      paymentUrl: data.paymentUrl,
+      expiredAt: data.expiresAt,
+      updatedAt: new Date(),
+    },
+    { new: true }
+  );
 }
 
 /**
@@ -90,7 +124,11 @@ export async function updatePaymentStatus(externalId: string, data: {
   paidAt?: Date;
 }): Promise<PaymentDoc | null> {
   const payment = await PaymentModel.findOneAndUpdate(
-    { externalId },
+    data.status === 'paid'
+      ? { externalId }
+      : data.status === 'refunded'
+        ? { externalId, status: 'paid' }
+        : { externalId, status: { $ne: 'paid' } },
     {
       ...data,
       status: data.status,
@@ -103,6 +141,79 @@ export async function updatePaymentStatus(externalId: string, data: {
     await logAudit('payment.status_update', 'payment', externalId, null, data, payment.userId);
   }
   return payment;
+}
+
+/**
+ * Atomically claim a paid webhook so duplicate/concurrent notifications can
+ * never activate or renew a subscription twice.
+ */
+export async function claimPaidPayment(
+  externalId: string,
+  payload: unknown,
+  paidAt = new Date()
+): Promise<PaymentDoc | null> {
+  const staleBefore = new Date(paidAt.getTime() - FULFILLMENT_LEASE_MS);
+  const payment = await PaymentModel.findOneAndUpdate(
+    {
+      externalId,
+      status: { $ne: 'refunded' },
+      fulfillmentStatus: { $ne: 'fulfilled' },
+      $or: [
+        { fulfillmentStatus: { $exists: false } },
+        { fulfillmentStatus: 'pending' },
+        { fulfillmentStatus: 'processing', fulfillmentClaimedAt: { $exists: false } },
+        { fulfillmentStatus: 'processing', fulfillmentClaimedAt: { $lt: staleBefore } },
+      ],
+    },
+    {
+      $set: {
+        status: 'paid',
+        fulfillmentStatus: 'processing',
+        fulfillmentClaimedAt: paidAt,
+        payload,
+        paidAt,
+        updatedAt: new Date(),
+      },
+    },
+    { new: true }
+  );
+  if (payment) {
+    await logAudit(
+      'payment.status_update',
+      'payment',
+      externalId,
+      null,
+      { status: 'paid', fulfillmentStatus: 'processing', paidAt },
+      payment.userId
+    );
+  }
+  return payment;
+}
+
+/** Mark a paid payment as fully activated/renewed. */
+export async function markPaymentFulfilled(externalId: string): Promise<void> {
+  await PaymentModel.updateOne(
+    { externalId, status: 'paid', fulfillmentStatus: 'processing' },
+    {
+      $set: {
+        fulfillmentStatus: 'fulfilled',
+        fulfilledAt: new Date(),
+        updatedAt: new Date(),
+      },
+      $unset: { fulfillmentClaimedAt: 1 },
+    }
+  );
+}
+
+/** Release a paid claim when fulfillment failed so a retry/recovery can run. */
+export async function releasePaidPaymentClaim(externalId: string): Promise<void> {
+  await PaymentModel.updateOne(
+    { externalId, status: 'paid', fulfillmentStatus: 'processing' },
+    {
+      $set: { fulfillmentStatus: 'pending', updatedAt: new Date() },
+      $unset: { fulfillmentClaimedAt: 1 },
+    }
+  );
 }
 
 /**
@@ -123,6 +234,18 @@ export async function getUserPayments(userId: number, limit = 20): Promise<Payme
  * Activate subscription after successful payment
  */
 export async function activateSubscription(userId: number, planId: string, paymentId: string): Promise<SubscriptionDoc> {
+  const alreadyActivated = await SubscriptionModel.findOne({ paymentId }).exec();
+  if (alreadyActivated) {return alreadyActivated;}
+
+  const currentSubscription = await SubscriptionModel.findOne({ userId }).lean();
+  if (
+    currentSubscription &&
+    currentSubscription.planId !== planId &&
+    ['active', 'trial', 'grace'].includes(currentSubscription.status)
+  ) {
+    throw new Error('Paket aktif berbeda tidak dapat ditimpa.');
+  }
+
   const plan = await getPlan(planId);
   if (!plan) {throw new Error(`Plan ${planId} not found`);}
 
@@ -145,7 +268,7 @@ export async function activateSubscription(userId: number, planId: string, payme
       startDate: now,
       endDate,
       graceEndDate,
-      autoRenew: true,
+      autoRenew: false,
       lastPaymentAt: now,
       nextPaymentAt: endDate,
       cancelledAt: null,
@@ -166,11 +289,15 @@ export async function activateSubscription(userId: number, planId: string, payme
  * Extend existing subscription (renewal)
  */
 export async function renewSubscription(userId: number, planId: string, paymentId: string): Promise<SubscriptionDoc> {
+  const alreadyRenewed = await SubscriptionModel.findOne({ paymentId }).exec();
+  if (alreadyRenewed) {return alreadyRenewed;}
+
   const plan = await getPlan(planId);
   if (!plan) {throw new Error(`Plan ${planId} not found`);}
 
   const subscription = await SubscriptionModel.findOne({ userId });
   if (!subscription) {throw new Error('No existing subscription to renew');}
+  if (subscription.planId !== planId) {throw new Error('Paket perpanjangan harus sama dengan paket aktif.');}
 
   const now = new Date();
   const baseDate = subscription.endDate && subscription.endDate > now ? subscription.endDate : now;
@@ -190,7 +317,7 @@ export async function renewSubscription(userId: number, planId: string, paymentI
       status: 'active',
       endDate,
       graceEndDate,
-      autoRenew: true,
+      autoRenew: false,
       lastPaymentAt: now,
       nextPaymentAt: endDate,
       metadata: { ...subscription.metadata, lastRenewal: now },
@@ -201,6 +328,49 @@ export async function renewSubscription(userId: number, planId: string, paymentI
   await updateUserbotExpiration(userId, endDate);
   await logAudit('subscription.renew', 'subscription', subscription._id.toString(), subscription, updated.toObject(), userId);
   return updated;
+}
+
+/** Activate/renew a paid payment and persist the fulfillment state. */
+export async function fulfillSubscriptionPayment(payment: PaymentDoc): Promise<void> {
+  try {
+    if (payment.metadata?.isRenewal) {
+      await renewSubscription(payment.userId, payment.planId, payment._id.toString());
+    } else {
+      await activateSubscription(payment.userId, payment.planId, payment._id.toString());
+    }
+    await markPaymentFulfilled(payment.externalId as string);
+  } catch (error) {
+    await releasePaidPaymentClaim(payment.externalId as string).catch(() => undefined);
+    throw error;
+  }
+}
+
+/** Retry paid payments whose process died before fulfillment completed. */
+export async function recoverPendingSubscriptionFulfillments(limit = 50): Promise<number> {
+  const payments = await PaymentModel.find({
+    status: 'paid',
+    fulfillmentStatus: { $ne: 'fulfilled' },
+  })
+    .sort({ paidAt: 1 })
+    .limit(Math.max(1, Math.min(100, limit)))
+    .lean();
+
+  let recovered = 0;
+  for (const payment of payments) {
+    if (!payment.externalId) {continue;}
+    const claimed = await claimPaidPayment(payment.externalId, payment.payload, new Date());
+    if (!claimed) {continue;}
+    try {
+      await fulfillSubscriptionPayment(claimed);
+      recovered += 1;
+    } catch (error) {
+      Logger.logSystem(
+        `Payment fulfillment recovery failed for ${payment.externalId}: ${error instanceof Error ? error.message : String(error)}`,
+        'ERROR'
+      );
+    }
+  }
+  return recovered;
 }
 
 /**
@@ -259,8 +429,17 @@ export async function checkExpiredSubscriptions() {
     graceEndDate: { $gt: now },
   }).lean();
 
+  let graceCount = 0;
   for (const sub of inGrace) {
-    await SubscriptionModel.findByIdAndUpdate(sub._id, { status: 'grace' });
+    const transitioned = await SubscriptionModel.findOneAndUpdate(
+      { _id: sub._id, status: 'active' },
+      { $set: { status: 'grace' } },
+      { new: true }
+    );
+    if (!transitioned) {continue;}
+    graceCount += 1;
+    // Grace masih boleh memakai userbot sampai graceEndDate, bukan hanya endDate.
+    await updateUserbotExpiration(sub.userId, sub.graceEndDate);
     await logAudit('subscription.grace_start', 'subscription', sub._id.toString(), { status: 'active' }, { status: 'grace' }, sub.userId);
     // Notify user: masa grace berjalan (userbot masih aktif sampai grace habis)
     const graceDays = sub.graceEndDate ? Math.max(1, Math.ceil((new Date(sub.graceEndDate).getTime() - now.getTime()) / 86400000)) : GRACE_PERIOD_DAYS;
@@ -281,8 +460,15 @@ export async function checkExpiredSubscriptions() {
     ],
   }).lean();
 
+  let expiredCount = 0;
   for (const sub of expired) {
-    await SubscriptionModel.findByIdAndUpdate(sub._id, { status: 'expired' });
+    const transitioned = await SubscriptionModel.findOneAndUpdate(
+      { _id: sub._id, status: { $in: ['active', 'grace'] } },
+      { $set: { status: 'expired', autoRenew: false } },
+      { new: true }
+    );
+    if (!transitioned) {continue;}
+    expiredCount += 1;
     await updateUserbotExpiration(sub.userId, new Date()); // deactivate userbot
     await logAudit('subscription.expired', 'subscription', sub._id.toString(), { status: sub.status }, { status: 'expired' }, sub.userId);
     // Notify user: userbot dinonaktifkan otomatis
@@ -300,8 +486,15 @@ export async function checkExpiredSubscriptions() {
     endDate: { $lt: now },
   }).lean();
 
+  let trialExpiredCount = 0;
   for (const sub of trialExpired) {
-    await SubscriptionModel.findByIdAndUpdate(sub._id, { status: 'expired' });
+    const transitioned = await SubscriptionModel.findOneAndUpdate(
+      { _id: sub._id, status: 'trial' },
+      { $set: { status: 'expired', autoRenew: false } },
+      { new: true }
+    );
+    if (!transitioned) {continue;}
+    trialExpiredCount += 1;
     await updateUserbotExpiration(sub.userId, new Date());
     await logAudit('subscription.trial_expired', 'subscription', sub._id.toString(), { status: 'trial' }, { status: 'expired' }, sub.userId);
     // Notify user: trial habis
@@ -313,7 +506,7 @@ export async function checkExpiredSubscriptions() {
     await notifyOwner(`⏰ Trial <code>${sub._id}</code> expired (user <code>${sub.userId}</code>).`);
   }
 
-  return { grace: inGrace.length, expired: expired.length, trialExpired: trialExpired.length };
+  return { grace: graceCount, expired: expiredCount, trialExpired: trialExpiredCount };
 }
 
 /**
@@ -405,6 +598,7 @@ export async function initTrialSubscription(userId: number): Promise<Subscriptio
   });
 
   await updateUserbotExpiration(userId, endDate);
+  await markTrialClaimed(userId);
   await logAudit('subscription.trial_start', 'subscription', subscription._id.toString(), null, subscription.toObject(), userId);
   return subscription;
 }
@@ -413,10 +607,20 @@ export async function initTrialSubscription(userId: number): Promise<Subscriptio
  * Update userbot's expired_at in database
  */
 async function updateUserbotExpiration(userId: number, endDate: Date | null) {
-  await UserbotModel.updateOne(
-    { telegram_id: userId },
-    { $set: { expired_at: endDate } }
-  ).catch(err => Logger.logSystem(`Failed to update userbot expiration: ${err}`, 'ERROR'));
+  const id = Number(userId);
+  const cached = dbCache.get(id);
+  if (cached) {cached.expired_at = endDate;}
+  await persistField(id, 'expired_at', endDate)
+    .catch(err => Logger.logSystem(`Failed to update userbot expiration: ${err}`, 'ERROR'));
+}
+
+export async function markTrialClaimed(userId: number): Promise<void> {
+  const id = Number(userId);
+  const cached = dbCache.get(id);
+  const claimedAt = new Date();
+  if (cached) {cached.trial_claimed_at = claimedAt;}
+  await persistField(id, 'trial_claimed_at', claimedAt)
+    .catch(err => Logger.logSystem(`Failed to mark trial as claimed: ${err}`, 'ERROR'));
 }
 
 /**

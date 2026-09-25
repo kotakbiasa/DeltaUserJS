@@ -1,11 +1,24 @@
 import crypto from 'crypto';
-import fetch from 'node-fetch';
 import config from '../config.js';
 import { Logger } from '../utils/logger.js';
 
 // ==========================================
 // MIDTRANS INTEGRATION
 // ==========================================
+
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit,
+  timeoutMs = 10_000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 interface MidtransSnapResponse {
   token: string;
@@ -74,7 +87,7 @@ export async function createMidtransPayment(data: {
 
   const auth = Buffer.from(`${serverKey}:`).toString('base64');
 
-  const response = await fetch(`${baseUrl}/transactions`, {
+  const response = await fetchWithTimeout(`${baseUrl}/transactions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -93,16 +106,16 @@ export async function createMidtransPayment(data: {
 }
 
 export function verifyMidtransSignature(payload: MidtransNotificationPayload, serverKey: string): boolean {
+  if (!serverKey || !/^[a-f0-9]{128}$/i.test(payload.signature_key || '')) {return false;}
   const { order_id, status_code, gross_amount, signature_key } = payload;
   const raw = `${order_id}${status_code}${gross_amount}${serverKey}`;
-  const expectedSignature = crypto.createHash('sha512').update(raw).digest('hex');
-  return crypto.timingSafeEqual(
-    Buffer.from(signature_key),
-    Buffer.from(expectedSignature)
-  );
+  const expectedSignature = crypto.createHash('sha512').update(raw).digest();
+  const receivedSignature = Buffer.from(signature_key, 'hex');
+  return receivedSignature.length === expectedSignature.length &&
+    crypto.timingSafeEqual(receivedSignature, expectedSignature);
 }
 
-export function mapMidtransStatus(payload: MidtransNotificationPayload): 'paid' | 'failed' | 'expired' | 'pending' {
+export function mapMidtransStatus(payload: MidtransNotificationPayload): 'paid' | 'failed' | 'expired' | 'pending' | 'refunded' {
   const { transaction_status, fraud_status } = payload;
 
   if (transaction_status === 'capture' || transaction_status === 'settlement') {
@@ -115,7 +128,7 @@ export function mapMidtransStatus(payload: MidtransNotificationPayload): 'paid' 
     return 'failed';
   }
   if (transaction_status === 'refund') {
-    return 'failed'; // refunded = treat as failed for subscription
+    return 'refunded';
   }
   return 'pending';
 }
@@ -200,7 +213,7 @@ export async function createXenditInvoice(data: {
 
   const auth = Buffer.from(`${apiKey}:`).toString('base64');
 
-  const response = await fetch('https://api.xendit.co/v2/invoices', {
+  const response = await fetchWithTimeout('https://api.xendit.co/v2/invoices', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -218,10 +231,13 @@ export async function createXenditInvoice(data: {
 }
 
 export function verifyXenditSignature(_payload: XenditCallbackPayload, callbackToken: string): boolean {
-  // Xendit mengirim header x-callback-token; bandingkan dengan token terkonfigurasi
+  // Xendit mengirim header x-callback-token; bandingkan constant-time.
   const expected = config.xenditCallbackToken || process.env.XENDIT_CALLBACK_TOKEN;
   if (!expected || !callbackToken) {return false;}
-  return callbackToken === expected;
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(callbackToken);
+  return expectedBuffer.length === receivedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
 export function mapXenditStatus(payload: XenditCallbackPayload): 'paid' | 'failed' | 'expired' | 'pending' {
@@ -267,7 +283,7 @@ export async function createPaymentViaGateway(gateway: GatewayType, data: {
       const result = await createMidtransPayment(data);
       return {
         paymentUrl: result.redirect_url,
-        externalId: result.token,
+        externalId: data.orderId,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
       };
     }
@@ -279,7 +295,7 @@ export async function createPaymentViaGateway(gateway: GatewayType, data: {
       });
       return {
         paymentUrl: result.invoice_url,
-        externalId: result.id,
+        externalId: data.orderId,
         expiresAt: new Date(result.expiry_date),
       };
     }
@@ -297,7 +313,7 @@ export async function createPaymentViaGateway(gateway: GatewayType, data: {
 
 export async function handlePaymentWebhook(gateway: GatewayType, payload: any, headers: Record<string, string>): Promise<{
   orderId: string;
-  status: 'paid' | 'failed' | 'expired' | 'pending';
+  status: 'paid' | 'failed' | 'expired' | 'pending' | 'refunded';
   payload: any;
 } | null> {
   switch (gateway) {
@@ -316,7 +332,9 @@ export async function handlePaymentWebhook(gateway: GatewayType, payload: any, h
     }
     case 'xendit': {
       const xp = payload as XenditCallbackPayload;
-      const callbackToken = headers['x-callback-token'] || config.xenditCallbackToken;
+      // Never fall back to the configured secret: a missing callback header
+      // must fail verification rather than being compared to itself.
+      const callbackToken = headers['x-callback-token'];
       if (!verifyXenditSignature(xp, callbackToken)) {
         Logger.logSystem('Xendit signature verification failed', 'WARN');
         return null;

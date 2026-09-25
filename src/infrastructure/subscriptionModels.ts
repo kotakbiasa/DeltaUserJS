@@ -8,7 +8,7 @@ const planSchema = new mongoose.Schema({
   _id: { type: String, required: true }, // e.g., "monthly", "yearly", "lifetime"
   name: { type: String, required: true },
   description: { type: String, default: '' },
-  price: { type: Number, required: true, min: 0 }, // in smallest currency unit (IDR cents)
+  price: { type: Number, required: true, min: 0 }, // IDR major unit, contoh 50000 = Rp50.000
   currency: { type: String, default: 'IDR' },
   durationDays: { type: Number, required: true, min: 0 }, // 0 = lifetime
   features: [{ type: String }], // e.g., ["unlimited_bots", "priority_support", "custom_domain"]
@@ -29,7 +29,7 @@ planSchema.index({ isActive: 1, sortOrder: 1 });
 const paymentSchema = new mongoose.Schema({
   userId: { type: Number, required: true, index: true },
   planId: { type: String, required: true, index: true },
-  amount: { type: Number, required: true }, // in smallest currency unit
+  amount: { type: Number, required: true }, // IDR major unit
   currency: { type: String, default: 'IDR' },
   gateway: { type: String, required: true, enum: ['midtrans', 'xendit', 'manual', 'trial'] },
   status: {
@@ -39,11 +39,19 @@ const paymentSchema = new mongoose.Schema({
     default: 'pending',
     index: true,
   },
-  externalId: { type: String }, // Midtrans order_id, Xendit invoice_id (index dideklarasi manual di bawah, unique+sparse)
+  externalId: { type: String }, // order ID internal yang sama dengan payload webhook
   paymentUrl: { type: String }, // checkout URL for user
   payload: { type: mongoose.Schema.Types.Mixed }, // raw webhook payload
   metadata: { type: mongoose.Schema.Types.Mixed }, // custom data
   paidAt: { type: Date },
+  fulfillmentStatus: {
+    type: String,
+    enum: ['pending', 'processing', 'fulfilled'],
+    default: 'pending',
+    index: true,
+  },
+  fulfillmentClaimedAt: { type: Date },
+  fulfilledAt: { type: Date },
   expiredAt: { type: Date },
   refundedAt: { type: Date },
   refundReason: { type: String },
@@ -71,7 +79,7 @@ const subscriptionSchema = new mongoose.Schema({
     index: true,
   },
   startDate: { type: Date, required: true, default: Date.now },
-  endDate: { type: Date, required: true, index: true }, // when subscription expires
+  endDate: { type: Date, index: true }, // null untuk paket lifetime
   graceEndDate: { type: Date }, // end of grace period
   autoRenew: { type: Boolean, default: true },
   lastPaymentAt: { type: Date },
@@ -141,11 +149,14 @@ export interface PaymentDoc {
   currency: string;
   gateway: 'midtrans' | 'xendit' | 'manual' | 'trial';
   status: 'pending' | 'paid' | 'failed' | 'expired' | 'refunded' | 'cancelled';
-  externalId: string;
+  externalId?: string;
   paymentUrl: string;
   payload: any;
   metadata: any;
   paidAt?: Date;
+  fulfillmentStatus?: 'pending' | 'processing' | 'fulfilled';
+  fulfillmentClaimedAt?: Date;
+  fulfilledAt?: Date;
   expiredAt?: Date;
   refundedAt?: Date;
   refundReason?: string;
@@ -160,7 +171,7 @@ export interface SubscriptionDoc {
   paymentId: mongoose.Types.ObjectId;
   status: 'active' | 'expired' | 'cancelled' | 'trial' | 'grace';
   startDate: Date;
-  endDate: Date;
+  endDate?: Date | null;
   graceEndDate?: Date;
   autoRenew: boolean;
   lastPaymentAt?: Date;
@@ -208,7 +219,7 @@ export const DEFAULT_PLANS: Omit<PlanDoc, 'createdAt' | 'updatedAt'>[] = [
     _id: 'monthly',
     name: 'Bulanan',
     description: 'Langganan bulanan hemat',
-    price: 5000000, // Rp 50.000
+    price: 50000, // Rp 50.000
     currency: 'IDR',
     durationDays: 30,
     features: ['full_access', '3_userbot', 'priority_support', 'custom_prefix'],
@@ -221,7 +232,7 @@ export const DEFAULT_PLANS: Omit<PlanDoc, 'createdAt' | 'updatedAt'>[] = [
     _id: 'quarterly',
     name: 'Triwulanan (Hemat 10%)',
     description: 'Bayar 3 bulan sekaligus',
-    price: 13500000, // Rp 135.000 (10% off)
+    price: 135000, // Rp 135.000 (10% off)
     currency: 'IDR',
     durationDays: 90,
     features: ['full_access', '5_userbot', 'priority_support', 'custom_prefix', 'analytics'],
@@ -234,7 +245,7 @@ export const DEFAULT_PLANS: Omit<PlanDoc, 'createdAt' | 'updatedAt'>[] = [
     _id: 'yearly',
     name: 'Tahunan (Hemat 20%)',
     description: 'Bayar 1 tahun sekaligus, paling hemat',
-    price: 48000000, // Rp 480.000 (20% off)
+    price: 480000, // Rp 480.000 (20% off)
     currency: 'IDR',
     durationDays: 365,
     features: ['full_access', '10_userbot', 'priority_support', 'custom_prefix', 'analytics', 'dedicated_support'],
@@ -247,7 +258,7 @@ export const DEFAULT_PLANS: Omit<PlanDoc, 'createdAt' | 'updatedAt'>[] = [
     _id: 'lifetime',
     name: 'Lifetime (Sewa Hidup)',
     description: 'Bayar sekali, pakai selamanya',
-    price: 150000000, // Rp 1.500.000
+    price: 1500000, // Rp 1.500.000
     currency: 'IDR',
     durationDays: 0, // 0 = unlimited
     features: ['full_access', 'unlimited_userbot', 'priority_support', 'custom_prefix', 'analytics', 'dedicated_support', 'custom_features'],

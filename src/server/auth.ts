@@ -19,9 +19,13 @@ export interface ValidatedInitData {
   raw: Record<string, string>;
 }
 
+function isLoopbackAddress(address?: string): boolean {
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1' || address === 'localhost';
+}
+
 /**
  * Memvalidasi raw initData string dari Telegram WebApp.
- * 
+ *
  * Sesuai spesifikasi resmi Telegram:
  * 1. Parse string query: 'auth_date=...&hash=...&user=...'
  * 2. Pisahkan parameter 'hash'.
@@ -32,15 +36,25 @@ export interface ValidatedInitData {
  */
 export function validateTelegramInitData(
   initDataRaw: string,
-  botToken: string = config.botToken || ''
+  botToken: string = config.botToken || '',
+  remoteAddress?: string
 ): { valid: boolean; data?: ValidatedInitData; error?: string } {
   if (!initDataRaw || typeof initDataRaw !== 'string') {
     return { valid: false, error: 'Header initData kosong atau tidak valid' };
   }
 
-  // Khusus dev mode jika diizinkan untuk debugging lokal
-  if (process.env.NODE_ENV !== 'production' && initDataRaw.startsWith('dev_user_')) {
-    const devId = Number(initDataRaw.replace('dev_user_', '')) || Number(config.ownerId) || 12345678;
+  // Dev auth hanya aktif jika opting-in secara eksplisit. Jangan membuat
+  // endpoint publik dapat diimpersonasi hanya karena NODE_ENV belum production.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.ALLOW_DEV_AUTH === 'true' &&
+    isLoopbackAddress(remoteAddress) &&
+    initDataRaw.startsWith('dev_user_')
+  ) {
+    const devId = Number(initDataRaw.replace('dev_user_', ''));
+    if (!Number.isSafeInteger(devId) || devId <= 0) {
+      return { valid: false, error: 'Dev user ID tidak valid' };
+    }
     return {
       valid: true,
       data: {
@@ -110,9 +124,16 @@ export function validateTelegramInitData(
     const authDate = Number(urlParams.get('auth_date')) || 0;
     const now = Math.floor(Date.now() / 1000);
     const maxAgeSec = 86400; // 24 jam
+    const allowedClockSkewSec = 60;
 
+    if (!Number.isInteger(authDate) || authDate <= 0) {
+      return { valid: false, error: 'Parameter auth_date tidak valid' };
+    }
     if (now - authDate > maxAgeSec) {
       return { valid: false, error: 'Sesi initData telah kadaluwarsa (> 24 jam)' };
+    }
+    if (authDate - now > allowedClockSkewSec) {
+      return { valid: false, error: 'auth_date berada terlalu jauh di masa depan' };
     }
 
     // 5. Parse user object

@@ -6,13 +6,64 @@ import userbotManager from './userbot/engine/manager.js';
 import { getAllRegisteredUsers, updateUserbotStatus, initDatabaseAndCache } from './infrastructure/database.js';
 import { setMasterBotUsername } from './bot/state/botUsername.js';
 import { Logger } from './utils/logger.js';
-import { createServer } from 'http';
+import { createServer, type IncomingMessage } from 'http';
 import { startPluginWatcher, stopPluginWatcher } from './userbot/engine/pluginLoader.js';
 import { handleMidtransWebhook, handleXenditWebhook } from './bot/handlers/subscription.js';
+import { isMongo } from './infrastructure/dbCore.js';
+import {
+  checkExpiredSubscriptions,
+  recoverPendingSubscriptionFulfillments,
+} from './services/SubscriptionService.js';
 import { handleApiRequest } from './server/api.js';
 import { serveStaticFiles } from './server/static.js';
+import { initDigitalStore } from './services/DigitalStoreService.js';
 
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
+const MAX_WEBHOOK_BYTES = 1024 * 1024;
+
+class RequestBodyError extends Error {
+  constructor(message: string, readonly statusCode = 400) {
+    super(message);
+    this.name = 'RequestBodyError';
+  }
+}
+
+async function readRequestBody(req: IncomingMessage, maxBytes = MAX_WEBHOOK_BYTES): Promise<string> {
+  const declaredLength = Number(req.headers['content-length'] || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    throw new RequestBodyError('Webhook body terlalu besar.', 413);
+  }
+
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.length;
+    if (totalBytes > maxBytes) {throw new RequestBodyError('Webhook body terlalu besar.', 413);}
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function runSubscriptionMaintenance(): Promise<void> {
+  if (!isMongo) {return;}
+  try {
+    const expiration = await checkExpiredSubscriptions();
+    const recovered = await recoverPendingSubscriptionFulfillments();
+    if (expiration.grace || expiration.expired || expiration.trialExpired || recovered) {
+      Logger.logSystem(
+        `Subscription maintenance: grace=${expiration.grace}, expired=${expiration.expired}, ` +
+        `trialExpired=${expiration.trialExpired}, recovered=${recovered}`,
+        'INFO'
+      );
+    }
+  } catch (error) {
+    Logger.logSystem(
+      `Subscription maintenance error: ${error instanceof Error ? error.message : String(error)}`,
+      'ERROR'
+    );
+  }
+}
 
 /**
  * ⏰ SUBSCRIPTION EXPIRATION CHECKER
@@ -28,6 +79,7 @@ function startExpirationChecker() {
     isRunning = true;
 
     try {
+      await runSubscriptionMaintenance();
       const allUsers = getAllRegisteredUsers();
       const now = new Date();
 
@@ -47,13 +99,15 @@ function startExpirationChecker() {
 
         // 3. Kirim notifikasi pribadi via Master Bot
         try {
-          await bot.api.sendMessage(user.telegram_id,
-            '⚠️ **USERBOT - MASA AKTIF HABIS** ⚠️\n' +
-            '────────────────────────\n' +
-            'Halo, masa aktif layanan userbot Anda telah berakhir secara otomatis.\n\n' +
-            'Seluruh sistem otomatisasi Anda telah **dinonaktifkan**. Silakan hubungi Owner atau lakukan perpanjangan langganan melalui menu **💰 Donasi** di bot ini untuk mengaktifkannya kembali!\n' +
-            '────────────────────────'
-          );
+          if (!isMongo) {
+            await bot.api.sendMessage(user.telegram_id,
+              '⚠️ **USERBOT - MASA AKTIF HABIS** ⚠️\n' +
+              '────────────────────────\n' +
+              'Halo, masa aktif layanan userbot Anda telah berakhir secara otomatis.\n\n' +
+              'Seluruh sistem otomatisasi Anda telah **dinonaktifkan**. Silakan hubungi Owner atau lakukan perpanjangan langganan melalui menu **💰 Donasi** di bot ini untuk mengaktifkannya kembali!\n' +
+              '────────────────────────'
+            );
+          }
         } catch {
           // Abaikan jika pengguna memblokir bot
         }
@@ -91,6 +145,9 @@ async function main() {
       process.exit(1);
     }
 
+    // Initialize persistent katalog dan pesanan toko digital.
+    await initDigitalStore();
+
     // 1. Start Expiration Checker Service
     startExpirationChecker();
 
@@ -104,6 +161,7 @@ async function main() {
       onStart: async (info) => {
         setMasterBotUsername(info.username);
         await setupBotCommands();
+        await runSubscriptionMaintenance();
         Logger.logSystem(`Master Bot [@${info.username}] is running successfully!`, 'SUCCESS');
 
         // 4. Restart all active userbots from database as the final step
@@ -134,10 +192,11 @@ async function main() {
 
       // Midtrans webhook
       if (url.pathname === '/webhook/midtrans' && req.method === 'POST') {
-        let body = '';
-        for await (const chunk of req) {body += chunk;}
         try {
-          const payload = JSON.parse(body);
+          const body = await readRequestBody(req);
+          let payload: unknown;
+          try {payload = JSON.parse(body);}
+          catch {throw new RequestBodyError('JSON webhook tidak valid.', 400);}
           const headersObj: Record<string, string> = {};
           for (const [key, value] of Object.entries(req.headers)) {
             if (typeof value === 'string') {headersObj[key] = value;}
@@ -147,19 +206,21 @@ async function main() {
           res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(result));
         } catch (err) {
-          Logger.logSystem(`Midtrans webhook error: ${err}`, 'ERROR');
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, message: 'Internal error' }));
+          const status = err instanceof RequestBodyError ? err.statusCode : 500;
+          if (status === 500) {Logger.logSystem(`Midtrans webhook error: ${err}`, 'ERROR');}
+          res.writeHead(status, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, message: status === 413 ? 'Payload terlalu besar' : 'Webhook tidak valid' }));
         }
         return;
       }
 
       // Xendit webhook
       if (url.pathname === '/webhook/xendit' && req.method === 'POST') {
-        let body = '';
-        for await (const chunk of req) {body += chunk;}
         try {
-          const payload = JSON.parse(body);
+          const body = await readRequestBody(req);
+          let payload: unknown;
+          try {payload = JSON.parse(body);}
+          catch {throw new RequestBodyError('JSON webhook tidak valid.', 400);}
           const headersObj: Record<string, string> = {};
           for (const [key, value] of Object.entries(req.headers)) {
             if (typeof value === 'string') {headersObj[key] = value;}
@@ -169,9 +230,10 @@ async function main() {
           res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(result));
         } catch (err) {
-          Logger.logSystem(`Xendit webhook error: ${err}`, 'ERROR');
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, message: 'Internal error' }));
+          const status = err instanceof RequestBodyError ? err.statusCode : 500;
+          if (status === 500) {Logger.logSystem(`Xendit webhook error: ${err}`, 'ERROR');}
+          res.writeHead(status, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, message: status === 413 ? 'Payload terlalu besar' : 'Webhook tidak valid' }));
         }
         return;
       }
@@ -181,15 +243,16 @@ async function main() {
         const mongoose = await import('mongoose');
         const dbState = mongoose.default.connection.readyState; // 1 = connected
         const userbotCount = userbotManager.clients.size;
-        const isHealthy = dbState === 1 && bot.api;
+        const dbHealthy = isMongo ? dbState === 1 : true;
+        const isHealthy = dbHealthy && bot.isRunning();
 
         res.writeHead(isHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           status: isHealthy ? 'ok' : 'degraded',
           timestamp: new Date().toISOString(),
           uptime: process.uptime(),
-          mongodb: dbState === 1 ? 'connected' : 'disconnected',
-          masterBot: bot.api ? 'running' : 'stopped',
+          mongodb: isMongo ? (dbState === 1 ? 'connected' : 'disconnected') : 'file-json',
+          masterBot: bot.isRunning() ? 'running' : 'stopped',
           activeUserbots: userbotCount,
           memory: process.memoryUsage(),
         }));
@@ -203,6 +266,10 @@ async function main() {
       res.writeHead(404);
       res.end('Not Found');
     });
+
+    healthServer.requestTimeout = 15_000;
+    healthServer.headersTimeout = 10_000;
+    healthServer.keepAliveTimeout = 5_000;
 
     const HEALTH_HOST = process.env.HEALTH_HOST || '0.0.0.0';
     healthServer.listen(HEALTH_PORT, HEALTH_HOST, () => {

@@ -1,4 +1,5 @@
 import { Api } from 'teleproto';
+import { VideoQuality, type VideoOptions } from 'tgcalls-js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -146,17 +147,18 @@ function mediaLabel(replyMsg: unknown): string {
 
 export default {
   name: 'vc',
-  version: '2.1.0',
+  version: '2.2.0',
   description: 'Streaming audio/video ke obrolan suara (Voice Chat) grup via WebRTC.',
   help: {
-    title: 'Obrolan Suara (.joinvc / .play)',
-    description: 'Gabung ke obrolan suara Telegram & streaming musik/audio.',
+    title: 'Obrolan Suara (.joinvc / .play / .vplay)',
+    description: 'Gabung ke obrolan suara Telegram & streaming musik/video jernih.',
     usage:
       '• `.joinvc` — gabung ke obrolan suara (standby/idle)\n' +
       '• `.play <url>` — streaming musik dari YouTube/tautan\n' +
-      '• `.play <url> --video` atau `.vplay` — streaming video HD jernih (WebRTC)\n' +
+      '• `.vplay <url>` — streaming video 720p HD jernih\n' +
+      '• `.vplay 480 <url>` — streaming video 480p SD (sangat jernih & hemat kuota)\n' +
       '• `.play /path/file.mp3` — streaming file lokal\n' +
-      '• Reply media (lagu/video/voice) + `.play` / `.vplay` — putar media Telegram\n' +
+      '• Reply media + `.play` / `.vplay` [480/720] — putar media Telegram\n' +
       '• `.skip` — hentikan pemutaran audio/video (tetap di VC)\n' +
       '• `.pause` / `.resume` — jeda / lanjutkan musik\n' +
       '• `.mute` / `.unmute` — bisukan / bunyikan mic userbot\n' +
@@ -165,7 +167,7 @@ export default {
     detail: 'Murni menggunakan WebRTC Voice Chat resmi Telegram, bukan siaran langsung / RTMP.',
   },
   onLoad: () => {
-    Logger.logSystem('🎵 Plugin VC v2.1 loaded (Pure WebRTC Voice Chat)', 'INFO');
+    Logger.logSystem('🎵 Plugin VC v2.2 loaded (Pure WebRTC Voice Chat)', 'INFO');
   },
   async execute(client, message, _settings, _telegramId) {
     if (!message.out || !message.message) {return;}
@@ -227,7 +229,26 @@ export default {
         case 'vplay':
         case 'play': {
           const withVideo = cmd === 'vplay' || cmd === 'screenplay' || /--(video|screen)\b/i.test(args);
-          const cleanArgs = (cmd === 'vplay' || cmd === 'screenplay' ? args : args.replace(/--(video|screen)\b/gi, '')).trim();
+
+          // Pilihan profil resolusi video
+          let videoOpts: VideoOptions = VideoQuality.HD_720p;
+          let qualityName = '720p HD';
+          if (/\b(480|sd)\b/i.test(args)) {
+            videoOpts = VideoQuality.SD_480p;
+            qualityName = '480p SD';
+          } else if (/\b(360|low)\b/i.test(args)) {
+            videoOpts = VideoQuality.SD_360p;
+            qualityName = '360p';
+          } else if (/\b(1080|fhd)\b/i.test(args)) {
+            videoOpts = VideoQuality.FHD_1080p;
+            qualityName = '1080p FHD';
+          }
+
+          // Bersihkan keyword video & kualitas dari URL/path
+          const cleanArgs = (cmd === 'vplay' || cmd === 'screenplay'
+            ? args.replace(/\b(480|720|360|1080|sd|hd|fhd|low)\b/gi, '')
+            : args.replace(/--(video|screen)\b/gi, '').replace(/\b(480|720|360|1080|sd|hd|fhd|low)\b/gi, '')
+          ).trim();
 
           // Reply mode: me-reply pesan media
           if (!cleanArgs) {
@@ -238,7 +259,7 @@ export default {
             const dl = replyMsg ? await downloadTgMedia(client, replyMsg) : null;
             if (dl === null) {
               await message.edit({
-                text: `🎵 <b>PUTAR MEDIA</b>\n<blockquote>Gunakan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.vplay &lt;url&gt;</code> (Video HD Jernih)\n<code>.play /path/file.mp3</code>\nAtau <b>reply media (audio/video)</b> dengan <code>.play</code> / <code>.vplay</code></blockquote>`,
+                text: `🎵 <b>PUTAR MEDIA</b>\n<blockquote>Gunakan:\n<code>.play https://youtube.com/watch?v=…</code>\n<code>.vplay &lt;url&gt;</code> (Video 720p HD)\n<code>.vplay 480 &lt;url&gt;</code> (Video 480p SD Jernih)\n<code>.play /path/file.mp3</code>\nAtau <b>reply media (audio/video)</b> dengan <code>.play</code> / <code>.vplay</code> [480/720]</blockquote>`,
                 parseMode: 'html',
               });
               return;
@@ -247,13 +268,13 @@ export default {
             const source = { kind: 'file' as const, path: dl.path };
 
             if (withVideo) {
-              await busy('Mengaktifkan video di obrolan suara');
+              await busy(`Mengaktifkan video (${qualityName}) di obrolan suara`);
               if (tg.isActive(chatId)) {
                 await tg.leave(chatId);
               }
-              await tg.join(chatId, source, { allowCreate: true, video: true });
+              await tg.join(chatId, source, { allowCreate: true, video: videoOpts });
               await message.edit({
-                text: `📹 <b>Video Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>\n📹 Video: ON (Lancar & Sinkron)\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+                text: `📹 <b>Video Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(label.slice(0, 80))}</i>\n📹 Kualitas: <b>${qualityName}</b> (Lancar & Sinkron)\n💡 <i>Ketuk/klik video ke Layar Penuh (Fullscreen) agar Telegram meminta resolusi HD maksimal dari server.</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
                 parseMode: 'html',
               });
               return;
@@ -277,13 +298,13 @@ export default {
           const source = await toSource(cleanArgs, tg, withVideo);
 
           if (withVideo) {
-            await busy('Mengaktifkan video di obrolan suara');
+            await busy(`Mengaktifkan video (${qualityName}) di obrolan suara`);
             if (tg.isActive(chatId)) {
               await tg.leave(chatId);
             }
-            await tg.join(chatId, source, { allowCreate: true, video: true });
+            await tg.join(chatId, source, { allowCreate: true, video: videoOpts });
             await message.edit({
-              text: `📹 <b>Video Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n📹 Video: ON (Lancar & Sinkron)\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
+              text: `📹 <b>Video Obrolan Suara</b>\n<blockquote>▶️ Memutar: <i>${escapeHtml(cleanArgs.slice(0, 80))}</i>\n📹 Kualitas: <b>${qualityName}</b> (Lancar & Sinkron)\n💡 <i>Ketuk/klik video ke Layar Penuh (Fullscreen) agar Telegram meminta resolusi HD maksimal dari server.</i>\n⏹ <code>.skip</code> • ⏸ <code>.pause</code> • 👋 <code>.leavevc</code></blockquote>`,
               parseMode: 'html',
             });
             return;

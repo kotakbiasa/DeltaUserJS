@@ -4,18 +4,20 @@ FROM oven/bun:1.4 AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy root and Mini App package files
 COPY package.json package-lock.json ./
+COPY webapp/package.json webapp/package-lock.json ./webapp/
 
-# Install dependencies (production only)
-RUN bun install --frozen-lockfile --production
+# Install build dependencies for both the server and React/Vite frontend.
+RUN bun install && cd webapp && bun install
 
 # Copy source code
 COPY src/ ./src/
+COPY webapp/ ./webapp/
 COPY tsconfig.json ./
 
-# Build TypeScript
-RUN bun run build
+# Compile backend and Mini App into dist/ without relying on npm in the Bun image.
+RUN bunx tsc && cd webapp && bun run build
 
 # Production stage
 FROM oven/bun:1.4-slim AS production
@@ -31,7 +33,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 
 # Create non-root user
-RUN useradd -r -s /bin/false -u 1001 deltauserjs && chown -R deltauserjs:deltauserjs /app
+RUN useradd -r -s /bin/false -u 1001 deltauserjs \
+    && mkdir -p /app/data \
+    && chown -R deltauserjs:deltauserjs /app
 USER deltauserjs
 
 # Expose health check port
@@ -39,8 +43,8 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD bun -e "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 # Run with dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["bun", "run", "dist/index.js"]
+CMD ["bun", "dist/index.js"]

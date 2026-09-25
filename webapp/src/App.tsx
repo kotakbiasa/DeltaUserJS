@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Power, Puzzle, Radio, Sliders, CreditCard, ShieldCheck, RefreshCw, Star, Zap, MoreHorizontal, X, ChevronRight,
+  ShoppingBag, Wrench,
 } from 'lucide-react';
 import { api, UserMe } from './api';
 import { OverviewTab } from './tabs/OverviewTab';
@@ -9,10 +10,20 @@ import { BroadcastTab } from './tabs/BroadcastTab';
 import { SettingsTab } from './tabs/SettingsTab';
 import { SubscriptionTab } from './tabs/SubscriptionTab';
 import { AdminTab } from './tabs/AdminTab';
+import { StoreTab } from './tabs/StoreTab';
+import { UtilitiesTab } from './tabs/UtilitiesTab';
 import { triggerHaptic, tg } from './telegram';
 import { Spinner, Banner } from './ui';
 
-type TabId = 'overview' | 'plugins' | 'broadcast' | 'settings' | 'subscription' | 'admin';
+type TabId =
+  | 'overview'
+  | 'store'
+  | 'utilities'
+  | 'plugins'
+  | 'broadcast'
+  | 'settings'
+  | 'subscription'
+  | 'admin';
 
 interface NavItem {
   id: TabId;
@@ -31,7 +42,9 @@ interface NavItem {
  */
 const NAV: NavItem[] = [
   { id: 'overview', label: 'Beranda', short: 'Beranda', icon: Power, accent: 'var(--ok)', desc: 'Status sesi & ringkasan mesin' },
-  { id: 'plugins', label: 'Plugin', short: 'Plugin', icon: Puzzle, accent: 'var(--violet)', desc: '58 modul otomatisasi' },
+  { id: 'store', label: 'Toko Plugin', short: 'Toko', icon: ShoppingBag, accent: 'var(--violet)', desc: 'Plugin digital & pesanan manual' },
+  { id: 'utilities', label: 'Utilitas', short: 'Utilitas', icon: Wrench, accent: 'var(--info)', desc: 'Kalkulator, teks & password' },
+  { id: 'plugins', label: 'Plugin', short: 'Plugin', icon: Puzzle, accent: 'var(--ok)', desc: 'Modul otomatisasi userbot' },
   { id: 'broadcast', label: 'Siaran', short: 'Siaran', icon: Radio, accent: 'var(--info)', desc: 'Kirim pesan massal' },
   { id: 'settings', label: 'Setelan', short: 'Setelan', icon: Sliders, accent: 'var(--warn)', desc: 'Preferensi, vars & diagnostik' },
   { id: 'subscription', label: 'Paket & Langganan', short: 'Paket', icon: CreditCard, accent: 'var(--gold)', desc: 'Masa aktif, voucher, perpanjangan' },
@@ -302,6 +315,8 @@ export default function App() {
           {activeTab === 'overview' && (
             <OverviewTab user={user} onRefreshUser={() => fetchUser(false)} onStatusChange={setIsOnline} active={true} />
           )}
+          {activeTab === 'store' && <StoreTab user={user!} active={visited.has('store')} />}
+          {activeTab === 'utilities' && <UtilitiesTab active={visited.has('utilities')} />}
           {activeTab === 'plugins' && <PluginsTab active={visited.has('plugins')} />}
           {activeTab === 'broadcast' && <BroadcastTab active={visited.has('broadcast')} />}
           {activeTab === 'settings' && <SettingsTab user={user} active={visited.has('settings')} />}

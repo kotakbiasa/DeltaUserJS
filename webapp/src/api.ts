@@ -1,6 +1,6 @@
 import { tg } from './telegram';
 
-const BASE_URL = typeof window !== 'undefined' && window.location.pathname.startsWith('/ubot') ? '/ubot' : '';
+const BASE_URL = typeof window !== 'undefined' && /^\/ubot(?:\/|$)/.test(window.location.pathname) ? '/ubot' : '';
 
 function getInitData(): string {
   if (tg?.initData) {
@@ -23,8 +23,8 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
   });
 
   const data = await response.json();
-  if (!response.ok && !data.success) {
-    throw new Error(data.error || `HTTP error ${response.status}`);
+  if (!response.ok || data?.success === false) {
+    throw new Error(data?.error || `HTTP error ${response.status}`);
   }
   return data;
 }
@@ -69,10 +69,39 @@ export interface PluginItem {
 export interface SubscriptionInfo {
   isOwner: boolean;
   isActive: boolean;
+  status: string;
   expiredAt: string | null;
+  graceEndDate?: string | null;
+  startDate?: string | null;
+  autoRenew: boolean;
   daysLeft: number;
+  graceDaysLeft?: number;
   isExpired: boolean;
+  isLifetime?: boolean;
+  planId?: string | null;
   planName: string;
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  durationDays: number;
+  features: string[];
+  maxUserbots: number;
+  trialDays: number;
+}
+
+export interface SubscriptionPayment {
+  id: string;
+  planId: string;
+  amount: number;
+  status: 'pending' | 'paid' | 'failed' | 'expired' | 'refunded' | 'cancelled';
+  paymentUrl: string | null;
+  createdAt: string;
+  paidAt: string | null;
 }
 
 export interface ChatItem {
@@ -114,6 +143,50 @@ export interface DiagnosticsData {
   };
 }
 
+export interface StoreProduct {
+  id: string;
+  name: string;
+  pluginName: string;
+  version: string;
+  description: string;
+  price: number;
+  currency: 'IDR';
+  category: string;
+  tags: string[];
+  deliveryNote: string;
+  active: boolean;
+  featured: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type StoreOrderStatus = 'pending' | 'contacted' | 'completed' | 'cancelled';
+
+export interface StoreOrder {
+  id: string;
+  userId: number;
+  username?: string;
+  productId: string;
+  productName: string;
+  pluginName: string;
+  version: string;
+  amount: number;
+  currency: 'IDR';
+  status: StoreOrderStatus;
+  buyerNote: string;
+  ownerReply: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type StoreProductInput = Pick<
+  StoreProduct,
+  'name' | 'pluginName' | 'version' | 'description' | 'price' | 'category' | 'deliveryNote'
+> & {
+  tags?: string[];
+  featured?: boolean;
+};
+
 export const api = {
   getMe: () => fetchApi<{ success: boolean; user: UserMe; hasUserbot: boolean; isActive: boolean }>('/api/me'),
   getUserbotStatus: () => fetchApi<{ success: boolean } & UserbotStatus>('/api/userbot/status'),
@@ -129,6 +202,31 @@ export const api = {
       body: JSON.stringify({ pluginName, enabled }),
     }),
   getSubscription: () => fetchApi<{ success: boolean } & SubscriptionInfo>('/api/subscription'),
+  getSubscriptionPlans: () =>
+    fetchApi<{
+      success: boolean;
+      plans: SubscriptionPlan[];
+      availableGateways: string[];
+      ownerId?: number;
+    }>('/api/subscription/plans'),
+  createSubscriptionCheckout: (planId: string) =>
+    fetchApi<{
+      success: boolean;
+      message: string;
+      gateway?: string;
+      paymentUrl?: string;
+      expiresAt?: string;
+      ownerId?: number;
+    }>('/api/subscription/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ planId }),
+    }),
+  getSubscriptionPayments: () =>
+    fetchApi<{ success: boolean; payments: SubscriptionPayment[] }>('/api/subscription/payments'),
+  cancelSubscriptionAutoRenew: () =>
+    fetchApi<{ success: boolean; message: string }>('/api/subscription/cancel-auto-renew', {
+      method: 'POST',
+    }),
   redeemVoucher: (code: string) =>
     fetchApi<{ success: boolean; message: string }>('/api/subscription/redeem', {
       method: 'POST',
@@ -182,6 +280,51 @@ export const api = {
     fetchApi<{ success: boolean; message: string }>('/api/userbot/logout', {
       method: 'POST',
     }),
+  getStoreProducts: (includeInactive = false) =>
+    fetchApi<{
+      success: boolean;
+      paymentMode: 'manual';
+      ownerId?: number;
+      products: StoreProduct[];
+    }>(`/api/store/products${includeInactive ? '?includeInactive=true' : ''}`),
+  createStoreProduct: (product: StoreProductInput) =>
+    fetchApi<{ success: boolean; message: string; product: StoreProduct }>('/api/store/products', {
+      method: 'POST',
+      body: JSON.stringify(product),
+    }),
+  updateStoreProduct: (
+    productId: string,
+    patch: Partial<StoreProductInput> & { active?: boolean; featured?: boolean }
+  ) =>
+    fetchApi<{ success: boolean; message: string; product: StoreProduct }>(
+      `/api/store/products/${encodeURIComponent(productId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }
+    ),
+  deleteStoreProduct: (productId: string) =>
+    fetchApi<{ success: boolean; message: string; product: StoreProduct }>(
+      `/api/store/products/${encodeURIComponent(productId)}`,
+      { method: 'DELETE' }
+    ),
+  getStoreOrders: (all = false) =>
+    fetchApi<{ success: boolean; orders: StoreOrder[] }>(
+      `/api/store/orders${all ? '?scope=all&limit=100' : '?limit=50'}`
+    ),
+  createStoreOrder: (productId: string, note?: string) =>
+    fetchApi<{ success: boolean; message: string; order: StoreOrder }>('/api/store/orders', {
+      method: 'POST',
+      body: JSON.stringify({ productId, note }),
+    }),
+  updateStoreOrder: (orderId: string, patch: { status?: StoreOrderStatus; ownerReply?: string }) =>
+    fetchApi<{ success: boolean; message: string; order: StoreOrder }>(
+      `/api/store/orders/${encodeURIComponent(orderId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }
+    ),
   getAdminStats: () => fetchApi<{ success: boolean; stats: any }>('/api/admin/stats'),
   getAdminUsers: () => fetchApi<{ success: boolean; users: any[] }>('/api/admin/users'),
 };

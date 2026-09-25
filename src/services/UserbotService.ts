@@ -12,11 +12,14 @@ export async function saveUserbotSession(telegramId, phone, sessionString) {
   // Encrypt session string before storing in database
   const encryptedSession = sessionString ? encrypt(sessionString) : sessionString;
 
-  // Owner's userbot never expires
+  // Owner's userbot never expires. Preserve an explicit null for a
+  // non-owner lifetime subscription; only a missing legacy value gets trial.
   const isOwnerBot = idNum === Number(config.ownerId);
-
-  let expDate = isOwnerBot ? null : (existing.expired_at || undefined);
-  if (!isOwnerBot && !expDate) {
+  const hasExistingExpiry = Object.prototype.hasOwnProperty.call(existing, 'expired_at');
+  let expDate = isOwnerBot
+    ? null
+    : (hasExistingExpiry ? existing.expired_at : undefined);
+  if (!isOwnerBot && expDate === undefined) {
     // Beri masa aktif trial default (7 hari) jika pengguna baru belum memiliki masa aktif
     const trialDays = 7;
     expDate = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
