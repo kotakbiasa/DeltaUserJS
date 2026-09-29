@@ -1,6 +1,14 @@
 import { Api } from 'teleproto';
-import { VideoQuality, type VideoOptions } from 'tgcalls-js';
+import type { VideoOptions } from 'tgcalls-js';
 import fs from 'node:fs';
+
+// Video quality presets (tgcalls-js VideoOptions compatible)
+const VideoQuality = {
+  SD_360p: { width: 640, height: 360, fps: 20 },
+  SD_480p: { width: 854, height: 480, fps: 24 },
+  HD_720p: { width: 1280, height: 720, fps: 24 },
+  FHD_1080p: { width: 1920, height: 1080, fps: 30 },
+} as const;
 import path from 'node:path';
 import os from 'node:os';
 import { escapeHtml } from '../../../utils/richMessage.js';
