@@ -409,13 +409,19 @@ export class UserbotClient {
   private setupEmojiInterceptor(): void {
     if (!this.client) {return;}
 
+    const shouldAnimate = (params: any) => {
+      if (!params || params.parseMode === false) {return false;}
+      const parseMode = params.parseMode;
+      return parseMode === undefined || parseMode === null || String(parseMode).toLowerCase() === 'html';
+    };
+
     const origSendMessage = this.client.sendMessage.bind(this.client);
     this.client.sendMessage = (entity: any, params: any) => {
       if (params) {
-        if (typeof params.message === 'string') {
+        if (typeof params.message === 'string' && shouldAnimate(params)) {
           params.message = animateEmojisWithRestrictedPack(params.message);
         }
-        if (params.parseMode === undefined) {
+        if ((params.parseMode === undefined || params.parseMode === null) && shouldAnimate(params)) {
           params.parseMode = 'html';
         }
       }
@@ -424,7 +430,7 @@ export class UserbotClient {
 
     const origEditMessage = this.client.editMessage.bind(this.client);
     this.client.editMessage = (entity: any, params: any) => {
-      if (params) {
+      if (params && shouldAnimate(params)) {
         if (typeof params.text === 'string') {
           params.text = animateEmojisWithRestrictedPack(params.text);
         }
@@ -434,7 +440,7 @@ export class UserbotClient {
         if (params.richMessage && typeof params.richMessage.html === 'string') {
           params.richMessage.html = animateEmojisWithRestrictedPack(params.richMessage.html);
         }
-        if (params.parseMode === undefined) {
+        if (params.parseMode === undefined || params.parseMode === null) {
           params.parseMode = 'html';
         }
       }
@@ -444,11 +450,11 @@ export class UserbotClient {
     if (typeof (this.client as any).sendFile === 'function') {
       const origSendFile = (this.client as any).sendFile.bind(this.client);
       (this.client as any).sendFile = (entity: any, params: any) => {
-        if (params) {
+        if (params && shouldAnimate(params)) {
           if (typeof params.caption === 'string') {
             params.caption = animateEmojisWithRestrictedPack(params.caption);
           }
-          if (params.parseMode === undefined) {
+          if (params.parseMode === undefined || params.parseMode === null) {
             params.parseMode = 'html';
           }
         }

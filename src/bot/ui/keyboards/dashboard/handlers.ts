@@ -23,6 +23,7 @@ import { loadedPlugins } from '../../../../userbot/engine/pluginRegistry.js';
 import { stopLoop } from '../../../../userbot/handlers/util/loop.js';
 import { Logger } from '../../../../utils/logger.js';
 import { escapeHtml, replyRich } from '../../../../utils/richMessage.js';
+import { animateBotApiPayload } from '../../../../utils/customEmoji.js';
 import { sendWithNativeDraft } from '../../../../utils/streamRich.js';
 import {
   addPendingApproval,
@@ -187,6 +188,7 @@ export async function openPluginStudio(ctx, page = 1, category = 'all', notice =
 export function registerRichHandlers(bot) {
   bot.api.config.use(async (prev, method, payload, signal) => {
     applyButtonStylesToPayload(payload);
+    animateBotApiPayload(method, payload);
     if (Array.isArray(payload?.results)) {
       for (const result of payload.results) {applyButtonStylesToPayload(result);}
     }

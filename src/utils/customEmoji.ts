@@ -433,3 +433,62 @@ export function animateEmojisWithRestrictedPack(html: string): string {
 
   return protectedStr;
 }
+
+/**
+ * Apply the animated premium emoji pack to Telegram Bot API payloads.
+ *
+ * Master Bot responses use grammY and therefore do not pass through the
+ * userbot's teleproto interceptor. Keep this adapter at the API boundary so
+ * direct replies, edits, captions, and rich-message fallbacks all get the
+ * same treatment without changing every handler individually.
+ */
+export function animateBotApiPayload(method: string, payload: any): any {
+  if (!payload || typeof payload !== 'object') {return payload;}
+
+  const canUseHtml = (target: any) => {
+    const parseMode = target?.parse_mode;
+    return parseMode === undefined || parseMode === null || String(parseMode).toUpperCase() === 'HTML';
+  };
+
+  const transformField = (target: any, field: 'text' | 'caption') => {
+    if (!target || typeof target[field] !== 'string' || !canUseHtml(target)) {return;}
+    const transformed = animateEmojisWithRestrictedPack(target[field]);
+    if (transformed === target[field]) {return;}
+    target[field] = transformed;
+    if (target.parse_mode === undefined || target.parse_mode === null) {
+      target.parse_mode = 'HTML';
+    }
+  };
+
+  const richMessage = payload.rich_message;
+  if (richMessage && typeof richMessage === 'object' && typeof richMessage.html === 'string') {
+    richMessage.html = animateEmojisWithRestrictedPack(richMessage.html);
+  }
+
+  const textMethods = new Set([
+    'sendMessage',
+    'editMessageText',
+    'sendPhoto',
+    'sendVideo',
+    'sendAnimation',
+    'sendAudio',
+    'sendDocument',
+    'sendVoice',
+    'editMessageCaption',
+  ]);
+
+  if (textMethods.has(method)) {
+    const field = method === 'editMessageCaption' || (method.startsWith('send') && method !== 'sendMessage')
+      ? 'caption'
+      : 'text';
+    transformField(payload, field);
+  } else if (method === 'sendMediaGroup' && Array.isArray(payload.media)) {
+    for (const item of payload.media) {
+      transformField(item, 'caption');
+    }
+  } else if (method === 'editMessageMedia' && payload.media && typeof payload.media === 'object') {
+    transformField(payload.media, 'caption');
+  }
+
+  return payload;
+}
