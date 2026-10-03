@@ -25,14 +25,16 @@ import { Logger } from '../../../utils/logger.js';
 // ============================================================
 
 interface VCState {
-  clients: Map<string, unknown>;
+  clients: Map<number, unknown>;
 }
 
-const g = globalThis as unknown as { __deltaVCState?: VCState };
-if (!g.__deltaVCState) {
-  g.__deltaVCState = { clients: new Map() };
+// TgCallsClient memegang koneksi native/WebRTC. Satu instance tidak boleh
+// dipakai lintas userbot karena kredensial dan sesi Telegram-nya berbeda.
+const g = globalThis as unknown as { __deltaVCStateV2?: VCState };
+if (!g.__deltaVCStateV2) {
+  g.__deltaVCStateV2 = { clients: new Map() };
 }
-const state = g.__deltaVCState;
+const state = g.__deltaVCStateV2;
 
 type TgClient = {
   join: (chat: string | number | bigint, src: unknown, opts?: unknown) => Promise<unknown>;
@@ -51,8 +53,8 @@ type TgClient = {
   resolveYouTube: (url: string, video?: boolean) => Promise<string | null>;
 };
 
-async function getClient(client: unknown): Promise<TgClient> {
-  const key = 'shared';
+async function getClient(client: unknown, telegramId: number): Promise<TgClient> {
+  const key = Number(telegramId);
   const existing = state.clients.get(key);
   if (existing) {return existing as TgClient;}
   const mod = await import('tgcalls-js');
@@ -177,7 +179,7 @@ export default {
   onLoad: () => {
     Logger.logSystem('🎵 Plugin VC v2.2 loaded (Pure WebRTC Voice Chat)', 'INFO');
   },
-  async execute(client, message, _settings, _telegramId) {
+  async execute(client, message, _settings, telegramId) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.(\w+)(?:\s+([\s\S]+))?$/i);
@@ -201,7 +203,7 @@ export default {
       ? -(1_000_000_000_000n + rawId)
       : -rawId;
 
-    const tg = await getClient(client);
+    const tg = await getClient(client, telegramId);
     const busy = (action: string) =>
       message.edit({
         text: `🎵 <b>Obrolan Suara</b> — ${action}…`,

@@ -19,14 +19,30 @@ import { updateUserbotFeature, UserbotModel, isMongo, readDbFromFile } from '../
 // ============================================================
 
 // chatKey -> Map<triggerLower, { trigger: string, replyText: string }>
-const STORE_KEY = '__deltauserjs_kwfilter_store__';
-const LOADED_KEY = '__deltauserjs_kwfilter_loaded__';
-const filterStore = (globalThis)[STORE_KEY] || new Map();
-(globalThis)[STORE_KEY] = filterStore;
-// telegramId yang sudah pernah di-hydrate (globalThis agar ikut
-// survive hot-reload).
-const loadedIds: Set<number> = (globalThis)[LOADED_KEY] || new Set();
-(globalThis)[LOADED_KEY] = loadedIds;
+type FilterEntry = { trigger: string; replyText: string };
+type FilterStore = Map<string, Map<string, FilterEntry>>;
+
+// State tetap survive hot-reload, tetapi setiap userbot mendapat store dan
+// status hydration sendiri. Key chat saja tidak cukup karena dua userbot
+// dapat menangani chat dengan ID yang sama pada proses yang sama.
+const globalState = globalThis as unknown as {
+  __deltauserjs_kwfilter_stores_v2__?: Map<number, FilterStore>;
+  __deltauserjs_kwfilter_loaded_v2__?: Set<number>;
+};
+const filterStores = globalState.__deltauserjs_kwfilter_stores_v2__ ?? new Map<number, FilterStore>();
+const loadedIds = globalState.__deltauserjs_kwfilter_loaded_v2__ ?? new Set<number>();
+globalState.__deltauserjs_kwfilter_stores_v2__ = filterStores;
+globalState.__deltauserjs_kwfilter_loaded_v2__ = loadedIds;
+
+function getFilterStore(telegramId: number): FilterStore {
+  const id = Number(telegramId);
+  let store = filterStores.get(id);
+  if (!store) {
+    store = new Map<string, Map<string, FilterEntry>>();
+    filterStores.set(id, store);
+  }
+  return store;
+}
 
 const PREVIEW_MAX = 40;
 
@@ -49,7 +65,8 @@ function buildTriggerRegex(trigger) {
   );
 }
 
-function getChatFilters(chatKey) {
+function getChatFilters(telegramId, chatKey) {
+  const filterStore = getFilterStore(telegramId);
   let chatMap = filterStore.get(chatKey);
   if (!chatMap) {
     chatMap = new Map();
@@ -101,7 +118,7 @@ async function loadFiltersFromSettings(telegramId, settings) {
   for (const chatKey of Object.keys(data)) {
     const rawChat = data[chatKey];
     if (!rawChat || typeof rawChat !== 'object') {continue;}
-    const chatMap = getChatFilters(chatKey);
+    const chatMap = getChatFilters(telegramId, chatKey);
     for (const key of Object.keys(rawChat)) {
       const entry = rawChat[key];
       if (!entry || typeof entry !== 'object' || typeof entry.replyText !== 'string') {continue;}
@@ -111,7 +128,8 @@ async function loadFiltersFromSettings(telegramId, settings) {
 }
 
 // Snapshot store ke plain object JSON-safe untuk dipersist.
-function serializeFilterStore() {
+function serializeFilterStore(telegramId) {
+  const filterStore = getFilterStore(telegramId);
   const out = {};
   for (const [chatKey, chatMap] of filterStore) {
     const chatData = {};
@@ -126,15 +144,15 @@ function serializeFilterStore() {
 // Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
 async function persistFilters(telegramId) {
   try {
-    await updateUserbotFeature(telegramId, 'keyword_filters', serializeFilterStore());
+    await updateUserbotFeature(telegramId, 'keyword_filters', serializeFilterStore(telegramId));
   } catch (err) {
     Logger.logSystem(`kwfilter: gagal persist keyword_filters: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
   }
 }
 
 // ---- Auto-reply pesan masuk (non-out) ----
-async function autoReplyIncoming(client, message, chatKey, text) {
-  const chatMap = filterStore.get(chatKey);
+async function autoReplyIncoming(client, message, telegramId, chatKey, text) {
+  const chatMap = getFilterStore(telegramId).get(chatKey);
   if (!chatMap || chatMap.size === 0) {return;}
 
   // 1. Trigger spesifik diprioritaskan di atas wildcard '*'
@@ -197,7 +215,7 @@ export default {
 
     // ============ 1. Auto-reply pesan masuk (non-out) ============
     if (!message.out) {
-      await autoReplyIncoming(client, message, chatKey, text);
+      await autoReplyIncoming(client, message, telegramId, chatKey, text);
       return;
     }
 
@@ -237,7 +255,7 @@ export default {
         return;
       }
 
-      const chatMap = getChatFilters(chatKey);
+      const chatMap = getChatFilters(telegramId, chatKey);
       const key = trigger.toLowerCase();
       const existed = chatMap.has(key);
       chatMap.set(key, { trigger, replyText });
@@ -263,7 +281,7 @@ export default {
         return;
       }
 
-      const chatMap = filterStore.get(chatKey);
+      const chatMap = getFilterStore(telegramId).get(chatKey);
       const key = trigger.toLowerCase();
       if (!chatMap || !chatMap.has(key)) {
         await message.edit({
@@ -274,7 +292,7 @@ export default {
       }
 
       chatMap.delete(key);
-      if (chatMap.size === 0) {filterStore.delete(chatKey);}
+      if (chatMap.size === 0) {getFilterStore(telegramId).delete(chatKey);}
       await persistFilters(telegramId);
       await message.edit({
         text: `🗑️ Filter <code>${escapeHtml(trigger)}</code> berhasil dihapus.`,
@@ -285,7 +303,7 @@ export default {
 
     // ---- 2c. .listfilter ----
     if (/^\.listfilter\s*$/i.test(text)) {
-      const chatMap = filterStore.get(chatKey);
+      const chatMap = getFilterStore(telegramId).get(chatKey);
       const entries = chatMap ? [...chatMap.values()] : [];
       if (entries.length === 0) {
         await message.edit({

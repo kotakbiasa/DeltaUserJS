@@ -225,6 +225,45 @@ test('#4 batas broadcast Mini App sama dengan .gcast', () => {
   assert.equal(apiLimit, gcastLimit, 'Mini App tidak boleh jadi jalan pintas melewati batas .gcast');
 });
 
+test('state plugin global diisolasi per userbot, bukan hanya per chat', async () => {
+  const kwfilter = fs.readFileSync(path.join(repoRoot, 'src/userbot/handlers/group/kwfilter.ts'), 'utf8');
+  const warn = fs.readFileSync(path.join(repoRoot, 'src/userbot/handlers/admin/warn.ts'), 'utf8');
+  const sudo = fs.readFileSync(path.join(repoRoot, 'src/userbot/handlers/util/sudo.ts'), 'utf8');
+  const vc = fs.readFileSync(path.join(repoRoot, 'src/userbot/handlers/group/vc.ts'), 'utf8');
+
+  assert.match(kwfilter, /Map<number, FilterStore>/);
+  assert.match(warn, /Map<number, WarnStore>/);
+  assert.match(sudo, /Map<number, SudoState>/);
+  assert.match(sudo, /findOne\(\{ telegram_id: Number\(telegramId\) \}/);
+  assert.match(vc, /getClient\(client: unknown, telegramId: number\)/);
+  assert.match(vc, /const key = Number\(telegramId\)/);
+  assert.doesNotMatch(vc, /const key = ['"]shared['"]/);
+
+  // Behavioral regression: same chat ID, different userbot IDs, different
+  // settings. The second bot must not see the first bot's filter.
+  const { default: plugin } = await import('../dist/userbot/handlers/group/kwfilter.js');
+  const firstReplies = [];
+  const secondReplies = [];
+  const firstMessage = { out: false, message: 'halo', chatId: -777001, id: 1 };
+  const secondMessage = { out: false, message: 'halo', chatId: -777001, id: 2 };
+  await plugin.execute(
+    { sendMessage: async (...args) => { firstReplies.push(args); } },
+    firstMessage,
+    { keyword_filters: { '-777001': { halo: { trigger: 'halo', replyText: 'bot pertama' } } } },
+    910001,
+  );
+  await plugin.execute(
+    { sendMessage: async (...args) => { secondReplies.push(args); } },
+    secondMessage,
+    { keyword_filters: {} },
+    910002,
+  );
+
+  assert.equal(firstReplies.length, 1);
+  assert.equal(firstReplies[0][1].message, 'bot pertama');
+  assert.equal(secondReplies.length, 0);
+});
+
 test('#4 logika filter blacklist menghasilkan target yang benar', () => {
   // Replika murni dari logika di endpoint, diuji terpisah dari HTTP.
   const MAX = 50;
