@@ -15,9 +15,10 @@ export default {
     if (message.out && message.message && message.message.toLowerCase() === '.ping') {
       try {
         const pingEmoji = getCustomEmoji(settings, 'ping');
+        const loadingEmoji = getCustomEmoji(settings, 'loading');
         const startMs = Date.now();
         await message.edit({
-          text: `<b>${pingEmoji} PONG!</b>\n<blockquote>⏱️ Mengukur latensi...</blockquote>`,
+          text: `<b>${pingEmoji} PONG!</b>\n<blockquote>${loadingEmoji} Mengukur latensi...</blockquote>`,
           parseMode: 'html'
         });
 

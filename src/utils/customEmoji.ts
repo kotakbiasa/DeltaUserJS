@@ -1,22 +1,25 @@
 import { escapeHtml } from './richMessage.js';
 import { getUserbotSession } from '../infrastructure/database.js';
 
+// Default animated emoji pack: https://t.me/addemoji/RestrictedEmoji
+export const RESTRICTED_EMOJI_PACK = 'https://t.me/addemoji/RestrictedEmoji';
+
 export const DEFAULT_EMOJIS: Record<string, string> = {
-  ping: '🏓',
-  pong: '🏓',
-  proses: '⏳',
-  loading: '⏳',
-  done: '✅',
-  success: '✅',
-  batal: '❌',
-  error: '❌',
-  warn: '⚠️',
-  uptime: '⏱️',
-  speed: '🚀',
-  status: '🛡️',
-  item: '📦',
-  time: '🕒',
-  afk: '😴'
+  ping: '<tg-emoji emoji-id="5269563867305879894">🏓</tg-emoji>',
+  pong: '<tg-emoji emoji-id="5269563867305879894">🏓</tg-emoji>',
+  proses: '<tg-emoji emoji-id="5451732530048802485">⏳</tg-emoji>',
+  loading: '<tg-emoji emoji-id="5451732530048802485">⏳</tg-emoji>',
+  done: '<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji>',
+  success: '<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji>',
+  batal: '<tg-emoji emoji-id="5465665476971471368">❌</tg-emoji>',
+  error: '<tg-emoji emoji-id="5465665476971471368">❌</tg-emoji>',
+  warn: '<tg-emoji emoji-id="5467928559664242360">❗</tg-emoji>',
+  uptime: '<tg-emoji emoji-id="5413704112220949842">⏰</tg-emoji>',
+  speed: '<tg-emoji emoji-id="5445284980978621387">🚀</tg-emoji>',
+  status: '<tg-emoji emoji-id="5431449001532594346">⚡</tg-emoji>',
+  item: '<tg-emoji emoji-id="5199749070830197566">🎁</tg-emoji>',
+  time: '<tg-emoji emoji-id="5413704112220949842">⏰</tg-emoji>',
+  afk: '<tg-emoji emoji-id="5372923973271034075">😴</tg-emoji>'
 };
 
 const EMOJI_ALIASES: Record<string, string[]> = {

@@ -1,5 +1,5 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
-import { getCustomEmoji } from '../../../utils/customEmoji.js';
+import { getCustomEmoji, escapeHtmlPreservingTgEmoji } from '../../../utils/customEmoji.js';
 
 // ============================================================
 // PROSES — kartu status transaksi (teks estetik HTML blockquote)
@@ -21,22 +21,22 @@ function nowWib() {
 }
 
 const CARDS = {
-  proses: { defaultEmoji: '⏳', label: 'PROCESSING', statusId: 'Sedang Diproses' },
-  done: { defaultEmoji: '✅', label: 'DONE', statusId: 'Selesai' },
-  batal: { defaultEmoji: '❌', label: 'CANCELED', statusId: 'Dibatalkan' }
+  proses: { label: 'PROCESSING', statusId: 'Sedang Diproses' },
+  done: { label: 'DONE', statusId: 'Selesai' },
+  batal: { label: 'CANCELED', statusId: 'Dibatalkan' }
 };
 
 function buildCard(kind, rawItem, settings?: any) {
   const card = CARDS[kind];
-  const emoji = getCustomEmoji(settings, kind, card.defaultEmoji);
-  const itemEmoji = getCustomEmoji(settings, 'item', '📦');
-  const timeEmoji = getCustomEmoji(settings, 'time', '🕒');
+  const emoji = getCustomEmoji(settings, kind);
+  const itemEmoji = getCustomEmoji(settings, 'item');
+  const timeEmoji = getCustomEmoji(settings, 'time');
   const item = rawItem.trim();
   const time = nowWib();
 
   return (
     `${emoji} <b>${card.label}</b>\n\n` +
-    `<blockquote>${itemEmoji} <b>Item:</b> ${escapeHtml(item)}\n` +
+    `<blockquote>${itemEmoji} <b>Item:</b> ${escapeHtmlPreservingTgEmoji(item)}\n` +
     `🔖 <b>Status:</b> ${card.statusId}\n` +
     `${timeEmoji} <b>Waktu (WIB):</b> <code>${escapeHtml(time)}</code></blockquote>\n\n` +
     `<blockquote><i>Diproses otomatis oleh DeltaUbotJS</i></blockquote>`

@@ -1,16 +1,16 @@
 /**
  * Response utilities — memusatkan pola `message.edit()` yang berulang
  * di seluruh handler untuk mengurangi code duplication.
- * Mendukung custom emoji (Telegram Premium <tg-emoji>).
+ * Menggunakan animated custom emoji dari RestrictedEmoji pack secara default.
  */
-import { escapeHtmlPreservingTgEmoji } from './customEmoji.js';
+import { escapeHtmlPreservingTgEmoji, DEFAULT_EMOJIS } from './customEmoji.js';
 
 /**
  * Format pesan loading/proses.
  * @param text - Teks status (misal "Mengumpulkan data...")
- * @param emoji - Emoji yang digunakan (default: ⏳)
+ * @param emoji - Emoji yang digunakan (default: animated ⏳ dari RestrictedEmoji)
  */
-export function formatLoadingText(text: string, emoji = '⏳'): string {
+export function formatLoadingText(text: string, emoji = DEFAULT_EMOJIS.loading): string {
   return `${emoji} <b>${escapeHtmlPreservingTgEmoji(text)}</b>`;
 }
 
@@ -18,18 +18,18 @@ export function formatLoadingText(text: string, emoji = '⏳'): string {
  * Format pesan error dengan blockquote styling.
  * @param title - Judul error (misal "Gagal")
  * @param detail - Detail pesan error
- * @param emoji - Emoji error yang digunakan (default: ❌)
+ * @param emoji - Emoji error yang digunakan (default: animated ❌ dari RestrictedEmoji)
  */
-export function formatErrorText(title: string, detail: string, emoji = '❌'): string {
+export function formatErrorText(title: string, detail: string, emoji = DEFAULT_EMOJIS.error): string {
   return `<blockquote>${emoji} <b>${escapeHtmlPreservingTgEmoji(title)}:</b> ${escapeHtmlPreservingTgEmoji(detail)}</blockquote>`;
 }
 
 /**
  * Format pesan sukses.
  * @param message - Pesan sukses
- * @param emoji - Emoji sukses yang digunakan (default: ✅)
+ * @param emoji - Emoji sukses yang digunakan (default: animated ✅ dari RestrictedEmoji)
  */
-export function formatSuccessText(message: string, emoji = '✅'): string {
+export function formatSuccessText(message: string, emoji = DEFAULT_EMOJIS.success): string {
   return `${emoji} ${escapeHtmlPreservingTgEmoji(message)}`;
 }
 
@@ -40,7 +40,7 @@ export function formatSuccessText(message: string, emoji = '✅'): string {
 export async function sendLoading(
   message: { edit: (opts: { text: string; parseMode: string }) => Promise<unknown> },
   text: string,
-  emoji = '⏳'
+  emoji = DEFAULT_EMOJIS.loading
 ): Promise<void> {
   await message.edit({ text: formatLoadingText(text, emoji), parseMode: 'html' });
 }
@@ -53,7 +53,7 @@ export async function sendError(
   message: { edit: (opts: { text: string; parseMode: string }) => Promise<unknown> },
   title: string,
   detail: string,
-  emoji = '❌'
+  emoji = DEFAULT_EMOJIS.error
 ): Promise<void> {
   await message.edit({ text: formatErrorText(title, detail, emoji), parseMode: 'html' });
 }
@@ -64,7 +64,7 @@ export async function sendError(
 export async function sendSuccess(
   message: { edit: (opts: { text: string; parseMode: string }) => Promise<unknown> },
   text: string,
-  emoji = '✅'
+  emoji = DEFAULT_EMOJIS.success
 ): Promise<void> {
   await message.edit({ text: formatSuccessText(text, emoji), parseMode: 'html' });
 }
