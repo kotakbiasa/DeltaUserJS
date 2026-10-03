@@ -2,7 +2,6 @@ import { dbCache, persistDoc, persistField, persistDelete, normalizeBot, groupCo
 import { encrypt } from '../utils/crypto.js';
 import { deepClone } from '../utils/deepClone.js';
 import { Logger } from '../utils/logger.js';
-import config from '../config.js';
 
 
 export async function saveUserbotSession(telegramId, phone, sessionString) {

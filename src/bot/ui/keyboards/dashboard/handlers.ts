@@ -38,7 +38,7 @@ import {
 import fs from 'fs';
 import { InputFile } from 'grammy';
 import { Api } from 'teleproto';
-import { PROTECTED_PLUGINS, getSystemVarNum, getSystemVarValue, isOwner, normalizedDisabled } from './shared.js';
+import { PROTECTED_PLUGINS, getSystemVarValue, isOwner, normalizedDisabled } from './shared.js';
 import {
   panelAccessDenied,
   panelAdmin,
@@ -574,8 +574,6 @@ export function registerRichHandlers(bot) {
     if (action === 'claim_trial') {
       await ctx.answerCallbackQuery();
       const userId = ctx.from.id;
-      const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
-
       if (isOwner(ctx)) {
         approveUser(userId);
         return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { edit: true });

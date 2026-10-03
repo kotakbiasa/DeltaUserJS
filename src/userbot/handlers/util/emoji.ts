@@ -4,9 +4,7 @@ import {
   DEFAULT_EMOJIS,
   getAllEmojis,
   extractEmojiFromContext,
-  formatTgEmoji,
-  parseTgEmojiTemplate,
-  escapeHtmlPreservingTgEmoji
+  formatTgEmoji
 } from '../../../utils/customEmoji.js';
 
 const VALID_KEYS = [
