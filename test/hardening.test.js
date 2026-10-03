@@ -196,10 +196,10 @@ test('#9 docker-compose menaruh STATE_DIR di dalam volume yang di-mount', () => 
 // ===========================================================================
 
 test('#4 endpoint broadcast menghormati blacklist dan punya batas', () => {
-  const src = fs.readFileSync(path.join(repoRoot, 'src/server/api.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(repoRoot, 'src/server/routes/broadcast.ts'), 'utf8');
   const start = src.indexOf("pathname === '/api/broadcast/send'");
   assert.ok(start > 0, 'endpoint broadcast harus ada');
-  const endpoint = src.slice(start, src.indexOf("pathname === '/api/store/products'"));
+  const endpoint = src.slice(start);
 
   assert.match(endpoint, /getBroadcastBlacklist\(user\.id\)/, 'blacklist wajib dibaca');
   assert.match(endpoint, /blacklist\.includes\(chatId\)/, 'target blacklist wajib difilter');
@@ -216,7 +216,7 @@ test('#4 endpoint broadcast menghormati blacklist dan punya batas', () => {
 });
 
 test('#4 batas broadcast Mini App sama dengan .gcast', () => {
-  const api = fs.readFileSync(path.join(repoRoot, 'src/server/api.ts'), 'utf8');
+  const api = fs.readFileSync(path.join(repoRoot, 'src/server/routes/broadcast.ts'), 'utf8');
   const gcast = fs.readFileSync(path.join(repoRoot, 'src/userbot/handlers/admin/gcast.ts'), 'utf8');
 
   const apiLimit = Number(api.match(/MAX_BROADCAST_TARGETS = (\d+)/)[1]);
