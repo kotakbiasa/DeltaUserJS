@@ -1,13 +1,13 @@
 import config from '../config.js';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { mkdir, rm, readFile, writeFile } from 'fs/promises';
+import { mkdir, rm, readFile, writeFile, readdir, stat } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Logger } from '../utils/logger.js';
 import { formatBytesFixed as formatBytes } from '../utils/format.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backupDir = path.join(__dirname, '../../backups');
 
@@ -77,6 +77,27 @@ async function saveHistory() {
   await writeFile(HISTORY_FILE, JSON.stringify(backupHistory.slice(-MAX_HISTORY), null, 2));
 }
 
+async function getDirectorySize(directory: string): Promise<number> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  let total = 0;
+
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      total += await getDirectorySize(entryPath);
+    } else if (entry.isFile()) {
+      total += (await stat(entryPath)).size;
+    }
+  }
+
+  return total;
+}
+
+async function countDirectories(directory: string): Promise<number> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  return entries.filter(entry => entry.isDirectory()).length;
+}
+
 /**
  * Create a MongoDB backup using mongodump.
  *
@@ -108,8 +129,9 @@ async function createMongoBackup(type: BackupInfo['type']): Promise<BackupInfo> 
     }
     // mongodump harus menunjuk DB yang sama dengan mongoose (config.dbName).
     const mongoUri = resolveMongoDatabaseUri(baseUri);
-    const { stderr } = await execAsync(
-      `mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`,
+    const { stderr } = await execFileAsync(
+      'mongodump',
+      ['--uri', mongoUri, '--out', backupPath, '--gzip'],
       { timeout: 300000 }
     );
 
@@ -117,12 +139,10 @@ async function createMongoBackup(type: BackupInfo['type']): Promise<BackupInfo> 
       Logger.logSystem(`mongodump stderr: ${stderr}`, 'WARN');
     }
 
-    const { stdout: sizeOut } = await execAsync(`du -sb "${backupPath}"`);
-    backupInfo.size = parseInt(sizeOut.split('\t')[0]);
+    backupInfo.size = await getDirectorySize(backupPath);
 
     if (type === 'full') {
-      const { stdout: collectionsOut } = await execAsync(`ls -1 "${backupPath}"/*/ | wc -l`);
-      backupInfo.collections = [String(parseInt(collectionsOut.trim()))];
+      backupInfo.collections = [String(await countDirectories(backupPath))];
     }
 
     backupInfo.status = 'completed';
@@ -168,8 +188,9 @@ export async function restoreFromBackup(backupId: string, targetUri?: string): P
 
   try {
     // Use mongorestore
-    await execAsync(
-      `mongorestore --uri="${mongoUri}" --gzip --drop "${backup.path}"`,
+    await execFileAsync(
+      'mongorestore',
+      ['--uri', mongoUri, '--gzip', '--drop', backup.path],
       { timeout: 300000 }
     );
 
