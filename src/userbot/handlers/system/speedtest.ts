@@ -1,8 +1,10 @@
 import { runSpeedtest } from '../../../utils/speedtest.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { defineCommand } from '../../engine/defineCommand.js';
 
-export default {
+export default defineCommand({
   name: 'speedtest',
+  commands: ['speedtest', 'testspeed'],
   version: '2.0.0',
   description: 'Melakukan pengetesan kecepatan internet server.',
   help: {
@@ -11,18 +13,11 @@ export default {
     usage: '`.speedtest` atau `.testspeed`',
     detail: 'Menampilkan Ping, Jitter, Download, Upload, dan informasi ISP server.'
   },
+  args: 'none',
+  loading: '🚀 <b>Menjalankan Speedtest via Cloudflare...</b>\n<i>Mohon tunggu sebentar, ini mungkin memakan waktu hingga 30 detik.</i>',
+  loadingStyle: 'raw',
 
-  async execute(client, message, _settings, _telegramId) {
-    if (!message.out || !message.message) {return;}
-
-    const match = message.message.match(/^\.(speedtest|testspeed)$/i);
-    if (!match) {return;}
-
-    await message.edit({
-      text: `🚀 <b>Menjalankan Speedtest via Cloudflare...</b>\n<i>Mohon tunggu sebentar, ini mungkin memakan waktu hingga 30 detik.</i>`,
-      parseMode: 'html'
-    });
-
+  async run({ edit }) {
     try {
       const result = await runSpeedtest();
 
@@ -42,17 +37,9 @@ export default {
         `\n` +
         `📊 <a href="${result.resultUrl}">[Lihat Hasil di Web]</a>`;
 
-      await message.edit({
-        text: output,
-        parseMode: 'html',
-        linkPreview: { url: result.resultUrl }
-      });
-
+      await edit(output, { linkPreview: { url: result.resultUrl } });
     } catch (err) {
-      await message.edit({
-        text: `<blockquote>❌ <b>Gagal menjalankan speedtest:</b>\n${err instanceof Error ? err.message : String(err)}</blockquote>`,
-        parseMode: 'html'
-      });
+      await edit(`<blockquote>❌ <b>Gagal menjalankan speedtest:</b>\n${err instanceof Error ? err.message : String(err)}</blockquote>`);
     }
   }
-};
+});

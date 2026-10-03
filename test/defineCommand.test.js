@@ -146,6 +146,19 @@ test('loading text is edited before run(), final string after', async () => {
   assert.equal(msg.edits[1].linkPreview, false);
 });
 
+test('raw loading style preserves plugin-owned HTML exactly', async () => {
+  const cmd = defineCommand({
+    name: 'x',
+    loading: '🚀 <b>Memproses...</b>\n<i>Tunggu sebentar.</i>',
+    loadingStyle: 'raw',
+    run: () => {},
+  });
+  const msg = mockMessage('.x');
+
+  await cmd.execute(noopClient, msg, {}, 1);
+  assert.equal(msg.edits[0].text, '🚀 <b>Memproses...</b>\n<i>Tunggu sebentar.</i>');
+});
+
 test('run() returning void leaves the message to the plugin', async () => {
   const cmd = defineCommand({
     name: 'x',

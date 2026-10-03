@@ -68,10 +68,11 @@ export interface CommandSpec {
   loading?: string | ((arg: string) => string);
   /**
    * Bungkus teks loading. 'blockquote' → <blockquote>⏳ <b>..</b></blockquote>,
-   * 'plain' → ⏳ <b>..</b>. Keduanya dipakai di basis kode lama, jadi tiap
-   * plugin harus memilih yang sama dengan sebelumnya. Default 'blockquote'.
+   * 'plain' → ⏳ <b>..</b>; 'raw' → kirim isi loading apa adanya.
+   * Ketiganya dipakai di basis kode lama, jadi tiap plugin harus memilih yang
+   * sama dengan sebelumnya. Default 'blockquote'.
    */
-  loadingStyle?: 'blockquote' | 'plain';
+  loadingStyle?: 'blockquote' | 'plain' | 'raw';
   /** Judul pesan gagal, mis. "Gagal cek cuaca". Default "Gagal menjalankan perintah". */
   errorTitle?: string;
   /** Catat kegagalan ke Logger seperti sebagian plugin lama. Default false. */
@@ -181,7 +182,13 @@ export function defineCommand(spec: CommandSpec): CommandPlugin {
 
       if (spec.loading) {
         const inner = typeof spec.loading === 'function' ? spec.loading(ctx.arg) : spec.loading;
-        await edit(spec.loadingStyle === 'plain' ? loadingTextPlain(inner) : loadingText(inner));
+        await edit(
+          spec.loadingStyle === 'raw'
+            ? inner
+            : spec.loadingStyle === 'plain'
+              ? loadingTextPlain(inner)
+              : loadingText(inner)
+        );
       }
 
       try {
