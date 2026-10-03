@@ -1,5 +1,6 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import { sleep } from '../../../utils/async.js';
 
 /**
  * Purge — hapus pesan massal & kirim ulang konten.
@@ -248,6 +249,3 @@ export default {
   }
 };
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

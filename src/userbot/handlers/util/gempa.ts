@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -23,9 +24,9 @@ export default {
     });
 
     try {
-      const res = await fetch('https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json', {
+      const res = await fetchWithTimeout('https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json', {
         headers: { 'User-Agent': BROWER_UA }
-      });
+      }, 15_000);
       if (!res.ok) {
         throw new Error(`BMKG responded ${res.status}`);
       }

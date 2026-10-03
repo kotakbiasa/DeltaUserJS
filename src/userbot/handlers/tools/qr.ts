@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -35,7 +36,7 @@ export default {
 
     try {
       const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(text)}`;
-      const res = await fetch(apiUrl, { headers: { 'User-Agent': BROWER_UA } });
+      const res = await fetchWithTimeout(apiUrl, { headers: { 'User-Agent': BROWER_UA } }, 20_000);
       if (!res.ok) {
         throw new Error(`API responded ${res.status}`);
       }

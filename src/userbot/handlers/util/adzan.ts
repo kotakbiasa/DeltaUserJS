@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 // Sumber data: api.aladhan.com (gratis, tanpa API key).
 // Sebelumnya pakai muslimsalat.com — endpoint .json-nya sudah 404 (audit Sep 2026).
@@ -29,7 +30,7 @@ export default {
 
     try {
       const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(lokasi)}&country=Indonesia&method=11`;
-      const response = await fetch(url, { headers: { 'User-Agent': 'DeltaUserJS/1.0' } });
+      const response = await fetchWithTimeout(url, { headers: { 'User-Agent': 'DeltaUserJS/1.0' } }, 15_000);
 
       if (!response.ok) {
         await message.edit({

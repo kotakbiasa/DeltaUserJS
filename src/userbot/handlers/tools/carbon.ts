@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from '../../../utils/http.js';
 const THEMES = [
   "3024-night", "a11y-dark", "blackboard", "base16-dark", "base16-light",
   "cobalt", "dracula", "duotone-dark", "hopscotch", "lucario", "material",
@@ -103,11 +104,11 @@ export default {
     try {
       const payload = getCarbonConfig(theme, textCode);
       
-      const response = await fetch('https://carbonara.solopov.dev/api/cook', {
+      const response = await fetchWithTimeout('https://carbonara.solopov.dev/api/cook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      });
+      }, 30_000);
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.statusText}`);

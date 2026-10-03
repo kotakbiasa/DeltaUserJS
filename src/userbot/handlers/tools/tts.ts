@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 // ============================================================
 // Text to Speech — .tts
@@ -107,9 +108,9 @@ export default {
     let tmpPath = null;
     try {
       const url = `${TTS_ENDPOINT}?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${encodeURIComponent(lang)}&client=tw-ob`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         headers: { 'User-Agent': BROWSER_UA, 'Referer': 'https://translate.google.com/' }
-      });
+      }, 20_000);
       if (!res.ok) {
         throw new Error(`Google TTS responded ${res.status}`);
       }

@@ -1,4 +1,5 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 export default {
   name: 'weather',
@@ -32,9 +33,9 @@ export default {
 
     try {
       // UA curl agar wttr.in membalas plain-text format=3, bukan halaman HTML
-      const res = await fetch(`https://wttr.in/${encodeURIComponent(kota)}?format=3`, {
+      const res = await fetchWithTimeout(`https://wttr.in/${encodeURIComponent(kota)}?format=3`, {
         headers: { 'User-Agent': 'curl/8.5.0' }
-      });
+      }, 15_000);
       if (!res.ok) {
         throw new Error(`wttr.in responded ${res.status}`);
       }

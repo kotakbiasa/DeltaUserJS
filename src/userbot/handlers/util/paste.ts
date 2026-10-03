@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 const MAX_BYTES = 500 * 1024; // 500KB
 
@@ -54,14 +55,14 @@ export default {
     });
 
     try {
-      const res = await fetch('https://paste.rs/', {
+      const res = await fetchWithTimeout('https://paste.rs/', {
         method: 'POST',
         headers: {
           'User-Agent': 'DeltaUserJS/1.0',
           'Content-Type': 'text/plain; charset=utf-8'
         },
         body: text
-      });
+      }, 20_000);
       if (!res.ok) {
         throw new Error(`paste.rs responded ${res.status}`);
       }

@@ -11,6 +11,7 @@
  */
 import { Bot } from 'grammy';
 import { Logger } from '../../utils/logger.js';
+import { fetchWithTimeout } from '../../utils/http.js';
 import {
   buildHelpMenuHtml,
   buildModuleHtml,
@@ -29,7 +30,7 @@ const inlineBots = new Map<number, InlineBotEntry>();
 /** Validate token via getMe */
 export async function validateInlineBot(token: string): Promise<string | null> {
   try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const res = await fetchWithTimeout(`https://api.telegram.org/bot${token}/getMe`, {}, 10_000);
     const data = await res.json();
     if (data.ok && data.result?.username) {
       return data.result.username;
@@ -59,7 +60,7 @@ export async function sendHelpMenuViaInlineBot(
         ] }
       : helpKeyboard(page, 'ubot');
 
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetchWithTimeout(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

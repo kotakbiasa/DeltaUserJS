@@ -1,5 +1,6 @@
 import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { sleep } from '../../../utils/async.js';
 
 export default {
   name: 'clearnotif',
@@ -18,9 +19,6 @@ export default {
     const validCommands = ['.clear_@', '.clear_all_@', '.clear_reacts', '.clear_all_reacts'];
 
     if (!validCommands.includes(cmd)) {return;}
-
-    // Helper untuk jeda waktu guna menghindari FloodWait
-    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     try {
       if (cmd === '.clear_@') {

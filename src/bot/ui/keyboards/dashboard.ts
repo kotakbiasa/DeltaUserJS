@@ -41,6 +41,7 @@ import {
   setAcceptedTerms,
 } from '../../state/approvedUsers.js';
 import { setUserVar } from '../../../services/SystemVarService.js';
+import { formatBytesShort as formatBytesRef } from '../../../utils/format.js';
 
 // ==========================================================================
 // SECTION 1 — UI BUILDERS
@@ -1362,15 +1363,6 @@ export function panelHealth(mongoStatus = 'Unknown') {
     rows +
     `</table>` +
     `<footer>Monitoring kesehatan sistem &amp; kluster basis data.</footer>`;
-}
-
-/** Format bytes human-readable (tanpa import tambahan). */
-function formatBytesRef(bytes: number): string {
-  if (!bytes) {return '0 B';}
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
 // ==========================================================================

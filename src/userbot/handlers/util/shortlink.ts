@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 export default {
   name: 'shortlink',
@@ -33,7 +34,7 @@ export default {
 
     try {
       const api = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`;
-      const res = await fetch(api);
+      const res = await fetchWithTimeout(api, {}, 15_000);
       if (!res.ok) {
         throw new Error(`TinyURL responded ${res.status}`);
       }

@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './http.js';
+
 export interface SpeedtestResult {
   ping: number;
   jitter: number;
@@ -21,21 +23,15 @@ interface CloudflareMeta {
   colo?: string;
 }
 
-function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  return fetch(url, {
-    ...init,
-    cache: 'no-store',
-    signal: controller.signal
-  }).finally(() => clearTimeout(timer));
+function fetchNoStore(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetchWithTimeout(url, { ...init, cache: 'no-store' }, REQUEST_TIMEOUT_MS);
 }
 
 async function measureLatency(samples = 5): Promise<{ ping: number; jitter: number }> {
   const latencies: number[] = [];
   for (let i = 0; i < samples; i++) {
     const start = performance.now();
-    const res = await fetchWithTimeout(`${BASE_URL}/__down?bytes=0`);
+    const res = await fetchNoStore(`${BASE_URL}/__down?bytes=0`);
     await res.arrayBuffer();
     latencies.push(performance.now() - start);
   }
@@ -48,7 +44,7 @@ async function measureLatency(samples = 5): Promise<{ ping: number; jitter: numb
 
 async function measureDownload(): Promise<number> {
   const start = performance.now();
-  const res = await fetchWithTimeout(`${BASE_URL}/__down?bytes=${DOWNLOAD_BYTES}`);
+  const res = await fetchNoStore(`${BASE_URL}/__down?bytes=${DOWNLOAD_BYTES}`);
   const buffer = await res.arrayBuffer();
   const seconds = (performance.now() - start) / 1000;
   return bytesToMbps(buffer.byteLength, seconds);
@@ -57,7 +53,7 @@ async function measureDownload(): Promise<number> {
 async function measureUpload(): Promise<number> {
   const payload = new Uint8Array(UPLOAD_BYTES);
   const start = performance.now();
-  const res = await fetchWithTimeout(`${BASE_URL}/__up`, {
+  const res = await fetchNoStore(`${BASE_URL}/__up`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream' },
     body: payload
@@ -74,7 +70,7 @@ function bytesToMbps(bytes: number, seconds: number): number {
 
 async function fetchMeta(): Promise<CloudflareMeta> {
   try {
-    const res = await fetchWithTimeout(`${BASE_URL}/meta`);
+    const res = await fetchNoStore(`${BASE_URL}/meta`);
     return (await res.json()) as CloudflareMeta;
   } catch {
     return {};

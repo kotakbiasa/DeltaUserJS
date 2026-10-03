@@ -1,14 +1,9 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import { withTimeout } from '../../../utils/http.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const FETCH_TIMEOUT = 45_000;
-
-const withTimeout = (ms: number): { signal: AbortSignal; done: () => void } => {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  return { signal: ctrl.signal, done: () => clearTimeout(timer) };
-};
 
 /**
  * Screenshot provider terverifikasi (2026-09-06):

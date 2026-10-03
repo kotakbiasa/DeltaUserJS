@@ -1,4 +1,5 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 export default {
   name: 'wiki',
@@ -32,7 +33,7 @@ export default {
 
     try {
       const url = `https://id.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
-      const res = await fetch(url, { headers: { 'User-Agent': 'DeltaUserJS/1.0' } });
+      const res = await fetchWithTimeout(url, { headers: { 'User-Agent': 'DeltaUserJS/1.0' } }, 15_000);
       if (res.status === 404) {
         await message.edit({
           text: `<blockquote>❌ <b>Artikel tidak ditemukan:</b> <i>${escapeHtml(query)}</i></blockquote>`,

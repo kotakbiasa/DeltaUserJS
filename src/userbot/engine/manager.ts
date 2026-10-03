@@ -4,10 +4,7 @@ import { dbCache } from '../../infrastructure/dbCore.js';
 import { Logger } from '../../utils/logger.js';
 import { stopAllLoops } from '../handlers/util/loop.js';
 import { startInlineBotForUser, stopInlineBotForUser } from '../../bot/services/inlineBotService.js';
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+import { sleep } from '../../utils/async.js';
 
 /**
  * Per-ID async lock — simple mutex untuk mencegah race condition di lifecycle userbot.

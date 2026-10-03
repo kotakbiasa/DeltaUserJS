@@ -5,6 +5,7 @@ import { mkdir, rm, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Logger } from '../utils/logger.js';
+import { formatBytesFixed as formatBytes } from '../utils/format.js';
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -350,13 +351,3 @@ export function getBackupStats() {
   };
 }
 
-/**
- * Format bytes to human readable
- */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) {return '0 B';}
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
-}
