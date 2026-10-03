@@ -9,10 +9,44 @@ import fs from 'fs';
 import path from 'path';
 import config from '../../config.js';
 
-const approvalsFile = path.join(process.cwd(), 'approvals.json');
-const approvalsMetaFile = path.join(process.cwd(), 'approvals_meta.json');
-const pendingFile = path.join(process.cwd(), 'pending_approvals.json');
-const termsAcceptedFile = path.join(process.cwd(), 'terms_accepted.json');
+/**
+ * Keempat file state ini dulu ditulis langsung ke `process.cwd()`. Di Docker
+ * itu `/app`, yang tidak di-mount — jadi setiap `docker compose up --build`
+ * menghapus seluruh data approval, pending, dan terms-accepted.
+ *
+ * Sekarang semuanya masuk ke direktori data yang sudah punya volume
+ * (`deltauserjs_store_data:/app/data`), mengikuti pola DIGITAL_STORE_PATH.
+ */
+const stateDir = process.env.STATE_DIR || path.join(process.cwd(), 'data');
+const legacyDir = process.cwd();
+
+const STATE_FILES = [
+  'approvals.json',
+  'approvals_meta.json',
+  'pending_approvals.json',
+  'terms_accepted.json',
+] as const;
+
+try {
+  fs.mkdirSync(stateDir, { recursive: true });
+} catch (_) { /* ignore: direktori mungkin sudah ada atau read-only */ }
+
+// Migrasi sekali jalan: pindahkan file lama dari cwd ke direktori data supaya
+// deployment yang sudah berjalan tidak kehilangan approval saat upgrade.
+for (const filename of STATE_FILES) {
+  try {
+    const legacyPath = path.join(legacyDir, filename);
+    const newPath = path.join(stateDir, filename);
+    if (legacyPath !== newPath && fs.existsSync(legacyPath) && !fs.existsSync(newPath)) {
+      fs.renameSync(legacyPath, newPath);
+    }
+  } catch (_) { /* ignore: biarkan file lama di tempatnya kalau gagal dipindah */ }
+}
+
+const approvalsFile = path.join(stateDir, 'approvals.json');
+const approvalsMetaFile = path.join(stateDir, 'approvals_meta.json');
+const pendingFile = path.join(stateDir, 'pending_approvals.json');
+const termsAcceptedFile = path.join(stateDir, 'terms_accepted.json');
 
 const approvedUsers: Set<number> = new Set();
 const acceptedTermsUsers: Set<number> = new Set();
