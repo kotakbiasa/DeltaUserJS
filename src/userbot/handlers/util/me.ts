@@ -1,5 +1,7 @@
+import { TelegramClient } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotEntityLike, UserbotMessageLike } from '../../types.js';
 
 /**
  * Profile Card ala Kitsune setinfo.
@@ -28,7 +30,7 @@ const globalStore = globalThis as unknown as { [STORE_KEY]?: Map<number, Profile
 const infoStore: Map<number, ProfileCard> = globalStore[STORE_KEY] ?? new Map<number, ProfileCard>();
 globalStore[STORE_KEY] = infoStore;
 
-function buildCardText(entity: any, card: ProfileCard | undefined, isSelf: boolean): string {
+function buildCardText(entity: UserbotEntityLike, card: ProfileCard | undefined, isSelf: boolean): string {
   const name = [entity.firstName, entity.lastName].filter(Boolean).join(' ') || 'Tanpa Nama';
   const uname = entity.username ? `@${entity.username}` : 'Tidak ada';
   const infoLine = card
@@ -57,7 +59,7 @@ export default {
       'Kalau ada foto profil, kartu dikirim sebagai photo dengan caption; kalau tidak, dikirim sebagai text blockquote. ' +
       'Data kartu disimpan di memori (globalThis) per telegramId dan bertahan saat plugin hot-reload.'
   },
-  async execute(client: any, message: any, _settings: unknown, telegramId: number) {
+  async execute(client: TelegramClient, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const raw = message.message.trim();
@@ -115,7 +117,7 @@ export default {
     if (raw.toLowerCase() === '.me') {
       try {
         const replied = await message.getReplyMessage();
-        let entity: any;
+        let entity: UserbotEntityLike | undefined;
         let targetId: number;
 
         if (replied && replied.senderId) {
@@ -124,7 +126,11 @@ export default {
             entity = await replied.getSender();
           } catch (_e) { entity = undefined; }
           if (!entity) {
-            try { entity = await client.getEntity(replied.senderId); } catch (_e) { entity = undefined; }
+            try {
+              entity = await client.getEntity(replied.senderId) as unknown as UserbotEntityLike;
+            } catch (_e) {
+              entity = undefined;
+            }
           }
           if (!entity) {
             await message.edit({
@@ -142,7 +148,7 @@ export default {
           }
           targetId = Number(String(replied.senderId));
         } else {
-          entity = await client.getEntity('me');
+          entity = await client.getEntity('me') as unknown as UserbotEntityLike;
           targetId = Number(telegramId);
         }
 
@@ -153,7 +159,10 @@ export default {
         // Foto profil (besar bila ada)
         let photo: Buffer | string | undefined = undefined;
         try {
-          photo = await client.downloadProfilePhoto(entity, { isBig: true });
+          photo = await client.downloadProfilePhoto(
+            entity as unknown as Parameters<TelegramClient['downloadProfilePhoto']>[0],
+            { isBig: true },
+          );
         } catch (_e) { photo = undefined; }
 
         if (photo && typeof photo !== 'string' && photo.length > 0) {

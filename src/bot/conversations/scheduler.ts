@@ -1,4 +1,6 @@
 import { InlineKeyboard } from 'grammy';
+import type { Context } from 'grammy';
+import type { Conversation } from '@grammyjs/conversations';
 import { replyRich, escapeHtml } from '../../utils/richMessage.js';
 import userbotManager from '../../userbot/engine/manager.js';
 import { getUserbotSession, saveSchedule } from '../../infrastructure/database.js';
@@ -6,7 +8,7 @@ import { startLoop } from '../../userbot/handlers/util/loop.js';
 
 const loopCancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel_loop');
 
-async function waitForInput(conversation: any, ctx: any): Promise<string> {
+async function waitForInput(conversation: Conversation<Context, Context>, ctx: Context): Promise<string> {
   const result = await conversation.waitFor(['message:text', 'callback_query:data']);
   const cbData = result.callbackQuery?.data;
   const textMsg = result.message?.text?.trim().toLowerCase();
@@ -33,7 +35,7 @@ async function waitForInput(conversation: any, ctx: any): Promise<string> {
   return result.message.text.trim();
 }
 
-export async function userAddLoopConversation(conversation: any, ctx: any) {
+export async function userAddLoopConversation(conversation: Conversation<Context, Context>, ctx: Context) {
   const telegramId = ctx.from.id;
   const session = getUserbotSession(telegramId);
   if (!session) {
@@ -56,7 +58,7 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
     let targetChat: string;
     try {
       targetChat = await waitForInput(conversation, ctx);
-    } catch (err: any) {
+    } catch (err) {
       if (err.message === 'USER_CANCELLED') {
         return;
       }
@@ -73,7 +75,7 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
     let minutesInput: string;
     try {
       minutesInput = await waitForInput(conversation, ctx);
-    } catch (err: any) {
+    } catch (err) {
       if (err.message === 'USER_CANCELLED') {
         return;
       }
@@ -96,7 +98,7 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
     let loopMessage: string;
     try {
       loopMessage = await waitForInput(conversation, ctx);
-    } catch (err: any) {
+    } catch (err) {
       if (err.message === 'USER_CANCELLED') {
         return;
       }
@@ -128,7 +130,7 @@ export async function userAddLoopConversation(conversation: any, ctx: any) {
       `<footer>Jadwal ini disimpan permanen dan akan pulih otomatis saat userbot direstart.</footer>`,
       { reply_markup: keyboard }
     );
-  } catch (err: any) {
+  } catch (err) {
     if (err.message === 'USER_CANCELLED') {
         return;
       }

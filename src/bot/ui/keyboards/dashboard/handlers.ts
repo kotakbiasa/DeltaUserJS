@@ -23,6 +23,7 @@ import { loadedPlugins } from '../../../../userbot/engine/pluginRegistry.js';
 import { stopLoop } from '../../../../userbot/handlers/util/loop.js';
 import { Logger } from '../../../../utils/logger.js';
 import { escapeHtml, replyRich } from '../../../../utils/richMessage.js';
+import { animateBotApiPayload } from '../../../../utils/customEmoji.js';
 import { sendWithNativeDraft } from '../../../../utils/streamRich.js';
 import {
   addPendingApproval,
@@ -38,7 +39,7 @@ import {
 import fs from 'fs';
 import { InputFile } from 'grammy';
 import { Api } from 'teleproto';
-import { PROTECTED_PLUGINS, getSystemVarValue, isOwner, normalizedDisabled } from './shared.js';
+import { PROTECTED_PLUGINS, canRegister, getSystemVarValue, isAutoApproveEnabled, isOwner, normalizedDisabled } from './shared.js';
 import {
   panelAccessDenied,
   panelAdmin,
@@ -187,6 +188,7 @@ export async function openPluginStudio(ctx, page = 1, category = 'all', notice =
 export function registerRichHandlers(bot) {
   bot.api.config.use(async (prev, method, payload, signal) => {
     applyButtonStylesToPayload(payload);
+    animateBotApiPayload(method, payload);
     if (Array.isArray(payload?.results)) {
       for (const result of payload.results) {applyButtonStylesToPayload(result);}
     }
@@ -195,7 +197,7 @@ export function registerRichHandlers(bot) {
 
   bot.command(['start', 'menu'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
-      await replyRich(ctx, `🤖 <b>${ctx.me.first_name} Aktif!</b>\n\n<p>Silakan kirim pesan secara privat (PM) untuk mengelola bot Anda.</p>`, {
+      await replyRich(ctx, `🤖 <b>${escapeHtml(ctx.me.first_name)} Aktif!</b>\n\n<p>Silakan kirim pesan secara privat (PM) untuk mengelola bot Anda.</p>`, {
         reply_markup: {
           inline_keyboard: [[{ text: '💬 Buka Private Chat', url: `https://t.me/${ctx.me.username}?start=true` }]]
         }
@@ -534,8 +536,11 @@ export function registerRichHandlers(bot) {
 
     if (action === 'subscription') {return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(ctx), { edit: true });}
     if (action === 'register') {
-      if (!isOwner(ctx) && !isApproved(ctx.from.id)) {
+      if (!canRegister(ctx)) {
         return sendAccessDeniedRich(ctx);
+      }
+      if (isAutoApproveEnabled() && !isApproved(ctx.from.id)) {
+        approveUser(ctx.from.id, { name: ctx.from.first_name, username: ctx.from.username });
       }
       if (!hasAcceptedTerms(ctx.from.id)) {
         return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
@@ -562,8 +567,8 @@ export function registerRichHandlers(bot) {
     if (action === 'claim_trial') {
       await ctx.answerCallbackQuery();
       const userId = ctx.from.id;
-      if (isOwner(ctx)) {
-        approveUser(userId);
+      if (isOwner(ctx) || isAutoApproveEnabled()) {
+        approveUser(userId, { name: ctx.from.first_name, username: ctx.from.username });
         return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { edit: true });
       }
 
@@ -592,7 +597,7 @@ export function registerRichHandlers(bot) {
       const targetChat = config.logGroupId || config.ownerId;
       const firstName = escapeHtml(ctx.from.first_name || 'User');
       const username = ctx.from.username ? `@${escapeHtml(ctx.from.username)}` : '<i>Tanpa Username</i>';
-      const nowWib = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+      const nowWib = escapeHtml(new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }));
 
       if (targetChat) {
         try {
@@ -836,6 +841,19 @@ export function registerRichHandlers(bot) {
       }
       return sendRich(ctx, panelAdminUserDetail(targetId), keyboardAdminUserDetail(targetId), { edit: true });
     }
+    if (action.startsWith('admin_revoke_user_confirm:')) {
+      if (!isOwner(ctx)) {return;}
+      const targetId = Number(action.split(':')[1]);
+      await ctx.answerCallbackQuery();
+      return sendRich(ctx,
+        `<h3>⚠️ Konfirmasi Cabut Izin</h3><p>Akses user <code>${targetId}</code> akan dicabut dan userbot-nya dihentikan. Sesi database tetap disimpan.</p>`,
+        { inline_keyboard: [[
+          { text: '🚫 Ya, Cabut Izin', callback_data: `rich:admin_revoke_user:${targetId}` },
+          { text: 'Batal', callback_data: `rich:admin_user:${targetId}` },
+        ]] },
+        { edit: true }
+      );
+    }
     if (action.startsWith('admin_revoke_user:')) {
       if (!isOwner(ctx)) {return;}
       const targetId = Number(action.split(':')[1]);
@@ -850,6 +868,19 @@ export function registerRichHandlers(bot) {
         return sendRich(ctx, panelAdminUsers(1), keyboardAdminUsers(1), { edit: true });
       }
       return sendRich(ctx, panelAdminUserDetail(targetId), keyboardAdminUserDetail(targetId), { edit: true });
+    }
+    if (action.startsWith('admin_delete_user_confirm:')) {
+      if (!isOwner(ctx)) {return;}
+      const targetId = Number(action.split(':')[1]);
+      await ctx.answerCallbackQuery();
+      return sendRich(ctx,
+        `<h3>⚠️ Konfirmasi Hapus Akun</h3><p>Akun <code>${targetId}</code>, session string, dan seluruh konfigurasi userbot akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.</p>`,
+        { inline_keyboard: [[
+          { text: '🗑️ Ya, Hapus Permanen', callback_data: `rich:admin_delete_user:${targetId}` },
+          { text: 'Batal', callback_data: `rich:admin_user:${targetId}` },
+        ]] },
+        { edit: true }
+      );
     }
     if (action.startsWith('admin_delete_user:')) {
       if (!isOwner(ctx)) {return;}
@@ -883,6 +914,18 @@ export function registerRichHandlers(bot) {
       await userbotManager.restartAllActive();
       return sendRich(ctx, panelAdminFleet(), keyboardAdminFleet(), { edit: true });
     }
+    if (action === 'admin_fleet_stop_confirm') {
+      if (!isOwner(ctx)) {return;}
+      await ctx.answerCallbackQuery();
+      return sendRich(ctx,
+        `<h3>⚠️ Konfirmasi Emergency Stop</h3><p>Semua userbot yang sedang berjalan akan diputuskan sekarang. Jadwal tetap tersimpan, tetapi seluruh sesi menjadi offline.</p>`,
+        { inline_keyboard: [[
+          { text: '🛑 Ya, Stop Semua', callback_data: 'rich:admin_fleet_stop' },
+          { text: 'Batal', callback_data: 'rich:admin_fleet' },
+        ]] },
+        { edit: true }
+      );
+    }
     if (action === 'admin_fleet_stop') {
       if (!isOwner(ctx)) {return;}
       await ctx.answerCallbackQuery({ text: '🛑 Menghentikan seluruh userbot...' });
@@ -907,6 +950,18 @@ export function registerRichHandlers(bot) {
         }
       }
       return sendRich(ctx, panelAdminFleet(), keyboardAdminFleet(), { edit: true });
+    }
+    if (action === 'admin_restart_bot_confirm') {
+      if (!isOwner(ctx)) {return;}
+      await ctx.answerCallbackQuery();
+      return sendRich(ctx,
+        `<h3>⚠️ Konfirmasi Restart Master Bot</h3><p>Master Bot akan berhenti sesaat dan menunggu supervisor/PM2 menyalakannya kembali. Pastikan deployment memakai process supervisor.</p>`,
+        { inline_keyboard: [[
+          { text: '🔄 Ya, Restart', callback_data: 'rich:admin_restart_bot' },
+          { text: 'Batal', callback_data: 'rich:admin_fleet' },
+        ]] },
+        { edit: true }
+      );
     }
     if (action === 'admin_restart_bot') {
       if (!isOwner(ctx)) {return;}
@@ -974,8 +1029,16 @@ export function registerRichHandlers(bot) {
       return ctx.conversation.enter('user-add-loop-conv');
     }
     if (action.startsWith('del_loop:')) {
-      const hexTarget = action.split(':')[1];
-      const targetChat = Buffer.from(hexTarget, 'hex').toString('utf8');
+      const encodedTarget = action.split(':')[1];
+      let targetChat: string;
+      try {
+        // Keep old hex-encoded buttons valid while new menus use compact base64url.
+        const legacyHex = /^[0-9a-f]+$/i.test(encodedTarget) && encodedTarget.length % 2 === 0;
+        targetChat = Buffer.from(encodedTarget, legacyHex ? 'hex' : 'base64url').toString('utf8');
+      } catch (_) {
+        await ctx.answerCallbackQuery({ text: '❌ Target jadwal tidak valid.', show_alert: true });
+        return;
+      }
       const stopped = stopLoop(ctx.from.id, targetChat, true);
       await ctx.answerCallbackQuery({ text: stopped ? '⏹️ Jadwal loop dihentikan dan dihapus!' : 'Jadwal dihapus.' });
       return sendRich(ctx, panelUserLoops(ctx, 1), keyboardUserLoops(ctx, 1), { edit: true });

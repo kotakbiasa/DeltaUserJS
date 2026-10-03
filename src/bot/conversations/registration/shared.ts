@@ -65,7 +65,11 @@ export const activeQrSessions = new Map<number, {
 /**
  * Abort active QR login process instantly and remove QR images from chat
  */
-export async function abortActiveQr(telegramId: number, api?: any) {
+type TelegramDeleteApi = {
+  deleteMessage: (chatId: number, messageId: number) => Promise<unknown>;
+};
+
+export async function abortActiveQr(telegramId: number, api?: TelegramDeleteApi) {
   const session = activeQrSessions.get(telegramId);
   if (session) {
     try { session.abortController.abort(); } catch (_) { /* ignore */ }

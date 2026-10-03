@@ -16,6 +16,20 @@ const MAX_BROADCAST_MESSAGE_LENGTH = 4096;
 /** User yang siarannya sedang berjalan — mencegah broadcast tumpang-tindih. */
 const broadcastInProgress = new Set<number>();
 
+type DialogLike = {
+  id?: string | number | bigint;
+  title?: string;
+  name?: string;
+  isGroup?: boolean;
+  isChannel?: boolean;
+  isUser?: boolean;
+};
+
+type BroadcastClient = {
+  getDialogs: (options: { limit: number }) => Promise<DialogLike[]>;
+  sendMessage: (entity: string, params: { message: string }) => Promise<unknown>;
+};
+
 export async function handleBroadcastRoutes(ctx: RouteContext): Promise<boolean> {
   const { pathname, req, res, user } = ctx;
 
@@ -30,8 +44,9 @@ export async function handleBroadcastRoutes(ctx: RouteContext): Promise<boolean>
       }
 
       try {
-        const dialogs = await (client.client as any).getDialogs({ limit: 50 });
-        const chats = dialogs.map((d: any) => ({
+        const telegramClient = client.client as unknown as BroadcastClient;
+        const dialogs = await telegramClient.getDialogs({ limit: 50 });
+        const chats = dialogs.map((d) => ({
           id: String(d.id),
           title: d.title || d.name || 'Chat ' + d.id,
           isGroup: Boolean(d.isGroup),
@@ -112,7 +127,7 @@ export async function handleBroadcastRoutes(ctx: RouteContext): Promise<boolean>
       (async () => {
         for (const chatId of targets) {
           try {
-            await (client.client as any).sendMessage(chatId, { message: body.message });
+            await (client.client as unknown as BroadcastClient).sendMessage(chatId, { message: body.message });
             sentCount++;
           } catch (err) {
             failedCount++;

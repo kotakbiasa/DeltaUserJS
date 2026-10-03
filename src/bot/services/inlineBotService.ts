@@ -12,6 +12,7 @@
 import { Bot } from 'grammy';
 import { Logger } from '../../utils/logger.js';
 import { fetchWithTimeout } from '../../utils/http.js';
+import { animateBotApiPayload } from '../../utils/customEmoji.js';
 import {
   buildHelpMenuHtml,
   buildModuleHtml,
@@ -60,15 +61,17 @@ export async function sendHelpMenuViaInlineBot(
         ] }
       : helpKeyboard(page, 'ubot');
 
+    const payload = {
+      chat_id: chatId,
+      text: html,
+      parse_mode: 'HTML',
+      reply_markup: keyboard,
+    };
+    animateBotApiPayload('sendMessage', payload);
     const res = await fetchWithTimeout(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: html,
-        parse_mode: 'HTML',
-        reply_markup: keyboard,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!data.ok) {
@@ -89,6 +92,10 @@ export async function startInlineBotForUser(telegramId: number, token: string): 
 
   try {
     const bot = new Bot(token);
+    bot.api.config.use(async (prev, method, payload, signal) => {
+      animateBotApiPayload(method, payload);
+      return prev(method, payload, signal);
+    });
     const entry: InlineBotEntry = { bot, token };
     inlineBots.set(telegramId, entry);
 

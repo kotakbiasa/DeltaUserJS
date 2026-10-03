@@ -9,7 +9,9 @@ import {
   getCustomEmoji,
   getAllEmojis,
   extractEmojiFromContext,
-  animateEmojisWithRestrictedPack
+  animateEmojisWithRestrictedPack,
+  animateBotApiPayload,
+  stripTgEmojiTags
 } from '../dist/utils/customEmoji.js';
 import { parseRichText } from '../dist/utils/richParser.js';
 
@@ -25,6 +27,11 @@ test('escapeHtmlPreservingTgEmoji protects against XSS while preserving valid cu
   assert.ok(output.includes('&amp;'));
   assert.ok(output.includes('&lt;script&gt;'));
   assert.ok(!output.includes('<script>'));
+});
+
+test('stripTgEmojiTags restores fallback characters for non-Premium accounts', () => {
+  const input = 'Status: <tg-emoji emoji-id="123456789">💎</tg-emoji> siap';
+  assert.equal(stripTgEmojiTags(input), 'Status: 💎 siap');
 });
 
 test('parseTgEmojiTemplate converts {emoji:id} and {emoji:id:char}', () => {
@@ -146,4 +153,30 @@ test('animateEmojisWithRestrictedPack handles aliases and VS16 variation selecto
   assert.ok(output.includes('<tg-emoji emoji-id="5449428597922079323">🧰</tg-emoji>'));
   assert.ok(output.includes('<tg-emoji emoji-id="5469903029144657419">📣</tg-emoji>'));
   assert.ok(output.includes('<tg-emoji emoji-id="5472308992514464048">🔐</tg-emoji>'));
+});
+
+test('animateBotApiPayload applies premium emoji to Master Bot text and captions', () => {
+  const messagePayload = { text: '✅ Siap' };
+  animateBotApiPayload('sendMessage', messagePayload);
+  assert.equal(messagePayload.parse_mode, 'HTML');
+  assert.ok(messagePayload.text.includes('<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji>'));
+
+  const mediaPayload = { media: [{ type: 'photo', media: 'file-id', caption: '🚀 Upload' }] };
+  animateBotApiPayload('sendMediaGroup', mediaPayload);
+  assert.ok(mediaPayload.media[0].caption.includes('<tg-emoji emoji-id="5445284980978621387">🚀</tg-emoji>'));
+  assert.equal(mediaPayload.media[0].parse_mode, 'HTML');
+
+  const richPayload = { rich_message: { html: '<p>✅ Dashboard siap</p>' } };
+  animateBotApiPayload('sendRichMessage', richPayload);
+  assert.ok(richPayload.rich_message.html.includes('<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji>'));
+});
+
+test('animateBotApiPayload does not corrupt Markdown payloads', () => {
+  const markdownPayload = { text: '✅ **done**', parse_mode: 'MarkdownV2' };
+  animateBotApiPayload('sendMessage', markdownPayload);
+  assert.equal(markdownPayload.text, '✅ **done**');
+
+  const rawPayload = { text: '✅ raw', parse_mode: undefined };
+  animateBotApiPayload('sendMessage', rawPayload);
+  assert.ok(rawPayload.text.includes('<tg-emoji'));
 });

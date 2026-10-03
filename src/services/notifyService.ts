@@ -42,7 +42,7 @@ export async function notifyOwner(html) {
  * Kirim notifikasi ke channel/grup log (config.logGroupId atau config.ownerId).
  * Mendukung forum topic (config.logTopicId) dan tombol inline (reply_markup).
  */
-export async function notifyChannel(html: string, options?: { reply_markup?: any }) {
+export async function notifyChannel(html: string, options?: { reply_markup?: Record<string, unknown> }) {
   const { default: config } = await import('../config.js');
   const targetChat = config.logGroupId || config.ownerId;
   if (!botRef || !targetChat) {return false;}

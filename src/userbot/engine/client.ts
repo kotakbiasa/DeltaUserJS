@@ -10,7 +10,7 @@ import { loadedPlugins, normalizePluginName, parseCommandName, getPluginForComma
 import { Logger } from '../../utils/logger.js';
 import { checkRateLimit, shouldCountForRateLimit } from './rateLimiter.js';
 import { isTestEnv } from '../../utils/env.js';
-import { animateEmojisWithRestrictedPack } from '../../utils/customEmoji.js';
+import { animateEmojisWithRestrictedPack, stripTgEmojiTags } from '../../utils/customEmoji.js';
 
 function disabledSet(settings) {
   return new Set((settings?.disabled_plugins || []).map(normalizePluginName));
@@ -83,7 +83,10 @@ export class UserbotClient {
    */
   handlePossibleFloodError(err: unknown) {
     const errStr = String(err || '');
-    const match = errStr.match(/FLOOD_WAIT_(\d+)/i) || (typeof (err as any)?.seconds === 'number' ? [null, String((err as any).seconds)] : null);
+    const seconds = typeof err === 'object' && err !== null && 'seconds' in err && typeof err.seconds === 'number'
+      ? err.seconds
+      : null;
+    const match = errStr.match(/FLOOD_WAIT_(\d+)/i) || (seconds !== null ? [null, String(seconds)] : null);
     if (match && match[1]) {
       const seconds = parseInt(match[1], 10);
       this.recordFloodWait(seconds);
@@ -127,7 +130,7 @@ export class UserbotClient {
 
       // Detect and sync official Telegram Premium status
       try {
-        const me: any = await this.client.getMe();
+        const me = await this.client.getMe();
         if (me && typeof me.premium === 'boolean') {
           await updateTelegramPremiumStatus(this.telegramId, me.premium ? 1 : 0);
         }
@@ -409,13 +412,37 @@ export class UserbotClient {
   private setupEmojiInterceptor(): void {
     if (!this.client) {return;}
 
+    type InterceptableParams = { parseMode?: unknown };
+    type SendMessageEntity = Parameters<TelegramClient['sendMessage']>[0];
+    type SendMessageParams = Parameters<TelegramClient['sendMessage']>[1];
+    type EditMessageEntity = Parameters<TelegramClient['editMessage']>[0];
+    type SendFileEntity = Parameters<TelegramClient['sendFile']>[0];
+    type SendFileParams = Parameters<TelegramClient['sendFile']>[1];
+
+    const shouldAnimate = (params: InterceptableParams | null | undefined) => {
+      if (!params || params.parseMode === false) {return false;}
+      const parseMode = params.parseMode;
+      return parseMode === undefined || parseMode === null || String(parseMode).toLowerCase() === 'html';
+    };
+
+    // Premium status belongs to the sending userbot account. Read it at send
+    // time so a status refresh takes effect without rebuilding the interceptor.
+    const accountIsPremium = () => {
+      const premium = getUserbotSession(this.telegramId)?.is_telegram_premium;
+      return premium === true || Number(premium) === 1;
+    };
+
+    const renderEmojiText = (text: string) => accountIsPremium()
+      ? animateEmojisWithRestrictedPack(text)
+      : stripTgEmojiTags(text);
+
     const origSendMessage = this.client.sendMessage.bind(this.client);
-    this.client.sendMessage = (entity: any, params: any) => {
-      if (params) {
+    this.client.sendMessage = (entity: SendMessageEntity, params?: SendMessageParams) => {
+      if (params && shouldAnimate(params)) {
         if (typeof params.message === 'string') {
-          params.message = animateEmojisWithRestrictedPack(params.message);
+          params.message = renderEmojiText(params.message);
         }
-        if (params.parseMode === undefined) {
+        if (params.parseMode === undefined || params.parseMode === null) {
           params.parseMode = 'html';
         }
       }
@@ -423,38 +450,37 @@ export class UserbotClient {
     };
 
     const origEditMessage = this.client.editMessage.bind(this.client);
-    this.client.editMessage = (entity: any, params: any) => {
-      if (params) {
+    this.client.editMessage = (entity: EditMessageEntity, params: EditMessageParams) => {
+      if (shouldAnimate(params)) {
         if (typeof params.text === 'string') {
-          params.text = animateEmojisWithRestrictedPack(params.text);
+          params.text = renderEmojiText(params.text);
         }
         if (typeof params.message === 'string') {
-          params.text = animateEmojisWithRestrictedPack(params.message);
+          params.text = renderEmojiText(params.message);
         }
-        if (params.richMessage && typeof params.richMessage.html === 'string') {
-          params.richMessage.html = animateEmojisWithRestrictedPack(params.richMessage.html);
+        const richMessage = (params as EditMessageParams & { richMessage?: { html?: unknown } }).richMessage;
+        if (richMessage && typeof richMessage.html === 'string') {
+          richMessage.html = renderEmojiText(richMessage.html);
         }
-        if (params.parseMode === undefined) {
+        if (params.parseMode === undefined || params.parseMode === null) {
           params.parseMode = 'html';
         }
       }
       return origEditMessage(entity, params);
     };
 
-    if (typeof (this.client as any).sendFile === 'function') {
-      const origSendFile = (this.client as any).sendFile.bind(this.client);
-      (this.client as any).sendFile = (entity: any, params: any) => {
-        if (params) {
-          if (typeof params.caption === 'string') {
-            params.caption = animateEmojisWithRestrictedPack(params.caption);
-          }
-          if (params.parseMode === undefined) {
-            params.parseMode = 'html';
-          }
+    const origSendFile = this.client.sendFile.bind(this.client);
+    this.client.sendFile = (entity: SendFileEntity, params: SendFileParams) => {
+      if (shouldAnimate(params)) {
+        if (typeof params.caption === 'string') {
+          params.caption = renderEmojiText(params.caption);
         }
-        return origSendFile(entity, params);
-      };
-    }
+        if (params.parseMode === undefined || params.parseMode === null) {
+          params.parseMode = 'html';
+        }
+      }
+      return origSendFile(entity, params);
+    };
   }
 }
 

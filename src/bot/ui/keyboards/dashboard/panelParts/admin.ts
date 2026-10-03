@@ -139,11 +139,11 @@ export function panelAdminUserDetail(targetId: number) {
     if (isApproved(targetId)) {
       const meta = getApprovedUserMeta(targetId);
       const name = meta?.name || 'Calon Pengguna';
-      const uname = meta?.username ? `@${meta.username}` : '<i>Tidak diset</i>';
+      const uname = meta?.username ? `@${escapeHtml(meta.username)}` : '<i>Tidak diset</i>';
       const approvedAtStr = meta?.approvedAt
         ? new Date(meta.approvedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB'
         : '<i>Baru saja</i>';
-      const revokeBtn = `<tg-button type="callback_data" data="rich:admin_revoke_user:${targetId}">🚫 Cabut Izin</tg-button>`;
+      const revokeBtn = `<tg-button type="callback_data" data="rich:admin_revoke_user_confirm:${targetId}">🚫 Cabut Izin</tg-button>`;
 
       return `<h1 align="center">👤 Detail Calon User: ${escapeHtml(name)} <sup>APPROVAL</sup></h1>` +
         `<p>Akun ini <b>telah disetujui (Approved)</b> oleh Owner, tetapi <b>belum menghubungkan sesi userbot</b> (belum login via OTP atau Scan QR).</p>` +
@@ -165,15 +165,15 @@ export function panelAdminUserDetail(targetId: number) {
   const disabledCount = getDisabledPlugins(targetId).length;
 
   const powerBtn = `<tg-button type="callback_data" data="rich:admin_power_user:${targetId}">${isRunning ? '⏹️ Matikan' : '▶️ Nyalakan'}</tg-button>`;
-  const revokeBtn = `<tg-button type="callback_data" data="rich:admin_revoke_user:${targetId}">🚫 Revoke</tg-button>`;
-  const deleteBtn = `<tg-button type="callback_data" data="rich:admin_delete_user:${targetId}">🗑️ Hapus</tg-button>`;
+  const revokeBtn = `<tg-button type="callback_data" data="rich:admin_revoke_user_confirm:${targetId}">🚫 Revoke</tg-button>`;
+  const deleteBtn = `<tg-button type="callback_data" data="rich:admin_delete_user_confirm:${targetId}">🗑️ Hapus</tg-button>`;
 
   return `<h1 align="center">👤 Detail Akun: ${escapeHtml(session.custom_name || String(targetId))} <sup>USER</sup></h1>` +
     `<p>Inspeksi konfigurasi dan kontrol langsung untuk akun userbot ini.</p>` +
     `<table bordered striped><caption>🛠️ Pengaturan &amp; Status Sesi</caption>` +
     `<tr><th>Parameter Akun</th><th>Nilai / Status</th><th align="center">Aksi Langsung</th></tr>` +
     `<tr><td>ID Telegram</td><td><code>${targetId}</code></td><td align="center">${powerBtn}</td></tr>` +
-    `<tr><td>Nomor Telepon</td><td>${session.phone ? `<tg-spoiler>${session.phone}</tg-spoiler>` : '<i>Tidak diset</i>'}</td><td align="center">MTProto</td></tr>` +
+    `<tr><td>Nomor Telepon</td><td>${session.phone ? `<tg-spoiler>${escapeHtml(session.phone)}</tg-spoiler>` : '<i>Tidak diset</i>'}</td><td align="center">MTProto</td></tr>` +
     `<tr><td>Status Userbot</td><td>${isRunning ? '🟢 Online' : '🔴 Offline'}</td><td align="center">${powerBtn}</td></tr>` +
     `<tr><td>⭐ Telegram Premium</td><td>${formatTelegramPremiumBadge(session.is_telegram_premium === 1)}</td><td align="center">Telegram</td></tr>` +
     `<tr><td>Status Akses</td><td>🟢 Disetujui (Approved)</td><td align="center">Permanen</td></tr>` +
@@ -214,9 +214,9 @@ export function panelAdminFleet() {
   const mem = process.memoryUsage();
 
   const restartAllBtn = `<tg-button type="callback_data" data="rich:admin_fleet_restart">🔄 Restart Fleet</tg-button>`;
-  const stopAllBtn = `<tg-button type="callback_data" data="rich:admin_fleet_stop">🛑 Stop Fleet</tg-button>`;
+  const stopAllBtn = `<tg-button type="callback_data" data="rich:admin_fleet_stop_confirm">🛑 Stop Fleet</tg-button>`;
   const startAllBtn = `<tg-button type="callback_data" data="rich:admin_fleet_start">🚀 Start Fleet</tg-button>`;
-  const restartBotBtn = `<tg-button type="callback_data" data="rich:admin_restart_bot">🔄 Restart Master</tg-button>`;
+  const restartBotBtn = `<tg-button type="callback_data" data="rich:admin_restart_bot_confirm">🔄 Restart Master</tg-button>`;
 
   return `<h1 align="center">⚡ Fleet &amp; Userbot Control <sup>FLEET</sup></h1>` +
     `<p>Operasi massal dan kontrol darurat untuk seluruh client userbot di server.</p>` +
@@ -272,29 +272,22 @@ export function panelAdminSettings() {
     `<footer>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</footer>`;
 }
 
-export function panelStats(_ctx) {
-  const users = getAllRegisteredUsers();
-  const running = userbotManager.clients.size;
-  const premCount = users.filter((u: any) => u.is_telegram_premium === 1).length;
-  const mem = process.memoryUsage();
-  return `<h1 align="center">📊 System Analytics <sup>METRICS</sup></h1>` +
-    `<p>Ringkasan performa server dan konsumsi memori runtime.</p>` +
+export function panelStats(ctx) {
+  const session = ctx?.from?.id ? getUserbotSession(ctx.from.id) : null;
+  const running = ctx?.from?.id ? userbotManager.isRunning(ctx.from.id) : false;
+  const premium = session?.is_telegram_premium === 1 || Boolean(ctx?.from?.is_premium);
+  const status = session ? (running ? '🟢 Online' : '🔴 Offline') : '⚪ Belum ditautkan';
+
+  return `<h1 align="center">📊 Status Layanan <sup>OVERVIEW</sup></h1>` +
+    `<p>Ringkasan status layanan yang aman untuk dilihat dari menu utama.</p>` +
     `<table bordered striped>` +
-    `<tr><th>Metrik Performa</th><th>Statistik</th><th>Keterangan</th></tr>` +
-    `<tr><td>👥 Total Pengguna</td><td align="center">${users.length} Akun</td><td>Terdaftar di DB</td></tr>` +
-    `<tr><td>⭐ Telegram Premium</td><td align="center">${premCount} Akun</td><td>Member Premium</td></tr>` +
-    `<tr><td>⚡ Userbot Aktif</td><td align="center">${running} Running</td><td>Teleproto 229</td></tr>` +
-    `<tr><td>⏱️ Server Uptime</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td>Node.js Runtime</td></tr>` +
-    `<tr><td>💾 RAM Resident</td><td align="center">${formatBytesRef(mem.rss)}</td><td>Total Memori Fisik</td></tr>` +
-    `<tr><td>🧠 Heap Memory</td><td align="center">${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</td><td>Alokasi V8 Engine</td></tr>` +
+    `<tr><th>Komponen</th><th>Status</th><th>Keterangan</th></tr>` +
+    `<tr><td>🤖 Userbot Anda</td><td align="center">${status}</td><td>${session ? 'Sesi tersimpan' : 'Hubungkan akun untuk mulai'}</td></tr>` +
+    `<tr><td>⭐ Telegram Premium</td><td align="center">${formatTelegramPremiumBadge(premium)}</td><td>Status akun Telegram</td></tr>` +
+    `<tr><td>🧩 Plugin</td><td align="center">${loadedPlugins.length} Modul</td><td>Registry userbot tersedia</td></tr>` +
+    `<tr><td>🛡️ FloodGuard</td><td align="center">🟢 Aktif</td><td>Perlindungan cooldown Telegram</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>💡 Keterangan Metrik Server:</h3>` +
-    `<ul>` +
-    `<li><b>Heap Memory</b>: Memori objek JavaScript &amp; cache runtime V8 engine.</li>` +
-    `<li><b>RAM RSS</b>: Total penggunaan memori fisik proses Node.js di server VPS.</li>` +
-    `<li><b>Teleproto Clients</b>: Seluruh userbot berjalan hemat resource dalam single event loop.</li>` +
-    `</ul>` +
-    `<footer>Monitoring performa server Node.js &amp; Teleproto Layer 229.</footer>`;
+    `<p>Gunakan <b>🩺 Diagnostik &amp; Ping</b> di Dashboard Userbot untuk memeriksa koneksi MTProto secara langsung.</p>` +
+    `<footer>Data operasional detail hanya tersedia di Panel Admin Owner.</footer>`;
 }
 

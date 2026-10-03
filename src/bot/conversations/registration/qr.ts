@@ -1,5 +1,5 @@
 import { InputFile } from 'grammy';
-import { replyRich } from '../../../utils/richMessage.js';
+import { escapeHtml, replyRich } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { TelegramClient } from 'teleproto';
 import { StringSession } from 'teleproto/sessions/index.js';
@@ -163,7 +163,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
         let phone: string | null = null;
         let customName: string | undefined;
         try {
-          const me: any = await client.getMe();
+          const me = await client.getMe();
           phone = me?.phone ? (me.phone.startsWith('+') ? me.phone : `+${me.phone}`) : null;
           customName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || undefined;
         } catch (_) { /* ignore */ }
@@ -208,7 +208,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
           let phone: string | null = null;
           let customName: string | undefined;
           try {
-            const me: any = await activeClient.getMe();
+            const me = await activeClient.getMe();
             phone = me?.phone ? (me.phone.startsWith('+') ? me.phone : `+${me.phone}`) : null;
             customName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || undefined;
           } catch (_) { /* ignore */ }
@@ -226,7 +226,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
       });
 
       if (pwdAuthResult.status !== 'success') {
-        await replyRich(ctx, `❌ <b>Gagal login 2FA:</b><br><p>${pwdAuthResult.error}</p><br>Silakan ulangi dengan klik /daftar.`);
+        await replyRich(ctx, `❌ <b>Gagal login 2FA:</b><br><p>${escapeHtml(pwdAuthResult.error)}</p><br>Silakan ulangi dengan klik /daftar.`);
         return;
       }
       qrResult.sessionString = pwdAuthResult.sessionString;
@@ -279,7 +279,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
         await replyRich(ctx, `<p>⏰ <b>Waktu pendaftaran habis (2 menit tanpa pemindaian).</b><br><br>Silakan ulangi <code>/daftar</code>.</p>`);
       } else {
         Logger.logUser(telegramId, `Error in QR registration conversation: ${error.message}`, 'ERROR');
-        await replyRich(ctx, `❌ <b>Login QR Code gagal:</b><br><p>${error.message}</p><br>Silakan ulangi <code>/daftar</code>.`);
+        await replyRich(ctx, `❌ <b>Login QR Code gagal:</b><br><p>${escapeHtml(error.message)}</p><br>Silakan ulangi <code>/daftar</code>.`);
       }
     }
   } finally {

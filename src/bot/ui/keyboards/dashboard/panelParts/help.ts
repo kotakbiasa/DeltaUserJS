@@ -1,11 +1,12 @@
 /** Help, loops, donation, and health panel builders. */
+import type { Context } from 'grammy';
 import { getAllRegisteredUsers, getSchedules, getUserbotSession } from '../../../../../infrastructure/database.js';
 import userbotManager from '../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../utils/richMessage.js';
 import { LOOPS_PER_PAGE, getSystemVarValue } from '../shared.js';
 
-export function panelUserLoops(ctx: any, page = 1) {
+export function panelUserLoops(ctx: Context, page = 1) {
   const telegramId = ctx.from.id;
   const allSchedules = getSchedules(telegramId);
   const loops = allSchedules.filter(s => s.type === 'loop');
@@ -26,7 +27,9 @@ export function panelUserLoops(ctx: any, page = 1) {
       const shortMsg = item.message.length > 20
         ? escapeHtml(item.message.substring(0, 20)) + '...'
         : escapeHtml(item.message);
-      const encodedTarget = Buffer.from(item.chatKey).toString('hex');
+      // base64url keeps callback_data below Telegram's 64-byte limit for
+      // usernames and chat IDs while remaining reversible without state.
+      const encodedTarget = Buffer.from(item.chatKey, 'utf8').toString('base64url');
       const delBtn = `<tg-button type="callback_data" data="rich:del_loop:${encodedTarget}">⏹️ Hapus</tg-button>`;
       return `<tr><td><b>${num}.</b> <code>${targetStr}</code></td><td align="center">${item.value}m</td><td><i>"${shortMsg}"</i></td><td align="center">${delBtn}</td></tr>`;
     }).join('');
@@ -90,39 +93,40 @@ export function panelHelpQuickstart() {
     `<footer>Panduan resmi onboarding DeltaUserJS.</footer>`;
 }
 
-export function panelHelpCommands(ctx?: any) {
+export function panelHelpCommands(ctx?: Context) {
   const session = ctx?.from?.id ? getUserbotSession(ctx.from.id) : null;
   const p = session?.vars?.PREFIX || '.';
+  const safeP = escapeHtml(String(p));
 
   return `<h1 align="center">📜 Cheatsheet 16 Perintah Terpopuler <sup>CHEAT</sup></h1>` +
-    `<p>Perintah yang sering digunakan untuk aktivitas harian (Prefix aktif: <code>${escapeHtml(p)}</code>):</p>` +
+    `<p>Perintah yang sering digunakan untuk aktivitas harian (Prefix aktif: <code>${safeP}</code>):</p>` +
     `<table bordered striped>` +
     `<tr><th>Perintah</th><th>Kategori</th><th>Fungsi Utama</th></tr>` +
-    `<tr><td><code>${p}alive</code></td><td>Informasi</td><td>Kartu status userbot &amp; engine</td></tr>` +
-    `<tr><td><code>${p}ping</code></td><td>Informasi</td><td>Cek latensi koneksi &amp; respon</td></tr>` +
-    `<tr><td><code>${p}afk [alasan]</code></td><td>Status</td><td>Pasang pesan sibuk otomatis</td></tr>` +
-    `<tr><td><code>${p}antipm on/off</code></td><td>Keamanan</td><td>Proteksi spam pesan pribadi</td></tr>` +
-    `<tr><td><code>${p}tagall [pesan]</code></td><td>Grup &amp; Admin</td><td>Mention seluruh member grup</td></tr>` +
-    `<tr><td><code>${p}purge</code></td><td>Moderasi</td><td>Hapus pesan massal sekaligus</td></tr>` +
-    `<tr><td><code>${p}gcast [pesan]</code></td><td>Broadcast</td><td>Siaran pesan ke semua grup userbot</td></tr>` +
-    `<tr><td><code>${p}tr [lang] [teks]</code></td><td>Utilitas</td><td>Terjemah bahasa internasional</td></tr>` +
-    `<tr><td><code>${p}tts [teks]</code></td><td>Media</td><td>Ubah teks ke pesan suara (VN)</td></tr>` +
-    `<tr><td><code>${p}brat [teks]</code></td><td>Stiker</td><td>Buat stiker animasi gaya brat</td></tr>` +
-    `<tr><td><code>${p}quote</code></td><td>Kreatif</td><td>Ubah pesan chat menjadi stiker quote</td></tr>` +
-    `<tr><td><code>${p}sangmata</code></td><td>Investigasi</td><td>Cek riwayat pergantian nama user</td></tr>` +
-    `<tr><td><code>${p}id</code></td><td>Tools</td><td>Cek ID chat, user, atau channel</td></tr>` +
-    `<tr><td><code>${p}calc [rumus]</code></td><td>Tools</td><td>Kalkulator matematika cepat</td></tr>` +
-    `<tr><td><code>${p}weather [kota]</code></td><td>Utilitas</td><td>Prakiraan cuaca terkini</td></tr>` +
-    `<tr><td><code>${p}help</code></td><td>Bantuan</td><td>Buka katalog inline ${loadedPlugins.length} modul</td></tr>` +
+    `<tr><td><code>${safeP}alive</code></td><td>Informasi</td><td>Kartu status userbot &amp; engine</td></tr>` +
+    `<tr><td><code>${safeP}ping</code></td><td>Informasi</td><td>Cek latensi koneksi &amp; respon</td></tr>` +
+    `<tr><td><code>${safeP}afk [alasan]</code></td><td>Status</td><td>Pasang pesan sibuk otomatis</td></tr>` +
+    `<tr><td><code>${safeP}antipm on/off</code></td><td>Keamanan</td><td>Proteksi spam pesan pribadi</td></tr>` +
+    `<tr><td><code>${safeP}tagall [pesan]</code></td><td>Grup &amp; Admin</td><td>Mention seluruh member grup</td></tr>` +
+    `<tr><td><code>${safeP}purge</code></td><td>Moderasi</td><td>Hapus pesan massal sekaligus</td></tr>` +
+    `<tr><td><code>${safeP}gcast [pesan]</code></td><td>Broadcast</td><td>Siaran pesan ke semua grup userbot</td></tr>` +
+    `<tr><td><code>${safeP}tr [lang] [teks]</code></td><td>Utilitas</td><td>Terjemah bahasa internasional</td></tr>` +
+    `<tr><td><code>${safeP}tts [teks]</code></td><td>Media</td><td>Ubah teks ke pesan suara (VN)</td></tr>` +
+    `<tr><td><code>${safeP}brat [teks]</code></td><td>Stiker</td><td>Buat stiker animasi gaya brat</td></tr>` +
+    `<tr><td><code>${safeP}quote</code></td><td>Kreatif</td><td>Ubah pesan chat menjadi stiker quote</td></tr>` +
+    `<tr><td><code>${safeP}sangmata</code></td><td>Investigasi</td><td>Cek riwayat pergantian nama user</td></tr>` +
+    `<tr><td><code>${safeP}id</code></td><td>Tools</td><td>Cek ID chat, user, atau channel</td></tr>` +
+    `<tr><td><code>${safeP}calc [rumus]</code></td><td>Tools</td><td>Kalkulator matematika cepat</td></tr>` +
+    `<tr><td><code>${safeP}weather [kota]</code></td><td>Utilitas</td><td>Prakiraan cuaca terkini</td></tr>` +
+    `<tr><td><code>${safeP}help</code></td><td>Bantuan</td><td>Buka katalog inline ${loadedPlugins.length} modul</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Tips Penggunaan Perintah:</h3>` +
     `<ul>` +
     `<li>Seluruh perintah di atas dapat langsung dijalankan di grup atau chat pribadi.</li>` +
-    `<li>Balas (reply) pesan target saat memakai perintah moderasi seperti <code>${p}purge</code> atau <code>${p}kang</code>.</li>` +
+    `<li>Balas (reply) pesan target saat memakai perintah moderasi seperti <code>${safeP}purge</code> atau <code>${safeP}kang</code>.</li>` +
     `<li>Eksekusi perintah diproses langsung via protokol MTProto Layer 229 tanpa perantara.</li>` +
     `</ul>` +
-    `<footer>Kirim <code>${p}help [nama_modul]</code> di obrolan mana pun untuk melihat panduan lengkap suatu modul.</footer>`;
+    `<footer>Kirim <code>${safeP}help [nama_modul]</code> di obrolan mana pun untuk melihat panduan lengkap suatu modul.</footer>`;
 }
 
 export function panelHelpFaq() {
@@ -147,8 +151,8 @@ export function panelDonate(_ctx) {
   const ewalletName = getSystemVarValue('DONATE_EWALLET_NAME', 'e-Wallet');
   const bankName = getSystemVarValue('DONATE_BANK_NAME', 'Transfer Bank');
 
-  const ewalletCell = ewallet ? `<tg-spoiler><code>${ewallet}</code></tg-spoiler>` : '<i>Belum diset</i>';
-  const bankCell = bank ? `<tg-spoiler><code>${bank}</code></tg-spoiler>` : '<i>Belum diset</i>';
+  const ewalletCell = ewallet ? `<tg-spoiler><code>${escapeHtml(ewallet)}</code></tg-spoiler>` : '<i>Belum diset</i>';
+  const bankCell = bank ? `<tg-spoiler><code>${escapeHtml(bank)}</code></tg-spoiler>` : '<i>Belum diset</i>';
 
   return `<h1 align="center">💰 Dukungan &amp; Donasi <sup>SUPPORT</sup></h1>` +
     `<p>Dukungan Anda membantu operasional server dan maintenance berkelanjutan. Nomor tersembunyi — tap untuk melihat.</p>` +

@@ -1,4 +1,6 @@
+import { TelegramClient } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import type { UserbotMessageLike } from '../../types.js';
 import { Logger } from '../../../utils/logger.js';
 import { withTimeout } from '../../../utils/http.js';
 
@@ -125,7 +127,7 @@ function procText(text: string): string {
   return `<blockquote>⏳ ${text}</blockquote>`;
 }
 
-async function editError(message: any, text: string): Promise<void> {
+async function editError(message: UserbotMessageLike, text: string): Promise<void> {
   await message.edit({
     text: `<blockquote>❌ <b>Gagal:</b> ${escapeHtml(text)}</blockquote>`,
     parseMode: 'html',
@@ -133,7 +135,7 @@ async function editError(message: any, text: string): Promise<void> {
   });
 }
 
-async function editSuccess(message: any, text: string): Promise<void> {
+async function editSuccess(message: UserbotMessageLike, text: string): Promise<void> {
   await message.edit({
     text: `<blockquote>✅ <b>Berhasil!</b> ${text}</blockquote>`,
     parseMode: 'html',
@@ -141,7 +143,7 @@ async function editSuccess(message: any, text: string): Promise<void> {
   });
 }
 
-async function getReplied(message: any): Promise<any | null> {
+async function getReplied(message: UserbotMessageLike): Promise<UserbotMessageLike | null> {
   try {
     return await message.getReplyMessage();
   } catch (_e) {
@@ -150,7 +152,7 @@ async function getReplied(message: any): Promise<any | null> {
 }
 
 /** Cari URL dari argumen command atau teks pesan yang dibalas. */
-async function resolveUrl(message: any, arg: string): Promise<string | null> {
+async function resolveUrl(message: UserbotMessageLike, arg: string): Promise<string | null> {
   if (arg) {
     const candidate = normalizeUrl(arg.split(/\s+/)[0]);
     if (isValidUrl(candidate)) {return candidate;}
@@ -182,7 +184,7 @@ export default {
     usage: '• `.webshot <url>` — screenshot URL yang diberikan.\n• `.webshot` (balas pesan berisi URL) — screenshot URL dari pesan yang dibalas.',
     detail: 'Screenshot diambil via thum.io; fallback otomatis ke WordPress mshots lalu microlink bila provider utama gagal. URL harus http(s).'
   },
-  async execute(client: any, message: any, _settings: unknown, telegramId: number): Promise<void> {
+  async execute(client: TelegramClient, message: UserbotMessageLike, _settings: unknown, telegramId: number): Promise<void> {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.webshot(?:\s+([\s\S]+))?$/i);
@@ -208,7 +210,6 @@ export default {
         forceDocument: false,
         caption: `📸 <code>${escapeHtml(url)}</code> <i>(${provider})</i>`,
         parseMode: 'html',
-        linkPreview: false,
         replyTo: message.replyToMsgId || message.id,
       });
       await editSuccess(message, 'Screenshot dikirim sebagai foto.');

@@ -4,6 +4,7 @@
  * Dipecah dari dashboard.ts (2.821 baris). Isi tiap fungsi dipindahkan apa
  * adanya; yang berubah hanya di file mana ia tinggal.
  */
+import type { Context } from 'grammy';
 import config from '../../../../config.js';
 import { getSchedules, getUserbotSession } from '../../../../infrastructure/database.js';
 import userbotManager from '../../../../userbot/engine/manager.js';
@@ -13,12 +14,21 @@ import {
   ADMIN_USERS_PER_PAGE,
   LOOPS_PER_PAGE,
   PROTECTED_PLUGINS,
+  canRegister,
   getCombinedAdminUsers,
-  getSystemVarValue,
+  isAutoApproveEnabled,
   isOwner,
   normalizedDisabled,
   pluginPageInfo,
 } from './shared.js';
+
+type DashboardButton = {
+  text: string;
+  callback_data?: string;
+  url?: string;
+  style?: string;
+};
+type DashboardButtonRows = DashboardButton[][];
 
 export function keyboardAccessDenied(ctx) {
   const pending = isPendingApproval(ctx.from.id);
@@ -34,7 +44,7 @@ export function keyboardAccessDenied(ctx) {
 
 export function keyboardMain(ctx) {
   const session = getUserbotSession(ctx.from.id);
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   if (session) {
     // Pengguna Terdaftar: Portal Ringkas (fitur teknis dikelola di dalam Dashboard Userbot)
@@ -43,13 +53,14 @@ export function keyboardMain(ctx) {
       { text: '📊 Statistik', callback_data: 'rich:stats' },
       { text: '❓ Panduan & Bantuan', callback_data: 'rich:guide' },
     ]);
+    rows.push([{ text: '📋 Semua Menu', callback_data: 'rich:panel_menu' }]);
     if (isOwner(ctx)) {
       rows.push([{ text: '👑 Panel Admin Command Center', callback_data: 'rich:admin' }]);
     }
     rows.push([{ text: '💰 Donasi', callback_data: 'rich:donate' }]);
   } else {
     // Pengguna Baru / Tamu ("Orang Lain")
-    const approved = isOwner(ctx) || isApproved(ctx.from.id);
+    const approved = canRegister(ctx);
     const pending = isPendingApproval(ctx.from.id);
 
     if (approved) {
@@ -64,6 +75,7 @@ export function keyboardMain(ctx) {
       { text: '📊 Statistik', callback_data: 'rich:stats' },
       { text: '❓ Panduan & Bantuan', callback_data: 'rich:guide' },
     ]);
+    rows.push([{ text: '📋 Semua Menu', callback_data: 'rich:panel_menu' }]);
     if (isOwner(ctx)) {
       rows.push([{ text: '👑 Panel Admin Command Center', callback_data: 'rich:admin' }]);
     }
@@ -75,7 +87,7 @@ export function keyboardMain(ctx) {
 
 export function keyboardPanelMenu(ctx) {
   const session = getUserbotSession(ctx.from.id);
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   if (session) {
     rows.push([
@@ -90,10 +102,14 @@ export function keyboardPanelMenu(ctx) {
       { text: '📜 Cheatsheet Perintah', callback_data: 'rich:help_commands' },
       { text: '❓ Panduan & Bantuan', callback_data: 'rich:guide' },
     ]);
-  } else {
+  } else if (canRegister(ctx)) {
     rows.push([
       { text: '🚀 Mulai Daftar Userbot', callback_data: 'rich:register' },
     ]);
+  } else if (isPendingApproval(ctx.from.id)) {
+    rows.push([{ text: '🔄 Cek Status Approval', callback_data: 'rich:check_approval' }]);
+  } else {
+    rows.push([{ text: '📩 Minta Persetujuan Akses', callback_data: 'rich:claim_trial' }]);
   }
 
   if (isOwner(ctx)) {
@@ -107,7 +123,7 @@ export function keyboardPanelMenu(ctx) {
 export function keyboardUserbot(ctx) {
   const session = getUserbotSession(ctx.from.id);
   if (!session) {
-    const approved = isOwner(ctx) || isApproved(ctx.from.id);
+    const approved = canRegister(ctx);
     if (approved) {
       return {
         inline_keyboard: [
@@ -124,7 +140,7 @@ export function keyboardUserbot(ctx) {
   }
 
   const isRunning = userbotManager.isRunning(ctx.from.id);
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   // Baris Daya & Restart
   if (isRunning) {
@@ -291,22 +307,22 @@ export function keyboardTermsDeclined() {
 export function keyboardRegister() {
   return { inline_keyboard: [
     [{ text: '📱 Login via OTP', callback_data: 'rich:otp' }, { text: '🔍 Scan QR Code', callback_data: 'rich:qr' }],
-    [{ text: '📜 Syarat & Ketentuan', callback_data: 'rich:tos_view' }, { text: '💎 Paket VIP', callback_data: 'rich:subscription' }],
+    [{ text: '📜 Syarat & Ketentuan', callback_data: 'rich:tos_view' }, { text: '🛡️ Status Akses', callback_data: 'rich:subscription' }],
     [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
 
-export function keyboardBuySubscription(ctx?: any) {
+export function keyboardBuySubscription(ctx?: Context) {
   return keyboardSubscription(ctx);
 }
 
-export function keyboardSubscription(ctx?: any) {
+export function keyboardSubscription(ctx?: Context) {
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
-  const approved = userId ? (owner || isApproved(userId)) : false;
+  const approved = userId ? (owner || isApproved(userId) || isAutoApproveEnabled()) : false;
   const pending = userId ? isPendingApproval(userId) : false;
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   if (owner) {
     if (session) {
@@ -368,7 +384,7 @@ export function keyboardAdmin(pendingCount = 0) {
 
 export function keyboardAdminPending() {
   const pendingList = getPendingApprovals();
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   if (pendingList.length > 1) {
     rows.push([
@@ -391,10 +407,10 @@ export function keyboardAdminUsers(page = 1) {
   const start = (currentPage - 1) * ADMIN_USERS_PER_PAGE;
   const currentUsers = allUsers.slice(start, start + ADMIN_USERS_PER_PAGE);
 
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   for (let i = 0; i < currentUsers.length; i += 2) {
-    const row: any[] = [];
+    const row: DashboardButton[] = [];
     const u1 = currentUsers[i];
     const icon1 = u1.is_awaiting_reg ? '🔵' : (userbotManager.isRunning(u1.telegram_id) ? '🟢' : '🔴');
     const label1 = `${icon1} ${(u1.custom_name || String(u1.telegram_id)).slice(0, 12)}`;
@@ -410,7 +426,7 @@ export function keyboardAdminUsers(page = 1) {
   }
 
   if (totalPages > 1) {
-    const nav: any[] = [];
+    const nav: DashboardButton[] = [];
     if (currentPage > 1) {
       nav.push({ text: '◀️ Prev', callback_data: `rich:admin_users:${currentPage - 1}` });
     }
@@ -433,7 +449,7 @@ export function keyboardAdminUserDetail(targetId: number) {
   if (!session) {
     if (isApproved(targetId)) {
       return { inline_keyboard: [
-        [{ text: '🚫 Cabut Izin Approval', callback_data: `rich:admin_revoke_user:${targetId}` }],
+        [{ text: '🚫 Cabut Izin Approval', callback_data: `rich:admin_revoke_user_confirm:${targetId}` }],
         [
           { text: '🔙 Daftar User', callback_data: 'rich:admin_users:1' },
           { text: '👑 Admin Hub', callback_data: 'rich:admin' },
@@ -452,8 +468,8 @@ export function keyboardAdminUserDetail(targetId: number) {
       { text: isRunning ? '⏹️ Matikan Userbot' : '▶️ Jalankan Userbot', callback_data: `rich:admin_power_user:${targetId}` }
     ],
     [
-      { text: '🚫 Cabut Izin', callback_data: `rich:admin_revoke_user:${targetId}` },
-      { text: '🗑️ Hapus Akun', callback_data: `rich:admin_delete_user:${targetId}` },
+      { text: '🚫 Cabut Izin', callback_data: `rich:admin_revoke_user_confirm:${targetId}` },
+      { text: '🗑️ Hapus Akun', callback_data: `rich:admin_delete_user_confirm:${targetId}` },
     ],
     [
       { text: '🔙 Daftar User', callback_data: 'rich:admin_users:1' },
@@ -473,11 +489,11 @@ export function keyboardAdminFleet() {
   return { inline_keyboard: [
     [
       { text: '🔄 Restart Semua Userbot', callback_data: 'rich:admin_fleet_restart' },
-      { text: '🛑 Matikan Semua Userbot', callback_data: 'rich:admin_fleet_stop' },
+      { text: '🛑 Matikan Semua Userbot', callback_data: 'rich:admin_fleet_stop_confirm' },
     ],
     [
       { text: '🚀 Jalankan Semua Userbot', callback_data: 'rich:admin_fleet_start' },
-      { text: '🔄 Restart Master Bot', callback_data: 'rich:admin_restart_bot' },
+      { text: '🔄 Restart Master Bot', callback_data: 'rich:admin_restart_bot_confirm' },
     ],
     [{ text: '🔙 Admin Hub', callback_data: 'rich:admin' }],
   ] };
@@ -493,7 +509,7 @@ export function keyboardAdminBackup() {
 }
 
 export function keyboardAdminSettings() {
-  const autoApprove = getSystemVarValue('AUTO_APPROVE', '0') === '1';
+  const autoApprove = isAutoApproveEnabled();
   return { inline_keyboard: [
     [
       { text: `🛡️ Mode: ${autoApprove ? '🌐 Buka Bebas' : '🔒 Approval Owner'}`, callback_data: 'rich:admin_toggle_auto_approve' }
@@ -505,20 +521,20 @@ export function keyboardAdminSettings() {
   ] };
 }
 
-export function keyboardUserLoops(ctx: any, page = 1) {
+export function keyboardUserLoops(ctx: Context, page = 1) {
   const telegramId = ctx.from.id;
   const allSchedules = getSchedules(telegramId);
   const loops = allSchedules.filter(s => s.type === 'loop');
   const totalPages = Math.max(1, Math.ceil(loops.length / LOOPS_PER_PAGE));
   const currentPage = Math.min(Math.max(Number(page) || 1, 1), totalPages);
 
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
   rows.push([
     { text: '➕ Tambah Jadwal Loop', callback_data: 'rich:add_loop' },
   ]);
 
   if (totalPages > 1) {
-    const nav: any[] = [];
+    const nav: DashboardButton[] = [];
     if (currentPage > 1) {
       nav.push({ text: '⬅️ Prev', callback_data: `rich:user_loops:${currentPage - 1}` });
     }

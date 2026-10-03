@@ -1,5 +1,5 @@
 import { InlineKeyboard } from 'grammy';
-import { replyRich } from '../../../utils/richMessage.js';
+import { escapeHtml, replyRich } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import config from '../../../config.js';
 import { saveUserbotSession } from '../../../infrastructure/database.js';
@@ -112,7 +112,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
       isCodeViaApp = initResult.isCodeViaApp;
     } catch (err) {
       Logger.logUser(telegramId, `[OTP] Error saat init/sendCode: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
-      await replyRich(ctx, `❌ <b>Gagal mengirim OTP:</b><br><p>${err instanceof Error ? err.message : String(err)}</p><br>Silakan ulangi <code>/daftar</code>.`);
+      await replyRich(ctx, `❌ <b>Gagal mengirim OTP:</b><br><p>${escapeHtml(err instanceof Error ? err.message : String(err))}</p><br>Silakan ulangi <code>/daftar</code>.`);
       return;
     }
 
@@ -198,7 +198,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
             phoneCodeHash = resendResult.phoneCodeHash;
           } catch (e) {
             Logger.logUser(telegramId, `[OTP] Gagal resend SMS: ${e.message}`, 'ERROR');
-            await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Gagal mengirim ulang via SMS: ${e.message}</p>`);
+            await replyRich(ctx, `<p><b>❌ KESALAHAN</b><br>Gagal mengirim ulang via SMS: ${escapeHtml(e.message)}</p>`);
           }
           await replyRich(ctx, '💬 <b>Kode OTP dikirim ulang via SMS.</b>\n\n<p>Cek SMS masuk di nomor <code>' + phoneNumber + '</code>.<br>⏱️ Segera masukkan kode di sini (berlaku 2 menit).</p>\n\n🛡️ <b>PENTING:</b> Ketik kode dengan <b>spasi</b> antar digit.\n<i>Contoh: <code>12345</code> → ketik <code>1 2 3 4 5</code></i>', { reply_markup: buildOtpKeyboard(false) });
           continue;
@@ -272,7 +272,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
               await showOtpPrompt(isCodeViaApp, true);
             } catch (resendErr) {
               Logger.logUser(telegramId, `[OTP] Gagal resend setelah expired: ${resendErr.message}`, 'ERROR');
-              await replyRich(ctx, `❌ <b>Gagal mengirim kode baru:</b><br><p>${resendErr.message}</p><br>Silakan ulangi <code>/daftar</code>.`);
+              await replyRich(ctx, `❌ <b>Gagal mengirim kode baru:</b><br><p>${escapeHtml(resendErr.message)}</p><br>Silakan ulangi <code>/daftar</code>.`);
               return;
             }
           } else {
@@ -307,7 +307,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
             sessionString = pwdResult.sessionString;
             signInDone = true;
           } else {
-            await replyRich(ctx, `❌ <b>Password 2FA salah:</b><br><p>${pwdResult.error}</p><br>Pendaftaran dibatalkan.`);
+            await replyRich(ctx, `❌ <b>Password 2FA salah:</b><br><p>${escapeHtml(pwdResult.error)}</p><br>Pendaftaran dibatalkan.`);
             return;
           }
 
@@ -322,7 +322,7 @@ export async function otpRegistrationConversation(conversation, ctx) {
 
       } else {
         // ❌ Error tidak dikenal
-        await replyRich(ctx, `❌ <b>Gagal login:</b><br><p>${signInResult.error || 'Unknown error'}</p><br>Pendaftaran dibatalkan.`);
+        await replyRich(ctx, `❌ <b>Gagal login:</b><br><p>${escapeHtml(signInResult.error || 'Unknown error')}</p><br>Pendaftaran dibatalkan.`);
         return;
       }
     }

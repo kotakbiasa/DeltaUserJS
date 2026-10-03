@@ -22,9 +22,7 @@ export async function handleUserbotRoutes(ctx: RouteContext): Promise<boolean> {
       const session = getUserbotSession(user.id);
       const client = userbotManager.clients.get(Number(user.id));
       const isConnected = Boolean(client && client.isConnected());
-      const floodStatus = client && typeof (client as any).getFloodStatus === 'function'
-        ? (client as any).getFloodStatus()
-        : { isWaiting: false, remainingSeconds: 0 };
+      const floodStatus = userbotManager.getFloodStatus(user.id);
 
       sendJson(req, res, 200, {
         success: true,
@@ -34,8 +32,8 @@ export async function handleUserbotRoutes(ctx: RouteContext): Promise<boolean> {
         phone: session?.phone || null,
         uptime: process.uptime(),
         floodGuard: {
-          inCooldown: floodStatus.isWaiting,
-          remainingSeconds: floodStatus.remainingSeconds,
+          inCooldown: floodStatus.inCooldown,
+          remainingSeconds: floodStatus.secondsLeft,
         },
         stats: {
           activeUserbotsCount: userbotManager.clients.size,
@@ -102,7 +100,7 @@ export async function handleUserbotRoutes(ctx: RouteContext): Promise<boolean> {
       let dcId = '4';
 
       if (isConnected && client?.client) {
-        dcId = String((client.client.session as any)?.dcId || '4');
+        dcId = String((client.client.session as unknown as { dcId?: string | number })?.dcId || '4');
         try {
           const start = Date.now();
           await client.client.invoke(new Api.help.GetNearestDc());

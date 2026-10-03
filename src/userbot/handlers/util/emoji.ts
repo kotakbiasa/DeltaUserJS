@@ -108,10 +108,10 @@ export default {
         // Cek sticker / media document custom emoji
         const doc = replied.media?.document;
         if (doc && doc.id) {
-          const isCustomEmojiSticker = doc.attributes?.some((a: any) => a.className === 'DocumentAttributeCustomEmoji');
+          const isCustomEmojiSticker = doc.attributes?.some(a => a.className === 'DocumentAttributeCustomEmoji');
           if (isCustomEmojiSticker) {
             const docId = doc.id.toString();
-            const stickerAttr = doc.attributes?.find((a: any) => a.className === 'DocumentAttributeSticker');
+            const stickerAttr = doc.attributes?.find(a => a.className === 'DocumentAttributeSticker');
             const char = stickerAttr?.alt || '⭐';
             if (!extractedList.some(e => e.id === docId)) {
               extractedList.push({ id: docId, char });

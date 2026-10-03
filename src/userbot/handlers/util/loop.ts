@@ -6,6 +6,11 @@ import { Logger } from '../../../utils/logger.js';
 // Struktur: telegramId -> Map<chatId, { intervalId, message, minutes, startedAt }>
 export const loopStore = new Map();
 
+type FloodAwareClient = {
+  isFloodWaiting?: () => boolean;
+  handlePossibleFloodError?: (error: unknown) => void;
+};
+
 /**
  * Memulai loop pesan untuk chatId tertentu.
  */
@@ -31,7 +36,8 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
   const ms = minutes * 60 * 1000;
   const intervalId = setInterval(async () => {
     try {
-      if (typeof (client as any)?.isFloodWaiting === 'function' && (client as any).isFloodWaiting()) {
+      const floodAwareClient = client as FloodAwareClient;
+      if (typeof floodAwareClient.isFloodWaiting === 'function' && floodAwareClient.isFloodWaiting()) {
         Logger.logUser(idNum, `[Loop:${chatKey}] Dilewati sementara karena akun sedang dalam proteksi FloodWait.`, 'WARN');
         return;
       }
@@ -39,8 +45,9 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
         message: loopMessage
       });
     } catch (err) {
-      if (typeof (client as any)?.handlePossibleFloodError === 'function') {
-        (client as any).handlePossibleFloodError(err);
+      const floodAwareClient = client as FloodAwareClient;
+      if (typeof floodAwareClient.handlePossibleFloodError === 'function') {
+        floodAwareClient.handlePossibleFloodError(err);
       }
       Logger.logUser(idNum, `Loop Error [${chatKey}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
     }

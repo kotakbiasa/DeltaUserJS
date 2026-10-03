@@ -2,7 +2,7 @@ import { InlineKeyboard } from 'grammy';
 import config from '../../config.js';
 import { activeRegClients, abortActiveQr } from '../conversations/registration.js';
 import { sendAccessDeniedRich, panelMain, keyboardMain } from '../ui/keyboards/dashboard.js';
-import { replyRich, editRich } from '../../utils/richMessage.js';
+import { escapeHtml, replyRich, editRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { isApproved, approveUser, revokeUser } from '../state/approvedUsers.js';
 
@@ -65,8 +65,8 @@ export function registerLegacyCallbacks(bot) {
 
   bot.callbackQuery('request_approval', async (ctx) => {
     const telegramId = ctx.from.id;
-    const name = ctx.from.first_name || 'User';
-    const username = ctx.from.username ? `@${ctx.from.username}` : 'Tanpa Username';
+    const name = escapeHtml(ctx.from.first_name || 'User');
+    const username = ctx.from.username ? `@${escapeHtml(ctx.from.username)}` : 'Tanpa Username';
     try {
       const targetChat = config.logGroupId || config.ownerId;
       const extraParams: Record<string, unknown> = {

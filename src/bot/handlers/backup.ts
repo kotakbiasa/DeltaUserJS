@@ -15,7 +15,16 @@ import {
 } from '../../services/BackupService.js';
 import { formatBytesFixed as formatBytes } from '../../utils/format.js';
 
-function formatBackupInfo(backup: any): string {
+interface BackupSummary {
+  id: string;
+  timestamp: string | number | Date;
+  status: 'completed' | 'failed' | 'in_progress' | string;
+  type: string;
+  size: number;
+  error?: string;
+}
+
+function formatBackupInfo(backup: BackupSummary): string {
   const time = new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(backup.timestamp));
   const statusEmoji = {
     completed: '✅',
@@ -26,6 +35,12 @@ function formatBackupInfo(backup: any): string {
   return `${statusEmoji} <b>${backup.id}</b>\n` +
     `   📅 ${time} | 📦 ${backup.type} | 📊 ${formatBytes(backup.size)}` +
     (backup.error ? `\n   ❌ ${backup.error}` : '');
+}
+
+async function requireOwner(ctx: Context): Promise<boolean> {
+  if (Number(ctx.from?.id) === Number(config.ownerId)) {return true;}
+  await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang boleh mengakses backup.', show_alert: true }).catch(() => {});
+  return false;
 }
 
 /**
@@ -105,6 +120,7 @@ export function registerBackupHandlers(bot: Bot) {
 
   // Backup menu
   bot.callbackQuery('backup:menu', async (ctx) => {
+    if (!await requireOwner(ctx)) {return;}
     await ctx.answerCallbackQuery();
     await showBackupMenu(ctx);
   });
@@ -157,11 +173,13 @@ export function registerBackupHandlers(bot: Bot) {
 
   // List backups
   bot.callbackQuery('backup:list', async (ctx) => {
+    if (!await requireOwner(ctx)) {return;}
     await ctx.answerCallbackQuery();
     await showBackupList(ctx, 0);
   });
 
   bot.callbackQuery(/^backup:list:(\d+)$/, async (ctx) => {
+    if (!await requireOwner(ctx)) {return;}
     await ctx.answerCallbackQuery();
     const skip = parseInt(ctx.match[1]);
     await showBackupList(ctx, skip);
@@ -185,6 +203,7 @@ export function registerBackupHandlers(bot: Bot) {
 
   // Restore menu
   bot.callbackQuery('backup:restore_menu', async (ctx) => {
+    if (!await requireOwner(ctx)) {return;}
     await ctx.answerCallbackQuery();
     const backups = listBackups().filter(b => b.status === 'completed').slice(0, 10);
 
@@ -289,6 +308,7 @@ export function registerBackupHandlers(bot: Bot) {
 
   // Stats
   bot.callbackQuery('backup:stats', async (ctx) => {
+    if (!await requireOwner(ctx)) {return;}
     await ctx.answerCallbackQuery();
     const stats = getBackupStats();
     await ctx.reply(

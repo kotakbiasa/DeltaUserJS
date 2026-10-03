@@ -1,14 +1,16 @@
 /** Panel account, userbot, plugin, onboarding, and subscription builders. */
+import type { Context } from 'grammy';
 import { getDisabledPlugins, getSchedules, getUserbotSession } from '../../../../../infrastructure/database.js';
 import userbotManager from '../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../utils/richMessage.js';
 import { Api } from 'teleproto';
-import { isApproved, isPendingApproval } from '../../../../state/approvedUsers.js';
+import { isPendingApproval } from '../../../../state/approvedUsers.js';
 import {
   PLUGIN_CATEGORIES,
   PROTECTED_PLUGINS,
   badge,
+  canRegister,
   formatModuleName,
   formatTelegramPremiumBadge,
   getPluginCategory,
@@ -20,6 +22,13 @@ import {
   userInfo,
 } from '../shared.js';
 
+type DashboardButton = {
+  text: string;
+  callback_data?: string;
+  url?: string;
+  style?: string;
+};
+
 export function panelMain(ctx) {
   const { firstName, botName } = userInfo(ctx);
   const session = getUserbotSession(ctx.from.id);
@@ -28,10 +37,10 @@ export function panelMain(ctx) {
   const running = isRegistered && userbotManager.isRunning(ctx.from.id);
 
   if (!isRegistered) {
-    const approved = isOwner(ctx) || isApproved(ctx.from.id);
+    const approved = canRegister(ctx);
     const pending = isPendingApproval(ctx.from.id);
 
-    if (pending) {
+    if (pending && !approved) {
       return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
         `<p>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
         `Permohonan pendaftaran akun Anda sedang menunggu persetujuan owner.</p>` +
@@ -130,7 +139,7 @@ export function panelMenuList(ctx) {
 export function panelUserbot(ctx) {
   const session = getUserbotSession(ctx.from.id);
   if (!session) {
-    const approved = isOwner(ctx) || isApproved(ctx.from.id);
+    const approved = canRegister(ctx);
     if (approved) {
       return `<h1 align="center">🔓 Akses Disetujui: Hubungkan Userbot</h1>` +
         `<p>Akun Anda <b>sudah disetujui</b> oleh owner, tetapi Anda belum menghubungkan sesi Telegram.</p>` +
@@ -147,7 +156,7 @@ export function panelUserbot(ctx) {
   const isTgPremium = isTelegramPremium(ctx, session);
   const ubot = userbotManager.clients.get(ctx.from.id);
   const isConnected = running && Boolean(ubot?.client?.connected);
-  const dcId = String((ubot?.client?.session as any)?.dcId || '4');
+  const dcId = String((ubot?.client?.session as unknown as { dcId?: string | number })?.dcId || '4');
   const botName = session?.custom_name || ctx.me?.first_name || 'Bot';
   const currentPrefix = session?.vars?.PREFIX || '.';
   const disabled = normalizedDisabled(ctx.from.id);
@@ -178,7 +187,7 @@ export function panelUserbot(ctx) {
   const loopBtn = `<tg-button type="callback_data" data="rich:user_loops:1">⏰ Kelola</tg-button>`;
 
   const phoneText = session?.phone
-    ? `<tg-spoiler>${session.phone.startsWith('+') ? session.phone : `+${session.phone}`}</tg-spoiler>`
+    ? `<tg-spoiler>${escapeHtml(session.phone.startsWith('+') ? session.phone : `+${session.phone}`)}</tg-spoiler>`
     : '<i>Disembunyikan</i>';
 
   const floodBanner = flood.inCooldown
@@ -256,7 +265,7 @@ export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
   ];
 
   // Pagination navigation
-  const navRow: any[] = [];
+  const navRow: DashboardButton[] = [];
   if (currentPage > 1) {
     navRow.push({ text: '⬅️ Prev', callback_data: `rich:p_page:${currentPage - 1}:${activeCat}` });
   }
@@ -337,7 +346,7 @@ export function panelPluginDetail(ctx, pluginName: string, page = 1, category = 
     `<p>${escapeHtml(detail)}</p>` +
     `<footer>Kelola status aktif modul ini menggunakan tombol di bawah.</footer>`;
 
-  const actionRows: any[] = [];
+  const actionRows: DashboardButton[][] = [];
   if (!isProtected) {
     actionRows.push([
       {
@@ -361,7 +370,7 @@ export function panelSettings(ctx) {
   const isAntiPm = session?.anti_pm === 1;
   const isAfk = session?.auto_reply === 1;
   const botName = session?.custom_name || ctx.me?.first_name || 'Userbot';
-  const helperUser = session?.inline_bot_username ? `@${session.inline_bot_username}` : '<i>Belum diset</i>';
+  const helperUser = session?.inline_bot_username ? `@${escapeHtml(String(session.inline_bot_username))}` : '<i>Belum diset</i>';
 
   const antiPmBtn = `<tg-button type="callback_data" data="rich:toggle_anti_pm">${isAntiPm ? '🔴 Matikan' : '🟢 Aktifkan'}</tg-button>`;
   const afkBtn = `<tg-button type="callback_data" data="rich:toggle_afk">${isAfk ? '🔴 Matikan' : '🟢 Aktifkan'}</tg-button>`;
@@ -440,7 +449,7 @@ export async function panelUserbotDiag(ctx) {
 
   if (isRunning && ubot && ubot.client) {
     connected = Boolean(ubot.client.connected);
-    dcId = String((ubot.client.session as any)?.dcId || '4');
+    dcId = String((ubot.client.session as unknown as { dcId?: string | number })?.dcId || '4');
     try {
       const start = Date.now();
       await ubot.client.invoke(new Api.help.GetNearestDc());
@@ -488,7 +497,7 @@ export async function panelUserbotDiag(ctx) {
 }
 
 export function panelTermsOfService(ctx) {
-  const firstName = ctx.from?.first_name || 'User';
+  const firstName = escapeHtml(ctx.from?.first_name || 'User');
   return {
     blocks: [
       {
@@ -538,7 +547,7 @@ export function panelTermsOfService(ctx) {
 }
 
 export function panelTermsDeclined(ctx) {
-  const firstName = ctx.from?.first_name || 'User';
+  const firstName = escapeHtml(ctx.from?.first_name || 'User');
   return {
     blocks: [
       {
@@ -570,8 +579,8 @@ export function panelTermsDeclined(ctx) {
   };
 }
 
-export function panelDangerDelete(ctx?: any) {
-  const firstName = ctx?.from?.first_name || 'User';
+export function panelDangerDelete(ctx?: Context) {
+  const firstName = escapeHtml(ctx?.from?.first_name || 'User');
   return {
     blocks: [
       {
@@ -638,12 +647,12 @@ export function panelRegister(ctx) {
     `<footer>Ketuk salah satu metode di bawah untuk mulai masuk.</footer>`;
 }
 
-export function panelSubscription(ctx?: any) {
+export function panelSubscription(ctx?: Context) {
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
   const isTgPremium = isTelegramPremium(ctx, session);
-  const approved = userId ? (owner || isApproved(userId)) : false;
+  const approved = ctx && userId ? canRegister(ctx) : false;
   const pending = userId ? isPendingApproval(userId) : false;
 
   const running = userId ? userbotManager.isRunning(userId) : false;
@@ -653,7 +662,7 @@ export function panelSubscription(ctx?: any) {
     ? (isConnected ? '🟢 Online' : '🟡 Menghubungkan...')
     : (session ? '🔴 Offline' : '⚪ Belum Ditautkan');
   const phoneText = session?.phone
-    ? `<tg-spoiler>${session.phone.startsWith('+') ? session.phone : `+${session.phone}`}</tg-spoiler>`
+    ? `<tg-spoiler>${escapeHtml(session.phone.startsWith('+') ? session.phone : `+${session.phone}`)}</tg-spoiler>`
     : (session ? '<i>Terhubung</i>' : '<i>Belum Ada Sesi</i>');
 
   const statusAkses = owner
@@ -664,7 +673,7 @@ export function panelSubscription(ctx?: any) {
     `<p>DeltaUserJS menggunakan sistem <b>Persetujuan Penuh (Approval-Only)</b> tanpa batas masa aktif atau biaya langganan.</p>` +
     `<table bordered striped><caption>📋 Kartu Status Akses &amp; Mesin</caption>` +
     `<tr><th>Parameter Akun</th><th>Informasi / Status</th></tr>` +
-    `<tr><td>🆔 ID Telegram</td><td align="center"><code>${userId || 'Root'}</code></td></tr>` +
+    `<tr><td>🆔 ID Telegram</td><td align="center"><code>${escapeHtml(String(userId || 'Root'))}</code></td></tr>` +
     `<tr><td>🛡️ Status Akses</td><td align="center">${statusAkses}</td></tr>` +
     `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td></tr>` +
     `<tr><td>⏱️ Masa Aktif</td><td align="center">♾️ Permanen (Tanpa Expired)</td></tr>` +
@@ -686,7 +695,7 @@ export function panelSubscription(ctx?: any) {
     `<footer>Gunakan menu navigasi di bawah untuk mengelola userbot Anda.</footer>`;
 }
 
-export function panelBuySubscription(ctx?: any) {
+export function panelBuySubscription(ctx?: Context) {
   return panelSubscription(ctx);
 }
 
@@ -697,7 +706,7 @@ export function panelAccessDenied(ctx) {
     `<p>Pendaftaran userbot memerlukan persetujuan dari owner.</p>` +
     `<table bordered striped>` +
     `<tr><th>Informasi Akun</th><th>Status</th></tr>` +
-    `<tr><td>ID Telegram</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
+    `<tr><td>ID Telegram</td><td align="center"><code>${escapeHtml(String(ctx.from.id))}</code></td></tr>` +
     `<tr><td>Status Akses</td><td align="center">${statusText}</td></tr>` +
     `<tr><td>Masa Aktif</td><td align="center">♾️ Permanen (Setelah Disetujui)</td></tr>` +
     `</table>` +
