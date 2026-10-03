@@ -13,7 +13,7 @@ import { escapeHtml } from '../../utils/richMessage.js';
 import { RouteContext, decodePathSegment, readJsonBody, sendJson } from './context.js';
 
 export async function handleAdminRoutes(ctx: RouteContext): Promise<boolean> {
-  const { isOwner, pathname, req, res, user } = ctx;
+  const { isOwner, pathname, req, res } = ctx;
 
     const orderMatch = pathname.match(/^\/api\/store\/orders\/([^/]+)$/);
     if (orderMatch && req.method === 'PATCH') {
