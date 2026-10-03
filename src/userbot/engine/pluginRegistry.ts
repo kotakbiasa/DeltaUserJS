@@ -6,6 +6,8 @@
  * dashboard bot dan plugin lama, tapi implementasinya dibuat ulang lebih rapi.
  */
 
+import { Logger } from '../../utils/logger.js';
+
 export interface PluginHelp {
   title?: string;
   description?: string;
@@ -15,6 +17,13 @@ export interface PluginHelp {
 
 export interface Plugin {
   name: string;
+  /**
+   * Daftar command yang ditangani plugin ini (tanpa titik), diisi otomatis
+   * oleh defineCommand(). Plugin yang punya metadata ini bisa di-dispatch
+   * lewat indeks; plugin tanpa metadata (plugin pasif seperti afk/antiflood,
+   * dan plugin lama yang belum dimigrasi) tetap dijalankan untuk setiap pesan.
+   */
+  commands?: string[];
   help?: PluginHelp;
   file?: string | null;
   execute(client: unknown, message: unknown, settings: unknown, telegramId: number): Promise<unknown> | unknown;
@@ -30,6 +39,8 @@ export const loadedPlugins: Plugin[] = [];
 export const helpRegistry: Record<string, PluginHelp> = {};
 
 const pluginByName = new Map<string, Plugin>();
+/** Indeks command → plugin, untuk dispatch O(1) tanpa menjalankan semua plugin. */
+const pluginByCommand = new Map<string, Plugin>();
 
 export function normalizePluginName(name: unknown): string {
   return String(name || '').trim().toLowerCase();
@@ -61,11 +72,44 @@ export function registerPlugin(plugin: Plugin, meta: { file?: string | null } = 
   loadedPlugins.push(normalizedPlugin);
   pluginByName.set(name, normalizedPlugin);
 
+  for (const cmd of normalizedPlugin.commands || []) {
+    const key = normalizePluginName(cmd);
+    if (!key) {continue;}
+    const existing = pluginByCommand.get(key);
+    if (existing && existing.name !== name) {
+      // Bentrok command antar plugin: pertahankan yang pertama terdaftar dan
+      // jangan sampai registrasi gagal — plugin tetap jalan lewat loop biasa.
+      Logger.logSystem(`  ⚠️ Command .${key} sudah dipakai plugin "${existing.name}"; "${name}" diabaikan untuk dispatch.`, 'WARN');
+      continue;
+    }
+    pluginByCommand.set(key, normalizedPlugin);
+  }
+
   if (normalizedPlugin.help) {
     helpRegistry[name] = normalizedPlugin.help;
   }
 
   return normalizedPlugin;
+}
+
+/**
+ * Ambil nama command dari teks pesan: ".qr halo" → "qr".
+ * Mengembalikan null bila teks tidak diawali titik.
+ */
+export function parseCommandName(text: unknown): string | null {
+  const match = String(text || '').match(/^\.([a-z0-9_]+)(?:\s|$)/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
+/** Plugin yang terdaftar untuk sebuah command, atau null. */
+export function getPluginForCommand(command: unknown): Plugin | null {
+  const key = normalizePluginName(command);
+  return key ? pluginByCommand.get(key) || null : null;
+}
+
+/** Jumlah command yang terindeks — dipakai untuk logging saat startup. */
+export function indexedCommandCount(): number {
+  return pluginByCommand.size;
 }
 
 export function getPlugin(name: unknown): Plugin | null {
@@ -84,4 +128,5 @@ export function clearRegistry() {
   loadedPlugins.length = 0;
   for (const key of Object.keys(helpRegistry)) {delete helpRegistry[key];}
   pluginByName.clear();
+  pluginByCommand.clear();
 }

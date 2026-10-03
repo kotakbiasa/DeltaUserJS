@@ -31,6 +31,21 @@ setInterval(() => {
 }, 300_000).unref();
 
 /**
+ * Apakah sebuah pesan ikut dihitung ke kuota rate limit?
+ *
+ * Hanya command milik userbot sendiri (pesan outgoing berawalan '.') yang
+ * dihitung. Pesan masuk dari orang lain TIDAK, karena dulu hal itu membuat
+ * grup ramai menghabiskan kuota dan mematikan seluruh plugin — termasuk
+ * plugin pasif seperti anti-flood dan welcome.
+ *
+ * Dipanggil setelah client.ts menormalkan prefix custom menjadi '.'.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function shouldCountForRateLimit(message: any): boolean {
+  return Boolean(message && message.out && typeof message.message === 'string' && message.message.startsWith('.'));
+}
+
+/**
  * Check if a userbot has exceeded its rate limit.
  * Returns true if the request is allowed, false if rate-limited.
  * Automatically increments the counter.

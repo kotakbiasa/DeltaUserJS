@@ -1,5 +1,5 @@
-import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { defineCommand } from '../../engine/defineCommand.js';
 
 /**
  * Kalkulator aman: hanya angka & operator dasar yang diizinkan.
@@ -75,7 +75,7 @@ function calcExpr(expr: string): number {
   return st[0];
 }
 
-export default {
+export default defineCommand({
   name: 'calc',
   version: '1.0.0',
   description: 'Kalkulator matematika sederhana.',
@@ -85,34 +85,14 @@ export default {
     usage: '`.calc <ekspresi>`',
     detail: 'Contoh: `.calc 5 + 10 * 2` atau `.calc (8-3)/5`. Hanya angka dan operator + - * / ( ) % yang diizinkan.'
   },
-  async execute(client, message, _settings, telegramId) {
-    if (!message.out || !message.message) {return;}
+  args: 'required',
+  usage: '<code>.calc &lt;ekspresi&gt;</code>\nContoh: <code>.calc 5 + 10 * 2</code>',
+  errorTitle: 'Error',
+  logErrors: true,
 
-    const match = message.message.match(/^\.calc(?:\s+([\s\S]+))?$/i);
-    if (!match) {return;}
-
-    const expr = (match[1] || '').trim();
-    if (!expr) {
-      await message.edit({
-        text: `<blockquote>❌ <b>Format salah:</b> <code>.calc &lt;ekspresi&gt;</code>\nContoh: <code>.calc 5 + 10 * 2</code></blockquote>`,
-        parseMode: 'html'
-      });
-      return;
-    }
-
-    try {
-      const result = calcExpr(expr);
-      const formatted = Number.isInteger(result) ? String(result) : String(parseFloat(result.toFixed(10)));
-      await message.edit({
-        text: `🧮 <b>Kalkulator</b>\n\n<blockquote><code>${escapeHtml(expr)}</code> = <b>${escapeHtml(formatted)}</b></blockquote>`,
-        parseMode: 'html'
-      });
-    } catch (err) {
-      Logger.logUser(telegramId, `Error in calc plugin: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
-      await message.edit({
-        text: `<blockquote>❌ <b>Error:</b> ${escapeHtml(err instanceof Error ? err.message : String(err))}</blockquote>`,
-        parseMode: 'html'
-      });
-    }
+  run({ arg: expr }) {
+    const result = calcExpr(expr);
+    const formatted = Number.isInteger(result) ? String(result) : String(parseFloat(result.toFixed(10)));
+    return `🧮 <b>Kalkulator</b>\n\n<blockquote><code>${escapeHtml(expr)}</code> = <b>${escapeHtml(formatted)}</b></blockquote>`;
   }
-};
+});

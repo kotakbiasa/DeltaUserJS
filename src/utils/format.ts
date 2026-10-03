@@ -67,3 +67,32 @@ export function formatBytes(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+/**
+ * Format bytes dengan 2 desimal tetap (tidak dipangkas): "1.50 GB", "1.00 KB".
+ *
+ * Berbeda dengan `formatBytes()` yang memangkas nol di belakang.
+ * Dipakai oleh BackupService dan handler backup — keduanya dulu punya
+ * definisi lokal yang identik.
+ */
+export function formatBytesFixed(bytes: number): string {
+  if (bytes === 0) {return '0 B';}
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+}
+
+/**
+ * Format bytes ringkas: 1 desimal dipangkas, maksimum satuan GB. "1.5 GB".
+ *
+ * Nilai falsy (0, NaN, undefined) menghasilkan "0 B".
+ * Dipakai panel dashboard; dulu berupa fungsi lokal `formatBytesRef`.
+ */
+export function formatBytesShort(bytes: number): string {
+  if (!bytes) {return '0 B';}
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}

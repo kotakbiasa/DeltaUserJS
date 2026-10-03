@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -42,7 +43,7 @@ export default {
       let lastErr = null;
       for (const url of endpoints) {
         try {
-          const res = await fetch(url, { headers: { 'User-Agent': BROWER_UA } });
+          const res = await fetchWithTimeout(url, { headers: { 'User-Agent': BROWER_UA } }, 20_000);
           if (!res.ok) {throw new Error(`${res.status}`);}
           const b = Buffer.from(await res.arrayBuffer());
           if (b.length < 1000) {throw new Error('gambar tidak valid');}

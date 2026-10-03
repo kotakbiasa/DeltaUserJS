@@ -1,5 +1,6 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import { withTimeout } from '../../../utils/http.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -32,12 +33,6 @@ const normalizeHost = (input: string): string => {
 
 // Urban Dictionary membungkus istilah dalam [bracket] markdown — bersihkan.
 const stripUdMarkdown = (s: string): string => s.replace(/\[(.+?)\]/g, '$1').replace(/\s+/g, ' ').trim();
-
-const withTimeout = (ms: number): { signal: AbortSignal; done: () => void } => {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  return { signal: ctrl.signal, done: () => clearTimeout(timer) };
-};
 
 const buildDns = async (host: string): Promise<string> => {
   const t = withTimeout(15000);

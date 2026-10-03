@@ -1,10 +1,10 @@
 import util from 'util';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import config from '../../../config.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
-const execAsync = util.promisify(exec);
+const execFileAsync = util.promisify(execFile);
 
 // Safety: exec/sh commands disabled by default. Set EXEC_ALLOWED=true to enable.
 const EXEC_ALLOWED = process.env.EXEC_ALLOWED === 'true';
@@ -12,25 +12,24 @@ const EXEC_ALLOWED = process.env.EXEC_ALLOWED === 'true';
 // Whitelist for .exec/.sh — only allow these commands (no cat to prevent reading secrets)
 const ALLOWED_COMMANDS = ['date', 'uptime', 'whoami', 'hostname', 'pwd', 'echo', 'df', 'free', 'uname', 'top', 'ps', 'wc'];
 
-// Sanitized context for .eval — block dangerous globals
-const SAFE_EVAL_CONTEXT = {
-  console: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    log: (...args: any[]) => args.join(' '),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    warn: (...args: any[]) => args.join(' '),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    error: (...args: any[]) => args.join(' '),
-  },
-};
+/**
+ * Karakter yang ditolak sebelum perintah dijalankan.
+ *
+ * Perintah dijalankan lewat execFile (tanpa shell), jadi karakter ini
+ * sebenarnya sudah kehilangan makna khususnya. Pemeriksaan tetap
+ * dipertahankan sebagai lapis kedua, dan agar user mendapat pesan jelas
+ * alih-alih argumen literal yang membingungkan.
+ *
+ * Catatan: `<` dan `>` dulu TIDAK ada di daftar ini walau komentar kodenya
+ * mengklaim redirect diblokir, sehingga `echo x >> ~/.bashrc` lolos.
+ */
+// eslint-disable-next-line no-control-regex
+const FORBIDDEN_CHARS = /[;|&`$(){}!<>*?[\]~\n\r\t\x00-\x1f\x7f]/;
 
-/** Validate command is in whitelist. Block pipes, redirects, backticks, semicolons, newlines. */
-function validateCommand(cmd: string): string | null {
-  // Block dangerous characters — only allow alphanumeric, space, dash, dot, slash
-  // Also block newlines, carriage returns, tabs, and other control chars
-  // eslint-disable-next-line no-control-regex
-  if (/[;|&`$(){}!\n\r\t\x00-\x1f\x7f]/.test(cmd)) {
-    return 'Karakter khusus (;|&`${}! kontrol) tidak diizinkan. Gunakan hanya nama perintah + argumen sederhana.';
+/** Validate command is in whitelist. Block pipes, redirects, globs, backticks, semicolons, newlines. */
+export function validateCommand(cmd: string): string | null {
+  if (FORBIDDEN_CHARS.test(cmd)) {
+    return 'Karakter khusus (;|&`${}!<>*?[]~ kontrol) tidak diizinkan. Gunakan hanya nama perintah + argumen sederhana.';
   }
   const base = cmd.trim().split(/\s+/)[0];
   if (ALLOWED_COMMANDS.includes(base)) {return null;}
@@ -39,34 +38,36 @@ function validateCommand(cmd: string): string | null {
 
 export default {
   name: 'exec',
-  version: '1.0.0',
-  description: 'Mengeksekusi kode JavaScript atau Shell/Terminal. Khusus Owner. (Sandboxed)',
+  version: '2.0.0',
+  description: 'Mengeksekusi perintah Shell/Terminal dari whitelist. Khusus Owner.',
   help: {
-    title: 'Eval / Exec (.eval, .exec, .sh)',
-    description: 'Mengeksekusi kode JavaScript (sandboxed) atau perintah shell (whitelist). Hanya bisa digunakan oleh Owner.',
-    usage: '• `.eval <kode JS>`\n• `.exec <perintah>` (whitelist only)\n• `.sh <perintah>` (whitelist only)',
-    detail: '⚠️ .eval berjalan dalam sandbox — akses ke client, message tersedia tapi tidak ada require/import/process/global.'
+    title: 'Exec (.exec, .sh)',
+    description: 'Menjalankan perintah shell dari daftar putih. Hanya bisa digunakan oleh Owner.',
+    usage: '• `.exec <perintah>` (whitelist only)\n• `.sh <perintah>` (whitelist only)',
+    detail: `⚠️ Dijalankan tanpa shell (execFile), jadi pipe, redirect, dan glob tidak berfungsi. Whitelist: ${ALLOWED_COMMANDS.join(', ')}. Perlu EXEC_ALLOWED=true di .env.`
   },
   onLoad: () => {
     if (!EXEC_ALLOWED) {
-      Logger.logSystem('⚠️  Plugin Exec/Eval loaded (EXEC mode DISABLED — .exec/.sh akan ditolak)', 'WARN');
+      Logger.logSystem('⚠️  Plugin Exec loaded (EXEC mode DISABLED — .exec/.sh akan ditolak)', 'WARN');
     } else {
-      Logger.logSystem('🔌 Plugin Exec/Eval loaded (EXEC mode ENABLED — whitelist only)', 'INFO');
+      Logger.logSystem('🔌 Plugin Exec loaded (EXEC mode ENABLED — whitelist only)', 'INFO');
     }
   },
   execute: async (client, message, settings, telegramId) => {
     if (Number(telegramId) !== Number(config.ownerId)) {return;}
+    // Jangan pernah bereaksi pada pesan orang lain. Sebelumnya tidak ada cek
+    // ini; yang menyelamatkan hanyalah message.edit() yang kebetulan gagal.
+    if (!message.out || !message.message) {return;}
 
     const text = message.message || '';
-    const match = text.match(/^\.(eval|exec|sh)(?:\s+([\s\S]+))?$/i);
+    const match = text.match(/^\.(exec|sh)(?:\s+([\s\S]+))?$/i);
     if (!match) {return;}
 
-    const command = match[1].toLowerCase();
     const code = match[2];
 
     if (!code) {
       await message.edit({
-        text: `❌ Masukkan kode yang ingin dieksekusi!\nContoh: <code>.eval Math.PI</code>`,
+        text: `❌ Masukkan perintah yang ingin dijalankan!\nContoh: <code>.exec uptime</code>`,
         parseMode: 'html'
       });
       return;
@@ -77,63 +78,26 @@ export default {
       parseMode: 'html'
     });
 
-    let output = '';
+    let output: string;
     const startTime = Date.now();
 
-    if (command === 'eval') {
-      try {
-        // Sandbox: gunakan vm.createContext untuk isolasi yang benar-benar aman.
-        // new Function bisa escape ke globalThis via constructor('return this')()
-        const vm = await import('node:vm');
-        const sandbox = {
-          ...SAFE_EVAL_CONTEXT,
-          client,
-          message,
-          telegramId,
-          Math,
-          Date,
-          JSON,
-          String,
-          Number,
-          Boolean,
-          Array,
-          Object,
-          Promise,
-          TypeError,
-          ReferenceError,
-          Error,
-          Set,
-          Map,
-          // Note: Buffer, setTimeout, setInterval removed from sandbox
-          // — they can be used to escape the vm sandbox via async primitives
-        };
-        // Buat context terisolasi
-        const context = vm.createContext(sandbox);
-        const codeStr = `(${code})`;
-        // Evaluate di dalam context — tidak punya akses ke globalThis
-        const wrappedCode = `async function __eval() { return ${codeStr}; } __eval();`;
-        const result = vm.runInContext(wrappedCode, context, { timeout: 10000 });
-        output = util.inspect(result, { depth: 2, colors: false });
-      } catch (err) {
-        output = err.stack || err.message;
-      }
-    }
-    else if (command === 'exec' || command === 'sh') {
-      if (!EXEC_ALLOWED) {
-        output = '❌ .exec/.sh dinonaktifkan. Setel EXEC_ALLOWED=true di .env untuk mengaktifkan.';
+    if (!EXEC_ALLOWED) {
+      output = '❌ .exec/.sh dinonaktifkan. Setel EXEC_ALLOWED=true di .env untuk mengaktifkan.';
+    } else {
+      const cmdErr = validateCommand(code);
+      if (cmdErr) {
+        output = `❌ ${cmdErr}`;
       } else {
-        const cmdErr = validateCommand(code);
-        if (cmdErr) {
-          output = `❌ ${cmdErr}`;
-        } else {
-          try {
-            const { stdout, stderr } = await execAsync(code, { timeout: 10000 });
-            output = stdout || stderr || 'Berhasil tanpa output.';
-          } catch (err) {
-            output = (err as { stdout?: string; stderr?: string; message?: string }).stdout
-              ? `${(err as { stdout?: string; stderr?: string }).stdout}\n${(err as { stdout?: string; stderr?: string }).stderr}`
-              : (err instanceof Error ? err.message : String(err));
-          }
+        try {
+          // execFile tanpa shell: argumen diteruskan apa adanya, tidak ada
+          // interpretasi metakarakter oleh /bin/sh.
+          const [file, ...args] = code.trim().split(/\s+/);
+          const { stdout, stderr } = await execFileAsync(file, args, { timeout: 10000 });
+          output = stdout || stderr || 'Berhasil tanpa output.';
+        } catch (err) {
+          output = (err as { stdout?: string; stderr?: string; message?: string }).stdout
+            ? `${(err as { stdout?: string; stderr?: string }).stdout}\n${(err as { stdout?: string; stderr?: string }).stderr}`
+            : (err instanceof Error ? err.message : String(err));
         }
       }
     }
@@ -145,9 +109,9 @@ export default {
       output = output.substring(0, 3800) + '\n\n... (Output terpotong karena terlalu panjang)';
     }
 
-    const finalMessage = `💻 <b>Terminal / Eval (Sandboxed)</b>\n` +
+    const finalMessage = `💻 <b>Terminal</b>\n` +
       `⏱️ <b>Waktu:</b> ${duration}ms\n\n` +
-      `<b>Input:</b>\n<pre><code class="language-javascript">${escapeHtml(code)}</code></pre>\n` +
+      `<b>Input:</b>\n<pre><code class="language-bash">${escapeHtml(code)}</code></pre>\n` +
       `<b>Output:</b>\n<pre><code>${escapeHtml(output)}</code></pre>`;
 
     await message.edit({

@@ -7,6 +7,7 @@ import config from '../../config.js';
 import { replyRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { cancelKeyboard } from './registration.js';
+import { fetchWithTimeout } from '../../utils/http.js';
 
 /**
  * Helper: tunggu input teks atau tombol batal.
@@ -226,7 +227,7 @@ export async function manageVarsConv(conversation, ctx) {
           if (editKey === 'INLINE_BOT_TOKEN') {
             const botData = await conversation.external(async () => {
               try {
-                const response = await fetch(`https://api.telegram.org/bot${value}/getMe`);
+                const response = await fetchWithTimeout(`https://api.telegram.org/bot${value}/getMe`, {}, 10_000);
                 return await response.json();
               } catch (e) {
                 return { ok: false, description: e.message };

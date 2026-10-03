@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -7,11 +8,11 @@ const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 
 async function uploadToTmpfiles(buf, filename) {
   const form = new FormData();
   form.append('file', new Blob([buf]), filename);
-  const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+  const res = await fetchWithTimeout('https://tmpfiles.org/api/v1/upload', {
     method: 'POST',
     body: form,
     headers: { 'User-Agent': BROWER_UA }
-  });
+  }, 60_000);
   if (!res.ok) {throw new Error(`tmpfiles ${res.status}`);}
   const data = await res.json();
   const url = data?.data?.url;
@@ -23,11 +24,11 @@ async function uploadToTmpfiles(buf, filename) {
 async function uploadToUguu(buf, filename) {
   const form = new FormData();
   form.append('files[]', new Blob([buf]), filename);
-  const res = await fetch('https://uguu.se/upload.php', {
+  const res = await fetchWithTimeout('https://uguu.se/upload.php', {
     method: 'POST',
     body: form,
     headers: { 'User-Agent': BROWER_UA }
-  });
+  }, 60_000);
   if (!res.ok) {throw new Error(`uguu ${res.status}`);}
   const data = await res.json();
   const url = data?.files?.[0]?.url;

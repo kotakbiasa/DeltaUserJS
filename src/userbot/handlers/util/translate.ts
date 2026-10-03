@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { fetchWithTimeout } from '../../../utils/http.js';
 
 const MAX_QUERY_LENGTH = 500; // Batas karakter teks per request API MyMemory
 
@@ -62,7 +63,7 @@ export default {
 
     try {
       const api = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=id%7C${encodeURIComponent(target)}`;
-      const res = await fetch(api, { headers: { 'User-Agent': 'DeltaUserJS/1.0' } });
+      const res = await fetchWithTimeout(api, { headers: { 'User-Agent': 'DeltaUserJS/1.0' } }, 15_000);
       if (!res.ok) {
         throw new Error(`MyMemory responded ${res.status}`);
       }

@@ -7,6 +7,17 @@ import crypto from 'crypto';
 const ALGORITHM = 'aes-256-gcm';
 let ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
+/**
+ * Apakah kunci enkripsi berasal dari environment (bukan hasil generate acak)?
+ *
+ * Tanpa ENCRYPTION_KEY, kunci dibuat ulang setiap proses start sehingga semua
+ * session string yang tersimpan tidak bisa didekripsi lagi — seluruh userbot
+ * logout diam-diam setelah restart. Entrypoint (src/index.ts) memakai flag ini
+ * untuk menolak boot. Modul ini sendiri sengaja tidak memanggil process.exit()
+ * supaya tetap bisa di-import oleh unit test.
+ */
+export const hasPersistentEncryptionKey = Boolean(ENCRYPTION_KEY);
+
 // Generate secure random key if not provided (logged once at startup)
 if (!ENCRYPTION_KEY) {
   ENCRYPTION_KEY = crypto.randomBytes(32).toString('hex');

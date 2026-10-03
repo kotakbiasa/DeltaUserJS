@@ -22,11 +22,9 @@
  * @module utils/streamRich
  */
 
-const DRAFT_DELAY_MS = 1050;
+import { sleep } from './async.js';
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const DRAFT_DELAY_MS = 1050;
 
 let draftCounter = 0;
 function nextDraftId(): number {

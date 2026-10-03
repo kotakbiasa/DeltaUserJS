@@ -1,4 +1,5 @@
 import './config.js';
+import './preflight.js';
 import config from './config.js';
 import bot from './bot/index.js';
 import { setupBotCommands } from './bot/index.js';
@@ -12,6 +13,7 @@ import { isMongo } from './infrastructure/dbCore.js';
 import { handleApiRequest } from './server/api.js';
 import { serveStaticFiles } from './server/static.js';
 import { initDigitalStore } from './services/DigitalStoreService.js';
+
 
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
 const MAX_WEBHOOK_BYTES = 1024 * 1024;
