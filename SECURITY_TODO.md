@@ -8,7 +8,7 @@ Tanggal verifikasi: **3 Oktober 2026**, commit dasar `1cb96bf`.
 > `import { exec }`. Temuan #1 dan #2 di bawah juga tidak tercantum di sana.
 > Dokumen ini yang jadi acuan.
 
-Status: 10 temuan terbuka — 1 Tinggi, 5 Sedang, 4 Rendah. Belum ada yang dikerjakan.
+Status: 9 temuan terbuka — 1 Tinggi, 4 Sedang, 4 Rendah. Temuan #3 sudah selesai.
 
 ---
 
@@ -81,10 +81,11 @@ Diverifikasi:
 
 ---
 
-## 3. Rate limiter menghitung semua pesan masuk  🟡 SEDANG
+## 3. Rate limiter menghitung semua pesan masuk  ✅ SELESAI
 
-- [ ] Batasi hanya pesan outgoing yang berawalan prefix command, atau pindahkan
-      ke dalam plugin command
+- [x] Batasi hanya pesan outgoing yang berawalan prefix command
+      → `shouldCountForRateLimit()` di `rateLimiter.ts`, dipakai `client.ts:271`.
+      Diuji di `test/dispatch.test.js`.
 
 **File:** `src/userbot/engine/client.ts:260`, `src/userbot/engine/rateLimiter.ts`
 

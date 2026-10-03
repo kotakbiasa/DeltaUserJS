@@ -49,8 +49,15 @@ export interface CommandSpec {
   help?: PluginHelp;
   /** Daftar command yang ditangani. Default: [name]. */
   commands?: string[];
-  /** 'required' → tampilkan pesan `usage` bila argumen kosong. Default 'optional'. */
-  args?: 'required' | 'optional';
+  /**
+   * 'required' → tampilkan pesan `usage` bila argumen kosong.
+   * 'none'     → command tanpa argumen; bila ada argumen, pesan diabaikan
+   *              diam-diam (meniru plugin lama yang mencocokkan teks persis).
+   * Default 'optional'.
+   */
+  args?: 'required' | 'optional' | 'none';
+  /** Nilai argumen bila user tidak memberi apa pun, mis. 'Jakarta'. */
+  defaultArg?: string;
   /** Isi HTML setelah "❌ <b>Format salah:</b> ". Wajib bila args 'required'. */
   usage?: string;
   /** Validasi tambahan. Mengembalikan false → tampilkan pesan `usage`. */
@@ -59,6 +66,12 @@ export interface CommandSpec {
   resolveArg?: (ctx: CommandContext) => Promise<string> | string;
   /** Teks status "⏳". String, atau fungsi yang menerima argumen mentah. */
   loading?: string | ((arg: string) => string);
+  /**
+   * Bungkus teks loading. 'blockquote' → <blockquote>⏳ <b>..</b></blockquote>,
+   * 'plain' → ⏳ <b>..</b>. Keduanya dipakai di basis kode lama, jadi tiap
+   * plugin harus memilih yang sama dengan sebelumnya. Default 'blockquote'.
+   */
+  loadingStyle?: 'blockquote' | 'plain';
   /** Judul pesan gagal, mis. "Gagal cek cuaca". Default "Gagal menjalankan perintah". */
   errorTitle?: string;
   /** Catat kegagalan ke Logger seperti sebagian plugin lama. Default false. */
@@ -77,6 +90,11 @@ export interface CommandSpec {
 /** `<blockquote>⏳ <b>...</b></blockquote>` */
 export function loadingText(inner: string): string {
   return `<blockquote>⏳ <b>${inner}</b></blockquote>`;
+}
+
+/** `⏳ <b>...</b>` — varian tanpa blockquote. */
+export function loadingTextPlain(inner: string): string {
+  return `⏳ <b>${inner}</b>`;
 }
 
 /** `<blockquote>❌ <b>Format salah:</b> ...</blockquote>` */
@@ -140,9 +158,16 @@ export function defineCommand(spec: CommandSpec): CommandPlugin {
         edit,
       };
 
+      // Command tanpa argumen: abaikan diam-diam bila user menambahkan sesuatu,
+      // sama seperti plugin lama yang membandingkan teks secara persis.
+      if (spec.args === 'none' && ctx.arg) {return;}
+
       // Fallback argumen (mis. ambil dari pesan yang di-reply).
       if (!ctx.arg && spec.resolveArg) {
         ctx.arg = (await spec.resolveArg(ctx)) || '';
+      }
+      if (!ctx.arg && spec.defaultArg !== undefined) {
+        ctx.arg = spec.defaultArg;
       }
 
       const needsArg = spec.args === 'required';
@@ -156,7 +181,7 @@ export function defineCommand(spec: CommandSpec): CommandPlugin {
 
       if (spec.loading) {
         const inner = typeof spec.loading === 'function' ? spec.loading(ctx.arg) : spec.loading;
-        await edit(loadingText(inner));
+        await edit(spec.loadingStyle === 'plain' ? loadingTextPlain(inner) : loadingText(inner));
       }
 
       try {

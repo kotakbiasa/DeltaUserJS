@@ -6,9 +6,9 @@ import type { EditMessageParams } from 'teleproto/client/messages.js';
 import config from '../../config.js';
 import { getUserbotSession, updateTelegramPremiumStatus } from '../../infrastructure/database.js';
 import { loadAllPlugins } from './pluginLoader.js';
-import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
+import { loadedPlugins, normalizePluginName, parseCommandName, getPluginForCommand } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
-import { checkRateLimit } from './rateLimiter.js';
+import { checkRateLimit, shouldCountForRateLimit } from './rateLimiter.js';
 import { isTestEnv } from '../../utils/env.js';
 import { animateEmojisWithRestrictedPack } from '../../utils/customEmoji.js';
 
@@ -255,17 +255,48 @@ export class UserbotClient {
       }
 
       // 2. Rate limit check — prevent command spam (e.g., rapid .exec/.gcast)
+      //
+      // Hanya pesan command milik kita sendiri yang dihitung. Sebelumnya SETIAP
+      // pesan masuk ikut dihitung, sehingga di grup ramai (>30 pesan/10 detik)
+      // seluruh plugin berhenti jalan — termasuk plugin pasif seperti
+      // anti-flood, welcome/goodbye, dan keyword filter. Justru mematikan
+      // proteksi tepat saat paling dibutuhkan.
+      //
+      // Catatan: pengecekan dilakukan SETELAH normalisasi prefix di atas, jadi
+      // prefix custom sudah jadi '.'. Pesan berprefix lama yang sengaja
+      // disabotase jadi '_\x00_...' tidak diawali '.' sehingga tidak dihitung.
+      //
       // Skip in test environment to avoid breaking E2E tests that send many
       // messages in rapid succession.
-      if (!isTestEnv && !checkRateLimit(Number(this.telegramId))) {
+      const isOwnCommand = shouldCountForRateLimit(message);
+      if (isOwnCommand && !isTestEnv && !checkRateLimit(Number(this.telegramId))) {
         Logger.logUser(this.telegramId, '⚠️ Rate limit exceeded — ignoring command.', 'WARN');
         return;
       }
 
-      // 3. Jalankan seluruh plugin secara sekuensial
+      // 3. Jalankan plugin secara sekuensial.
+      //
+      // Plugin yang dibuat dengan defineCommand() membawa metadata `commands`,
+      // jadi kita bisa tahu dari indeks siapa yang relevan untuk pesan ini dan
+      // melewati sisanya. Plugin tanpa metadata — plugin pasif (afk, pmguard,
+      // kwfilter, antiflood, gnotes, reputation) dan plugin yang belum
+      // dimigrasi — tetap dijalankan untuk SETIAP pesan seperti sebelumnya.
+      //
+      // Urutan iterasi sengaja tetap mengikuti loadedPlugins, bukan diubah
+      // jadi "dispatch dulu baru sisanya", supaya urutan eksekusi antar plugin
+      // persis sama dengan sebelumnya. Yang berubah hanya: plugin command yang
+      // jelas tidak cocok tidak perlu dipanggil (dulu dipanggil lalu langsung
+      // return sendiri setelah regex-nya gagal).
+      const activeCommand = message.out ? parseCommandName(message.message) : null;
+      const targetPlugin = activeCommand ? getPluginForCommand(activeCommand) : null;
+
       const disabled = disabledSet(settings);
       for (const plugin of loadedPlugins) {
         if (disabled.has(normalizePluginName(plugin.name))) {continue;}
+
+        // Plugin command yang bukan tujuan pesan ini: lewati. Hasilnya identik
+        // dengan memanggilnya (regex internalnya tidak akan cocok).
+        if (plugin.commands && plugin.commands.length > 0 && plugin !== targetPlugin) {continue;}
 
         try {
           await plugin.execute(this.client, message, settings, this.telegramId);

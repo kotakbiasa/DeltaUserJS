@@ -2,7 +2,7 @@ import { readdir, stat } from 'fs/promises';
 import { watch, FSWatcher } from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
-import { clearRegistry, loadedPlugins, registerPlugin, validatePlugin } from './pluginRegistry.js';
+import { clearRegistry, indexedCommandCount, loadedPlugins, registerPlugin, validatePlugin } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -80,7 +80,7 @@ export async function loadAllPlugins({ reload = true } = {}) {
     await loadSinglePlugin(filePath);
   }
 
-  Logger.logSystem(`📦 Total plugins loaded: ${loadedPlugins.length}`, 'INFO');
+  Logger.logSystem(`📦 Total plugins loaded: ${loadedPlugins.length} (${indexedCommandCount()} command terindeks untuk dispatch)`, 'INFO');
   return loadedPlugins;
 }
 
