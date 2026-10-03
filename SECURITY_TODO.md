@@ -8,7 +8,8 @@ Tanggal verifikasi: **3 Oktober 2026**, commit dasar `1cb96bf`.
 > `import { exec }`. Temuan #1 dan #2 di bawah juga tidak tercantum di sana.
 > Dokumen ini yang jadi acuan.
 
-Status: 9 temuan terbuka — 1 Tinggi, 4 Sedang, 4 Rendah. Temuan #3 sudah selesai.
+Status: 5 temuan terbuka — 0 Tinggi, 3 Sedang, 2 Rendah.
+Selesai: #1, #2, #3, #6, #7, #10.
 
 ---
 
@@ -20,9 +21,9 @@ Status: 9 temuan terbuka — 1 Tinggi, 4 Sedang, 4 Rendah. Temuan #3 sudah seles
 
 ---
 
-## 1. `.eval` lolos sandbox `vm` — RCE penuh  🔴 TINGGI
+## 1. `.eval` lolos sandbox `vm` — RCE penuh  ✅ SELESAI
 
-- [ ] **Hapus `.eval` sepenuhnya** *(keputusan 2026-10-03 — hapus total, bukan gate/sandbox ulang)*
+- [x] **Hapus `.eval` sepenuhnya** *(keputusan 2026-10-03 — hapus total, bukan gate/sandbox ulang)*
 
 **File:** `src/userbot/handlers/system/exec.ts`
 
@@ -59,10 +60,10 @@ diambil alih, penyerang dapat RCE di server.
 
 ---
 
-## 2. Whitelist `.exec` tidak memblokir `>` `<` `*`  🟡 SEDANG
+## 2. Whitelist `.exec` tidak memblokir `>` `<` `*`  ✅ SELESAI
 
-- [ ] Tambahkan `<>` (dan pertimbangkan `*?[]~`) ke character class terlarang
-- [ ] Lebih baik: pindah dari `exec` ke `execFile` dengan argv terpisah (tanpa shell)
+- [x] Tambahkan `<>` dan `*?[]~` ke character class terlarang
+- [x] Pindah dari `exec` ke `execFile` dengan argv terpisah (tanpa shell)
 
 **File:** `src/userbot/handlers/system/exec.ts:27–38`
 
@@ -130,11 +131,11 @@ plugin yang sudah termuat **100% selalu gagal** dengan
 
 ---
 
-## 6. `ENCRYPTION_KEY` kosong → kunci acak tiap start  🟡 SEDANG
+## 6. `ENCRYPTION_KEY` kosong → kunci acak tiap start  ✅ SELESAI
 
-- [ ] Fail-fast saat startup bila `ENCRYPTION_KEY` kosong (tiru pola `BOT_TOKEN` di `config.ts`)
-- [ ] Jangan telan error decrypt diam-diam — log jelas / fail
-- [ ] Perbaiki `.env.example:7` yang menyarankan *"or let the app handle it"*
+- [x] Fail-fast saat startup → `src/preflight.ts`, di-import paling awal di `index.ts`
+- [x] Error decrypt tidak lagi ditelan — `dbCore.ts` mencatat ERROR yang jelas
+- [x] `.env.example` diperbaiki: ditandai WAJIB + perintah pembuat key
 
 **File:** `src/utils/crypto.ts:8–14`, `src/infrastructure/dbCore.ts:128–133`
 
@@ -148,10 +149,9 @@ yang jelas — semua userbot logout diam-diam dan GramJS hanya gagal auth.
 
 ---
 
-## 7. `.exec`/`.eval` tidak memeriksa `message.out`  🟢 RENDAH
+## 7. `.exec`/`.eval` tidak memeriksa `message.out`  ✅ SELESAI
 
-- [ ] Tambahkan `if (!message.out) {return;}` di awal `execute`
-- [ ] *Tertutup otomatis untuk `.eval` jika #1 dikerjakan; tetap perlu untuk `.exec`/`.sh`*
+- [x] `if (!message.out || !message.message) {return;}` ditambahkan di awal `execute`
 
 **File:** `src/userbot/handlers/system/exec.ts`
 
@@ -190,9 +190,9 @@ seluruh data approval, pending, dan terms-accepted. Tidak ikut backup Mongo juga
 
 ---
 
-## 10. `.eval` tidak pernah meng-`await` hasilnya  🟢 RENDAH
+## 10. `.eval` tidak pernah meng-`await` hasilnya  ✅ SELESAI
 
-- [ ] *Tertutup otomatis oleh #1 (hapus `.eval`)*
+- [x] Tertutup oleh #1 — `.eval` sudah tidak ada
 
 **File:** `src/userbot/handlers/system/exec.ts:110–112`
 
