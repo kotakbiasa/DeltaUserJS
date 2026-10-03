@@ -101,9 +101,8 @@ export function validate<T extends z.ZodTypeAny>(
 }
 
 // Helper: validate partial (for optional fields)
-export function validatePartial(schema: z.ZodObject<any>, data: unknown) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const partialSchema: any = schema.partial();
+export function validatePartial<T extends z.ZodRawShape>(schema: z.ZodObject<T>, data: unknown) {
+  const partialSchema = schema.partial();
   const result = partialSchema.safeParse(data);
   if (!result.success) {
     const errors = result.error.issues.map((e) =>

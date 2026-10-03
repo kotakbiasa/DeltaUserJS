@@ -1,4 +1,5 @@
 /** Panel account, userbot, plugin, onboarding, and subscription builders. */
+import type { Context } from 'grammy';
 import { getDisabledPlugins, getSchedules, getUserbotSession } from '../../../../../infrastructure/database.js';
 import userbotManager from '../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../userbot/engine/pluginRegistry.js';
@@ -19,6 +20,13 @@ import {
   sortedPlugins,
   userInfo,
 } from '../shared.js';
+
+type DashboardButton = {
+  text: string;
+  callback_data?: string;
+  url?: string;
+  style?: string;
+};
 
 export function panelMain(ctx) {
   const { firstName, botName } = userInfo(ctx);
@@ -147,7 +155,7 @@ export function panelUserbot(ctx) {
   const isTgPremium = isTelegramPremium(ctx, session);
   const ubot = userbotManager.clients.get(ctx.from.id);
   const isConnected = running && Boolean(ubot?.client?.connected);
-  const dcId = String((ubot?.client?.session as any)?.dcId || '4');
+  const dcId = String((ubot?.client?.session as unknown as { dcId?: string | number })?.dcId || '4');
   const botName = session?.custom_name || ctx.me?.first_name || 'Bot';
   const currentPrefix = session?.vars?.PREFIX || '.';
   const disabled = normalizedDisabled(ctx.from.id);
@@ -256,7 +264,7 @@ export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
   ];
 
   // Pagination navigation
-  const navRow: any[] = [];
+  const navRow: DashboardButton[] = [];
   if (currentPage > 1) {
     navRow.push({ text: '⬅️ Prev', callback_data: `rich:p_page:${currentPage - 1}:${activeCat}` });
   }
@@ -337,7 +345,7 @@ export function panelPluginDetail(ctx, pluginName: string, page = 1, category = 
     `<p>${escapeHtml(detail)}</p>` +
     `<footer>Kelola status aktif modul ini menggunakan tombol di bawah.</footer>`;
 
-  const actionRows: any[] = [];
+  const actionRows: DashboardButton[][] = [];
   if (!isProtected) {
     actionRows.push([
       {
@@ -440,7 +448,7 @@ export async function panelUserbotDiag(ctx) {
 
   if (isRunning && ubot && ubot.client) {
     connected = Boolean(ubot.client.connected);
-    dcId = String((ubot.client.session as any)?.dcId || '4');
+    dcId = String((ubot.client.session as unknown as { dcId?: string | number })?.dcId || '4');
     try {
       const start = Date.now();
       await ubot.client.invoke(new Api.help.GetNearestDc());
@@ -570,7 +578,7 @@ export function panelTermsDeclined(ctx) {
   };
 }
 
-export function panelDangerDelete(ctx?: any) {
+export function panelDangerDelete(ctx?: Context) {
   const firstName = ctx?.from?.first_name || 'User';
   return {
     blocks: [
@@ -638,7 +646,7 @@ export function panelRegister(ctx) {
     `<footer>Ketuk salah satu metode di bawah untuk mulai masuk.</footer>`;
 }
 
-export function panelSubscription(ctx?: any) {
+export function panelSubscription(ctx?: Context) {
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
@@ -686,7 +694,7 @@ export function panelSubscription(ctx?: any) {
     `<footer>Gunakan menu navigasi di bawah untuk mengelola userbot Anda.</footer>`;
 }
 
-export function panelBuySubscription(ctx?: any) {
+export function panelBuySubscription(ctx?: Context) {
   return panelSubscription(ctx);
 }
 

@@ -339,7 +339,7 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
     try {
       const [name, version, description, author, repository, entryPoint, ...perms] = args;
-      const permissions = perms.join(' ').split(',').map(p => p.trim()) as any;
+      const permissions = perms.join(' ').split(',').map(p => p.trim()) as PluginPermission[];
 
       const { valid, invalid } = validatePermissions(permissions, OWNER_PERMISSIONS);
       if (!valid) {

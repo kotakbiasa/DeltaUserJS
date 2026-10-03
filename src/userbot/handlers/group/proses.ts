@@ -26,7 +26,7 @@ const CARDS = {
   batal: { label: 'CANCELED', statusId: 'Dibatalkan' }
 };
 
-function buildCard(kind, rawItem, settings?: any) {
+function buildCard(kind, rawItem, settings?: unknown) {
   const card = CARDS[kind];
   const emoji = getCustomEmoji(settings, kind);
   const itemEmoji = getCustomEmoji(settings, 'item');
@@ -43,7 +43,7 @@ function buildCard(kind, rawItem, settings?: any) {
   );
 }
 
-async function sendCard(message, kind, rawItem, settings?: any) {
+async function sendCard(message, kind, rawItem, settings?: unknown) {
   if (!rawItem || !rawItem.trim()) {
     await message.edit({
       text: `<blockquote>📚 <b>Penggunaan:</b> <code>.${kind} &lt;nama item&gt;</code>\nContoh: <code>.${kind} Panel Premium 1 Bulan</code></blockquote>`,

@@ -1,11 +1,12 @@
 /** Help, loops, donation, and health panel builders. */
+import type { Context } from 'grammy';
 import { getAllRegisteredUsers, getSchedules, getUserbotSession } from '../../../../../infrastructure/database.js';
 import userbotManager from '../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../utils/richMessage.js';
 import { LOOPS_PER_PAGE, getSystemVarValue } from '../shared.js';
 
-export function panelUserLoops(ctx: any, page = 1) {
+export function panelUserLoops(ctx: Context, page = 1) {
   const telegramId = ctx.from.id;
   const allSchedules = getSchedules(telegramId);
   const loops = allSchedules.filter(s => s.type === 'loop');
@@ -90,7 +91,7 @@ export function panelHelpQuickstart() {
     `<footer>Panduan resmi onboarding DeltaUserJS.</footer>`;
 }
 
-export function panelHelpCommands(ctx?: any) {
+export function panelHelpCommands(ctx?: Context) {
   const session = ctx?.from?.id ? getUserbotSession(ctx.from.id) : null;
   const p = session?.vars?.PREFIX || '.';
   const safeP = escapeHtml(String(p));

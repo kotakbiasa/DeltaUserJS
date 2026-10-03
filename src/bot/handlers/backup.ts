@@ -15,7 +15,16 @@ import {
 } from '../../services/BackupService.js';
 import { formatBytesFixed as formatBytes } from '../../utils/format.js';
 
-function formatBackupInfo(backup: any): string {
+interface BackupSummary {
+  id: string;
+  timestamp: string | number | Date;
+  status: 'completed' | 'failed' | 'in_progress' | string;
+  type: string;
+  size: number;
+  error?: string;
+}
+
+function formatBackupInfo(backup: BackupSummary): string {
   const time = new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(backup.timestamp));
   const statusEmoji = {
     completed: '✅',

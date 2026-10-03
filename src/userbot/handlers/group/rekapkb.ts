@@ -106,7 +106,11 @@ function parseRekap(text: string): RekapPlayer[] {
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
 }
 
-async function getRepliedText(message: any): Promise<string> {
+type ReplyMessageContext = {
+  getReplyMessage: () => Promise<{ message?: string } | null>;
+};
+
+async function getRepliedText(message: ReplyMessageContext): Promise<string> {
   try {
     const replied = await message.getReplyMessage();
     return String((replied && replied.message) || '').trim();

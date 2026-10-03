@@ -163,7 +163,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
         let phone: string | null = null;
         let customName: string | undefined;
         try {
-          const me: any = await client.getMe();
+          const me = await client.getMe();
           phone = me?.phone ? (me.phone.startsWith('+') ? me.phone : `+${me.phone}`) : null;
           customName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || undefined;
         } catch (_) { /* ignore */ }
@@ -208,7 +208,7 @@ export async function qrRegistrationConversation(conversation, ctx) {
           let phone: string | null = null;
           let customName: string | undefined;
           try {
-            const me: any = await activeClient.getMe();
+            const me = await activeClient.getMe();
             phone = me?.phone ? (me.phone.startsWith('+') ? me.phone : `+${me.phone}`) : null;
             customName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || undefined;
           } catch (_) { /* ignore */ }

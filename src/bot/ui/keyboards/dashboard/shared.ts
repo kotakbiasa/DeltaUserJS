@@ -4,10 +4,12 @@
  * Dipecah dari dashboard.ts (2.821 baris). Isi tiap fungsi dipindahkan apa
  * adanya; yang berubah hanya di file mana ia tinggal.
  */
+import type { Context } from 'grammy';
 import config from '../../../../config.js';
 import { getAllRegisteredUsers, getDisabledPlugins, updateTelegramPremiumStatus } from '../../../../infrastructure/database.js';
 import { systemConfigCache } from '../../../../infrastructure/dbCore.js';
 import { loadedPlugins } from '../../../../userbot/engine/pluginRegistry.js';
+import type { Plugin } from '../../../../userbot/engine/pluginRegistry.js';
 import { getApprovedUserMeta, getApprovedUsers } from '../../../state/approvedUsers.js';
 
 export const PROTECTED_PLUGINS = ['admin', 'pluginmanager'];
@@ -23,7 +25,7 @@ export const PLUGIN_CATEGORIES: Record<string, { label: string; icon: string }> 
   system: { label: 'Sistem', icon: '⚙️' },
 };
 
-export function getPluginCategory(plugin: any): string {
+export function getPluginCategory(plugin: Plugin): string {
   if (plugin && plugin.file) {
     const topDir = String(plugin.file).split(/[/\\]/)[0].toLowerCase();
     if (topDir in PLUGIN_CATEGORIES) {return topDir;}
@@ -84,7 +86,7 @@ export function userInfo(ctx) {
   return { firstName, botName };
 }
 
-export function isTelegramPremium(ctx?: any, session?: any): boolean {
+export function isTelegramPremium(ctx?: Context, session?: { is_telegram_premium?: number }): boolean {
   if (ctx?.from?.is_premium !== undefined) {
     const isPrem = Boolean(ctx.from.is_premium);
     if (session && session.is_telegram_premium !== (isPrem ? 1 : 0) && ctx.from?.id) {
@@ -140,15 +142,18 @@ export function getCombinedAdminUsers(): CombinedAdminUser[] {
       };
     });
 
-  const registeredFormatted: CombinedAdminUser[] = registeredUsers.map(u => ({
-    telegram_id: u.telegram_id,
-    custom_name: u.custom_name,
-    username: (u as any).username,
-    is_active: u.is_active,
-    is_awaiting_reg: false,
-    is_telegram_premium: (u as any).is_telegram_premium,
-    expired_at: u.expired_at,
-  }));
+  const registeredFormatted: CombinedAdminUser[] = registeredUsers.map(u => {
+    const user = u as typeof u & { username?: string; is_telegram_premium?: number };
+    return {
+      telegram_id: user.telegram_id,
+      custom_name: user.custom_name,
+      username: user.username,
+      is_active: user.is_active,
+      is_awaiting_reg: false,
+      is_telegram_premium: user.is_telegram_premium,
+      expired_at: user.expired_at,
+    };
+  });
 
   return [...registeredFormatted, ...awaitingUsers];
 }

@@ -90,7 +90,12 @@ export function parseTgEmojiTemplate(text: string): string {
 /**
  * Resolve settings object from either telegramId (number/string) or existing session object.
  */
-function resolveSession(settingsOrTelegramId: unknown): Record<string, any> | null {
+interface EmojiSession {
+  custom_emojis?: Record<string, string>;
+  vars?: Record<string, unknown>;
+}
+
+function resolveSession(settingsOrTelegramId: unknown): EmojiSession | null {
   if (!settingsOrTelegramId) {return null;}
   if (typeof settingsOrTelegramId === 'number' || typeof settingsOrTelegramId === 'string') {
     const id = Number(settingsOrTelegramId);
@@ -98,7 +103,7 @@ function resolveSession(settingsOrTelegramId: unknown): Record<string, any> | nu
     return getUserbotSession(id) || null;
   }
   if (typeof settingsOrTelegramId === 'object' && settingsOrTelegramId !== null) {
-    return settingsOrTelegramId as Record<string, any>;
+    return settingsOrTelegramId as EmojiSession;
   }
   return null;
 }
@@ -169,10 +174,29 @@ export interface ExtractedEmoji {
   isCustomEmoji: boolean;
 }
 
+interface EmojiEntity {
+  className?: string;
+  documentId?: string | number | bigint;
+  offset?: number;
+  length?: number;
+  alt?: string;
+}
+
+interface EmojiContextMessage {
+  message?: string;
+  entities?: EmojiEntity[];
+  media?: {
+    document?: {
+      id?: string | number | bigint;
+      attributes?: EmojiEntity[];
+    };
+  };
+}
+
 /**
  * Extract custom or standard emoji from command arguments, message entities, or a replied message.
  */
-export function extractEmojiFromContext(arg: string | undefined, message: any, replyMessage?: any): ExtractedEmoji | null {
+export function extractEmojiFromContext(arg: string | undefined, message?: EmojiContextMessage, replyMessage?: EmojiContextMessage): ExtractedEmoji | null {
   const cleanArg = (arg || '').trim();
 
   // 1. Check if argument contains explicit <tg-emoji emoji-id="...">...</tg-emoji> tag
@@ -213,11 +237,11 @@ export function extractEmojiFromContext(arg: string | undefined, message: any, r
 
   // 4. Check message entities for MessageEntityCustomEmoji in the current message
   if (message?.entities && Array.isArray(message.entities)) {
-    const customEntity = message.entities.find((e: any) => e.className === 'MessageEntityCustomEmoji');
+    const customEntity = message.entities.find((e) => e.className === 'MessageEntityCustomEmoji');
     if (customEntity && customEntity.documentId) {
       const docId = customEntity.documentId.toString();
       const rawText = String(message.message || '');
-      const char = rawText.slice(customEntity.offset, customEntity.offset + customEntity.length) || '⭐';
+      const char = rawText.slice(customEntity.offset || 0, (customEntity.offset || 0) + (customEntity.length || 1)) || '⭐';
       return {
         documentId: docId,
         char,
@@ -231,11 +255,11 @@ export function extractEmojiFromContext(arg: string | undefined, message: any, r
   if (replyMessage) {
     // 5a. Custom emoji entity in replied message
     if (replyMessage.entities && Array.isArray(replyMessage.entities)) {
-      const customEntity = replyMessage.entities.find((e: any) => e.className === 'MessageEntityCustomEmoji');
+      const customEntity = replyMessage.entities.find((e) => e.className === 'MessageEntityCustomEmoji');
       if (customEntity && customEntity.documentId) {
         const docId = customEntity.documentId.toString();
         const rawText = String(replyMessage.message || '');
-        const char = rawText.slice(customEntity.offset, customEntity.offset + customEntity.length) || '⭐';
+        const char = rawText.slice(customEntity.offset || 0, (customEntity.offset || 0) + (customEntity.length || 1)) || '⭐';
         return {
           documentId: docId,
           char,
@@ -249,11 +273,11 @@ export function extractEmojiFromContext(arg: string | undefined, message: any, r
     const media = replyMessage.media;
     const document = media?.document;
     if (document) {
-      const hasCustomAttr = document.attributes?.some((a: any) => a.className === 'DocumentAttributeCustomEmoji');
+      const hasCustomAttr = document.attributes?.some((a) => a.className === 'DocumentAttributeCustomEmoji');
       if (hasCustomAttr && document.id) {
         const docId = document.id.toString();
         // find alt char from DocumentAttributeSticker if available
-        const stickerAttr = document.attributes.find((a: any) => a.className === 'DocumentAttributeSticker');
+        const stickerAttr = document.attributes.find((a) => a.className === 'DocumentAttributeSticker');
         const altChar = stickerAttr?.alt || '⭐';
         return {
           documentId: docId,
@@ -457,18 +481,27 @@ export function animateEmojisWithRestrictedPack(html: string): string {
  * direct replies, edits, captions, and rich-message fallbacks all get the
  * same treatment without changing every handler individually.
  */
-export function animateBotApiPayload(method: string, payload: any): any {
+type BotApiPayload = Record<string, unknown>;
+
+type BotApiTextTarget = BotApiPayload & {
+  parse_mode?: unknown;
+  text?: unknown;
+  caption?: unknown;
+};
+
+export function animateBotApiPayload(method: string, payload: BotApiPayload): BotApiPayload {
   if (!payload || typeof payload !== 'object') {return payload;}
 
-  const canUseHtml = (target: any) => {
-    const parseMode = target?.parse_mode;
+  const canUseHtml = (target: BotApiTextTarget) => {
+    const parseMode = target.parse_mode;
     return parseMode === undefined || parseMode === null || String(parseMode).toUpperCase() === 'HTML';
   };
 
-  const transformField = (target: any, field: 'text' | 'caption') => {
-    if (!target || typeof target[field] !== 'string' || !canUseHtml(target)) {return;}
-    const transformed = animateEmojisWithRestrictedPack(target[field]);
-    if (transformed === target[field]) {return;}
+  const transformField = (target: BotApiTextTarget, field: 'text' | 'caption') => {
+    const value = target[field];
+    if (typeof value !== 'string' || !canUseHtml(target)) {return;}
+    const transformed = animateEmojisWithRestrictedPack(value);
+    if (transformed === value) {return;}
     target[field] = transformed;
     if (target.parse_mode === undefined || target.parse_mode === null) {
       target.parse_mode = 'HTML';
@@ -476,8 +509,11 @@ export function animateBotApiPayload(method: string, payload: any): any {
   };
 
   const richMessage = payload.rich_message;
-  if (richMessage && typeof richMessage === 'object' && typeof richMessage.html === 'string') {
-    richMessage.html = animateEmojisWithRestrictedPack(richMessage.html);
+  if (richMessage && typeof richMessage === 'object' && !Array.isArray(richMessage)) {
+    const rich = richMessage as BotApiPayload;
+    if (typeof rich.html === 'string') {
+      rich.html = animateEmojisWithRestrictedPack(rich.html);
+    }
   }
 
   const textMethods = new Set([
@@ -499,10 +535,12 @@ export function animateBotApiPayload(method: string, payload: any): any {
     transformField(payload, field);
   } else if (method === 'sendMediaGroup' && Array.isArray(payload.media)) {
     for (const item of payload.media) {
-      transformField(item, 'caption');
+      if (item && typeof item === 'object' && !Array.isArray(item)) {
+        transformField(item as BotApiTextTarget, 'caption');
+      }
     }
-  } else if (method === 'editMessageMedia' && payload.media && typeof payload.media === 'object') {
-    transformField(payload.media, 'caption');
+  } else if (method === 'editMessageMedia' && payload.media && typeof payload.media === 'object' && !Array.isArray(payload.media)) {
+    transformField(payload.media as BotApiTextTarget, 'caption');
   }
 
   return payload;

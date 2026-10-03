@@ -1,4 +1,5 @@
-import { Api } from 'teleproto';
+import { Api, TelegramClient } from 'teleproto';
+import type { UserbotMessageLike } from '../../types.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -38,7 +39,7 @@ export default {
             '• `.cinfo` menampilkan jumlah member lewat full-chat API (supergroup/channel) atau daftar participant (grup biasa).\n' +
             '• `.id` untuk ID chat/user cepat ada di plugin terpisah.'
   },
-  async execute(client: any, message: any, _settings: unknown, telegramId: number) {
+  async execute(client: TelegramClient, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (!message.peerId) {return;}
 
@@ -84,7 +85,17 @@ export default {
         let caption: string;
         if (target.className === 'User' || target.className === 'UserEmpty') {
           const full = await client.invoke(new Api.users.GetFullUser({ id: target }));
-          const u = full.users?.[0];
+          const u = full.users?.[0] as unknown as {
+            id?: unknown;
+            firstName?: string;
+            lastName?: string;
+            username?: string;
+            premium?: boolean;
+            bot?: boolean;
+            verified?: boolean;
+            scam?: boolean;
+            fake?: boolean;
+          } | undefined;
           const f = full.fullUser;
           if (!u) {throw new Error('Data user kosong dari server.');}
           const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Tanpa Nama';
@@ -162,16 +173,21 @@ export default {
         let members: number | string | undefined;
 
         if (chat.className === 'Channel') {
-          const full = await client.invoke(new Api.channels.GetFullChannel({ channel: chat }));
-          about = full.fullChat?.about || '';
-          members = full.fullChat?.participantsCount;
+          const full = await client.invoke(new Api.channels.GetFullChannel({ channel: chat as never }));
+          const fullChat = full.fullChat as unknown as { about?: string; participantsCount?: number } | undefined;
+          about = fullChat?.about || '';
+          members = fullChat?.participantsCount;
         } else {
           // Grup basic → messages.GetFullChat, jumlah member dari participants
           try {
-            const full = await client.invoke(new Api.messages.GetFullChat({ chatId: chat.id }));
-            about = full.fullChat?.about || '';
-            const p = full.fullChat?.participants;
-            members = p && p.className === 'ChatParticipants' ? p.participants.length : undefined;
+            const full = await client.invoke(new Api.messages.GetFullChat({ chatId: chat.id as never }));
+            const fullChat = full.fullChat as unknown as {
+              about?: string;
+              participants?: { className?: string; participants?: unknown[] };
+            } | undefined;
+            about = fullChat?.about || '';
+            const p = fullChat?.participants;
+            members = p && p.className === 'ChatParticipants' ? p.participants?.length : undefined;
           } catch (_e) { /* fallback ke participantsCount entity di bawah */ }
         }
         if (members === undefined || members === null) {

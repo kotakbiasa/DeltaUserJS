@@ -4,6 +4,7 @@
  * Dipecah dari dashboard.ts (2.821 baris). Isi tiap fungsi dipindahkan apa
  * adanya; yang berubah hanya di file mana ia tinggal.
  */
+import type { Context } from 'grammy';
 import config from '../../../../config.js';
 import { getSchedules, getUserbotSession } from '../../../../infrastructure/database.js';
 import userbotManager from '../../../../userbot/engine/manager.js';
@@ -20,6 +21,14 @@ import {
   pluginPageInfo,
 } from './shared.js';
 
+type DashboardButton = {
+  text: string;
+  callback_data?: string;
+  url?: string;
+  style?: string;
+};
+type DashboardButtonRows = DashboardButton[][];
+
 export function keyboardAccessDenied(ctx) {
   const pending = isPendingApproval(ctx.from.id);
   const rows = [];
@@ -34,7 +43,7 @@ export function keyboardAccessDenied(ctx) {
 
 export function keyboardMain(ctx) {
   const session = getUserbotSession(ctx.from.id);
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   if (session) {
     // Pengguna Terdaftar: Portal Ringkas (fitur teknis dikelola di dalam Dashboard Userbot)
@@ -75,7 +84,7 @@ export function keyboardMain(ctx) {
 
 export function keyboardPanelMenu(ctx) {
   const session = getUserbotSession(ctx.from.id);
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   if (session) {
     rows.push([
@@ -124,7 +133,7 @@ export function keyboardUserbot(ctx) {
   }
 
   const isRunning = userbotManager.isRunning(ctx.from.id);
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   // Baris Daya & Restart
   if (isRunning) {
@@ -296,17 +305,17 @@ export function keyboardRegister() {
   ] };
 }
 
-export function keyboardBuySubscription(ctx?: any) {
+export function keyboardBuySubscription(ctx?: Context) {
   return keyboardSubscription(ctx);
 }
 
-export function keyboardSubscription(ctx?: any) {
+export function keyboardSubscription(ctx?: Context) {
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
   const approved = userId ? (owner || isApproved(userId)) : false;
   const pending = userId ? isPendingApproval(userId) : false;
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   if (owner) {
     if (session) {
@@ -368,7 +377,7 @@ export function keyboardAdmin(pendingCount = 0) {
 
 export function keyboardAdminPending() {
   const pendingList = getPendingApprovals();
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   if (pendingList.length > 1) {
     rows.push([
@@ -391,10 +400,10 @@ export function keyboardAdminUsers(page = 1) {
   const start = (currentPage - 1) * ADMIN_USERS_PER_PAGE;
   const currentUsers = allUsers.slice(start, start + ADMIN_USERS_PER_PAGE);
 
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
 
   for (let i = 0; i < currentUsers.length; i += 2) {
-    const row: any[] = [];
+    const row: DashboardButton[] = [];
     const u1 = currentUsers[i];
     const icon1 = u1.is_awaiting_reg ? '🔵' : (userbotManager.isRunning(u1.telegram_id) ? '🟢' : '🔴');
     const label1 = `${icon1} ${(u1.custom_name || String(u1.telegram_id)).slice(0, 12)}`;
@@ -410,7 +419,7 @@ export function keyboardAdminUsers(page = 1) {
   }
 
   if (totalPages > 1) {
-    const nav: any[] = [];
+    const nav: DashboardButton[] = [];
     if (currentPage > 1) {
       nav.push({ text: '◀️ Prev', callback_data: `rich:admin_users:${currentPage - 1}` });
     }
@@ -505,20 +514,20 @@ export function keyboardAdminSettings() {
   ] };
 }
 
-export function keyboardUserLoops(ctx: any, page = 1) {
+export function keyboardUserLoops(ctx: Context, page = 1) {
   const telegramId = ctx.from.id;
   const allSchedules = getSchedules(telegramId);
   const loops = allSchedules.filter(s => s.type === 'loop');
   const totalPages = Math.max(1, Math.ceil(loops.length / LOOPS_PER_PAGE));
   const currentPage = Math.min(Math.max(Number(page) || 1, 1), totalPages);
 
-  const rows: any[] = [];
+  const rows: DashboardButtonRows = [];
   rows.push([
     { text: '➕ Tambah Jadwal Loop', callback_data: 'rich:add_loop' },
   ]);
 
   if (totalPages > 1) {
-    const nav: any[] = [];
+    const nav: DashboardButton[] = [];
     if (currentPage > 1) {
       nav.push({ text: '⬅️ Prev', callback_data: `rich:user_loops:${currentPage - 1}` });
     }

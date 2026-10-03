@@ -275,7 +275,7 @@ export function panelAdminSettings() {
 export function panelStats(_ctx) {
   const users = getAllRegisteredUsers();
   const running = userbotManager.clients.size;
-  const premCount = users.filter((u: any) => u.is_telegram_premium === 1).length;
+  const premCount = users.filter(u => u.is_telegram_premium === 1).length;
   const mem = process.memoryUsage();
   return `<h1 align="center">📊 System Analytics <sup>METRICS</sup></h1>` +
     `<p>Ringkasan performa server dan konsumsi memori runtime.</p>` +

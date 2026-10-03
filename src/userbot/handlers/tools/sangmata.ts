@@ -1,10 +1,13 @@
+import { TelegramClient } from 'teleproto';
+import type { UserbotMessageLike } from '../../types.js';
+
 const BOT_PRIMARY = '@SangMata_BOT';
 const BOT_BETA = '@SangMata_beta_bot';
 
 /**
  * Kirim target ID/username ke bot SangMata dan tunggu responsnya.
  */
-async function querySangMata(client: any, botUsername: string, target: string, timeoutSec = 7): Promise<any[]> {
+async function querySangMata(client: TelegramClient, botUsername: string, target: string, timeoutSec = 7): Promise<UserbotMessageLike[]> {
   const startTime = Math.floor(Date.now() / 1000);
   try {
     await client.sendMessage(botUsername, { message: target });
@@ -15,8 +18,8 @@ async function querySangMata(client: any, botUsername: string, target: string, t
   for (let i = 0; i < timeoutSec; i++) {
     await new Promise((r) => setTimeout(r, 1000));
     try {
-      const history = await client.getMessages(botUsername, { limit: 5 });
-      const replies = (history || []).filter((m: any) => !m.out && m.date >= startTime - 2);
+      const history = await client.getMessages(botUsername, { limit: 5 }) as unknown as UserbotMessageLike[];
+      const replies = (history || []).filter(m => !m.out && Number(m.date) >= startTime - 2);
 
       // SangMata biasanya mengirim 2 pesan (Name History & Username History)
       // atau 1 pesan jika tidak ada record ("No records found")
@@ -46,7 +49,7 @@ export default {
     usage: '• Balas pesan pengguna dengan `.sgm` atau ketik `.sgm <username/ID>`\n• Balas pesan dengan `.sgmb` atau ketik `.sgm -b <username/ID>` untuk mencoba @SangMata_beta_bot lebih dulu',
     detail: 'Userbot akan memeriksa histori ke @SangMata_BOT terlebih dahulu. Jika bot utama tidak merespons (offline/sibuk), sistem otomatis mencoba cadangan @SangMata_beta_bot.'
   },
-  async execute(client: any, message: any, _settings: any, _telegramId: any) {
+  async execute(client: TelegramClient, message: UserbotMessageLike, _settings: unknown, _telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const text = message.message.trim();
@@ -87,7 +90,7 @@ export default {
       parseMode: 'html'
     });
 
-    let foundMessages: any[] = [];
+    let foundMessages: UserbotMessageLike[] = [];
 
     for (let b = 0; b < bots.length; b++) {
       const currentBot = bots[b];
@@ -115,9 +118,10 @@ export default {
 
       // Kirim hasil balasan SangMata ke chat saat ini
       for (const msg of foundMessages) {
-        const sendOpts: any = { message: msg.message };
+        type SendOptions = NonNullable<Parameters<TelegramClient['sendMessage']>[1]>;
+        const sendOpts: SendOptions = { message: msg.message || '' };
         if (msg.entities && msg.entities.length > 0) {
-          sendOpts.formattingEntities = msg.entities;
+          sendOpts.formattingEntities = msg.entities as unknown as NonNullable<SendOptions['formattingEntities']>;
         }
         if (message.replyToMsgId) {
           sendOpts.replyTo = message.replyToMsgId;

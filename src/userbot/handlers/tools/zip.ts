@@ -1,9 +1,11 @@
+import { TelegramClient } from 'teleproto';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike } from '../../types.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -63,25 +65,25 @@ function procText(text: string): string {
   return `<blockquote>⏳ ${text}</blockquote>`;
 }
 
-async function editProcess(message: any, text: string): Promise<void> {
+async function editProcess(message: UserbotMessageLike, text: string): Promise<void> {
   await message.edit({ text: procText(text), parseMode: 'html' });
 }
 
-async function editError(message: any, text: string): Promise<void> {
+async function editError(message: UserbotMessageLike, text: string): Promise<void> {
   await message.edit({
     text: `<blockquote>❌ <b>Gagal:</b> ${text}</blockquote>`,
     parseMode: 'html',
   });
 }
 
-async function editSuccess(message: any, text: string): Promise<void> {
+async function editSuccess(message: UserbotMessageLike, text: string): Promise<void> {
   await message.edit({
     text: `<blockquote>✅ <b>Berhasil!</b> ${text}</blockquote>`,
     parseMode: 'html',
   });
 }
 
-async function getReplied(message: any): Promise<any | null> {
+async function getReplied(message: UserbotMessageLike): Promise<UserbotMessageLike | null> {
   try {
     return await message.getReplyMessage();
   } catch (_e) {
@@ -89,7 +91,7 @@ async function getReplied(message: any): Promise<any | null> {
   }
 }
 
-function replyToId(message: any): number {
+function replyToId(message: UserbotMessageLike): number {
   return message.replyToMsgId || message.id;
 }
 
@@ -101,8 +103,9 @@ function humanSize(bytes: number): string {
 }
 
 /** Download media replied ke file temp; lempar Error bila gagal/kosong. */
-async function downloadToTemp(client: any, replied: any, filename: string): Promise<string> {
-  const buffer = await client.downloadMedia(replied, {});
+async function downloadToTemp(client: TelegramClient, replied: UserbotMessageLike, filename: string): Promise<string> {
+  const downloadTarget = replied as unknown as Parameters<TelegramClient['downloadMedia']>[0];
+  const buffer = await client.downloadMedia(downloadTarget, {});
   if (!buffer || buffer.length === 0) {
     throw new Error('gagal mengunduh media');
   }
@@ -118,7 +121,7 @@ async function downloadToTemp(client: any, replied: any, filename: string): Prom
 // ============================================================
 // .zip — reply file/dokumen → zip jadi arsip → kirim
 // ============================================================
-async function handleZip(client: any, message: any, telegramId: number): Promise<void> {
+async function handleZip(client: TelegramClient, message: UserbotMessageLike, telegramId: number): Promise<void> {
   const replied = await getReplied(message);
   if (!replied || !replied.media) {
     await editError(message, 'Balas sebuah file/dokumen untuk di-zip! (semua file mendukung)');
@@ -177,7 +180,7 @@ async function handleZip(client: any, message: any, telegramId: number): Promise
 // ============================================================
 // .unzip — reply arsip zip → extract → kirim isi satu per satu
 // ============================================================
-async function handleUnzip(client: any, message: any, telegramId: number): Promise<void> {
+async function handleUnzip(client: TelegramClient, message: UserbotMessageLike, telegramId: number): Promise<void> {
   const replied = await getReplied(message);
   if (!replied || !replied.media || !replied.document) {
     await editError(message, 'Balas sebuah arsip .zip untuk diekstrak!');
@@ -281,7 +284,7 @@ async function handleUnzip(client: any, message: any, telegramId: number): Promi
 // ============================================================
 // .dozip <nama> — reply file → zip dengan nama kustom → kirim
 // ============================================================
-async function handleDoZip(client: any, message: any, arg: string, telegramId: number): Promise<void> {
+async function handleDoZip(client: TelegramClient, message: UserbotMessageLike, arg: string, telegramId: number): Promise<void> {
   const customName = arg.replace(/[\\/:*?"<>|]/g, '_').trim().slice(0, 80);
   if (!customName) {
     await editError(message, 'Sertakan nama arsip! Contoh: <code>.dozip backup</code>');
@@ -346,7 +349,7 @@ export default {
     usage: '• `.zip` — balas file/dokumen → di-zip jadi arsip, dikirim sebagai dokumen.\n• `.unzip` — balas arsip .zip → diekstrak, isinya dikirim satu per satu.\n• `.dozip <nama>` — balas file lalu ketik command ini → di-zip dengan nama yang diberikan.',
     detail: 'Memakai binary zip/unzip di /usr/bin bila tersedia; fallback otomatis ke python3 -m zipfile (create/extract). Arsip temp dibersihkan otomatis.'
   },
-  async execute(client: any, message: any, _settings: unknown, telegramId: number): Promise<void> {
+  async execute(client: TelegramClient, message: UserbotMessageLike, _settings: unknown, telegramId: number): Promise<void> {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.dozip(?:\s+([\s\S]+))?$/i)
