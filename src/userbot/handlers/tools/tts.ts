@@ -4,6 +4,7 @@ import path from 'path';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { fetchWithTimeout } from '../../../utils/http.js';
+import { defineCommand } from '../../engine/defineCommand.js';
 
 // ============================================================
 // Text to Speech — .tts
@@ -45,7 +46,7 @@ function cleanup(...files) {
   }
 }
 
-export default {
+export default defineCommand({
   name: 'tts',
   version: '1.0.0',
   description: 'Text to speech Google Translate: teks dikirim sebagai voice note.',
@@ -59,13 +60,8 @@ export default {
     detail: 'Kode bahasa contoh: id, en, ja, ko, ar, su, jw, zh-cn. Token pertama hanya diperlakukan sebagai kode bahasa jika dikenal. ' +
       'Emoji dibuang dan teks lebih dari 200 karakter dipotong otomatis (batas endpoint Google tw-ob). Hasil dikirim sebagai voice note mp3.'
   },
-  async execute(client, message, _settings, telegramId) {
-    if (!message.out || !message.message) {return;}
-
-    const match = message.message.match(/^\.tts(?![A-Za-z0-9])(?:\s+([\s\S]+))?$/i);
-    if (!match) {return;}
-
-    const args = (match[1] || '').trim();
+  async run({ client, message, telegramId, arg: rawArg }) {
+    const args = rawArg.trim();
     const parts = args.split(/\s+/).filter(Boolean);
     let lang = DEFAULT_LANG;
     let rest = args;
@@ -139,4 +135,4 @@ export default {
       cleanup(tmpPath);
     }
   }
-};
+});
