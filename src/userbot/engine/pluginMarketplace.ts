@@ -104,9 +104,27 @@ async function saveRegistry() {
  * Add plugin to registry (from GitHub/GitLab)
  */
 export async function addPluginToRegistry(manifest: PluginManifest): Promise<void> {
-  // Validate required fields
+  // Names become directory names and callback-data fragments, so keep them bounded and path-safe.
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(manifest.name)) {
+    throw new Error('Invalid plugin name. Use 1-48 letters, numbers, dots, dashes, or underscores.');
+  }
+
+  // Validate required fields and repository before persisting untrusted registry data.
   if (!manifest.name || !manifest.version || !manifest.repository || !manifest.entryPoint) {
     throw new Error('Manifest missing required fields: name, version, repository, entryPoint');
+  }
+  let repositoryUrl: URL;
+  try {
+    repositoryUrl = new URL(manifest.repository);
+  } catch {
+    throw new Error('Repository must be a valid HTTP(S) URL.');
+  }
+  if (!['http:', 'https:'].includes(repositoryUrl.protocol) || repositoryUrl.username || repositoryUrl.password) {
+    throw new Error('Repository must be an HTTP(S) URL without embedded credentials.');
+  }
+  const normalizedEntryPoint = path.normalize(manifest.entryPoint);
+  if (path.isAbsolute(manifest.entryPoint) || normalizedEntryPoint === '..' || normalizedEntryPoint.startsWith(`..${path.sep}`)) {
+    throw new Error('Entry point must remain inside the plugin directory.');
   }
 
   // Validate permissions
@@ -151,9 +169,29 @@ export function getPluginManifest(name: string): PluginManifest | undefined {
  * Install plugin from registry
  */
 export async function installPlugin(name: string, version?: string): Promise<InstalledPlugin> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(name)) {
+    throw new Error('Invalid plugin name.');
+  }
   const manifest = registry[name];
   if (!manifest) {
     throw new Error(`Plugin ${name} not found in registry`);
+  }
+
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(manifest.name)) {
+    throw new Error('Invalid plugin name in registry.');
+  }
+  let repositoryUrl: URL;
+  try {
+    repositoryUrl = new URL(manifest.repository);
+  } catch {
+    throw new Error('Invalid repository URL in registry.');
+  }
+  if (!['http:', 'https:'].includes(repositoryUrl.protocol) || repositoryUrl.username || repositoryUrl.password) {
+    throw new Error('Invalid repository URL in registry.');
+  }
+  const normalizedEntryPoint = path.normalize(manifest.entryPoint);
+  if (path.isAbsolute(manifest.entryPoint) || normalizedEntryPoint === '..' || normalizedEntryPoint.startsWith(`..${path.sep}`)) {
+    throw new Error('Invalid entry point in registry.');
   }
 
   if (version && manifest.version !== version) {
@@ -179,9 +217,13 @@ export async function installPlugin(name: string, version?: string): Promise<Ins
     }, null, 2));
 
     // Create placeholder plugin file
-    const entryPointPath = path.join(installDir, manifest.entryPoint);
+    const installRoot = path.resolve(installDir);
+    const entryPointPath = path.resolve(installDir, manifest.entryPoint);
+    if (entryPointPath !== installRoot && !entryPointPath.startsWith(`${installRoot}${path.sep}`)) {
+      throw new Error('Entry point must remain inside the plugin directory.');
+    }
     await mkdir(path.dirname(entryPointPath), { recursive: true });
-    await writeFile(entryPointPath, `// Plugin: ${manifest.name} v${manifest.version}\n// Auto-generated placeholder\n\nexport default {\n  name: '${manifest.name}',\n  help: {\n    title: '${manifest.name}',\n    description: '${manifest.description}',\n    usage: '',\n    detail: 'Installed from marketplace'\n  },\n  async execute() {}\n};\n`);
+    await writeFile(entryPointPath, `// Plugin: ${manifest.name} v${manifest.version}\n// Auto-generated placeholder\n\nexport default {\n  name: ${JSON.stringify(manifest.name)},\n  help: {\n    title: ${JSON.stringify(manifest.name)},\n    description: ${JSON.stringify(manifest.description)},\n    usage: '',\n    detail: 'Installed from marketplace'\n  },\n  async execute() {}\n};\n`);
 
     const installed: InstalledPlugin = {
       manifest,
@@ -204,6 +246,9 @@ export async function installPlugin(name: string, version?: string): Promise<Ins
  * Update installed plugin
  */
 export async function updatePlugin(name: string): Promise<InstalledPlugin> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(name)) {
+    throw new Error('Invalid plugin name.');
+  }
   const installed = installedPlugins[name];
   if (!installed) {
     throw new Error(`Plugin ${name} not installed`);
@@ -212,6 +257,28 @@ export async function updatePlugin(name: string): Promise<InstalledPlugin> {
   const manifest = registry[name];
   if (!manifest) {
     throw new Error(`Plugin ${name} not found in registry`);
+  }
+
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(manifest.name)) {
+    throw new Error('Invalid plugin name in registry.');
+  }
+  let repositoryUrl: URL;
+  try {
+    repositoryUrl = new URL(manifest.repository);
+  } catch {
+    throw new Error('Invalid repository URL in registry.');
+  }
+  if (!['http:', 'https:'].includes(repositoryUrl.protocol) || repositoryUrl.username || repositoryUrl.password) {
+    throw new Error('Invalid repository URL in registry.');
+  }
+  const normalizedEntryPoint = path.normalize(manifest.entryPoint);
+  if (path.isAbsolute(manifest.entryPoint) || normalizedEntryPoint === '..' || normalizedEntryPoint.startsWith(`..${path.sep}`)) {
+    throw new Error('Invalid entry point in registry.');
+  }
+  const installedRoot = path.resolve(marketplaceDir, 'installed');
+  const localPath = path.resolve(installed.localPath);
+  if (!localPath.startsWith(`${installedRoot}${path.sep}`)) {
+    throw new Error('Invalid installed plugin path.');
   }
 
   if (manifest.version === installed.manifest.version) {
@@ -229,9 +296,12 @@ export async function updatePlugin(name: string): Promise<InstalledPlugin> {
 
     await writeFile(path.join(installed.localPath, 'manifest.json'), JSON.stringify(installed, null, 2));
 
-    // Update entry point file
-    const entryPointPath = path.join(installed.localPath, manifest.entryPoint);
-    await writeFile(entryPointPath, `// Plugin: ${manifest.name} v${manifest.version}\n// Updated: ${new Date().toISOString()}\n\nexport default {\n  name: '${manifest.name}',\n  help: {\n    title: '${manifest.name}',\n    description: '${manifest.description}',\n    usage: '',\n    detail: 'Updated from marketplace'\n  },\n  async execute() {}\n};\n`);
+    // Update entry point file without allowing a manifest to escape the install directory.
+    const entryPointPath = path.resolve(installed.localPath, manifest.entryPoint);
+    if (entryPointPath !== localPath && !entryPointPath.startsWith(`${localPath}${path.sep}`)) {
+      throw new Error('Entry point must remain inside the plugin directory.');
+    }
+    await writeFile(entryPointPath, `// Plugin: ${manifest.name} v${manifest.version}\n// Updated: ${new Date().toISOString()}\n\nexport default {\n  name: ${JSON.stringify(manifest.name)},\n  help: {\n    title: ${JSON.stringify(manifest.name)},\n    description: ${JSON.stringify(manifest.description)},\n    usage: '',\n    detail: 'Updated from marketplace'\n  },\n  async execute() {}\n};\n`);
 
     Logger.logSystem(`📦 Updated plugin: ${name} to v${manifest.version}`, 'SUCCESS');
     return installed;
@@ -242,12 +312,20 @@ export async function updatePlugin(name: string): Promise<InstalledPlugin> {
  * Remove installed plugin
  */
 export async function removePlugin(name: string): Promise<void> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(name)) {
+    throw new Error('Invalid plugin name.');
+  }
   const installed = installedPlugins[name];
   if (!installed) {
     throw new Error(`Plugin ${name} not installed`);
   }
 
-  await rm(installed.localPath, { recursive: true, force: true });
+  const installedRoot = path.resolve(marketplaceDir, 'installed');
+  const localPath = path.resolve(installed.localPath);
+  if (!localPath.startsWith(`${installedRoot}${path.sep}`)) {
+    throw new Error('Invalid installed plugin path.');
+  }
+  await rm(localPath, { recursive: true, force: true });
   delete installedPlugins[name];
   Logger.logSystem(`📦 Removed plugin: ${name}`, 'INFO');
 }

@@ -594,7 +594,7 @@ export function registerRichHandlers(bot) {
       const targetChat = config.logGroupId || config.ownerId;
       const firstName = escapeHtml(ctx.from.first_name || 'User');
       const username = ctx.from.username ? `@${escapeHtml(ctx.from.username)}` : '<i>Tanpa Username</i>';
-      const nowWib = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+      const nowWib = escapeHtml(new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }));
 
       if (targetChat) {
         try {

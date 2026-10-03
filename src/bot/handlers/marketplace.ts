@@ -1,6 +1,7 @@
 import { Bot, Context, InlineKeyboard,} from 'grammy';
 import config from '../../config.js';
 import { Logger } from '../../utils/logger.js';
+import { escapeHtml } from '../../utils/richMessage.js';
 import {
   initPluginMarketplace,
   getRegistryPlugins,
@@ -19,12 +20,51 @@ const OWNER_PERMISSIONS: PluginPermission[] = [
   'db.read', 'db.write', 'bot.send', 'bot.edit', 'user.info',
 ];
 
+function safeRepositoryHref(repository: string): string | null {
+  try {
+    const url = new URL(repository);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+      return null;
+    }
+    return escapeHtml(url.toString());
+  } catch {
+    return null;
+  }
+}
+
+function parseCommandArgs(text: string): string[] {
+  const args: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+
+  for (const char of text.trim()) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+    } else if (char === '\\' && quote) {
+      escaped = true;
+    } else if (quote) {
+      if (char === quote) {quote = null;} else {current += char;}
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (/\s/.test(char)) {
+      if (current) {args.push(current); current = '';}
+    } else {
+      current += char;
+    }
+  }
+  if (escaped) {current += '\\';}
+  if (current) {args.push(current);}
+  return args;
+}
+
 function formatPermissions(perms: PluginPermission[]): string {
   const emojiMap: Record<PluginPermission, string> = {
     'fs.read': '📖', 'fs.write': '📝', 'net.http': '🌐', 'eval': '⚡', 'shell': '🐚',
     'db.read': '🗄️', 'db.write': '💾', 'bot.send': '📤', 'bot.edit': '✏️', 'user.info': '👤',
   };
-  return perms.map(p => `${emojiMap[p] || '❓'} ${p}`).join(' ');
+  return perms.map(p => `${emojiMap[p] || '❓'} ${escapeHtml(String(p))}`).join(' ');
 }
 
 /**
@@ -45,8 +85,8 @@ export async function showMarketplaceMenu(ctx: Context) {
     const status = isInstalled ? '✅' : '⬜';
     const updateAvail = installed.find(i => i.manifest.name === plugin.name && i.manifest.version !== plugin.version) ? ' 🔄' : '';
 
-    text += `${status} <b>${plugin.name}</b> v${plugin.version}${updateAvail}\n`;
-    text += `   ${plugin.description.slice(0, 60)}...\n\n`;
+    text += `${status} <b>${escapeHtml(plugin.name)}</b> v${escapeHtml(plugin.version)}${updateAvail}\n`;
+    text += `   ${escapeHtml(plugin.description.slice(0, 60))}...\n\n`;
 
     keyboard.text(`${isInstalled ? '🔄' : '📥'} ${plugin.name} v${plugin.version}`, `marketplace:install:${plugin.name}`).row();
   }
@@ -82,8 +122,8 @@ export async function showInstalledPlugins(ctx: Context) {
     const info = getMarketplaceInfo(plugin.manifest.name);
     const updateText = info?.updateAvailable ? ' 🔄 Update available' : '';
 
-    text += `✅ <b>${plugin.manifest.name}</b> v${plugin.manifest.version}${updateText}\n`;
-    text += `   ${plugin.manifest.description.slice(0, 60)}...\n`;
+    text += `✅ <b>${escapeHtml(plugin.manifest.name)}</b> v${escapeHtml(plugin.manifest.version)}${updateText}\n`;
+    text += `   ${escapeHtml(plugin.manifest.description.slice(0, 60))}...\n`;
     text += `   Permission: ${plugin.manifest.permissions.length}\n\n`;
 
     keyboard.text(`🗑️ Hapus ${plugin.manifest.name}`, `marketplace:remove:${plugin.manifest.name}`).row();
@@ -108,21 +148,23 @@ export async function showPluginDetail(ctx: Context, name: string) {
   }
 
   const { manifest, installed, installedVersion, updateAvailable } = info;
+  const repositoryHref = safeRepositoryHref(manifest.repository);
+  const repositoryText = escapeHtml(manifest.repository);
 
-  let text = `<b>📦 ${manifest.name}</b> v${manifest.version}\n\n`;
-  text += `<i>${manifest.description}</i>\n\n`;
-  text += `<b>👤 Author:</b> ${manifest.author}\n`;
-  text += `<b>📂 Repo:</b> <a href="${manifest.repository}">${manifest.repository}</a>\n`;
-  text += `<b>🏷️ Tags:</b> ${manifest.tags?.join(', ') || '—'}\n`;
-  text += `<b>📄 License:</b> ${manifest.license || '—'}\n\n`;
+  let text = `<b>📦 ${escapeHtml(manifest.name)}</b> v${escapeHtml(manifest.version)}\n\n`;
+  text += `<i>${escapeHtml(manifest.description)}</i>\n\n`;
+  text += `<b>👤 Author:</b> ${escapeHtml(manifest.author)}\n`;
+  text += `<b>📂 Repo:</b> ${repositoryHref ? `<a href="${repositoryHref}">${repositoryText}</a>` : repositoryText}\n`;
+  text += `<b>🏷️ Tags:</b> ${escapeHtml(manifest.tags?.join(', ') || '—')}\n`;
+  text += `<b>📄 License:</b> ${escapeHtml(manifest.license || '—')}\n\n`;
 
   text += `<b>🔐 Permissions (${manifest.permissions.length}):</b>\n`;
   text += formatPermissions(manifest.permissions) + '\n\n';
 
   if (installed) {
-    text += `✅ <b>Status:</b> Terinstall v${installedVersion}\n`;
+    text += `✅ <b>Status:</b> Terinstall v${escapeHtml(String(installedVersion ?? 'unknown'))}\n`;
     if (updateAvailable) {
-      text += `🔄 <b>Update tersedia:</b> v${manifest.version}\n`;
+      text += `🔄 <b>Update tersedia:</b> v${escapeHtml(manifest.version)}\n`;
     }
   } else {
     text += `⬜ <b>Status:</b> Belum terinstall\n`;
@@ -149,17 +191,17 @@ export async function searchPlugins(ctx: Context, query: string) {
   const results = searchRegistry(query);
 
   if (results.length === 0) {
-    await ctx.reply(`🔍 Tidak ditemukan plugin untuk: <b>${query}</b>`, { parse_mode: 'HTML' });
+    await ctx.reply(`🔍 Tidak ditemukan plugin untuk: <b>${escapeHtml(query)}</b>`, { parse_mode: 'HTML' });
     return;
   }
 
-  let text = `<b>🔍 HASIL PENCARIAN: "${query}"</b>\n\n`;
+  let text = `<b>🔍 HASIL PENCARIAN: "${escapeHtml(query)}"</b>\n\n`;
   const keyboard = new InlineKeyboard();
 
   for (const plugin of results.slice(0, 10)) {
     const isInstalled = getInstalledPlugins().some(p => p.manifest.name === plugin.name);
-    text += `${isInstalled ? '✅' : '⬜'} <b>${plugin.name}</b> v${plugin.version}\n`;
-    text += `   ${plugin.description.slice(0, 60)}...\n\n`;
+    text += `${isInstalled ? '✅' : '⬜'} <b>${escapeHtml(plugin.name)}</b> v${escapeHtml(plugin.version)}\n`;
+    text += `   ${escapeHtml(plugin.description.slice(0, 60))}...\n\n`;
 
     keyboard.text(`${isInstalled ? '🔄' : '📥'} ${plugin.name}`, `marketplace:detail:${plugin.name}`).row();
   }
@@ -210,10 +252,10 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
     try {
       await installPlugin(name);
-      await ctx.reply(`✅ Plugin <b>${name}</b> berhasil diinstall!`, { parse_mode: 'HTML' });
+      await ctx.reply(`✅ Plugin <b>${escapeHtml(name)}</b> berhasil diinstall!`, { parse_mode: 'HTML' });
       await showPluginDetail(ctx, name);
     } catch (err) {
-      await ctx.reply(`❌ Gagal install: ${err instanceof Error ? err.message : String(err)}`);
+      await ctx.reply(`❌ Gagal install: ${escapeHtml(err instanceof Error ? err.message : String(err))}`);
     }
   });
 
@@ -229,10 +271,10 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
     try {
       await updatePlugin(name);
-      await ctx.reply(`✅ Plugin <b>${name}</b> berhasil diupdate!`, { parse_mode: 'HTML' });
+      await ctx.reply(`✅ Plugin <b>${escapeHtml(name)}</b> berhasil diupdate!`, { parse_mode: 'HTML' });
       await showPluginDetail(ctx, name);
     } catch (err) {
-      await ctx.reply(`❌ Gagal update: ${err instanceof Error ? err.message : String(err)}`);
+      await ctx.reply(`❌ Gagal update: ${escapeHtml(err instanceof Error ? err.message : String(err))}`);
     }
   });
 
@@ -248,10 +290,10 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
     try {
       await removePlugin(name);
-      await ctx.reply(`✅ Plugin <b>${name}</b> berhasil dihapus!`, { parse_mode: 'HTML' });
+      await ctx.reply(`✅ Plugin <b>${escapeHtml(name)}</b> berhasil dihapus!`, { parse_mode: 'HTML' });
       await showInstalledPlugins(ctx);
     } catch (err) {
-      await ctx.reply(`❌ Gagal hapus: ${err instanceof Error ? err.message : String(err)}`);
+      await ctx.reply(`❌ Gagal hapus: ${escapeHtml(err instanceof Error ? err.message : String(err))}`);
     }
   });
 
@@ -285,7 +327,7 @@ export function registerMarketplaceHandlers(bot: Bot) {
     if (ctx.from?.id !== config.ownerId) {return;}
 
     // Expect: /madd name version description author repo entryPoint perm1,perm2,perm3
-    const args = ctx.message?.text?.split(' ').slice(1) || [];
+    const args = parseCommandArgs(ctx.message?.text || '').slice(1);
     if (args.length < 6) {
       await ctx.reply(
         `<b>Usage:</b> <code>/madd <name> <version> <description> <author> <repo> <entryPoint> <perms></code>\n\n` +
@@ -316,9 +358,9 @@ export function registerMarketplaceHandlers(bot: Bot) {
         permissions,
       });
 
-      await ctx.reply(`✅ Plugin <b>${name}</b> v${version} ditambahkan ke registry!`, { parse_mode: 'HTML' });
+      await ctx.reply(`✅ Plugin <b>${escapeHtml(name)}</b> v${escapeHtml(version)} ditambahkan ke registry!`, { parse_mode: 'HTML' });
     } catch (err) {
-      await ctx.reply(`❌ Gagal: ${err instanceof Error ? err.message : String(err)}`);
+      await ctx.reply(`❌ Gagal: ${escapeHtml(err instanceof Error ? err.message : String(err))}`);
     }
   });
 
@@ -334,7 +376,7 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
     const { removePluginFromRegistry } = await import('../../userbot/engine/pluginMarketplace.js');
     await removePluginFromRegistry(name);
-    await ctx.reply(`✅ Plugin <b>${name}</b> dihapus dari registry.`, { parse_mode: 'HTML' });
+    await ctx.reply(`✅ Plugin <b>${escapeHtml(name)}</b> dihapus dari registry.`, { parse_mode: 'HTML' });
   });
 
   // Owner: List registry
@@ -344,7 +386,7 @@ export function registerMarketplaceHandlers(bot: Bot) {
     const plugins = getRegistryPlugins();
     let text = `<b>📋 REGISTRY (${plugins.length} plugins)</b>\n\n`;
     for (const p of plugins.slice(0, 20)) {
-      text += `• <b>${p.name}</b> v${p.version} — ${p.description.slice(0, 50)}...\n`;
+      text += `• <b>${escapeHtml(p.name)}</b> v${escapeHtml(p.version)} — ${escapeHtml(p.description.slice(0, 50))}...\n`;
     }
     await ctx.reply(text, { parse_mode: 'HTML' });
   });

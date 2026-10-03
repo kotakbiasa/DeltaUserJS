@@ -361,7 +361,7 @@ export function panelSettings(ctx) {
   const isAntiPm = session?.anti_pm === 1;
   const isAfk = session?.auto_reply === 1;
   const botName = session?.custom_name || ctx.me?.first_name || 'Userbot';
-  const helperUser = session?.inline_bot_username ? `@${session.inline_bot_username}` : '<i>Belum diset</i>';
+  const helperUser = session?.inline_bot_username ? `@${escapeHtml(String(session.inline_bot_username))}` : '<i>Belum diset</i>';
 
   const antiPmBtn = `<tg-button type="callback_data" data="rich:toggle_anti_pm">${isAntiPm ? '🔴 Matikan' : '🟢 Aktifkan'}</tg-button>`;
   const afkBtn = `<tg-button type="callback_data" data="rich:toggle_afk">${isAfk ? '🔴 Matikan' : '🟢 Aktifkan'}</tg-button>`;
@@ -653,7 +653,7 @@ export function panelSubscription(ctx?: any) {
     ? (isConnected ? '🟢 Online' : '🟡 Menghubungkan...')
     : (session ? '🔴 Offline' : '⚪ Belum Ditautkan');
   const phoneText = session?.phone
-    ? `<tg-spoiler>${session.phone.startsWith('+') ? session.phone : `+${session.phone}`}</tg-spoiler>`
+    ? `<tg-spoiler>${escapeHtml(session.phone.startsWith('+') ? session.phone : `+${session.phone}`)}</tg-spoiler>`
     : (session ? '<i>Terhubung</i>' : '<i>Belum Ada Sesi</i>');
 
   const statusAkses = owner
@@ -664,7 +664,7 @@ export function panelSubscription(ctx?: any) {
     `<p>DeltaUserJS menggunakan sistem <b>Persetujuan Penuh (Approval-Only)</b> tanpa batas masa aktif atau biaya langganan.</p>` +
     `<table bordered striped><caption>📋 Kartu Status Akses &amp; Mesin</caption>` +
     `<tr><th>Parameter Akun</th><th>Informasi / Status</th></tr>` +
-    `<tr><td>🆔 ID Telegram</td><td align="center"><code>${userId || 'Root'}</code></td></tr>` +
+    `<tr><td>🆔 ID Telegram</td><td align="center"><code>${escapeHtml(String(userId || 'Root'))}</code></td></tr>` +
     `<tr><td>🛡️ Status Akses</td><td align="center">${statusAkses}</td></tr>` +
     `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td></tr>` +
     `<tr><td>⏱️ Masa Aktif</td><td align="center">♾️ Permanen (Tanpa Expired)</td></tr>` +
@@ -697,7 +697,7 @@ export function panelAccessDenied(ctx) {
     `<p>Pendaftaran userbot memerlukan persetujuan dari owner.</p>` +
     `<table bordered striped>` +
     `<tr><th>Informasi Akun</th><th>Status</th></tr>` +
-    `<tr><td>ID Telegram</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
+    `<tr><td>ID Telegram</td><td align="center"><code>${escapeHtml(String(ctx.from.id))}</code></td></tr>` +
     `<tr><td>Status Akses</td><td align="center">${statusText}</td></tr>` +
     `<tr><td>Masa Aktif</td><td align="center">♾️ Permanen (Setelah Disetujui)</td></tr>` +
     `</table>` +

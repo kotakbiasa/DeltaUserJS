@@ -1,4 +1,4 @@
-import { replyRich } from '../../../utils/richMessage.js';
+import { escapeHtml, replyRich } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import config from '../../../config.js';
 import { cancelKeyboard, waitForInput } from './shared.js';
@@ -26,6 +26,13 @@ export async function broadcastConversation(conversation, ctx) {
       throw err;
     }
 
+    const MAX_BROADCAST_MESSAGE_LENGTH = 4096;
+    const broadcastHeader = '📢 PEMBERITAHUAN USERBOT\n\n';
+    if (broadcastMsg.length + broadcastHeader.length > MAX_BROADCAST_MESSAGE_LENGTH) {
+      await replyRich(ctx, `<p>❌ Pesan terlalu panjang. Total pesan broadcast maksimal ${MAX_BROADCAST_MESSAGE_LENGTH} karakter.</p>`);
+      return;
+    }
+
     await replyRich(ctx, `<p>⏳ Memulai proses broadcast...</p>`);
 
     // Load DB and active list
@@ -37,7 +44,7 @@ export async function broadcastConversation(conversation, ctx) {
 
     for (const user of allUsers) {
       try {
-        await ctx.api.sendMessage(user.telegram_id, `📢 <b>PEMBERITAHUAN USERBOT</b>\n\n${broadcastMsg}`, {
+        await ctx.api.sendMessage(user.telegram_id, `📢 <b>PEMBERITAHUAN USERBOT</b>\n\n${escapeHtml(broadcastMsg)}`, {
           parse_mode: 'HTML',
         });
         successCount++;
