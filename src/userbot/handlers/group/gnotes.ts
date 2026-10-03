@@ -1,5 +1,6 @@
 import { saveGroupNote, deleteGroupNote, getAllGroupNotes, getGroupNote } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { escapeHtmlPreservingTgEmoji, parseTgEmojiTemplate } from '../../../utils/customEmoji.js';
 
 // Recall #hashtag: setiap pesan masuk diawali '#namacatatan' → kirim isi note.
 export default {
@@ -24,7 +25,7 @@ export default {
       const note = getGroupNote(chatIdR, noteName);
       if (note) {
         client.sendMessage(message.chatId, {
-          message: `📋 <b>#${escapeHtml(noteName)}</b>\n\n${escapeHtml(note)}`,
+          message: `📋 <b>#${escapeHtml(noteName)}</b>\n\n${escapeHtmlPreservingTgEmoji(note)}`,
           parseMode: 'html',
           replyTo: message.id
         }).catch(() => { /* ignore */ });
@@ -64,7 +65,20 @@ export default {
       let noteText = parts.slice(2).join(' ');
       const replied = await message.getReplyMessage();
       if (!noteText && replied && replied.message) {
-        noteText = replied.message;
+        if (replied.entities && replied.entities.length > 0) {
+          try {
+            const { HTMLParser } = await import('teleproto/extensions/html.js');
+            noteText = HTMLParser.unparse(replied.message, replied.entities);
+          } catch {
+            noteText = replied.message;
+          }
+        } else {
+          noteText = replied.message;
+        }
+      }
+
+      if (noteText) {
+        noteText = parseTgEmojiTemplate(noteText);
       }
 
       if (!noteText) {

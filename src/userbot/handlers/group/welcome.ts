@@ -1,6 +1,7 @@
 import { getChatSettings, updateChatSettings } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
+import { parseTgEmojiTemplate } from '../../../utils/customEmoji.js';
 
 export default {
   name: 'welcome',
@@ -63,12 +64,12 @@ export default {
           const safeName = escapeHtml(name);
           const safeTitle = escapeHtml(title);
 
-          const parsedMsg = welcomeTemplate
+          const parsedMsg = parseTgEmojiTemplate(welcomeTemplate)
             .replace(/{name}/g, safeName)
             .replace(/{id}/g, String(uId))
             .replace(/{title}/g, safeTitle);
 
-          await client.sendMessage(chatId, { message: parsedMsg });
+          await client.sendMessage(chatId, { message: parsedMsg, parseMode: 'html' });
         }
       }
 
@@ -95,12 +96,12 @@ export default {
         const safeName = escapeHtml(name);
         const safeTitle = escapeHtml(title);
 
-        const parsedMsg = goodbyeTemplate
+        const parsedMsg = parseTgEmojiTemplate(goodbyeTemplate)
           .replace(/{name}/g, safeName)
           .replace(/{id}/g, String(uId))
           .replace(/{title}/g, safeTitle);
 
-        await client.sendMessage(chatId, { message: parsedMsg });
+        await client.sendMessage(chatId, { message: parsedMsg, parseMode: 'html' });
       }
       return;
     }

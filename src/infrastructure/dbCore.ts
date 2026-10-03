@@ -70,6 +70,7 @@ const userbotSchema = new mongoose.Schema({
   broadcast_blacklist: [Number],
   disabled_plugins: [String],
   vars: { type: Map, of: String, default: {} },
+  custom_emojis: { type: Map, of: String, default: {} },
 }, { strict: false });
 
 const systemConfigSchema = new mongoose.Schema({
@@ -161,7 +162,8 @@ export function normalizeBot(raw: any = {}, id?: any) {
     schedules: Array.from(raw.schedules || []),
     chat_settings: raw.chat_settings || {},
     reputation_data: raw.reputation_data || {},
-    vars: raw.vars || {}
+    vars: raw.vars || {},
+    custom_emojis: raw.custom_emojis ? (raw.custom_emojis instanceof Map ? Object.fromEntries(raw.custom_emojis) : { ...raw.custom_emojis }) : {}
   };
 }
 

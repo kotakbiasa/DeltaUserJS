@@ -1,4 +1,5 @@
 import { InlineKeyboard } from 'grammy';
+import { parseTgEmojiTemplate } from './customEmoji.js';
 
 /** Minimal types for user/chat context used by parseRichText. */
 interface RichUserContext {
@@ -42,6 +43,9 @@ export function parseRichText(
     // case insensitive replacement for variables
     parsedText = parsedText.replace(new RegExp(key, 'gi'), value);
   }
+
+  // 1.1 Parse Custom Emoji Template Tags: {emoji:123456789:🔥} -> <tg-emoji>
+  parsedText = parseTgEmojiTemplate(parsedText);
 
   // 2. Parse Inline Buttons
   // Format: [Text](buttonurl://link.com) atau [Text](buttonurl://link.com:same)

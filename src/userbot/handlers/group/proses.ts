@@ -1,4 +1,5 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { getCustomEmoji } from '../../../utils/customEmoji.js';
 
 // ============================================================
 // PROSES — kartu status transaksi (teks estetik HTML blockquote)
@@ -20,26 +21,29 @@ function nowWib() {
 }
 
 const CARDS = {
-  proses: { emoji: '⏳', label: 'PROCESSING', statusId: 'Sedang Diproses' },
-  done: { emoji: '✅', label: 'DONE', statusId: 'Selesai' },
-  batal: { emoji: '❌', label: 'CANCELED', statusId: 'Dibatalkan' }
+  proses: { defaultEmoji: '⏳', label: 'PROCESSING', statusId: 'Sedang Diproses' },
+  done: { defaultEmoji: '✅', label: 'DONE', statusId: 'Selesai' },
+  batal: { defaultEmoji: '❌', label: 'CANCELED', statusId: 'Dibatalkan' }
 };
 
-function buildCard(kind, rawItem) {
+function buildCard(kind, rawItem, settings?: any) {
   const card = CARDS[kind];
+  const emoji = getCustomEmoji(settings, kind, card.defaultEmoji);
+  const itemEmoji = getCustomEmoji(settings, 'item', '📦');
+  const timeEmoji = getCustomEmoji(settings, 'time', '🕒');
   const item = rawItem.trim();
   const time = nowWib();
 
   return (
-    `${card.emoji} <b>${card.label}</b>\n\n` +
-    `<blockquote>📦 <b>Item:</b> ${escapeHtml(item)}\n` +
+    `${emoji} <b>${card.label}</b>\n\n` +
+    `<blockquote>${itemEmoji} <b>Item:</b> ${escapeHtml(item)}\n` +
     `🔖 <b>Status:</b> ${card.statusId}\n` +
-    `🕒 <b>Waktu (WIB):</b> <code>${escapeHtml(time)}</code></blockquote>\n\n` +
+    `${timeEmoji} <b>Waktu (WIB):</b> <code>${escapeHtml(time)}</code></blockquote>\n\n` +
     `<blockquote><i>Diproses otomatis oleh DeltaUbotJS</i></blockquote>`
   );
 }
 
-async function sendCard(message, kind, rawItem) {
+async function sendCard(message, kind, rawItem, settings?: any) {
   if (!rawItem || !rawItem.trim()) {
     await message.edit({
       text: `<blockquote>📚 <b>Penggunaan:</b> <code>.${kind} &lt;nama item&gt;</code>\nContoh: <code>.${kind} Panel Premium 1 Bulan</code></blockquote>`,
@@ -49,7 +53,7 @@ async function sendCard(message, kind, rawItem) {
   }
 
   await message.edit({
-    text: buildCard(kind, rawItem),
+    text: buildCard(kind, rawItem, settings),
     parseMode: 'html'
   });
 }
@@ -67,7 +71,7 @@ export default {
     detail: 'Semua kartu dirender sebagai HTML blockquote: judul status, nama item, status dalam Bahasa Indonesia, dan waktu WIB (Asia/Jakarta). ' +
       'Cocok untuk update cepat pembeli di chat transaksi.'
   },
-  async execute(client, message, _settings, _telegramId) {
+  async execute(client, message, settings, _telegramId) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.(\w+)(?:\s+([\s\S]+))?$/);
@@ -76,6 +80,6 @@ export default {
     const cmd = match[1].toLowerCase();
     if (cmd !== 'proses' && cmd !== 'done' && cmd !== 'batal') {return;}
 
-    await sendCard(message, cmd, match[2] || '');
+    await sendCard(message, cmd, match[2] || '', settings);
   }
 };

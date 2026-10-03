@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { updateUserbotFeature, UserbotModel, isMongo, readDbFromFile } from '../../../infrastructure/database.js';
+import { getCustomEmoji, parseTgEmojiTemplate } from '../../../utils/customEmoji.js';
 
 // ============================================================
 // PM Guard — anti-PM sederhana ala getter pmpermit
@@ -293,8 +294,15 @@ export default {
     if (guardState.warned.has(senderId)) {return;}
     guardState.warned.add(senderId);
     try {
+      const shieldEmoji = getCustomEmoji(settings, 'status', '🛡️');
+      const customAway = settings?.vars?.PMGUARD_TEXT || settings?.pmguard_text;
+      const textToSend = customAway ? parseTgEmojiTemplate(customAway) : (
+        `${shieldEmoji} <b>Auto-Reply</b>\n\n` +
+        'Owner sedang away. Pesan kamu sudah diterima dan akan dibalas saat owner kembali aktif. 🙏\n\n' +
+        '<i>(Pesan otomatis — PM Guard aktif)</i>'
+      );
       await message.reply({
-        message: AWAY_TEXT,
+        message: textToSend,
         parseMode: 'html',
         linkPreview: false
       });
