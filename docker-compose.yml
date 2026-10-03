@@ -38,6 +38,9 @@ services:
       - MUSLIM_SALAT_API_KEY=${MUSLIM_SALAT_API_KEY}
       - APP_URL=${APP_URL:-http://localhost:3000}
       - DIGITAL_STORE_PATH=/app/data/digital-store.json
+      # State approval/pending/terms — wajib di dalam volume /app/data,
+      # kalau tidak akan terhapus setiap rebuild image.
+      - STATE_DIR=/app/data
       - MIDTRANS_SERVER_KEY=${MIDTRANS_SERVER_KEY:-}
       - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-false}
       - XENDIT_API_KEY=${XENDIT_API_KEY:-}

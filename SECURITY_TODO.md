@@ -8,8 +8,8 @@ Tanggal verifikasi: **3 Oktober 2026**, commit dasar `1cb96bf`.
 > `import { exec }`. Temuan #1 dan #2 di bawah juga tidak tercantum di sana.
 > Dokumen ini yang jadi acuan.
 
-Status: 5 temuan terbuka — 0 Tinggi, 3 Sedang, 2 Rendah.
-Selesai: #1, #2, #3, #6, #7, #10.
+Status: **0 temuan terbuka.** Semua 10 temuan selesai.
+Selesai: #1, #2, #3, #4, #5, #6, #7, #8, #9, #10.
 
 ---
 
@@ -46,15 +46,15 @@ diambil alih, penyerang dapat RCE di server.
 
 **Cakupan penghapusan (disepakati: hapus total):**
 
-- [ ] Buang cabang `if (command === 'eval')` beserta seluruh blok `vm` (`:83–115`)
-- [ ] Buang konstanta `SAFE_EVAL_CONTEXT` (`:16–25`)
-- [ ] Buang `await import('node:vm')`
-- [ ] Ubah regex command `/^\.(eval|exec|sh)…/` → `/^\.(exec|sh)…/` (`:61`)
-- [ ] Update metadata help: `title` "Eval / Exec (.eval, .exec, .sh)" → "Exec",
+- [x] Buang cabang `if (command === 'eval')` beserta seluruh blok `vm` (`:83–115`)
+- [x] Buang konstanta `SAFE_EVAL_CONTEXT` (`:16–25`)
+- [x] Buang `await import('node:vm')`
+- [x] Ubah regex command `/^\.(eval|exec|sh)…/` → `/^\.(exec|sh)…/` (`:61`)
+- [x] Update metadata help: `title` "Eval / Exec (.eval, .exec, .sh)" → "Exec",
       `description`, `usage`, dan `detail` yang menyebut sandbox `.eval`
-- [ ] Update `description` plugin (`:43`) yang menyebut "kode JavaScript"
-- [ ] Ganti contoh error `.eval Math.PI` (`:69`) dengan contoh `.exec`
-- [ ] Grep sisa referensi `.eval` di `help.ts`, README, dan docs
+- [x] Update `description` plugin (`:43`) yang menyebut "kode JavaScript"
+- [x] Ganti contoh error `.eval Math.PI` (`:69`) dengan contoh `.exec`
+- [x] Grep sisa referensi `.eval` di `help.ts`, README, dan docs
 
 **Catatan:** menghapus `.eval` sekaligus menutup temuan #7 dan #10.
 
@@ -98,11 +98,14 @@ dibutuhkan.
 
 ---
 
-## 4. Blacklist broadcast diabaikan di Mini App  🟡 SEDANG
+## 4. Blacklist broadcast diabaikan di Mini App  ✅ SELESAI
 
-- [ ] Filter `chatIds` dengan `getBroadcastBlacklist(user.id)`
-- [ ] Batasi jumlah target dan panjang pesan
-- [ ] Cegah broadcast ganda per user (lock/antrian)
+- [x] Filter `chatIds` dengan `getBroadcastBlacklist(user.id)`
+- [x] Batasi jumlah target (`MAX_BROADCAST_TARGETS = 50`, sama dengan `.gcast`)
+      dan panjang pesan (`MAX_BROADCAST_MESSAGE_LENGTH = 4096`)
+- [x] Cegah broadcast ganda per user — `broadcastInProgress` Set, request kedua
+      ditolak dengan HTTP 409
+- [x] Response melaporkan `targetCount`, `skippedCount`, dan `cappedCount`
 
 **File:** `src/server/api.ts:421–457`
 
@@ -114,12 +117,17 @@ langsung oleh batas body 64 KB.
 
 ---
 
-## 5. Hot-reload plugin selalu gagal  🟡 SEDANG
+## 5. Hot-reload plugin selalu gagal  ✅ SELESAI
 
-- [ ] **Buat `unregisterPlugin(name)`** di `pluginRegistry.ts` — fungsi ini belum ada
-      (harus membersihkan `loadedPlugins`, `pluginByName`, dan `helpRegistry`)
-- [ ] Panggil sebelum register ulang di `loadSinglePlugin`
-- [ ] Bedakan log "Loaded" (pertama) vs "Reloaded" (hot-reload)
+- [x] `unregisterPlugin(name)` di `pluginRegistry.ts` — membersihkan
+      `loadedPlugins`, `pluginByName`, `pluginByCommand`, dan `helpRegistry`.
+      Hanya melepas command yang benar-benar milik plugin itu, sehingga command
+      yang dipegang plugin lain (karena bentrok nama) tetap utuh.
+- [x] Dipanggil sebelum register ulang di `loadSinglePlugin`
+- [x] Log dibedakan: `✅ Loaded` (pertama) vs `🔄 Reloaded` (hot-reload)
+- [x] **Bonus:** `registerPlugin(plugin, { at })` mengembalikan plugin ke posisi
+      semula di `loadedPlugins`, supaya urutan eksekusi plugin pasif tidak
+      berubah hanya karena sebuah file disimpan.
 
 **File:** `src/userbot/engine/pluginLoader.ts:41–63`, `pluginRegistry.ts:45–52`
 
@@ -161,9 +169,13 @@ orang lain — kebetulan, bukan desain.
 
 ---
 
-## 8. `restartUserbot()` tidak menyalakan ulang inline bot  🟢 RENDAH
+## 8. `restartUserbot()` tidak menyalakan ulang inline bot  ✅ SELESAI
 
-- [ ] Samakan logika start/stop inline bot, atau ekstrak ke helper bersama
+- [x] Diekstrak ke helper bersama `#startLocked()` / `#stopLocked()` yang dipakai
+      `startUserbot`, `stopUserbot`, dan `restartUserbot`. Keduanya mengasumsikan
+      pemanggil sudah memegang lock, jadi masalah double-lock yang dulu jadi
+      alasan menyalin logika tidak muncul. Sekarang hanya ada **satu** tempat yang
+      start dan satu yang stop inline bot — diuji di `test/hardening.test.js`.
 
 **File:** `src/userbot/engine/manager.ts:116–144`
 
@@ -174,9 +186,20 @@ Setelah restart, inline bot mati sampai userbot di-stop/start manual.
 
 ---
 
-## 9. Data approval disimpan di file lokal, bukan DB  🟢 RENDAH
+## 9. Data approval disimpan di file lokal, bukan DB  ✅ SELESAI
 
-- [ ] Pindahkan ke DB utama, atau mount volume khusus + masukkan ke `BackupService`
+- [x] Dipindahkan ke direktori data yang **sudah** punya volume
+      (`deltauserjs_store_data:/app/data`), mengikuti pola `DIGITAL_STORE_PATH`
+      yang sudah dipakai digital store — bukan menambah volume baru.
+- [x] `STATE_DIR` bisa di-override lewat env; disetel eksplisit di
+      `docker-compose.yml` dan didokumentasikan di `.env.example`.
+- [x] Migrasi sekali jalan: file lama di `process.cwd()` dipindah otomatis ke
+      direktori baru saat start, jadi deployment lama tidak kehilangan approval.
+
+> Tidak dipindah ke Mongo: keempat file ini dibaca sinkron saat modul di-load
+> (`fs.readFileSync` di top level), jadi memindahkannya ke DB berarti mengubah
+> seluruh modul jadi async dan menyentuh semua pemanggilnya. Menaruhnya di
+> volume menyelesaikan masalah persistensinya dengan perubahan jauh lebih kecil.
 
 **File:** `src/bot/state/approvedUsers.ts:12–15`
 
@@ -215,6 +238,8 @@ tidak berlaku untuk kerja async di dalam promise tersebut.
 | 1 | #1 (hapus `.eval`), #2, #6, #7 | Semua kecil & terisolasi di `exec.ts` + `crypto.ts`. #1 satu-satunya Tinggi. |
 | 2 | #3, #5 | Bug fungsional yang diam-diam mematikan fitur. |
 | 3 | #4, #8, #9 | Hardening & persistensi. |
+
+Ketiga PR sudah dikerjakan. Tidak ada temuan tersisa.
 
 Setiap PR wajib hijau di: `npx tsc --noEmit`, 11 unit test, dan 60 E2E test.
 Untuk #1 dan #2 tambahkan test regresi yang membuktikan jalur escape tertutup.

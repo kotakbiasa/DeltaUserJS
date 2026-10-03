@@ -62,6 +62,13 @@ class ApiRequestError extends Error {
   }
 }
 
+/** Batas target per siaran Mini App — disamakan dengan MAX_GCAST_TARGETS di `.gcast`. */
+const MAX_BROADCAST_TARGETS = 50;
+/** Batas panjang pesan siaran (batas teks Telegram). */
+const MAX_BROADCAST_MESSAGE_LENGTH = 4096;
+/** User yang siarannya sedang berjalan — mencegah broadcast tumpang-tindih. */
+const broadcastInProgress = new Set<number>();
+
 function decodePathSegment(segment: string): string {
   try {
     return decodeURIComponent(segment);
@@ -425,9 +432,51 @@ export async function handleApiRequest(req: AuthenticatedRequest, res: ServerRes
         return true;
       }
 
+      if (body.message.length > MAX_BROADCAST_MESSAGE_LENGTH) {
+        sendJson(req, res, 400, {
+          success: false,
+          error: `Pesan terlalu panjang (${body.message.length} karakter, maks ${MAX_BROADCAST_MESSAGE_LENGTH}).`,
+        });
+        return true;
+      }
+
+      // Satu broadcast per user. Tanpa ini beberapa request paralel saling
+      // menumpuk dan jeda anti-flood 1,2 detik jadi tidak berarti.
+      if (broadcastInProgress.has(Number(user.id))) {
+        sendJson(req, res, 409, {
+          success: false,
+          error: 'Masih ada siaran yang sedang berjalan. Tunggu sampai selesai.',
+        });
+        return true;
+      }
+
       const client = userbotManager.clients.get(Number(user.id));
       if (!client || !client.isConnected()) {
         sendJson(req, res, 400, { success: false, error: 'Userbot Anda sedang offline. Nyalakan userbot terlebih dahulu.' });
+        return true;
+      }
+
+      // Hormati blacklist broadcast, sama seperti .gcast. Sebelumnya endpoint
+      // ini melewatinya sama sekali, jadi Mini App bisa menembus chat yang
+      // sudah sengaja dikecualikan user.
+      const blacklist = getBroadcastBlacklist(user.id);
+      const requestedCount = body.chatIds.length;
+      const allowedTargets = body.chatIds
+        .map((chatId) => String(chatId))
+        .filter((chatId) => !blacklist.includes(chatId));
+      const skippedCount = requestedCount - allowedTargets.length;
+
+      // Batasi jumlah target, konsisten dengan MAX_GCAST_TARGETS di .gcast.
+      const targets = allowedTargets.slice(0, MAX_BROADCAST_TARGETS);
+      const cappedCount = allowedTargets.length - targets.length;
+
+      if (targets.length === 0) {
+        sendJson(req, res, 400, {
+          success: false,
+          error: skippedCount > 0
+            ? 'Semua tujuan yang dipilih ada di blacklist broadcast.'
+            : 'Tidak ada tujuan yang valid.',
+        });
         return true;
       }
 
@@ -435,8 +484,9 @@ export async function handleApiRequest(req: AuthenticatedRequest, res: ServerRes
       let sentCount = 0;
       let failedCount = 0;
 
+      broadcastInProgress.add(Number(user.id));
       (async () => {
-        for (const chatId of body.chatIds) {
+        for (const chatId of targets) {
           try {
             await (client.client as any).sendMessage(chatId, { message: body.message });
             sentCount++;
@@ -447,12 +497,22 @@ export async function handleApiRequest(req: AuthenticatedRequest, res: ServerRes
           // Jeda aman anti-flood (1.2 detik)
           await new Promise((r) => setTimeout(r, 1200));
         }
-        Logger.logUser(user.id, `Broadcast selesai: ${sentCount} sukses, ${failedCount} gagal.`, 'INFO');
-      })().catch(() => {});
+        Logger.logUser(user.id, `Broadcast selesai: ${sentCount} sukses, ${failedCount} gagal, ${skippedCount} dilewati (blacklist).`, 'INFO');
+      })()
+        .catch(() => {})
+        .finally(() => { broadcastInProgress.delete(Number(user.id)); });
+
+      const notes: string[] = [];
+      if (skippedCount > 0) {notes.push(`${skippedCount} dilewati (blacklist)`);}
+      if (cappedCount > 0) {notes.push(`${cappedCount} tidak dikirim (melebihi batas ${MAX_BROADCAST_TARGETS})`);}
 
       sendJson(req, res, 200, {
         success: true,
-        message: `Siaran sedang dikirim ke ${body.chatIds.length} tujuan di background.`,
+        message: `Siaran sedang dikirim ke ${targets.length} tujuan di background.`
+          + (notes.length > 0 ? ` ${notes.join(', ')}.` : ''),
+        targetCount: targets.length,
+        skippedCount,
+        cappedCount,
       });
       return true;
     }

@@ -2,7 +2,14 @@ import { readdir, stat } from 'fs/promises';
 import { watch, FSWatcher } from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
-import { clearRegistry, indexedCommandCount, loadedPlugins, registerPlugin, validatePlugin } from './pluginRegistry.js';
+import {
+  clearRegistry,
+  indexedCommandCount,
+  loadedPlugins,
+  registerPlugin,
+  unregisterPlugin,
+  validatePlugin,
+} from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,11 +60,16 @@ async function loadSinglePlugin(filePath: string) {
       delete plugin.help;
     }
 
-    const registered = registerPlugin(plugin, { file: fileRelPath });
-    Logger.logSystem(`  🔄 Reloaded: ${registered.name}`, 'INFO');
+    // Hot-reload: plugin dengan nama sama harus dilepas dulu, kalau tidak
+    // registerPlugin() selalu gagal dengan "plugin duplikat".
+    const previousIndex = unregisterPlugin(plugin.name);
+    const isReload = previousIndex !== null;
+
+    const registered = registerPlugin(plugin, { file: fileRelPath, at: previousIndex });
+    Logger.logSystem(`  ${isReload ? '🔄 Reloaded' : '✅ Loaded'}: ${registered.name}`, 'INFO');
     return true;
   } catch (err) {
-    Logger.logSystem(`  ✗ Failed to reload ${fileRelPath}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
+    Logger.logSystem(`  ✗ Failed to load ${fileRelPath}: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
     return false;
   }
 }

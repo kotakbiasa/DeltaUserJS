@@ -68,43 +68,60 @@ class UserbotManager {
         await this.stopUserbot(id);
       }
 
-      const userbot = new UserbotClient(id, sessionString);
-      this.clients.set(id, userbot);
-
-      try {
-        await userbot.start();
-        // Jika user punya INLINE_BOT_TOKEN — start polling inline bot untuk menu help tombol
-        const session = dbCache.get(id);
-        const inlineToken = session?.inline_bot_token || '';
-        if (inlineToken) {
-          startInlineBotForUser(id, inlineToken).catch((_e) => {});
-        }
-        return true;
-      } catch (err) {
-        this.clients.delete(id);
-        throw err;
-      }
+      return await this.#startLocked(id, sessionString);
     } finally {
       release();
     }
+  }
+
+  /**
+   * Inti start tanpa lock — dipakai startUserbot() dan restartUserbot() supaya
+   * keduanya tidak bisa lagi berbeda perilaku (temuan #8: restart dulu
+   * meng-inline logika ini dan lupa menyalakan inline bot).
+   * PENTING: pemanggil wajib sudah memegang lock untuk `id`.
+   */
+  async #startLocked(id: number, sessionString: string) {
+    const userbot = new UserbotClient(id, sessionString);
+    this.clients.set(id, userbot);
+
+    try {
+      await userbot.start();
+      // Jika user punya INLINE_BOT_TOKEN — start polling inline bot untuk menu help tombol
+      const session = dbCache.get(id);
+      const inlineToken = session?.inline_bot_token || '';
+      if (inlineToken) {
+        startInlineBotForUser(id, inlineToken).catch((_e) => {});
+      }
+      return true;
+    } catch (err) {
+      this.clients.delete(id);
+      throw err;
+    }
+  }
+
+  /**
+   * Inti stop tanpa lock — pasangan dari #startLocked().
+   * PENTING: pemanggil wajib sudah memegang lock untuk `id`.
+   */
+  async #stopLocked(id: number, reason: 'stop' | 'restart') {
+    const userbot = this.clients.get(id);
+    if (!userbot) {return false;}
+
+    await userbot.stop();
+    // Stop polling inline bot user ini
+    stopInlineBotForUser(id).catch((_e) => {});
+    const cleared = stopAllLoops(id);
+    if (cleared > 0) {Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on ${reason}.`, 'INFO');}
+    this.clients.delete(id);
+
+    return true;
   }
 
   async stopUserbot(telegramId) {
     const id = Number(telegramId);
     const release = await acquireLock(id);
     try {
-      const userbot = this.clients.get(id);
-
-      if (userbot) {
-        await userbot.stop();
-        // Stop polling inline bot user ini
-        stopInlineBotForUser(id).catch((_e) => {});
-        const cleared = stopAllLoops(id);
-        if (cleared > 0) {Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on stop.`, 'INFO');}
-        this.clients.delete(id);
-      }
-
-      return Boolean(userbot);
+      return await this.#stopLocked(id, 'stop');
     } finally {
       release();
     }
@@ -116,25 +133,10 @@ class UserbotManager {
     if (!session?.session_string) {throw new Error(`session tidak ditemukan untuk ${id}`);}
     const release = await acquireLock(id);
     try {
-      // Inline stop logic directly — don't call stopUserbot() to avoid double-lock
-      const userbot = this.clients.get(id);
-      if (userbot) {
-        await userbot.stop();
-        const cleared = stopAllLoops(id);
-        if (cleared > 0) {Logger.logUser(id, `🧹 Cleared ${cleared} orphaned loop(s) on restart.`, 'INFO');}
-        this.clients.delete(id);
-      }
-
-      // Inline start logic directly — don't call startUserbot() to avoid double-lock
-      const newUserbot = new UserbotClient(id, session.session_string);
-      this.clients.set(id, newUserbot);
-      try {
-        await newUserbot.start();
-        return true;
-      } catch (err) {
-        this.clients.delete(id);
-        throw err;
-      }
+      // Pakai helper tanpa-lock, bukan menyalin logikanya: menyalin itu yang
+      // membuat restart melewatkan stop/start inline bot (temuan #8).
+      await this.#stopLocked(id, 'restart');
+      return await this.#startLocked(id, session.session_string);
     } finally {
       release();
     }

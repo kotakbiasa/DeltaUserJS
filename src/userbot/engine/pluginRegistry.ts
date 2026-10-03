@@ -54,7 +54,10 @@ export function validatePlugin(plugin: unknown): string | null {
   return null;
 }
 
-export function registerPlugin(plugin: Plugin, meta: { file?: string | null } = {}): Plugin {
+export function registerPlugin(
+  plugin: Plugin,
+  meta: { file?: string | null; at?: number | null } = {},
+): Plugin {
   const reason = validatePlugin(plugin);
   if (reason) {throw new Error(reason);}
 
@@ -69,7 +72,14 @@ export function registerPlugin(plugin: Plugin, meta: { file?: string | null } = 
     file: meta.file || plugin.file || null,
   };
 
-  loadedPlugins.push(normalizedPlugin);
+  // `at` dipakai hot-reload: kembalikan plugin ke posisi semula supaya urutan
+  // eksekusi plugin pasif tidak berubah hanya karena sebuah file disimpan.
+  const at = meta.at;
+  if (typeof at === 'number' && at >= 0 && at <= loadedPlugins.length) {
+    loadedPlugins.splice(at, 0, normalizedPlugin);
+  } else {
+    loadedPlugins.push(normalizedPlugin);
+  }
   pluginByName.set(name, normalizedPlugin);
 
   for (const cmd of normalizedPlugin.commands || []) {
@@ -90,6 +100,34 @@ export function registerPlugin(plugin: Plugin, meta: { file?: string | null } = 
   }
 
   return normalizedPlugin;
+}
+
+/**
+ * Lepas plugin dari registry. Dipakai hot-reload sebelum mendaftar ulang —
+ * tanpa ini `registerPlugin` selalu melempar "plugin duplikat".
+ *
+ * Mengembalikan posisi plugin di `loadedPlugins` sebelum dihapus (agar
+ * pemanggil bisa mengembalikannya ke urutan yang sama lewat `meta.at`), atau
+ * null bila plugin memang belum terdaftar.
+ */
+export function unregisterPlugin(name: unknown): number | null {
+  const key = normalizePluginName(name);
+  const plugin = pluginByName.get(key);
+  if (!plugin) {return null;}
+
+  const index = loadedPlugins.indexOf(plugin);
+  if (index !== -1) {loadedPlugins.splice(index, 1);}
+
+  pluginByName.delete(key);
+  delete helpRegistry[key];
+
+  // Hanya lepas command yang benar-benar milik plugin ini. Command yang
+  // dipegang plugin lain (karena bentrok nama) harus tetap utuh.
+  for (const [command, owner] of pluginByCommand) {
+    if (owner === plugin) {pluginByCommand.delete(command);}
+  }
+
+  return index === -1 ? null : index;
 }
 
 /**

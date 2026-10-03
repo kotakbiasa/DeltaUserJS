@@ -15,7 +15,7 @@
     "build": "npm run clean && tsc && npm run build:webapp",
     "build:webapp": "npm --prefix webapp run build",
     "test": "npm run test:unit && node test/runner.js",
-    "test:unit": "node test/validation.test.js && node --test test/auth.test.js test/digitalStore.test.js test/customEmoji.test.js test/utils.test.js test/defineCommand.test.js test/dispatch.test.js test/security.test.js",
+    "test:unit": "node test/validation.test.js && node --test test/auth.test.js test/digitalStore.test.js test/customEmoji.test.js test/utils.test.js test/defineCommand.test.js test/dispatch.test.js test/security.test.js test/hardening.test.js",
     "lint": "eslint src/ --ext .ts",
     "lint:fix": "eslint src/ --ext .ts --fix",
     "format": "prettier --write src/",
