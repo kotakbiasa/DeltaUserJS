@@ -1,8 +1,8 @@
-import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { fetchWithTimeout } from '../../../utils/http.js';
+import { defineCommand } from '../../engine/defineCommand.js';
 
-export default {
+export default defineCommand({
   name: 'shortlink',
   version: '1.0.0',
   description: 'Perpendek URL dengan TinyURL.',
@@ -12,47 +12,26 @@ export default {
     usage: '`.shortlink <url>`',
     detail: 'Contoh: `.shortlink https://contoh.com/path/panjang`.'
   },
-  async execute(client, message, _settings, telegramId) {
-    if (!message.out || !message.message) {return;}
+  args: 'required',
+  validate: (url) => /^https?:\/\//i.test(url),
+  usage: '<code>.shortlink &lt;url&gt;</code>\nURL harus diawali http:// atau https://',
+  loading: 'Memperpendek URL...',
+  errorTitle: 'Gagal memperpendek URL',
+  logErrors: true,
+  finalExtra: { linkPreview: false },
 
-    const match = message.message.match(/^\.shortlink(?:\s+([\s\S]+))?$/i);
-    if (!match) {return;}
-
-    const url = (match[1] || '').trim();
-    if (!url || !/^https?:\/\//i.test(url)) {
-      await message.edit({
-        text: `<blockquote>❌ <b>Format salah:</b> <code>.shortlink &lt;url&gt;</code>\nURL harus diawali http:// atau https://</blockquote>`,
-        parseMode: 'html'
-      });
-      return;
+  async run({ arg: url }) {
+    const api = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`;
+    const res = await fetchWithTimeout(api, {}, 15_000);
+    if (!res.ok) {
+      throw new Error(`TinyURL responded ${res.status}`);
     }
 
-    await message.edit({
-      text: `<blockquote>⏳ <b>Memperpendek URL...</b></blockquote>`,
-      parseMode: 'html'
-    });
-
-    try {
-      const api = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`;
-      const res = await fetchWithTimeout(api, {}, 15_000);
-      if (!res.ok) {
-        throw new Error(`TinyURL responded ${res.status}`);
-      }
-      const short = (await res.text()).trim();
-      if (!short.startsWith('http')) {
-        throw new Error('Respons tidak valid');
-      }
-      await message.edit({
-        text: `🔗 <b>Shortlink</b>\n\n<blockquote><code>${escapeHtml(short)}</code></blockquote>\n<i>Asli:</i> ${escapeHtml(url)}`,
-        parseMode: 'html',
-        linkPreview: false
-      });
-    } catch (err) {
-      Logger.logUser(telegramId, `Error in shortlink plugin: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
-      await message.edit({
-        text: `<blockquote>❌ <b>Gagal memperpendek URL:</b> ${escapeHtml(err instanceof Error ? err.message : String(err))}</blockquote>`,
-        parseMode: 'html'
-      });
+    const short = (await res.text()).trim();
+    if (!short.startsWith('http')) {
+      throw new Error('Respons tidak valid');
     }
+
+    return `🔗 <b>Shortlink</b>\n\n<blockquote><code>${escapeHtml(short)}</code></blockquote>\n<i>Asli:</i> ${escapeHtml(url)}`;
   }
-};
+});
