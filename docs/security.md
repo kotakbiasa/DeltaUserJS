@@ -3,7 +3,7 @@
 Hasil review kode + verifikasi langsung terhadap source (bukan dokumen).
 Tanggal verifikasi: **3 Oktober 2026**, commit dasar `1cb96bf`.
 
-> ⚠️ `SECURITY_AUDIT_REPORT.md` (Juli 2025) sudah **usang** — baris 6 mengklaim
+> ⚠️ [`audits/archive/SECURITY_AUDIT_REPORT.md`](./audits/archive/SECURITY_AUDIT_REPORT.md) (Juli 2025) sudah **usang** — baris 6 mengklaim
 > `exec() → execFile()` sudah diperbaiki, padahal `exec.ts:2` masih
 > `import { exec }`. Temuan #1 dan #2 di bawah juga tidak tercantum di sana.
 > Dokumen ini yang jadi acuan.

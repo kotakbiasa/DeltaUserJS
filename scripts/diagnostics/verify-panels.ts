@@ -1,6 +1,6 @@
 // Verifikasi render semua panel dashboard — jalankan via tsx
-import { dbCache } from '../src/infrastructure/dbCore.js';
-import * as d from '../src/bot/ui/keyboards/dashboard.js';
+import { dbCache } from '../../src/infrastructure/dbCore.js';
+import * as d from '../../src/bot/ui/keyboards/dashboard.js';
 
 // Seed cache dengan data owner
 dbCache.set(1025855210, {

@@ -1,5 +1,5 @@
 /**
- * Regresi untuk temuan #4, #5, #8, #9 di SECURITY_TODO.md.
+ * Regresi untuk temuan #4, #5, #8, #9 di docs/security.md.
  *
  * Tiap test di sini dibuat untuk GAGAL pada kode sebelum perbaikan:
  *   #5 — registerPlugin melempar "plugin duplikat" saat hot-reload

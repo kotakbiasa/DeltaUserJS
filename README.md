@@ -119,11 +119,15 @@ src/
 ├── utils/               # Shared utilities
 │   ├── logger.ts
 │   ├── richMessage.ts
-│   └── richParser.ts
+│   ├── richParser.ts    # Rich-message parser (also covered by tests)
+│   └── ...
 ├── config.ts            # Environment config
 └── index.ts             # Entry point
 
 webapp/                  # React + Vite Telegram Mini App
+scripts/diagnostics/     # Manual dashboard diagnostics
+
+test/                    # Unit, integration, and E2E tests
 ```
 
 ## 🧩 Membuat Plugin
@@ -158,7 +162,12 @@ docker compose up -d
 
 ## 📚 Dokumentasi
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Penjelasan detail struktur & arsitektur
+- [Arsitektur saat ini](./docs/architecture.md) - Struktur source, alur runtime, dan plugin dinamis
+- [Security & correctness review](./docs/security.md) - Status verifikasi keamanan/kualitas terbaru
+- [Indeks dokumentasi](./docs/README.md) - Testing, teleproto, cheatsheet, dan arsip review
+
+Tool diagnostik dashboard manual tersedia melalui `npm run diagnostics:panels`,
+`npm run diagnostics:menus`, dan `npm run diagnostics:tags`.
 
 ## 📄 Lisensi
 
