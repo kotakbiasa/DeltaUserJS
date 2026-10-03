@@ -134,7 +134,7 @@ async function downloadTgMedia(
       const stats = fs.statSync(tmpPath);
       if (stats.size > 0) {
         Logger.logUser(0, `✅ Media berhasil diunduh: ${tmpPath} (${stats.size} bytes)`, 'SUCCESS');
-        return { path: tmpPath, cleanup: () => { try { fs.unlinkSync(tmpPath); } catch {} } };
+        return { path: tmpPath, cleanup: () => { try { fs.unlinkSync(tmpPath); } catch { /* cleanup best effort */ } } };
       }
     }
     Logger.logUser(0, '❌ Media hasil unduhan kosong (0 bytes)', 'ERROR');
