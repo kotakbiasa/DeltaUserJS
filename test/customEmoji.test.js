@@ -8,7 +8,8 @@ import {
   parseTgEmojiTemplate,
   getCustomEmoji,
   getAllEmojis,
-  extractEmojiFromContext
+  extractEmojiFromContext,
+  animateEmojisWithRestrictedPack
 } from '../dist/utils/customEmoji.js';
 import { parseRichText } from '../dist/utils/richParser.js';
 
@@ -106,4 +107,43 @@ test('parseRichText supports custom emoji shortcodes', () => {
   });
   assert.ok(result.text.includes('Halo Alex!'));
   assert.ok(result.text.includes('<tg-emoji emoji-id="5368324170671202286">💎</tg-emoji>'));
+});
+
+test('animateEmojisWithRestrictedPack animates standard emojis to RestrictedEmoji pack', () => {
+  const input = '🏓 Pong! 🚀 Speed ⏰ Time ✅ Selesai ❌ Gagal ⏳ Proses ⚡ Kilat';
+  const output = animateEmojisWithRestrictedPack(input);
+  assert.ok(output.includes('<tg-emoji emoji-id="5269563867305879894">🏓</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5445284980978621387">🚀</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5413704112220949842">⏰</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5465665476971471368">❌</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5451732530048802485">⏳</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5431449001532594346">⚡</tg-emoji>'));
+});
+
+test('animateEmojisWithRestrictedPack preserves existing <tg-emoji> and does not double-wrap', () => {
+  const input = 'Sudah custom: <tg-emoji emoji-id="999999">🔥</tg-emoji> dan biasa 🏓';
+  const output = animateEmojisWithRestrictedPack(input);
+  assert.ok(output.includes('<tg-emoji emoji-id="999999">🔥</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5269563867305879894">🏓</tg-emoji>'));
+  assert.ok(!output.includes('<tg-emoji emoji-id="999999"><tg-emoji'));
+});
+
+test('animateEmojisWithRestrictedPack protects <code> and <pre> blocks', () => {
+  const input = 'Teks luar 🏓 <code>.ping 🏓</code> dan <pre>raw 🚀</pre>';
+  const output = animateEmojisWithRestrictedPack(input);
+  assert.ok(output.includes('<tg-emoji emoji-id="5269563867305879894">🏓</tg-emoji>'));
+  assert.ok(output.includes('<code>.ping 🏓</code>'));
+  assert.ok(output.includes('<pre>raw 🚀</pre>'));
+});
+
+test('animateEmojisWithRestrictedPack handles aliases and VS16 variation selectors', () => {
+  // ❤️ with VS16 and without, ⚠️ warning, ⚙️ settings, 📢 broadcast, 🔒 lock
+  const input = '❤️ Cinta ⚠️ Warning ⚙️ Config 📢 Info 🔒 Kunci';
+  const output = animateEmojisWithRestrictedPack(input);
+  assert.ok(output.includes('<tg-emoji emoji-id="5449505950283078474">❤</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5467928559664242360">❗</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5449428597922079323">🧰</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5469903029144657419">📣</tg-emoji>'));
+  assert.ok(output.includes('<tg-emoji emoji-id="5472308992514464048">🔐</tg-emoji>'));
 });

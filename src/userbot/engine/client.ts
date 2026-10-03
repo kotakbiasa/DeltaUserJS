@@ -10,6 +10,7 @@ import { loadedPlugins, normalizePluginName } from './pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
 import { checkRateLimit } from './rateLimiter.js';
 import { isTestEnv } from '../../utils/env.js';
+import { animateEmojisWithRestrictedPack } from '../../utils/customEmoji.js';
 
 function disabledSet(settings) {
   return new Set((settings?.disabled_plugins || []).map(normalizePluginName));
@@ -120,6 +121,7 @@ export class UserbotClient {
 
       await this.client.connect();
       this.client.setParseMode('html');
+      this.setupEmojiInterceptor();
       this.isActive = true;
       Logger.logUser(this.telegramId, `🤖 DeltaUbotJS [${this.telegramId}] connected successfully.`, 'SUCCESS');
 
@@ -367,6 +369,61 @@ export class UserbotClient {
         // Abaikan error sunyi untuk event handler
       }
     }, new Raw({ types: [Api.UpdateEditMessage, Api.UpdateEditChannelMessage] }));
+  }
+
+  /**
+   * Set up interceptors on outgoing messages so standard emojis are automatically
+   * transformed into animated <tg-emoji> from the RestrictedEmoji pack.
+   */
+  private setupEmojiInterceptor(): void {
+    if (!this.client) {return;}
+
+    const origSendMessage = this.client.sendMessage.bind(this.client);
+    this.client.sendMessage = (entity: any, params: any) => {
+      if (params) {
+        if (typeof params.message === 'string') {
+          params.message = animateEmojisWithRestrictedPack(params.message);
+        }
+        if (params.parseMode === undefined) {
+          params.parseMode = 'html';
+        }
+      }
+      return origSendMessage(entity, params);
+    };
+
+    const origEditMessage = this.client.editMessage.bind(this.client);
+    this.client.editMessage = (entity: any, params: any) => {
+      if (params) {
+        if (typeof params.text === 'string') {
+          params.text = animateEmojisWithRestrictedPack(params.text);
+        }
+        if (typeof params.message === 'string') {
+          params.text = animateEmojisWithRestrictedPack(params.message);
+        }
+        if (params.richMessage && typeof params.richMessage.html === 'string') {
+          params.richMessage.html = animateEmojisWithRestrictedPack(params.richMessage.html);
+        }
+        if (params.parseMode === undefined) {
+          params.parseMode = 'html';
+        }
+      }
+      return origEditMessage(entity, params);
+    };
+
+    if (typeof (this.client as any).sendFile === 'function') {
+      const origSendFile = (this.client as any).sendFile.bind(this.client);
+      (this.client as any).sendFile = (entity: any, params: any) => {
+        if (params) {
+          if (typeof params.caption === 'string') {
+            params.caption = animateEmojisWithRestrictedPack(params.caption);
+          }
+          if (params.parseMode === undefined) {
+            params.parseMode = 'html';
+          }
+        }
+        return origSendFile(entity, params);
+      };
+    }
   }
 }
 

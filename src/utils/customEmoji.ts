@@ -261,3 +261,175 @@ export function extractEmojiFromContext(arg: string | undefined, message: any, r
 
   return null;
 }
+
+import { restrictedEmojiMap } from './restrictedEmojiMap.js';
+
+const ALIASES: Record<string, string> = {
+  // Warnings / Alerts
+  '⚠️': '❗',
+  '⚠': '❗',
+  '🚨': '❗',
+  '🛑': '❌',
+  '⛔': '❌',
+  '🚫': '❌',
+  '📛': '❗',
+
+  // Time / Timers / Clocks
+  '⏱️': '⏰',
+  '⏱': '⏰',
+  '🕒': '⏰',
+  '⌛': '⏳',
+
+  // System / Settings / Tools
+  '⚙️': '🧰',
+  '⚙': '🧰',
+  '🛠️': '🧰',
+  '🛠': '🧰',
+  '🔧': '🧰',
+  '🔨': '🧰',
+  '🏗️': '🧰',
+  '🏗': '🧰',
+
+  // Info / Lightbulb / Help
+  'ℹ️': '💡',
+  'ℹ': '💡',
+  '💡': '💡',
+
+  // Speaker / Sound / Notifications
+  '📢': '📣',
+  '🔊': '🔔',
+  '🔇': '🔕',
+
+  // Locks / Keys / Security
+  '🔒': '🔐',
+  '🔓': '🔐',
+  '🛡️': '⚡',
+  '🛡': '⚡',
+
+  // Documents / Notes / Lists
+  '📋': '📝',
+  '🧾': '📝',
+  '📄': '📝',
+  '📑': '📝',
+  '🗂️': '📝',
+
+  // Folders / Storage / Save
+  '💾': '📁',
+  '🗄️': '📁',
+  '🗄': '📁',
+  '💿': '💻',
+
+  // Clean / Trash / Delete
+  '🗑️': '🧽',
+  '🗑': '🧽',
+  '🧹': '🧽',
+
+  // Screens / Computers
+  '🖥️': '💻',
+  '🖥': '💻',
+
+  // Globe / Web
+  '🌐': '🌍',
+
+  // Navigation / Target / Pin
+  '📌': '🎯',
+  '📍': '🎯',
+
+  // Loop / Repeat / Play / Pause
+  '🔁': '🔄',
+  '▶️': '🚀',
+  '▶': '🚀',
+  '⏸️': '❌',
+  '⏸': '❌',
+  '⏹️': '❌',
+  '⏹': '❌',
+  '⏭️': '🚀',
+  '⏭': '🚀',
+  '↪️': '🔄',
+  '↪': '🔄',
+
+  // Status indicators / Colors
+  '🟢': '✅',
+  '🔴': '❌',
+  '🟡': '⭐',
+  '⚪': '🤍',
+
+  // Money / Finance
+  '💵': '💸',
+
+  // Badges / Tags / Gifts
+  '📦': '🎁',
+  '🏷️': '🎫',
+  '🏷': '🎫',
+  '🔖': '🎫'
+};
+
+const allKeys = new Set<string>();
+for (const k of Object.keys(restrictedEmojiMap)) {
+  allKeys.add(k);
+  allKeys.add(k + '\uFE0F');
+}
+for (const k of Object.keys(ALIASES)) {
+  allKeys.add(k);
+  const clean = k.replace(/\uFE0F/g, '');
+  allKeys.add(clean);
+  allKeys.add(clean + '\uFE0F');
+}
+
+const allSupportedEmojis = Array.from(allKeys).sort((a, b) => b.length - a.length);
+const escapedPatterns = allSupportedEmojis.map(e => e.replace(/[.*+?^${}()|[\]\/\\]/g, '\\$&'));
+const emojiRegex = new RegExp(escapedPatterns.join('|'), 'g');
+
+/**
+ * Automatically convert all bare standard emojis in text into animated <tg-emoji> from RestrictedEmoji.
+ */
+export function animateEmojisWithRestrictedPack(html: string): string {
+  if (!html || typeof html !== 'string') {return html;}
+  const tokens: { id: string; val: string }[] = [];
+
+  // 1. Protect existing <tg-emoji> tags
+  let protectedStr = html.replace(/<tg-emoji\s+[^>]*>[\s\S]*?<\/tg-emoji>/gi, m => {
+    const id = tokens.length;
+    const tokenStr = `___TG_EMOJI_KEEP_${id}___`;
+    tokens.push({ id: tokenStr, val: m });
+    return tokenStr;
+  });
+
+  // 2. Protect <code> and <pre> blocks so code syntax isn't broken
+  protectedStr = protectedStr.replace(/<(code|pre)[^>]*>[\s\S]*?<\/\1>/gi, m => {
+    const id = tokens.length;
+    const tokenStr = `___TG_CODE_HOLD_${id}___`;
+    tokens.push({ id: tokenStr, val: m });
+    return tokenStr;
+  });
+
+  // 3. Protect HTML tags like <a>, <b>, <blockquote>, etc.
+  const htmlTags: string[] = [];
+  protectedStr = protectedStr.replace(/<[^>]+>/g, m => {
+    const id = htmlTags.length;
+    htmlTags.push(m);
+    return `___HTML_TAG_${id}___`;
+  });
+
+  // 4. Replace all bare emojis with animated <tg-emoji> from RestrictedEmoji
+  protectedStr = protectedStr.replace(emojiRegex, matched => {
+    const clean = matched.replace(/\uFE0F/g, '');
+    const target = ALIASES[matched] || ALIASES[clean] || (restrictedEmojiMap[clean] ? clean : (restrictedEmojiMap[matched] ? matched : null));
+    if (target && restrictedEmojiMap[target]) {
+      return `<tg-emoji emoji-id="${restrictedEmojiMap[target]}">${target}</tg-emoji>`;
+    }
+    return matched;
+  });
+
+  // 5. Restore HTML tags
+  htmlTags.forEach((tag, idx) => {
+    protectedStr = protectedStr.replace(`___HTML_TAG_${idx}___`, tag);
+  });
+
+  // 6. Restore protected code & existing tg-emoji
+  tokens.forEach(tok => {
+    protectedStr = protectedStr.replace(tok.id, tok.val);
+  });
+
+  return protectedStr;
+}
