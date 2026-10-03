@@ -25,3 +25,6 @@ terms_accepted*.json
 plugins_marketplace/
 src/plugins_marketplace/
 dist
+
+# vendored upstream documentation copies (kept locally as reference, not tracked)
+docs/grammy/
