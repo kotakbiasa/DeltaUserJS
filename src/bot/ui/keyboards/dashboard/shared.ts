@@ -10,7 +10,7 @@ import { getAllRegisteredUsers, getDisabledPlugins, updateTelegramPremiumStatus 
 import { systemConfigCache } from '../../../../infrastructure/dbCore.js';
 import { loadedPlugins } from '../../../../userbot/engine/pluginRegistry.js';
 import type { Plugin } from '../../../../userbot/engine/pluginRegistry.js';
-import { getApprovedUserMeta, getApprovedUsers } from '../../../state/approvedUsers.js';
+import { getApprovedUserMeta, getApprovedUsers, isApproved } from '../../../state/approvedUsers.js';
 
 export const PROTECTED_PLUGINS = ['admin', 'pluginmanager'];
 
@@ -78,6 +78,15 @@ export function badge(condition, yes = '✅', no = '❌') {
 
 export function isOwner(ctx) {
   return Number(ctx.from?.id) === Number(config.ownerId);
+}
+
+export function isAutoApproveEnabled(): boolean {
+  return getSystemVarValue('AUTO_APPROVE', '0') === '1';
+}
+
+export function canRegister(ctx: Context): boolean {
+  const userId = ctx.from?.id;
+  return Boolean(userId && (isOwner(ctx) || isApproved(userId) || isAutoApproveEnabled()));
 }
 
 export function userInfo(ctx) {

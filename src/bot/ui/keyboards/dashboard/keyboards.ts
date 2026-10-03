@@ -14,8 +14,9 @@ import {
   ADMIN_USERS_PER_PAGE,
   LOOPS_PER_PAGE,
   PROTECTED_PLUGINS,
+  canRegister,
   getCombinedAdminUsers,
-  getSystemVarValue,
+  isAutoApproveEnabled,
   isOwner,
   normalizedDisabled,
   pluginPageInfo,
@@ -52,13 +53,14 @@ export function keyboardMain(ctx) {
       { text: '📊 Statistik', callback_data: 'rich:stats' },
       { text: '❓ Panduan & Bantuan', callback_data: 'rich:guide' },
     ]);
+    rows.push([{ text: '📋 Semua Menu', callback_data: 'rich:panel_menu' }]);
     if (isOwner(ctx)) {
       rows.push([{ text: '👑 Panel Admin Command Center', callback_data: 'rich:admin' }]);
     }
     rows.push([{ text: '💰 Donasi', callback_data: 'rich:donate' }]);
   } else {
     // Pengguna Baru / Tamu ("Orang Lain")
-    const approved = isOwner(ctx) || isApproved(ctx.from.id);
+    const approved = canRegister(ctx);
     const pending = isPendingApproval(ctx.from.id);
 
     if (approved) {
@@ -73,6 +75,7 @@ export function keyboardMain(ctx) {
       { text: '📊 Statistik', callback_data: 'rich:stats' },
       { text: '❓ Panduan & Bantuan', callback_data: 'rich:guide' },
     ]);
+    rows.push([{ text: '📋 Semua Menu', callback_data: 'rich:panel_menu' }]);
     if (isOwner(ctx)) {
       rows.push([{ text: '👑 Panel Admin Command Center', callback_data: 'rich:admin' }]);
     }
@@ -99,10 +102,14 @@ export function keyboardPanelMenu(ctx) {
       { text: '📜 Cheatsheet Perintah', callback_data: 'rich:help_commands' },
       { text: '❓ Panduan & Bantuan', callback_data: 'rich:guide' },
     ]);
-  } else {
+  } else if (canRegister(ctx)) {
     rows.push([
       { text: '🚀 Mulai Daftar Userbot', callback_data: 'rich:register' },
     ]);
+  } else if (isPendingApproval(ctx.from.id)) {
+    rows.push([{ text: '🔄 Cek Status Approval', callback_data: 'rich:check_approval' }]);
+  } else {
+    rows.push([{ text: '📩 Minta Persetujuan Akses', callback_data: 'rich:claim_trial' }]);
   }
 
   if (isOwner(ctx)) {
@@ -116,7 +123,7 @@ export function keyboardPanelMenu(ctx) {
 export function keyboardUserbot(ctx) {
   const session = getUserbotSession(ctx.from.id);
   if (!session) {
-    const approved = isOwner(ctx) || isApproved(ctx.from.id);
+    const approved = canRegister(ctx);
     if (approved) {
       return {
         inline_keyboard: [
@@ -300,7 +307,7 @@ export function keyboardTermsDeclined() {
 export function keyboardRegister() {
   return { inline_keyboard: [
     [{ text: '📱 Login via OTP', callback_data: 'rich:otp' }, { text: '🔍 Scan QR Code', callback_data: 'rich:qr' }],
-    [{ text: '📜 Syarat & Ketentuan', callback_data: 'rich:tos_view' }, { text: '💎 Paket VIP', callback_data: 'rich:subscription' }],
+    [{ text: '📜 Syarat & Ketentuan', callback_data: 'rich:tos_view' }, { text: '🛡️ Status Akses', callback_data: 'rich:subscription' }],
     [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
@@ -313,7 +320,7 @@ export function keyboardSubscription(ctx?: Context) {
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
-  const approved = userId ? (owner || isApproved(userId)) : false;
+  const approved = userId ? (owner || isApproved(userId) || isAutoApproveEnabled()) : false;
   const pending = userId ? isPendingApproval(userId) : false;
   const rows: DashboardButtonRows = [];
 
@@ -442,7 +449,7 @@ export function keyboardAdminUserDetail(targetId: number) {
   if (!session) {
     if (isApproved(targetId)) {
       return { inline_keyboard: [
-        [{ text: '🚫 Cabut Izin Approval', callback_data: `rich:admin_revoke_user:${targetId}` }],
+        [{ text: '🚫 Cabut Izin Approval', callback_data: `rich:admin_revoke_user_confirm:${targetId}` }],
         [
           { text: '🔙 Daftar User', callback_data: 'rich:admin_users:1' },
           { text: '👑 Admin Hub', callback_data: 'rich:admin' },
@@ -461,8 +468,8 @@ export function keyboardAdminUserDetail(targetId: number) {
       { text: isRunning ? '⏹️ Matikan Userbot' : '▶️ Jalankan Userbot', callback_data: `rich:admin_power_user:${targetId}` }
     ],
     [
-      { text: '🚫 Cabut Izin', callback_data: `rich:admin_revoke_user:${targetId}` },
-      { text: '🗑️ Hapus Akun', callback_data: `rich:admin_delete_user:${targetId}` },
+      { text: '🚫 Cabut Izin', callback_data: `rich:admin_revoke_user_confirm:${targetId}` },
+      { text: '🗑️ Hapus Akun', callback_data: `rich:admin_delete_user_confirm:${targetId}` },
     ],
     [
       { text: '🔙 Daftar User', callback_data: 'rich:admin_users:1' },
@@ -482,11 +489,11 @@ export function keyboardAdminFleet() {
   return { inline_keyboard: [
     [
       { text: '🔄 Restart Semua Userbot', callback_data: 'rich:admin_fleet_restart' },
-      { text: '🛑 Matikan Semua Userbot', callback_data: 'rich:admin_fleet_stop' },
+      { text: '🛑 Matikan Semua Userbot', callback_data: 'rich:admin_fleet_stop_confirm' },
     ],
     [
       { text: '🚀 Jalankan Semua Userbot', callback_data: 'rich:admin_fleet_start' },
-      { text: '🔄 Restart Master Bot', callback_data: 'rich:admin_restart_bot' },
+      { text: '🔄 Restart Master Bot', callback_data: 'rich:admin_restart_bot_confirm' },
     ],
     [{ text: '🔙 Admin Hub', callback_data: 'rich:admin' }],
   ] };
@@ -502,7 +509,7 @@ export function keyboardAdminBackup() {
 }
 
 export function keyboardAdminSettings() {
-  const autoApprove = getSystemVarValue('AUTO_APPROVE', '0') === '1';
+  const autoApprove = isAutoApproveEnabled();
   return { inline_keyboard: [
     [
       { text: `🛡️ Mode: ${autoApprove ? '🌐 Buka Bebas' : '🔒 Approval Owner'}`, callback_data: 'rich:admin_toggle_auto_approve' }

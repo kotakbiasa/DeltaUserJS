@@ -79,6 +79,7 @@ export async function showMarketplaceMenu(ctx: Context) {
   text += `📦 Total: ${plugins.length} | 📥 Installed: ${installed.length}\n\n`;
 
   const keyboard = new InlineKeyboard();
+  const owner = Number(ctx.from?.id) === Number(config.ownerId);
 
   for (const plugin of plugins.slice(0, 10)) {
     const isInstalled = installedNames.has(plugin.name);
@@ -88,7 +89,11 @@ export async function showMarketplaceMenu(ctx: Context) {
     text += `${status} <b>${escapeHtml(plugin.name)}</b> v${escapeHtml(plugin.version)}${updateAvail}\n`;
     text += `   ${escapeHtml(plugin.description.slice(0, 60))}...\n\n`;
 
-    keyboard.text(`${isInstalled ? '🔄' : '📥'} ${plugin.name} v${plugin.version}`, `marketplace:install:${plugin.name}`).row();
+    const action = !isInstalled
+      ? `marketplace:detail:${plugin.name}`
+      : (updateAvail && owner ? `marketplace:update:${plugin.name}` : `marketplace:detail:${plugin.name}`);
+    const actionLabel = !isInstalled ? '📦' : (updateAvail && owner ? '🔄' : '✅');
+    keyboard.text(`${actionLabel} ${plugin.name} v${plugin.version}`, action).row();
   }
 
   if (plugins.length > 10) {
@@ -107,6 +112,7 @@ export async function showMarketplaceMenu(ctx: Context) {
  */
 export async function showInstalledPlugins(ctx: Context) {
   const installed = getInstalledPlugins();
+  const owner = Number(ctx.from?.id) === Number(config.ownerId);
 
   if (installed.length === 0) {
     await ctx.reply('📭 Belum ada plugin terinstall.', {
@@ -126,9 +132,11 @@ export async function showInstalledPlugins(ctx: Context) {
     text += `   ${escapeHtml(plugin.manifest.description.slice(0, 60))}...\n`;
     text += `   Permission: ${plugin.manifest.permissions.length}\n\n`;
 
-    keyboard.text(`🗑️ Hapus ${plugin.manifest.name}`, `marketplace:remove:${plugin.manifest.name}`).row();
-    if (info?.updateAvailable) {
-      keyboard.text(`🔄 Update ${plugin.manifest.name}`, `marketplace:update:${plugin.manifest.name}`).row();
+    if (owner) {
+      keyboard.text(`🗑️ Hapus ${plugin.manifest.name}`, `marketplace:remove:${plugin.manifest.name}`).row();
+      if (info?.updateAvailable) {
+        keyboard.text(`🔄 Update ${plugin.manifest.name}`, `marketplace:update:${plugin.manifest.name}`).row();
+      }
     }
   }
 
@@ -148,6 +156,7 @@ export async function showPluginDetail(ctx: Context, name: string) {
   }
 
   const { manifest, installed, installedVersion, updateAvailable } = info;
+  const owner = Number(ctx.from?.id) === Number(config.ownerId);
   const repositoryHref = safeRepositoryHref(manifest.repository);
   const repositoryText = escapeHtml(manifest.repository);
 
@@ -171,12 +180,12 @@ export async function showPluginDetail(ctx: Context, name: string) {
   }
 
   const keyboard = new InlineKeyboard();
-  if (installed) {
+  if (owner && installed) {
     if (updateAvailable) {
       keyboard.text('🔄 Update', `marketplace:update:${manifest.name}`).row();
     }
     keyboard.text('🗑️ Hapus', `marketplace:remove:${manifest.name}`).row();
-  } else {
+  } else if (owner) {
     keyboard.text('📥 Install', `marketplace:install:${manifest.name}`).row();
   }
   keyboard.text('🏪 Kembali', 'marketplace:menu').row();
@@ -242,13 +251,12 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
   // Install plugin
   bot.callbackQuery(/^marketplace:install:(.+)$/, async (ctx) => {
-    await ctx.answerCallbackQuery('Menginstall...');
     const name = ctx.match[1];
-
     if (ctx.from?.id !== config.ownerId) {
-      await ctx.reply('❌ Hanya owner yang bisa install plugin.');
+      await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang bisa install plugin.', show_alert: true });
       return;
     }
+    await ctx.answerCallbackQuery('Menginstall...');
 
     try {
       await installPlugin(name);
@@ -261,13 +269,12 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
   // Update plugin
   bot.callbackQuery(/^marketplace:update:(.+)$/, async (ctx) => {
-    await ctx.answerCallbackQuery('Mengupdate...');
     const name = ctx.match[1];
-
     if (ctx.from?.id !== config.ownerId) {
-      await ctx.reply('❌ Hanya owner yang bisa update plugin.');
+      await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang bisa update plugin.', show_alert: true });
       return;
     }
+    await ctx.answerCallbackQuery('Mengupdate...');
 
     try {
       await updatePlugin(name);
@@ -280,13 +287,12 @@ export function registerMarketplaceHandlers(bot: Bot) {
 
   // Remove plugin
   bot.callbackQuery(/^marketplace:remove:(.+)$/, async (ctx) => {
-    await ctx.answerCallbackQuery('Menghapus...');
     const name = ctx.match[1];
-
     if (ctx.from?.id !== config.ownerId) {
-      await ctx.reply('❌ Hanya owner yang bisa hapus plugin.');
+      await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang bisa hapus plugin.', show_alert: true });
       return;
     }
+    await ctx.answerCallbackQuery('Menghapus...');
 
     try {
       await removePlugin(name);

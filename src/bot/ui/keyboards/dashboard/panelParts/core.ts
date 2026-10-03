@@ -5,11 +5,12 @@ import userbotManager from '../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../utils/richMessage.js';
 import { Api } from 'teleproto';
-import { isApproved, isPendingApproval } from '../../../../state/approvedUsers.js';
+import { isPendingApproval } from '../../../../state/approvedUsers.js';
 import {
   PLUGIN_CATEGORIES,
   PROTECTED_PLUGINS,
   badge,
+  canRegister,
   formatModuleName,
   formatTelegramPremiumBadge,
   getPluginCategory,
@@ -36,10 +37,10 @@ export function panelMain(ctx) {
   const running = isRegistered && userbotManager.isRunning(ctx.from.id);
 
   if (!isRegistered) {
-    const approved = isOwner(ctx) || isApproved(ctx.from.id);
+    const approved = canRegister(ctx);
     const pending = isPendingApproval(ctx.from.id);
 
-    if (pending) {
+    if (pending && !approved) {
       return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
         `<p>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
         `Permohonan pendaftaran akun Anda sedang menunggu persetujuan owner.</p>` +
@@ -138,7 +139,7 @@ export function panelMenuList(ctx) {
 export function panelUserbot(ctx) {
   const session = getUserbotSession(ctx.from.id);
   if (!session) {
-    const approved = isOwner(ctx) || isApproved(ctx.from.id);
+    const approved = canRegister(ctx);
     if (approved) {
       return `<h1 align="center">🔓 Akses Disetujui: Hubungkan Userbot</h1>` +
         `<p>Akun Anda <b>sudah disetujui</b> oleh owner, tetapi Anda belum menghubungkan sesi Telegram.</p>` +
@@ -186,7 +187,7 @@ export function panelUserbot(ctx) {
   const loopBtn = `<tg-button type="callback_data" data="rich:user_loops:1">⏰ Kelola</tg-button>`;
 
   const phoneText = session?.phone
-    ? `<tg-spoiler>${session.phone.startsWith('+') ? session.phone : `+${session.phone}`}</tg-spoiler>`
+    ? `<tg-spoiler>${escapeHtml(session.phone.startsWith('+') ? session.phone : `+${session.phone}`)}</tg-spoiler>`
     : '<i>Disembunyikan</i>';
 
   const floodBanner = flood.inCooldown
@@ -496,7 +497,7 @@ export async function panelUserbotDiag(ctx) {
 }
 
 export function panelTermsOfService(ctx) {
-  const firstName = ctx.from?.first_name || 'User';
+  const firstName = escapeHtml(ctx.from?.first_name || 'User');
   return {
     blocks: [
       {
@@ -546,7 +547,7 @@ export function panelTermsOfService(ctx) {
 }
 
 export function panelTermsDeclined(ctx) {
-  const firstName = ctx.from?.first_name || 'User';
+  const firstName = escapeHtml(ctx.from?.first_name || 'User');
   return {
     blocks: [
       {
@@ -579,7 +580,7 @@ export function panelTermsDeclined(ctx) {
 }
 
 export function panelDangerDelete(ctx?: Context) {
-  const firstName = ctx?.from?.first_name || 'User';
+  const firstName = escapeHtml(ctx?.from?.first_name || 'User');
   return {
     blocks: [
       {
@@ -651,7 +652,7 @@ export function panelSubscription(ctx?: Context) {
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
   const isTgPremium = isTelegramPremium(ctx, session);
-  const approved = userId ? (owner || isApproved(userId)) : false;
+  const approved = ctx && userId ? canRegister(ctx) : false;
   const pending = userId ? isPendingApproval(userId) : false;
 
   const running = userId ? userbotManager.isRunning(userId) : false;

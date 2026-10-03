@@ -2,6 +2,7 @@ import fs from 'fs';
 import { InputFile } from 'grammy';
 import config from '../../config.js';
 import { UserbotModel } from '../../infrastructure/database.js';
+import { escapeHtml } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 
 export function registerOwnerHandlers(bot) {
@@ -125,14 +126,14 @@ export function registerOwnerHandlers(bot) {
       return ctx.replyWithRichMessage({ html: `<p>ℹ️ Tidak ada permintaan approval yang pending.</p>` });
     }
     const rows = pendingList.map((p) => {
-      const username = p.username ? `@${p.username}` : '—';
+      const username = p.username ? `@${escapeHtml(p.username)}` : '—';
       const timeStr = new Date(p.requestedAt).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' });
-      return `<tr><td><code>${p.userId}</code></td><td>${p.name}</td><td>${username}</td><td>${timeStr}</td></tr>`;
+      return `<tr><td><code>${p.userId}</code></td><td>${escapeHtml(p.name)}</td><td>${username}</td><td>${timeStr}</td></tr>`;
     }).join('');
 
     const keyboard = {
       inline_keyboard: pendingList.slice(0, 5).map(p => [
-        { text: `✅ Setujui ${p.name}`, callback_data: `approve_trial:${p.userId}` },
+        { text: `✅ Setujui ${String(p.name).replace(/\s+/g, ' ').slice(0, 32)}`, callback_data: `approve_trial:${p.userId}` },
         { text: `❌ Tolak`, callback_data: `reject_trial:${p.userId}` },
       ])
     };

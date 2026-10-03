@@ -27,7 +27,9 @@ export function panelUserLoops(ctx: Context, page = 1) {
       const shortMsg = item.message.length > 20
         ? escapeHtml(item.message.substring(0, 20)) + '...'
         : escapeHtml(item.message);
-      const encodedTarget = Buffer.from(item.chatKey).toString('hex');
+      // base64url keeps callback_data below Telegram's 64-byte limit for
+      // usernames and chat IDs while remaining reversible without state.
+      const encodedTarget = Buffer.from(item.chatKey, 'utf8').toString('base64url');
       const delBtn = `<tg-button type="callback_data" data="rich:del_loop:${encodedTarget}">⏹️ Hapus</tg-button>`;
       return `<tr><td><b>${num}.</b> <code>${targetStr}</code></td><td align="center">${item.value}m</td><td><i>"${shortMsg}"</i></td><td align="center">${delBtn}</td></tr>`;
     }).join('');
