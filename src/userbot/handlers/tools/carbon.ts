@@ -1,4 +1,5 @@
 import { fetchWithTimeout } from '../../../utils/http.js';
+import { defineCommand } from '../../engine/defineCommand.js';
 const THEMES = [
   "3024-night", "a11y-dark", "blackboard", "base16-dark", "base16-light",
   "cobalt", "dracula", "duotone-dark", "hopscotch", "lucario", "material",
@@ -47,7 +48,7 @@ function getCarbonConfig(theme, code) {
   return { ...baseConfig, backgroundColor: "rgba(171, 184, 195, 1)", theme: theme };
 }
 
-export default {
+export default defineCommand({
   name: 'carbon',
   version: '1.0.0',
   description: 'Membuat gambar source code yang indah (Carbon).',
@@ -58,12 +59,9 @@ export default {
     detail: 'Contoh: \n`.carbon -dracula console.log()`\n`.carbon -random test`\nDaftar tema yang bisa dipakai: material, nord, dracula, seti, vscode, one-dark, synthwave-84, dll.'
   },
   
-  async execute(client, message, _settings, _telegramId) {
-    if (!message.out || !message.message) {return;}
-
-    if (!message.message.toLowerCase().startsWith('.carbon')) {return;}
-
-    let textCode = message.message.substring(7).trim();
+  pattern: /^\.(carbon)([\s\S]*)$/i,
+  async run({ client, message, arg: rawArg }) {
+    let textCode = rawArg.trim();
     let theme = "seti"; // Default theme
 
     // Cek apakah ada flag tema (dimulai dengan '-')
@@ -136,4 +134,4 @@ export default {
       });
     }
   }
-};
+});

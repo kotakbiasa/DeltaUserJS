@@ -2,7 +2,6 @@ import { dbCache, persistDoc, persistField, persistDelete, normalizeBot, groupCo
 import { encrypt } from '../utils/crypto.js';
 import { deepClone } from '../utils/deepClone.js';
 import { Logger } from '../utils/logger.js';
-import config from '../config.js';
 
 
 export async function saveUserbotSession(telegramId, phone, sessionString) {
@@ -94,38 +93,47 @@ export async function deleteUserbot(telegramId) {
   return persistDelete(idNum);
 }
 
-export async function addApprovedUser(telegramId, targetUserId) {
+type UserbotListField = 'approved_users' | 'broadcast_blacklist' | 'disabled_plugins';
+
+async function addUserbotListItem(telegramId, field: UserbotListField, value) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
     if (!session) {return false;}
 
-    session.approved_users = session.approved_users || [];
-    // Prevent duplicate — use strict equality
-    if (!session.approved_users.includes(targetUserId)) {
-      session.approved_users.push(targetUserId);
-      await persistField(idNum, 'approved_users', [...session.approved_users]);
+    session[field] = session[field] || [];
+    if (!session[field].includes(value)) {
+      session[field].push(value);
+      await persistField(idNum, field, [...session[field]]);
     }
 
     return true;
   });
 }
 
-export async function removeApprovedUser(telegramId, targetUserId) {
+async function removeUserbotListItem(telegramId, field: UserbotListField, value) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
     if (!session) {return false;}
-    if (!session.approved_users) {return true;}
+    if (!session[field]) {return true;}
 
-    const index = session.approved_users.indexOf(targetUserId);
+    const index = session[field].indexOf(value);
     if (index > -1) {
-      session.approved_users.splice(index, 1);
-      await persistField(idNum, 'approved_users', [...session.approved_users]);
+      session[field].splice(index, 1);
+      await persistField(idNum, field, [...session[field]]);
     }
 
     return true;
   });
+}
+
+export function addApprovedUser(telegramId, targetUserId) {
+  return addUserbotListItem(telegramId, 'approved_users', targetUserId);
+}
+
+export function removeApprovedUser(telegramId, targetUserId) {
+  return removeUserbotListItem(telegramId, 'approved_users', targetUserId);
 }
 
 export function getApprovedUsers(telegramId) {
@@ -133,39 +141,12 @@ export function getApprovedUsers(telegramId) {
   return session?.approved_users || [];
 }
 
-export async function addBroadcastBlacklist(telegramId, chatId) {
-  const idNum = Number(telegramId);
-  return withKeyLock(idNum, async () => {
-    const session = dbCache.get(idNum);
-    if (!session) {return false;}
-
-    session.broadcast_blacklist = session.broadcast_blacklist || [];
-    const chatStr = String(chatId);
-    if (!session.broadcast_blacklist.includes(chatStr)) {
-      session.broadcast_blacklist.push(chatStr);
-      await persistField(idNum, 'broadcast_blacklist', [...session.broadcast_blacklist]);
-    }
-
-    return true;
-  });
+export function addBroadcastBlacklist(telegramId, chatId) {
+  return addUserbotListItem(telegramId, 'broadcast_blacklist', String(chatId));
 }
 
-export async function removeBroadcastBlacklist(telegramId, chatId) {
-  const idNum = Number(telegramId);
-  return withKeyLock(idNum, async () => {
-    const session = dbCache.get(idNum);
-    if (!session) {return false;}
-    if (!session.broadcast_blacklist) {return true;}
-
-    const chatStr = String(chatId);
-    const index = session.broadcast_blacklist.indexOf(chatStr);
-    if (index > -1) {
-      session.broadcast_blacklist.splice(index, 1);
-      await persistField(idNum, 'broadcast_blacklist', [...session.broadcast_blacklist]);
-    }
-
-    return true;
-  });
+export function removeBroadcastBlacklist(telegramId, chatId) {
+  return removeUserbotListItem(telegramId, 'broadcast_blacklist', String(chatId));
 }
 
 export function getBroadcastBlacklist(telegramId) {
@@ -173,39 +154,12 @@ export function getBroadcastBlacklist(telegramId) {
   return session?.broadcast_blacklist || [];
 }
 
-export async function disablePlugin(telegramId, pluginName) {
-  const idNum = Number(telegramId);
-  return withKeyLock(idNum, async () => {
-    const session = dbCache.get(idNum);
-    if (!session) {return false;}
-
-    const name = String(pluginName || '').toLowerCase();
-    session.disabled_plugins = session.disabled_plugins || [];
-    if (!session.disabled_plugins.includes(name)) {
-      session.disabled_plugins.push(name);
-      await persistField(idNum, 'disabled_plugins', [...session.disabled_plugins]);
-    }
-
-    return true;
-  });
+export function disablePlugin(telegramId, pluginName) {
+  return addUserbotListItem(telegramId, 'disabled_plugins', String(pluginName || '').toLowerCase());
 }
 
-export async function enablePlugin(telegramId, pluginName) {
-  const idNum = Number(telegramId);
-  return withKeyLock(idNum, async () => {
-    const session = dbCache.get(idNum);
-    if (!session) {return false;}
-    if (!session.disabled_plugins) {return true;}
-
-    const name = String(pluginName || '').toLowerCase();
-    const index = session.disabled_plugins.indexOf(name);
-    if (index > -1) {
-      session.disabled_plugins.splice(index, 1);
-      await persistField(idNum, 'disabled_plugins', [...session.disabled_plugins]);
-    }
-
-    return true;
-  });
+export function enablePlugin(telegramId, pluginName) {
+  return removeUserbotListItem(telegramId, 'disabled_plugins', String(pluginName || '').toLowerCase());
 }
 
 export function getDisabledPlugins(telegramId) {

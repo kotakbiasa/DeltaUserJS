@@ -35,14 +35,30 @@ interface ResolvedTarget {
   error?: string;
 }
 
-// chatKey -> Map<userKey, WarnEntry>
-const STORE_KEY = '__deltauserjs_warn_store__';
-const LOADED_KEY = '__deltauserjs_warn_loaded__';
-const warnStore: Map<string, Map<string, WarnEntry>> = (globalThis)[STORE_KEY] || new Map();
-(globalThis)[STORE_KEY] = warnStore;
-// Flag sekali-per-proses (globalThis agar ikut survive hot-reload).
-const loadedFlagHolder = (globalThis)[LOADED_KEY] || { loaded: new Set<number>() };
-(globalThis)[LOADED_KEY] = loadedFlagHolder;
+// userbotId -> chatKey -> Map<userKey, WarnEntry>
+type WarnStore = Map<string, Map<string, WarnEntry>>;
+
+// State tetap survive hot-reload, tetapi setiap userbot mendapat store dan
+// flag hydration sendiri. Key chat saja dapat membuat warn bot A muncul di
+// bot B ketika keduanya memproses grup Telegram yang sama.
+const globalState = globalThis as unknown as {
+  __deltauserjs_warn_stores_v2__?: Map<number, WarnStore>;
+  __deltauserjs_warn_loaded_v2__?: Set<number>;
+};
+const warnStores = globalState.__deltauserjs_warn_stores_v2__ ?? new Map<number, WarnStore>();
+const loadedIds = globalState.__deltauserjs_warn_loaded_v2__ ?? new Set<number>();
+globalState.__deltauserjs_warn_stores_v2__ = warnStores;
+globalState.__deltauserjs_warn_loaded_v2__ = loadedIds;
+
+function getWarnStore(telegramId: number): WarnStore {
+  const id = Number(telegramId);
+  let store = warnStores.get(id);
+  if (!store) {
+    store = new Map<string, Map<string, WarnEntry>>();
+    warnStores.set(id, store);
+  }
+  return store;
+}
 
 // ---- Persistence (Mongo via updateFeature, field: warn_data) ----
 // Bentuk tersimpan: { [chatKey]: { [userKey]: { count, reasons[] } } }
@@ -58,14 +74,15 @@ const loadedFlagHolder = (globalThis)[LOADED_KEY] || { loaded: new Set<number>()
 // (undefined), store mulai kosong.
 function loadWarnsFromSettings(telegramId, settings) {
   const idNum = Number(telegramId);
-  if (loadedFlagHolder.loaded.has(idNum)) {return;}
-  loadedFlagHolder.loaded.add(idNum);
+  if (loadedIds.has(idNum)) {return;}
+  loadedIds.add(idNum);
+  const warnStore = getWarnStore(idNum);
   const data = settings?.warn_data;
   if (!data || typeof data !== 'object') {return;}
   for (const chatKey of Object.keys(data)) {
     const rawChat = data[chatKey];
     if (!rawChat || typeof rawChat !== 'object') {continue;}
-    const chatMap = getChatWarns(chatKey);
+    const chatMap = getChatWarns(warnStore, chatKey);
     for (const userKey of Object.keys(rawChat)) {
       const entry = rawChat[userKey];
       if (!entry || typeof entry !== 'object' || !Number.isFinite(Number(entry.count))) {continue;}
@@ -78,7 +95,8 @@ function loadWarnsFromSettings(telegramId, settings) {
 }
 
 // Snapshot store ke plain object JSON-safe untuk dipersist.
-function serializeWarnStore() {
+function serializeWarnStore(telegramId) {
+  const warnStore = getWarnStore(telegramId);
   const out: Record<string, Record<string, WarnEntry>> = {};
   for (const [chatKey, chatMap] of warnStore) {
     const chatData: Record<string, WarnEntry> = {};
@@ -93,7 +111,7 @@ function serializeWarnStore() {
 // Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
 async function persistWarns(telegramId) {
   try {
-    await updateUserbotFeature(telegramId, 'warn_data', serializeWarnStore());
+    await updateUserbotFeature(telegramId, 'warn_data', serializeWarnStore(telegramId));
   } catch (err) {
     Logger.logUser(telegramId, `warn: gagal persist warn_data: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
   }
@@ -101,7 +119,7 @@ async function persistWarns(telegramId) {
 
 // ---- State helpers ----
 
-function getChatWarns(chatKey: string): Map<string, WarnEntry> {
+function getChatWarns(warnStore: WarnStore, chatKey: string): Map<string, WarnEntry> {
   let chatMap = warnStore.get(chatKey);
   if (!chatMap) {
     chatMap = new Map();
@@ -110,8 +128,8 @@ function getChatWarns(chatKey: string): Map<string, WarnEntry> {
   return chatMap;
 }
 
-function getEntry(chatKey: string, userKey: string): WarnEntry {
-  const chatMap = getChatWarns(chatKey);
+function getEntry(warnStore: WarnStore, chatKey: string, userKey: string): WarnEntry {
+  const chatMap = getChatWarns(warnStore, chatKey);
   let entry = chatMap.get(userKey);
   if (!entry) {
     entry = { count: 0, reasons: [] };
@@ -200,10 +218,10 @@ async function kickUser(client, chat, isChannel, target: Target) {
 
 // ---- Command handlers ----
 
-async function handleWarn(client, message, chat, isChannel, chatKey, telegramId, target, reason) {
-  const chatMap = getChatWarns(chatKey);
+async function handleWarn(client, message, chat, isChannel, warnStore, chatKey, telegramId, target, reason) {
+  const chatMap = getChatWarns(warnStore, chatKey);
   const userKey = String(target.id);
-  const entry = getEntry(chatKey, userKey);
+  const entry = getEntry(warnStore, chatKey, userKey);
   entry.count += 1;
   entry.reasons.push(reason || '(tanpa alasan)');
 
@@ -244,7 +262,7 @@ async function handleWarn(client, message, chat, isChannel, chatKey, telegramId,
   });
 }
 
-async function handleWarns(message, chatKey, target) {
+async function handleWarns(message, warnStore, chatKey, target) {
   const chatMap = warnStore.get(chatKey);
   const entry = chatMap ? chatMap.get(String(target.id)) : undefined;
   if (!entry || entry.count === 0) {
@@ -260,7 +278,7 @@ async function handleWarns(message, chatKey, target) {
   });
 }
 
-async function handleResetWarn(message, chatKey, telegramId, target) {
+async function handleResetWarn(message, warnStore, chatKey, telegramId, target) {
   const chatMap = warnStore.get(chatKey);
   if (chatMap) {
     chatMap.delete(String(target.id));
@@ -294,6 +312,7 @@ export default {
     if (!message.out || !message.message) {return;}
 
     loadWarnsFromSettings(telegramId, settings);
+    const warnStore = getWarnStore(telegramId);
 
     const match = message.message.trim().match(/^\.([A-Za-z]+)(?:\s+([\s\S]*))?$/);
     if (!match) {return;}
@@ -334,11 +353,11 @@ export default {
       }
 
       if (cmd === 'warn') {
-        await handleWarn(client, message, chat, isChannel, chatKey, telegramId, target, resolved.reason);
+        await handleWarn(client, message, chat, isChannel, warnStore, chatKey, telegramId, target, resolved.reason);
       } else if (cmd === 'warns') {
-        await handleWarns(message, chatKey, target);
+        await handleWarns(message, warnStore, chatKey, target);
       } else {
-        await handleResetWarn(message, chatKey, telegramId, target);
+        await handleResetWarn(message, warnStore, chatKey, telegramId, target);
       }
     } catch (err) {
       Logger.logUser(telegramId, `Error in warn plugin (${cmd}): ${err instanceof Error ? err.message : String(err)}`, 'ERROR');

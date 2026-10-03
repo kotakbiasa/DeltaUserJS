@@ -377,7 +377,7 @@ for (const k of Object.keys(ALIASES)) {
 }
 
 const allSupportedEmojis = Array.from(allKeys).sort((a, b) => b.length - a.length);
-const escapedPatterns = allSupportedEmojis.map(e => e.replace(/[.*+?^${}()|[\]\/\\]/g, '\\$&'));
+const escapedPatterns = allSupportedEmojis.map(e => e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 const emojiRegex = new RegExp(escapedPatterns.join('|'), 'g');
 
 /**

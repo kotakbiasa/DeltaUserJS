@@ -11,58 +11,74 @@ import { updateUserbotFeature, UserbotModel, dbCache, isMongo, readDbFromFile } 
 // updateFeature): di-load dari settings saat execute pertama
 // (juga oleh getSudos()), disimpan tiap add/del. Plugin lain tetap
 // bisa memakai helper:
-//   isSudo(telegramId) -> boolean
-//   getSudos()         -> number[]
+//   isSudo(userId, userbotId) -> boolean
+//   getSudos(userbotId) -> number[]
+// Legacy one-argument accessors remain available for callers that do not
+// have a userbot context; new code should always pass userbotId explicitly.
 // ============================================================
 
-const sudoUsers = new Set<number>();
+interface SudoState {
+  users: Set<number>;
+  hydrationPromise: Promise<void> | null;
+}
+
+type SudoGlobalState = Map<number, SudoState>;
+
+// State tetap survive hot-reload, tetapi setiap userbot mendapat Set dan
+// promise hydration sendiri. Jangan gunakan satu Set global untuk semua bot:
+// daftar sudo adalah bagian dari konfigurasi userbot yang aktif.
+const globalState = globalThis as unknown as { __deltauserjs_sudo_state_v2__?: SudoGlobalState };
+const sudoStates = globalState.__deltauserjs_sudo_state_v2__ ?? new Map<number, SudoState>();
+globalState.__deltauserjs_sudo_state_v2__ = sudoStates;
+
+function getSudoState(telegramId: number): SudoState {
+  const id = Number(telegramId);
+  let state = sudoStates.get(id);
+  if (!state) {
+    state = { users: new Set<number>(), hydrationPromise: null };
+    sudoStates.set(id, state);
+  }
+  return state;
+}
 
 // ---- Persistence (Mongo via updateFeature, field: sudo_list) ----
 // Bentuk tersimpan: number[] (daftar telegramId sudo). Field di doc
 // userbot diisi oleh updateFeature; kalau settings tidak berisi
 // field itu (undefined), daftar mulai kosong.
 
-// Hydration dijalankan maksimal sekali per proses (promise tunggal,
-// semua caller await janji yang sama). Setelah selesai, isSudo() /
-// getSudos() membaca Set seperti biasa (synchronous, API tetap sama).
-let hydrationPromise: Promise<void> | null = null;
-
-async function hydrateSudos(telegramId) {
+async function hydrateSudos(telegramId: number, state: SudoState): Promise<void> {
   // 1. Kalau settings (doc userbot dari cache) sudah berisi field-nya,
   //    langsung pakai itu — tidak perlu query Mongo.
-  const cachedList = (telegramId !== undefined && telegramId !== null)
-    ? dbCache.get(Number(telegramId))?.sudo_list
-    : undefined;
+  const cachedList = dbCache.get(Number(telegramId))?.sudo_list;
   if (Array.isArray(cachedList)) {
     for (const id of cachedList) {
       const parsed = Number(id);
-      if (Number.isInteger(parsed) && parsed > 0) {sudoUsers.add(parsed);}
+      if (Number.isInteger(parsed) && parsed > 0) {state.users.add(parsed);}
     }
     return;
   }
 
   // 2. Fallback: settings tidak berisi sudo_list (field belum masuk
-  //    whitelist normalizeBot) — baca sekali langsung dari DB.
+  //    whitelist normalizeBot) — baca hanya userbot yang sedang aktif.
   try {
     if (isMongo) {
-      const raw = await UserbotModel.findOne({}, { telegram_id: 1, sudo_list: 1 });
+      const raw = await UserbotModel.findOne({ telegram_id: Number(telegramId) }, { sudo_list: 1 });
       const list = raw?.sudo_list;
       if (Array.isArray(list)) {
         for (const id of list) {
           const parsed = Number(id);
-          if (Number.isInteger(parsed) && parsed > 0) {sudoUsers.add(parsed);}
+          if (Number.isInteger(parsed) && parsed > 0) {state.users.add(parsed);}
         }
       }
     } else {
       // Mode file-DB: field ada di database.json, bukan di Mongoose.
       const data = await readDbFromFile();
-      const bots = (data?.userbots || {}) as Record<string, Record<string, unknown>>;
-      for (const bot of Object.values(bots)) {
-        const list = bot?.sudo_list;
-        if (!Array.isArray(list)) {continue;}
+      const bot = (data?.userbots || {})[String(Number(telegramId))] as Record<string, unknown> | undefined;
+      const list = bot?.sudo_list;
+      if (Array.isArray(list)) {
         for (const id of list) {
           const parsed = Number(id);
-          if (Number.isInteger(parsed) && parsed > 0) {sudoUsers.add(parsed);}
+          if (Number.isInteger(parsed) && parsed > 0) {state.users.add(parsed);}
         }
       }
     }
@@ -71,30 +87,49 @@ async function hydrateSudos(telegramId) {
   }
 }
 
-function ensureHydrated(telegramId) {
-  if (hydrationPromise === null) {
-    hydrationPromise = hydrateSudos(telegramId);
+function ensureHydrated(telegramId: number): Promise<void> {
+  const state = getSudoState(telegramId);
+  if (state.hydrationPromise === null) {
+    state.hydrationPromise = hydrateSudos(Number(telegramId), state);
   }
-  return hydrationPromise;
+  return state.hydrationPromise;
 }
 
 // Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
-async function persistSudos(telegramId) {
+async function persistSudos(telegramId: number): Promise<void> {
+  const state = getSudoState(telegramId);
   try {
-    await updateUserbotFeature(telegramId, 'sudo_list', Array.from(sudoUsers));
+    await updateUserbotFeature(telegramId, 'sudo_list', Array.from(state.users));
   } catch (err) {
     Logger.logUser(Number(telegramId), `sudo: gagal persist sudo_list: ${err instanceof Error ? err.message : String(err)}`, 'WARN');
   }
 }
 
-export function isSudo(telegramId) {
-  ensureHydrated(telegramId);
-  return sudoUsers.has(Number(telegramId));
+export function isSudo(userId: number, userbotId?: number): boolean {
+  // This helper intentionally remains synchronous for existing callers;
+  // command execution awaits ensureHydrated() before using the Set.
+  if (userbotId !== undefined) {
+    void ensureHydrated(userbotId);
+    return getSudoState(userbotId).users.has(Number(userId));
+  }
+  // Compatibility path for the old one-argument API. It never merges the
+  // stores; it only answers whether a hydrated store contains the ID.
+  for (const state of sudoStates.values()) {
+    if (state.users.has(Number(userId))) {return true;}
+  }
+  return false;
 }
 
-export function getSudos() {
-  ensureHydrated(undefined);
-  return Array.from(sudoUsers);
+export function getSudos(userbotId?: number): number[] {
+  if (userbotId !== undefined) {
+    void ensureHydrated(userbotId);
+    return Array.from(getSudoState(userbotId).users);
+  }
+  const all = new Set<number>();
+  for (const state of sudoStates.values()) {
+    for (const id of state.users) {all.add(id);}
+  }
+  return Array.from(all);
 }
 
 function isOwnerBot(telegramId) {
@@ -132,10 +167,11 @@ export default {
       '• `.sudolist` — lihat daftar pengguna sudo',
     detail: 'Hanya owner bot (cek telegramId === config.ownerId) yang dapat menambah/menghapus sudo. ' +
       'Daftar sudo dipersist ke database per userbot (field sudo_list) dan di-load ulang otomatis saat userbot start. ' +
-      'Plugin lain bisa memakai helper isSudo(telegramId) dan getSudos() untuk validasi akses sudo.'
+      'Plugin lain bisa memakai helper isSudo(userId, userbotId) dan getSudos(userbotId) untuk validasi akses sudo.'
   },
   async execute(client, message, _settings, telegramId) {
     await ensureHydrated(telegramId);
+    const sudoUsers = getSudoState(telegramId).users;
 
     if (!message.out || !message.message) {return;}
 
@@ -196,7 +232,7 @@ export default {
     }
 
     // .sudolist
-    const sudos = getSudos();
+    const sudos = getSudos(telegramId);
     if (sudos.length === 0) {
       await message.edit({
         text: '<blockquote>📭 Belum ada pengguna sudo terdaftar.\nTambahkan dengan <code>.addsudo &lt;id&gt;</code>.</blockquote>',

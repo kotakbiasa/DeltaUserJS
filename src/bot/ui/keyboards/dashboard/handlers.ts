@@ -38,7 +38,7 @@ import {
 import fs from 'fs';
 import { InputFile } from 'grammy';
 import { Api } from 'teleproto';
-import { PROTECTED_PLUGINS, getSystemVarNum, getSystemVarValue, isOwner, normalizedDisabled } from './shared.js';
+import { PROTECTED_PLUGINS, getSystemVarValue, isOwner, normalizedDisabled } from './shared.js';
 import {
   panelAccessDenied,
   panelAdmin,
@@ -159,6 +159,16 @@ export async function openMain(ctx, options = {}) {
   await sendRich(ctx, panelMain(ctx), keyboardMain(ctx), options);
 }
 
+async function toggleUserbotSetting(ctx, field, label, panel, keyboard) {
+  const session = getUserbotSession(ctx.from.id);
+  if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
+
+  const newStatus = session[field] === 1 ? 0 : 1;
+  await updateUserbotFeature(ctx.from.id, field, newStatus);
+  await ctx.answerCallbackQuery(`${label}: ${newStatus === 1 ? 'ON' : 'OFF'}`);
+  return sendRich(ctx, panel(ctx), keyboard(ctx));
+}
+
 export function findPlugin(name) {
   const target = decodeURIComponent(String(name || '')).trim().toLowerCase();
   return loadedPlugins.find(plugin => String(plugin.name).toLowerCase() === target);
@@ -196,9 +206,7 @@ export function registerRichHandlers(bot) {
     await openMain(ctx);
   });
 
-  bot.command(['claim', 'voucher', 'tukar'], async (ctx) => {
-    return replyRich(ctx, `<p>ℹ️ <b>Sistem Voucher Telah Dihapus</b><br>DeltaUserJS kini menggunakan sistem persetujuan langsung (Approval-Only). Silakan ajukan persetujuan melalui Menu Utama.</p>`);
-  });
+  bot.command(['claim', 'voucher', 'tukar'], async (ctx) => replyRich(ctx, `<p>ℹ️ <b>Sistem Voucher Telah Dihapus</b><br>DeltaUserJS kini menggunakan sistem persetujuan langsung (Approval-Only). Silakan ajukan persetujuan melalui Menu Utama.</p>`));
 
   bot.command(['paket', 'vip', 'langganan', 'subscribe', 'pricing'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
@@ -473,39 +481,19 @@ export function registerRichHandlers(bot) {
     }
 
     if (action === 'toggle_anti_pm') {
-      const session = getUserbotSession(ctx.from.id);
-      if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
-      const newStatus = session.anti_pm === 1 ? 0 : 1;
-      await updateUserbotFeature(ctx.from.id, 'anti_pm', newStatus);
-      await ctx.answerCallbackQuery(`Anti-PM: ${newStatus === 1 ? 'ON' : 'OFF'}`);
-      return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx));
+      return toggleUserbotSetting(ctx, 'anti_pm', 'Anti-PM', panelSettings, keyboardSettings);
     }
 
     if (action === 'toggle_afk') {
-      const session = getUserbotSession(ctx.from.id);
-      if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
-      const newStatus = session.auto_reply === 1 ? 0 : 1;
-      await updateUserbotFeature(ctx.from.id, 'auto_reply', newStatus);
-      await ctx.answerCallbackQuery(`AFK: ${newStatus === 1 ? 'ON' : 'OFF'}`);
-      return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx));
+      return toggleUserbotSetting(ctx, 'auto_reply', 'AFK', panelSettings, keyboardSettings);
     }
 
     if (action === 'toggle_anti_pm_ubot') {
-      const session = getUserbotSession(ctx.from.id);
-      if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
-      const newStatus = session.anti_pm === 1 ? 0 : 1;
-      await updateUserbotFeature(ctx.from.id, 'anti_pm', newStatus);
-      await ctx.answerCallbackQuery(`Anti-PM: ${newStatus === 1 ? 'ON' : 'OFF'}`);
-      return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx));
+      return toggleUserbotSetting(ctx, 'anti_pm', 'Anti-PM', panelUserbot, keyboardUserbot);
     }
 
     if (action === 'toggle_afk_ubot') {
-      const session = getUserbotSession(ctx.from.id);
-      if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
-      const newStatus = session.auto_reply === 1 ? 0 : 1;
-      await updateUserbotFeature(ctx.from.id, 'auto_reply', newStatus);
-      await ctx.answerCallbackQuery(`AFK: ${newStatus === 1 ? 'ON' : 'OFF'}`);
-      return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx));
+      return toggleUserbotSetting(ctx, 'auto_reply', 'AFK', panelUserbot, keyboardUserbot);
     }
 
     if (action === 'edit_afk') {
@@ -574,8 +562,6 @@ export function registerRichHandlers(bot) {
     if (action === 'claim_trial') {
       await ctx.answerCallbackQuery();
       const userId = ctx.from.id;
-      const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
-
       if (isOwner(ctx)) {
         approveUser(userId);
         return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { edit: true });

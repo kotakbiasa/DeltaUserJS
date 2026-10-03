@@ -90,6 +90,22 @@ test('non-whitelisted commands are rejected by name', () => {
 });
 
 // ===========================================================================
+// Backup command execution
+// ===========================================================================
+
+test('backup commands pass arguments without a shell', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../src/services/BackupService.ts', import.meta.url), 'utf8');
+
+  assert.match(src, /import \{ execFile \} from 'child_process'/);
+  assert.doesNotMatch(src, /import \{ exec \} from 'child_process'/);
+  assert.match(src, /execFileAsync\(\s*'mongodump'/s);
+  assert.match(src, /execFileAsync\(\s*'mongorestore'/s);
+  assert.doesNotMatch(src, /mongodump --uri=/);
+  assert.doesNotMatch(src, /mongorestore --uri=/);
+});
+
+// ===========================================================================
 // Temuan #7 — guard message.out
 // ===========================================================================
 

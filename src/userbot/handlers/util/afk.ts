@@ -1,4 +1,3 @@
-import { escapeHtml } from '../../../utils/richMessage.js';
 import { getCustomEmoji, parseTgEmojiTemplate, escapeHtmlPreservingTgEmoji } from '../../../utils/customEmoji.js';
 
 // State AFK per telegramId: { reason, since }

@@ -1,4 +1,5 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { defineCommand } from '../../engine/defineCommand.js';
 
 // ============================================================
 // Font Generator — 12 gaya unicode font dari teks.
@@ -109,7 +110,7 @@ function resolveStyleName(raw: string): string | null {
   return null;
 }
 
-export default {
+export default defineCommand({
   name: 'font',
   version: '1.0.0',
   description: 'Ubah teks ke 12 gaya unicode font: bold, italic, script, fraktur, dan lainnya.',
@@ -124,13 +125,8 @@ export default {
       'Nama gaya boleh ditulis tanpa peduli huruf besar/kecil. Karakter selain A-Z, a-z, 0-9 dibiarkan apa adanya. ' +
       'Hasil dikirim sebagai teks biasa sehingga bisa langsung di-copy.'
   },
-  async execute(client, message, _settings, _telegramId) {
-    if (!message.out || !message.message) {return;}
-
-    const match = message.message.match(/^\.font(?:\s+([\s\S]+))?$/i);
-    if (!match) {return;}
-
-    const arg = (match[1] || '').trim();
+  async run({ client, message, arg: commandArg }) {
+    const arg = commandArg.trim();
     if (!arg) {
       await message.edit({
         text:
@@ -183,7 +179,7 @@ export default {
     });
     try { await message.delete(); } catch (_e) { /* ignore */ }
   }
-};
+});
 
 /** Tampilkan daftar 12 gaya + preview untuk teks tertentu. */
 async function showFontList(message, text: string) {

@@ -1,13 +1,13 @@
 import config from '../config.js';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { mkdir, rm, readFile, writeFile } from 'fs/promises';
+import { mkdir, rm, readFile, writeFile, readdir, stat } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Logger } from '../utils/logger.js';
 import { formatBytesFixed as formatBytes } from '../utils/format.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backupDir = path.join(__dirname, '../../backups');
 
@@ -77,82 +77,40 @@ async function saveHistory() {
   await writeFile(HISTORY_FILE, JSON.stringify(backupHistory.slice(-MAX_HISTORY), null, 2));
 }
 
-/**
- * Create full MongoDB backup using mongodump
- */
-export async function createFullBackup(): Promise<BackupInfo> {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const backupId = `full_${timestamp}`;
-  const backupPath = path.join(backupDir, backupId);
+async function getDirectorySize(directory: string): Promise<number> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  let total = 0;
 
-  const backupInfo: BackupInfo = {
-    id: backupId,
-    type: 'full',
-    timestamp: new Date().toISOString(),
-    size: 0,
-    path: backupPath,
-    status: 'in_progress',
-  };
-
-  backupHistory.push(backupInfo);
-  await saveHistory();
-
-  try {
-    await mkdir(backupPath, { recursive: true });
-
-    // mongodump mengikuti nama DB di path URI, sedangkan mongoose eksplisit pakai config.dbName.
-    // Penting: path URI HARUS DIGANTI, bukan ditambahi — `host/deltauserjs/DeltaUbotJS`
-    // bukan nama DB yang valid (mongodump: InvalidNamespace).
-    const baseUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-    if (!baseUri) {
-      throw new Error('MONGO_URI not configured');
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      total += await getDirectorySize(entryPath);
+    } else if (entry.isFile()) {
+      total += (await stat(entryPath)).size;
     }
-    const mongoUri = resolveMongoDatabaseUri(baseUri);
-
-    const { stderr } = await execAsync(
-      `mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`,
-      { timeout: 300000 } // 5 min timeout
-    );
-
-    if (stderr && !stderr.includes('done dumping')) {
-      Logger.logSystem(`mongodump stderr: ${stderr}`, 'WARN');
-    }
-
-    // Calculate size
-    const { stdout: sizeOut } = await execAsync(`du -sb "${backupPath}"`);
-    const size = parseInt(sizeOut.split('\t')[0]);
-
-    // Get collections list
-    const { stdout: collectionsOut } = await execAsync(`ls -1 "${backupPath}"/*/ | wc -l`);
-    const collections = parseInt(collectionsOut.trim());
-
-    backupInfo.size = size;
-    backupInfo.collections = [String(collections)];
-    backupInfo.status = 'completed';
-    await saveHistory();
-
-    Logger.logSystem(`💾 Full backup completed: ${backupId} (${formatBytes(size)})`, 'SUCCESS');
-    return backupInfo;
-  } catch (err) {
-    backupInfo.status = 'failed';
-    backupInfo.error = err instanceof Error ? err.message : String(err);
-    await saveHistory();
-    Logger.logSystem(`💾 Full backup failed: ${err}`, 'ERROR');
-    throw err;
   }
+
+  return total;
+}
+
+async function countDirectories(directory: string): Promise<number> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  return entries.filter(entry => entry.isDirectory()).length;
 }
 
 /**
- * Create incremental backup (only changed collections since last backup)
+ * Create a MongoDB backup using mongodump.
+ *
+ * Full and incremental backups currently use the same dump strategy; keeping
+ * the shared lifecycle here prevents the two paths from drifting apart.
  */
-export async function createIncrementalBackup(): Promise<BackupInfo> {
+async function createMongoBackup(type: BackupInfo['type']): Promise<BackupInfo> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const backupId = `inc_${timestamp}`;
+  const backupId = `${type === 'full' ? 'full' : 'inc'}_${timestamp}`;
   const backupPath = path.join(backupDir, backupId);
-
   const backupInfo: BackupInfo = {
     id: backupId,
-    type: 'incremental',
+    type,
     timestamp: new Date().toISOString(),
     size: 0,
     path: backupPath,
@@ -169,14 +127,11 @@ export async function createIncrementalBackup(): Promise<BackupInfo> {
     if (!baseUri) {
       throw new Error('MONGO_URI not configured');
     }
-    // Sama seperti full backup: path URI harus menunjuk DB asli (config.dbName),
-    // kalau tidak mongodump "sukses" tapi menghasilkan 0 file.
+    // mongodump harus menunjuk DB yang sama dengan mongoose (config.dbName).
     const mongoUri = resolveMongoDatabaseUri(baseUri);
-
-    // For incremental, we could use oplog or just dump all (simplified)
-    // In production, use mongodump with --oplog or change streams
-    const { stderr } = await execAsync(
-      `mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`,
+    const { stderr } = await execFileAsync(
+      'mongodump',
+      ['--uri', mongoUri, '--out', backupPath, '--gzip'],
       { timeout: 300000 }
     );
 
@@ -184,22 +139,31 @@ export async function createIncrementalBackup(): Promise<BackupInfo> {
       Logger.logSystem(`mongodump stderr: ${stderr}`, 'WARN');
     }
 
-    const { stdout: sizeOut } = await execAsync(`du -sb "${backupPath}"`);
-    const size = parseInt(sizeOut.split('\t')[0]);
+    backupInfo.size = await getDirectorySize(backupPath);
 
-    backupInfo.size = size;
+    if (type === 'full') {
+      backupInfo.collections = [String(await countDirectories(backupPath))];
+    }
+
     backupInfo.status = 'completed';
     await saveHistory();
-
-    Logger.logSystem(`💾 Incremental backup completed: ${backupId} (${formatBytes(size)})`, 'SUCCESS');
+    Logger.logSystem(`💾 ${type === 'full' ? 'Full' : 'Incremental'} backup completed: ${backupId} (${formatBytes(backupInfo.size)})`, 'SUCCESS');
     return backupInfo;
   } catch (err) {
     backupInfo.status = 'failed';
     backupInfo.error = err instanceof Error ? err.message : String(err);
     await saveHistory();
-    Logger.logSystem(`💾 Incremental backup failed: ${err}`, 'ERROR');
+    Logger.logSystem(`💾 ${type === 'full' ? 'Full' : 'Incremental'} backup failed: ${err}`, 'ERROR');
     throw err;
   }
+}
+
+export function createFullBackup(): Promise<BackupInfo> {
+  return createMongoBackup('full');
+}
+
+export function createIncrementalBackup(): Promise<BackupInfo> {
+  return createMongoBackup('incremental');
 }
 
 /**
@@ -224,8 +188,9 @@ export async function restoreFromBackup(backupId: string, targetUri?: string): P
 
   try {
     // Use mongorestore
-    await execAsync(
-      `mongorestore --uri="${mongoUri}" --gzip --drop "${backup.path}"`,
+    await execFileAsync(
+      'mongorestore',
+      ['--uri', mongoUri, '--gzip', '--drop', backup.path],
       { timeout: 300000 }
     );
 

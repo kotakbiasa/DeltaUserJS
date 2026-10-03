@@ -20,9 +20,9 @@ export {
   isOwner,
   isTelegramPremium,
   formatTelegramPremiumBadge,
-  CombinedAdminUser,
   getCombinedAdminUsers,
 } from './dashboard/shared.js';
+export type { CombinedAdminUser } from './dashboard/shared.js';
 export {
   panelMain,
   panelMenuList,

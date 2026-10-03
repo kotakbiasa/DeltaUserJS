@@ -50,6 +50,12 @@ export interface CommandSpec {
   /** Daftar command yang ditangani. Default: [name]. */
   commands?: string[];
   /**
+   * Regex khusus untuk plugin legacy yang memiliki aturan matching sendiri.
+   * Regex harus menyediakan group 1 untuk nama command dan group 2 untuk
+   * argumen agar konteks tetap kompatibel dengan regex bawaan.
+   */
+  pattern?: RegExp;
+  /**
    * 'required' → tampilkan pesan `usage` bila argumen kosong.
    * 'none'     → command tanpa argumen; bila ada argumen, pesan diabaikan
    *              diam-diam (meniru plugin lama yang mencocokkan teks persis).
@@ -68,10 +74,11 @@ export interface CommandSpec {
   loading?: string | ((arg: string) => string);
   /**
    * Bungkus teks loading. 'blockquote' → <blockquote>⏳ <b>..</b></blockquote>,
-   * 'plain' → ⏳ <b>..</b>. Keduanya dipakai di basis kode lama, jadi tiap
-   * plugin harus memilih yang sama dengan sebelumnya. Default 'blockquote'.
+   * 'plain' → ⏳ <b>..</b>; 'raw' → kirim isi loading apa adanya.
+   * Ketiganya dipakai di basis kode lama, jadi tiap plugin harus memilih yang
+   * sama dengan sebelumnya. Default 'blockquote'.
    */
-  loadingStyle?: 'blockquote' | 'plain';
+  loadingStyle?: 'blockquote' | 'plain' | 'raw';
   /** Judul pesan gagal, mis. "Gagal cek cuaca". Default "Gagal menjalankan perintah". */
   errorTitle?: string;
   /** Catat kegagalan ke Logger seperti sebagian plugin lama. Default false. */
@@ -141,7 +148,9 @@ export function defineCommand(spec: CommandSpec): CommandPlugin {
       // Guard identik dengan yang dulu ditulis manual di 47 file.
       if (!message.out || !message.message) {return;}
 
-      const match = message.message.match(pattern);
+      const matcher = spec.pattern || pattern;
+      matcher.lastIndex = 0;
+      const match = matcher.exec(message.message);
       if (!match) {return;}
 
       const edit = async (text: string, extra: Record<string, unknown> = {}) => {
@@ -181,7 +190,13 @@ export function defineCommand(spec: CommandSpec): CommandPlugin {
 
       if (spec.loading) {
         const inner = typeof spec.loading === 'function' ? spec.loading(ctx.arg) : spec.loading;
-        await edit(spec.loadingStyle === 'plain' ? loadingTextPlain(inner) : loadingText(inner));
+        await edit(
+          spec.loadingStyle === 'raw'
+            ? inner
+            : spec.loadingStyle === 'plain'
+              ? loadingTextPlain(inner)
+              : loadingText(inner)
+        );
       }
 
       try {

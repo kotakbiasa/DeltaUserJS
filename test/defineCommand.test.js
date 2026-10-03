@@ -84,6 +84,22 @@ test('exposes which alias matched for multi-command plugins', async () => {
   assert.deepEqual(seen, ['exec', 'sh']);
 });
 
+test('custom pattern keeps legacy matching while exposing the normalized argument', async () => {
+  let seen = null;
+  const cmd = defineCommand({
+    name: 'legacy',
+    pattern: /^\.(legacy)(?:\s+([a-z]+(?:\s+[\s\S]+)?))?$/i,
+    run: ({ arg }) => { seen = arg; },
+  });
+
+  await cmd.execute(noopClient, mockMessage('.legacy en halo dunia'), {}, 1);
+  assert.equal(seen, 'en halo dunia');
+
+  const ignored = mockMessage('.legacy 123');
+  await cmd.execute(noopClient, ignored, {}, 1);
+  assert.equal(ignored.edits.length, 0);
+});
+
 test('required arg shows the usage message and skips run()', async () => {
   let ran = false;
   const cmd = defineCommand({
@@ -144,6 +160,19 @@ test('loading text is edited before run(), final string after', async () => {
   assert.equal(msg.edits[0].text, '<blockquote>⏳ <b>Memproses...</b></blockquote>');
   assert.equal(msg.edits[1].text, 'selesai');
   assert.equal(msg.edits[1].linkPreview, false);
+});
+
+test('raw loading style preserves plugin-owned HTML exactly', async () => {
+  const cmd = defineCommand({
+    name: 'x',
+    loading: '🚀 <b>Memproses...</b>\n<i>Tunggu sebentar.</i>',
+    loadingStyle: 'raw',
+    run: () => {},
+  });
+  const msg = mockMessage('.x');
+
+  await cmd.execute(noopClient, msg, {}, 1);
+  assert.equal(msg.edits[0].text, '🚀 <b>Memproses...</b>\n<i>Tunggu sebentar.</i>');
 });
 
 test('run() returning void leaves the message to the plugin', async () => {

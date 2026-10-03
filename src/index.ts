@@ -7,7 +7,7 @@ import userbotManager from './userbot/engine/manager.js';
 import { getAllRegisteredUsers, updateUserbotStatus, initDatabaseAndCache } from './infrastructure/database.js';
 import { setMasterBotUsername } from './bot/state/botUsername.js';
 import { Logger } from './utils/logger.js';
-import { createServer, type IncomingMessage } from 'http';
+import { createServer } from 'http';
 import { startPluginWatcher, stopPluginWatcher } from './userbot/engine/pluginLoader.js';
 import { isMongo } from './infrastructure/dbCore.js';
 import { handleApiRequest } from './server/api.js';
@@ -16,32 +16,6 @@ import { initDigitalStore } from './services/DigitalStoreService.js';
 
 
 const EXPIRATION_CHECK_INTERVAL_MS = 60_000;
-const MAX_WEBHOOK_BYTES = 1024 * 1024;
-
-class RequestBodyError extends Error {
-  constructor(message: string, readonly statusCode = 400) {
-    super(message);
-    this.name = 'RequestBodyError';
-  }
-}
-
-async function readRequestBody(req: IncomingMessage, maxBytes = MAX_WEBHOOK_BYTES): Promise<string> {
-  const declaredLength = Number(req.headers['content-length'] || 0);
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    throw new RequestBodyError('Webhook body terlalu besar.', 413);
-  }
-
-  const chunks: Buffer[] = [];
-  let totalBytes = 0;
-  for await (const chunk of req) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    totalBytes += buffer.length;
-    if (totalBytes > maxBytes) {throw new RequestBodyError('Webhook body terlalu besar.', 413);}
-    chunks.push(buffer);
-  }
-  return Buffer.concat(chunks).toString('utf8');
-}
-
 /**
  * 🛡️ APPROVAL ENFORCER SERVICE
  * Berjalan periodik di background untuk memastikan hanya pengguna yang disetujui (Approved)

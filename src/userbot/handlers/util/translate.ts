@@ -1,10 +1,12 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { fetchWithTimeout } from '../../../utils/http.js';
+import { defineCommand } from '../../engine/defineCommand.js';
 
 const MAX_QUERY_LENGTH = 500; // Batas karakter teks per request API MyMemory
+const LANGUAGE_CODE = '[a-zA-Z]{2,3}(?:-[a-zA-Z]{2,4})?';
 
-export default {
+export default defineCommand({
   name: 'tr',
   version: '1.0.0',
   description: 'Terjemahkan teks via MyMemory Translation API.',
@@ -14,22 +16,19 @@ export default {
     usage: '`.tr <kode> <teks>` atau reply pesan lalu `.tr <kode>`',
     detail: 'Contoh: `.tr en halo semua`. Bisa juga reply sebuah pesan lalu kirim `.tr en`. Sumber default: id (Indonesia). Maksimal 500 karakter per terjemahan.'
   },
-  async execute(client, message, _settings, telegramId) {
-    if (!message.out || !message.message) {return;}
+  // Pola lama sengaja dipertahankan: argumen pertama wajib berupa kode
+  // bahasa, sedangkan command dengan kode invalid diabaikan (bukan diberi
+  // pesan usage). Group 1/2 mengikuti kontrak defineCommand.
+  pattern: new RegExp(`^\\.(tr)(?:\\s+(${LANGUAGE_CODE}(?:\\s+[\\s\\S]+)?))?$`, 'i'),
+  args: 'required',
+  usage: '<code>.tr &lt;kode&gt; &lt;teks&gt;</code>\nContoh: <code>.tr en halo semua</code> atau reply pesan lalu <code>.tr en</code>',
 
-    const match = message.message.match(/^\.tr(?:\s+([a-zA-Z]{2,3}(?:-[a-zA-Z]{2,4})?)(?:\s+([\s\S]+))?)?$/i);
-    if (!match) {return;}
+  async run({ message, arg, telegramId }) {
+    const parts = arg.match(new RegExp(`^(${LANGUAGE_CODE})(?:\\s+([\\s\\S]+))?$`, 'i'));
+    if (!parts) {return;}
 
-    const target = (match[1] || '').trim().toLowerCase();
-    let text = (match[2] || '').trim();
-
-    if (!target) {
-      await message.edit({
-        text: `<blockquote>❌ <b>Format salah:</b> <code>.tr &lt;kode&gt; &lt;teks&gt;</code>\nContoh: <code>.tr en halo semua</code> atau reply pesan lalu <code>.tr en</code></blockquote>`,
-        parseMode: 'html'
-      });
-      return;
-    }
+    const target = parts[1].trim().toLowerCase();
+    let text = (parts[2] || '').trim();
 
     if (!text && message.replyToMsgId) {
       try {
@@ -44,7 +43,7 @@ export default {
 
     if (!text) {
       await message.edit({
-        text: `<blockquote>❌ <b>Teks kosong:</b> berikan teks setelah kode bahasa atau reply sebuah pesan.</blockquote>`,
+        text: '<blockquote>❌ <b>Teks kosong:</b> berikan teks setelah kode bahasa atau reply sebuah pesan.</blockquote>',
         parseMode: 'html'
       });
       return;
@@ -95,4 +94,4 @@ export default {
       });
     }
   }
-};
+});

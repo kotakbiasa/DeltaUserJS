@@ -1,6 +1,6 @@
 // Debug tag mismatch
-import { dbCache } from '../src/infrastructure/dbCore.js';
-import * as d from '../src/bot/ui/keyboards/dashboard.js';
+import { dbCache } from '../../src/infrastructure/dbCore.js';
+import * as d from '../../src/bot/ui/keyboards/dashboard.js';
 
 dbCache.set(1025855210, {
   telegram_id: 1025855210, phone: '628123456789', session_string: 'abc',

@@ -15,7 +15,7 @@ pm2 save && pm2 startup  # persist across reboots
 npm run lint             # eslint src/ --ext .ts
 npm run lint:fix         # eslint --fix
 npm run format           # prettier --write src/
-npm run test             # node test/runner.js
+npm test                 # unit tests + test/runner.js E2E suite
 ```
 
 ## Conventions
@@ -66,17 +66,25 @@ Required env vars (see `.env.example`):
 
 ## Architecture
 
+The canonical current structure, runtime flow, and plugin-loading rules are in
+[`docs/architecture.md`](docs/architecture.md). The short version is:
+
 ```
 src/
-├── bot/           # Master bot (grammy) — handlers, menus, conversations
-├── userbot/       # Userbot engine (GramJS + teleproto) — session mgmt, client lifecycle
-├── infrastructure/ # Database (Mongoose), caching, encryption
-└── config.js      # Environment validation, defaults
+├── bot/              # Master bot: conversations, handlers, UI, state
+├── userbot/          # GramJS/teleproto engine and dynamically loaded handlers
+├── server/           # Mini App API, route groups, and static files
+├── services/         # Cross-layer business logic
+├── infrastructure/  # MongoDB/file persistence, models, and cache
+├── utils/            # Shared utilities
+└── index.ts          # Startup, lifecycle, and health server
 ```
 
-- **Master bot** runs in polling mode, manages user sessions via MongoDB
-- **Userbot manager** spawns isolated GramJS clients per user, bridges updates to grammy via teleproto
-- **Expiration checker** runs every 60s — marks expired userbots inactive, notifies users
+- **Master bot** runs in polling mode and manages user sessions.
+- **Userbot manager** spawns isolated GramJS clients per user.
+- **Plugin loader** recursively loads every handler file; do not remove a plugin
+  based only on the absence of static imports.
+- **Expiration/approval services** run in the background and control active bots.
 
 ## Error Handling
 

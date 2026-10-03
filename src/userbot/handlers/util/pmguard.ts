@@ -110,11 +110,6 @@ export function isPmAllowed(telegramId, userId) {
   return pmguardStore.get(Number(telegramId))?.whitelist.has(Number(userId)) ?? false;
 }
 
-const AWAY_TEXT =
-  '🛡️ <b>Auto-Reply</b>\n\n' +
-  'Owner sedang away. Pesan kamu sudah diterima dan akan dibalas saat owner kembali aktif. 🙏\n\n' +
-  '<i>(Pesan otomatis — PM Guard aktif)</i>';
-
 function parsePositiveId(raw) {
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
