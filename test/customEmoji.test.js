@@ -10,7 +10,8 @@ import {
   getAllEmojis,
   extractEmojiFromContext,
   animateEmojisWithRestrictedPack,
-  animateBotApiPayload
+  animateBotApiPayload,
+  stripTgEmojiTags
 } from '../dist/utils/customEmoji.js';
 import { parseRichText } from '../dist/utils/richParser.js';
 
@@ -26,6 +27,11 @@ test('escapeHtmlPreservingTgEmoji protects against XSS while preserving valid cu
   assert.ok(output.includes('&amp;'));
   assert.ok(output.includes('&lt;script&gt;'));
   assert.ok(!output.includes('<script>'));
+});
+
+test('stripTgEmojiTags restores fallback characters for non-Premium accounts', () => {
+  const input = 'Status: <tg-emoji emoji-id="123456789">💎</tg-emoji> siap';
+  assert.equal(stripTgEmojiTags(input), 'Status: 💎 siap');
 });
 
 test('parseTgEmojiTemplate converts {emoji:id} and {emoji:id:char}', () => {

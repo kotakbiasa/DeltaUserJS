@@ -62,6 +62,21 @@ export function escapeHtmlPreservingTgEmoji(text: string): string {
 }
 
 /**
+ * Convert custom emoji tags back to their fallback character.
+ *
+ * This is used for userbot accounts that are not Telegram Premium. The
+ * fallback keeps the message readable instead of sending unsupported HTML
+ * custom-emoji entities to Telegram.
+ */
+export function stripTgEmojiTags(text: string): string {
+  if (!text) {return '';}
+  return String(text).replace(
+    /<tg-emoji\s+emoji-id=["']\d+["']>([^<]*)<\/tg-emoji>/gi,
+    '$1'
+  );
+}
+
+/**
  * Parse template tags like {emoji:123456789} or {emoji:123456789:🔥} into <tg-emoji emoji-id="...">...</tg-emoji>.
  */
 export function parseTgEmojiTemplate(text: string): string {
