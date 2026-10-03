@@ -33,7 +33,6 @@ import {
   stopInlineBotForUser,
 } from '../bot/services/inlineBotService.js';
 import { loadedPlugins } from '../userbot/engine/pluginRegistry.js';
-import { redeemVoucher } from '../services/VoucherService.js';
 import {
   createDigitalOrder,
   createDigitalProduct,
@@ -47,24 +46,6 @@ import {
 } from '../services/DigitalStoreService.js';
 import { notifyOwner, notifyUser } from '../services/notifyService.js';
 import { isMongo } from '../infrastructure/dbCore.js';
-import {
-  attachPaymentCheckout,
-  cancelAutoRenew,
-  createPayment,
-  getActivePlans,
-  getPlan,
-  getUserPayments,
-  getUserSubscription,
-  initTrialSubscription,
-  markTrialClaimed,
-  updatePaymentStatus,
-} from '../services/SubscriptionService.js';
-import { DEFAULT_PLANS, PaymentModel } from '../infrastructure/subscriptionModels.js';
-import {
-  createPaymentViaGateway,
-  generateOrderId,
-  type GatewayType,
-} from '../services/PaymentGateway.js';
 import { escapeHtml } from '../utils/richMessage.js';
 import { isApproved } from '../bot/state/approvedUsers.js';
 import { Logger } from '../utils/logger.js';
@@ -89,19 +70,6 @@ function decodePathSegment(segment: string): string {
   }
 }
 
-const checkoutLocks = new Map<number, Promise<void>>();
-
-async function acquireCheckoutLock(userId: number): Promise<() => void> {
-  const previous = checkoutLocks.get(userId) || Promise.resolve();
-  let release!: () => void;
-  const current = new Promise<void>((resolve) => {release = resolve;});
-  checkoutLocks.set(userId, current);
-  await previous.catch(() => undefined);
-  return () => {
-    release();
-    if (checkoutLocks.get(userId) === current) {checkoutLocks.delete(userId);}
-  };
-}
 
 function getCorsOrigin(req: IncomingMessage): string | null {
   const configured = config.appUrl;
@@ -282,26 +250,9 @@ export async function handleApiRequest(req: AuthenticatedRequest, res: ServerRes
       const targetState = typeof body.active === 'boolean' ? body.active : !currentlyConnected;
 
       if (targetState && !isOwner) {
-        const cachedExpiry = session.expired_at ? new Date(session.expired_at).getTime() : null;
-        if (cachedExpiry !== null && cachedExpiry <= Date.now()) {
-          sendJson(req, res, 403, { success: false, error: 'Masa aktif userbot sudah habis. Perpanjang subscription sebelum menyalakan.' });
+        if (!isApproved(Number(user.id))) {
+          sendJson(req, res, 403, { success: false, error: 'Akun Anda belum disetujui oleh Owner. Silakan minta persetujuan terlebih dahulu.' });
           return true;
-        }
-        if (isMongo) {
-          const subscription = await getUserSubscription(user.id);
-          const graceExpiry = subscription?.graceEndDate ? new Date(subscription.graceEndDate).getTime() : null;
-          const endExpiry = subscription?.endDate ? new Date(subscription.endDate).getTime() : null;
-          const subscriptionExpired = Boolean(
-            subscription &&
-            (
-              ['expired', 'cancelled'].includes(subscription.status) ||
-              (endExpiry !== null && endExpiry <= Date.now() && (graceExpiry === null || graceExpiry <= Date.now()))
-            )
-          );
-          if (subscriptionExpired) {
-            sendJson(req, res, 403, { success: false, error: 'Subscription sudah tidak aktif.' });
-            return true;
-          }
         }
       }
 
@@ -397,25 +348,10 @@ export async function handleApiRequest(req: AuthenticatedRequest, res: ServerRes
     // GET /api/subscription/plans: Paket aktif dari konfigurasi server
     // ----------------------------------------------------
     if (pathname === '/api/subscription/plans' && req.method === 'GET') {
-      const plans = isMongo ? await getActivePlans() : DEFAULT_PLANS.filter((plan) => plan.isActive);
-      const availableGateways: GatewayType[] = [];
-      if (isMongo && config.midtransServerKey) {availableGateways.push('midtrans');}
-      if (isMongo && config.xenditApiKey) {availableGateways.push('xendit');}
-
       sendJson(req, res, 200, {
         success: true,
-        plans: plans.map((plan) => ({
-          id: plan._id,
-          name: plan.name,
-          description: plan.description,
-          price: plan.price,
-          currency: plan.currency,
-          durationDays: plan.durationDays,
-          features: plan.features,
-          maxUserbots: plan.maxUserbots,
-          trialDays: plan.trialDays,
-        })),
-        availableGateways,
+        plans: [],
+        availableGateways: [],
         ownerId: config.ownerId,
       });
       return true;
@@ -426,277 +362,31 @@ export async function handleApiRequest(req: AuthenticatedRequest, res: ServerRes
     // ----------------------------------------------------
     if (pathname === '/api/subscription' && req.method === 'GET') {
       const session = getUserbotSession(user.id);
-      const current = isMongo ? await getUserSubscription(user.id) : null;
-      const currentPlan = current && !isOwner
-        ? await getPlan(current.planId).catch(() => null)
-        : null;
-      const isLifetime = currentPlan?.durationDays === 0;
-      const now = Date.now();
-      const graceEnd = current?.graceEndDate ? new Date(current.graceEndDate).getTime() : 0;
-      const inGrace = (current?.status === 'active' || current?.status === 'grace') && graceEnd > now;
-      let daysLeft = 0;
-      let graceDaysLeft = 0;
-      let isExpired = false;
-
-      if (isOwner || isLifetime) {
-        daysLeft = 99999;
-      } else {
-        const rawExpiry = current?.endDate || session?.expired_at;
-        if (rawExpiry) {
-          const expiry = new Date(rawExpiry).getTime();
-          daysLeft = Math.max(0, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)));
-          isExpired = expiry <= now && !inGrace;
-          if (inGrace) {
-            graceDaysLeft = Math.max(0, Math.ceil((graceEnd - now) / (1000 * 60 * 60 * 24)));
-          }
-        }
-      }
+      const isApprovedUser = isOwner || isApproved(user.id);
 
       sendJson(req, res, 200, {
         success: true,
         isOwner,
-        isActive: isOwner
-          ? true
-          : current
-            ? ['active', 'trial', 'grace'].includes(current.status) && !isExpired
-            : session?.is_active === 1 && !isExpired,
-        status: isOwner ? 'owner' : (inGrace ? 'grace' : (current?.status || (isExpired ? 'expired' : 'free'))),
-        expiredAt: isOwner || isLifetime ? null : (current?.endDate || session?.expired_at || null),
-        graceEndDate: isOwner ? null : (current?.graceEndDate || null),
-        startDate: isOwner ? null : (current?.startDate || null),
-        autoRenew: isOwner ? false : Boolean(current?.autoRenew),
-        daysLeft,
-        graceDaysLeft,
-        isExpired,
-        isLifetime: isOwner || isLifetime,
-        planId: isOwner ? 'owner' : (current?.planId || null),
-        planName: isOwner
-          ? 'Founder / Unlimited Owner'
-          : (currentPlan?.name || (daysLeft > 0 ? 'VIP Userbot' : 'Free / Expired')),
+        isActive: isOwner ? true : session?.is_active === 1,
+        status: isOwner ? 'owner' : (isApprovedUser ? 'approved' : 'pending'),
+        expiredAt: null,
+        graceEndDate: null,
+        startDate: null,
+        autoRenew: false,
+        daysLeft: 99999,
+        graceDaysLeft: 0,
+        isExpired: false,
+        isLifetime: true,
+        isApproved: isApprovedUser,
+        planId: isOwner ? 'owner' : 'unlimited',
+        planName: isOwner ? 'Founder / Unlimited Owner' : (isApprovedUser ? 'Akses Penuh (Approved)' : 'Menunggu Approval'),
       });
       return true;
     }
 
-    // ----------------------------------------------------
-    // POST /api/subscription/checkout: Buat pembayaran paket
-    // ----------------------------------------------------
-    if (pathname === '/api/subscription/checkout' && req.method === 'POST') {
-      if (isOwner) {
-        sendJson(req, res, 400, { success: false, error: 'Owner tidak memerlukan pembelian paket.' });
-        return true;
-      }
 
-      const body = await readJsonBody<{ planId?: string }>(req);
-      if (!body.planId) {
-        sendJson(req, res, 400, { success: false, error: 'Paket wajib dipilih.' });
-        return true;
-      }
 
-      const plan = isMongo
-        ? await getPlan(body.planId)
-        : DEFAULT_PLANS.find((item) => item._id === body.planId && item.isActive) || null;
-      if (!plan || !plan.isActive) {
-        sendJson(req, res, 404, { success: false, error: 'Paket tidak ditemukan atau sudah nonaktif.' });
-        return true;
-      }
-      if (plan.currency !== 'IDR') {
-        sendJson(req, res, 400, { success: false, error: 'Checkout hanya mendukung paket dalam IDR.' });
-        return true;
-      }
 
-      const session = getUserbotSession(user.id);
-      const releaseCheckout = await acquireCheckoutLock(user.id);
-      try {
-        if (plan.price === 0) {
-          if (!session) {
-            sendJson(req, res, 400, { success: false, error: 'Daftarkan userbot sebelum klaim paket gratis.' });
-            return true;
-          }
-          const existing = isMongo ? await getUserSubscription(user.id) : null;
-          const localTrialActive = !isMongo && session?.expired_at && new Date(session.expired_at).getTime() > Date.now();
-          const localLifetime = !isMongo && session?.expired_at === null;
-          const trialAlreadyClaimed = Boolean(
-            session?.trial_claimed_at ||
-            (existing?.planId === 'trial' && existing.metadata?.isTrial)
-          );
-          if (trialAlreadyClaimed || localTrialActive || localLifetime || (existing && ['active', 'trial', 'grace'].includes(existing.status))) {
-            sendJson(req, res, 409, { success: false, error: 'Paket gratis hanya dapat diklaim satu kali.' });
-            return true;
-          }
-
-          if (isMongo) {
-            await initTrialSubscription(user.id);
-          } else {
-            const trialDays = plan.trialDays || plan.durationDays || 3;
-            await updateUserbotFeature(
-              user.id,
-              'expired_at',
-              new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
-            );
-            await markTrialClaimed(user.id);
-          }
-          sendJson(req, res, 200, { success: true, message: 'Paket gratis berhasil diaktifkan.' });
-          return true;
-        }
-
-      if (!isMongo) {
-        sendJson(req, res, 503, {
-          success: false,
-          error: 'Checkout otomatis memerlukan MONGO_URI. Hubungi owner untuk pembelian manual.',
-          ownerId: config.ownerId,
-        });
-        return true;
-      }
-
-      const gateway: GatewayType | null = config.midtransServerKey
-        ? 'midtrans'
-        : config.xenditApiKey
-          ? 'xendit'
-          : null;
-      if (!gateway) {
-        sendJson(req, res, 503, {
-          success: false,
-          error: 'Payment gateway belum dikonfigurasi. Hubungi owner untuk pembelian manual.',
-          ownerId: config.ownerId,
-        });
-        return true;
-      }
-
-      const current = isMongo ? await getUserSubscription(user.id) : null;
-      if (current && ['active', 'trial', 'grace'].includes(current.status) && current.planId !== plan._id) {
-        sendJson(req, res, 409, {
-          success: false,
-          error: 'Paket aktif berbeda tidak dapat ditimpa. Perpanjang atau batalkan paket saat ini terlebih dahulu.',
-        });
-        return true;
-      }
-
-      const pendingPayment = await PaymentModel.findOne({
-        userId: user.id,
-        planId: plan._id,
-        status: 'pending',
-        createdAt: { $gte: new Date(Date.now() - 30 * 60 * 1000) },
-      }).sort({ createdAt: -1 });
-      const pendingExpired = pendingPayment?.expiredAt
-        ? new Date(pendingPayment.expiredAt).getTime() <= Date.now()
-        : false;
-      if (pendingPayment?.paymentUrl && !pendingExpired) {
-        sendJson(req, res, 200, {
-          success: true,
-          message: 'Checkout sebelumnya masih aktif.',
-          gateway: pendingPayment.gateway,
-          paymentUrl: pendingPayment.paymentUrl,
-          expiresAt: pendingPayment.expiredAt,
-          reused: true,
-        });
-        return true;
-      }
-      if (pendingPayment && pendingExpired) {
-        await updatePaymentStatus(pendingPayment.externalId, { status: 'expired' });
-      }
-
-      const isRenewal = Boolean(
-        current &&
-        current.planId === plan._id &&
-        ['active', 'trial', 'grace'].includes(current.status)
-      );
-      const orderId = generateOrderId(user.id, plan._id);
-      const payment = await createPayment({
-        userId: user.id,
-        planId: plan._id,
-        amount: plan.price,
-        currency: plan.currency || 'IDR',
-        gateway,
-        externalId: orderId,
-        metadata: { orderId, isRenewal, source: 'miniapp' },
-      });
-
-      try {
-        const result = await createPaymentViaGateway(gateway, {
-          orderId,
-          amount: plan.price,
-          userId: user.id,
-          userEmail: `${user.id}@telegram.local`,
-          userPhone: session?.phone || undefined,
-          itemName: `${isRenewal ? 'Perpanjangan' : 'Langganan'} ${plan.name}`,
-          callbackUrl: config.appUrl,
-        });
-        await attachPaymentCheckout(payment._id.toString(), result);
-        sendJson(req, res, 200, {
-          success: true,
-          message: 'Checkout berhasil dibuat.',
-          gateway,
-          paymentUrl: result.paymentUrl,
-          expiresAt: result.expiresAt,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        await updatePaymentStatus(orderId, {
-          status: 'cancelled',
-          payload: { source: 'miniapp', error: message.slice(0, 500) },
-        }).catch(() => undefined);
-        Logger.logSystem(`Mini App payment creation failed: ${message}`, 'ERROR');
-        sendJson(req, res, 502, { success: false, error: 'Payment gateway sedang tidak tersedia. Coba lagi nanti.' });
-      }
-        return true;
-      } finally {
-        releaseCheckout();
-      }
-    }
-
-    if (pathname === '/api/subscription/payments' && req.method === 'GET') {
-      if (!isMongo) {
-        sendJson(req, res, 200, { success: true, payments: [] });
-        return true;
-      }
-      const payments = await getUserPayments(user.id, 20);
-      sendJson(req, res, 200, {
-        success: true,
-        payments: payments.map((payment) => ({
-          id: payment._id.toString(),
-          planId: payment.planId,
-          amount: payment.amount,
-          status: payment.status,
-          paymentUrl: payment.paymentUrl || null,
-          createdAt: payment.createdAt,
-          paidAt: payment.paidAt || null,
-        })),
-      });
-      return true;
-    }
-
-    if (pathname === '/api/subscription/cancel-auto-renew' && req.method === 'POST') {
-      if (!isMongo) {
-        sendJson(req, res, 409, { success: false, error: 'Auto-renew hanya tersedia pada subscription MongoDB.' });
-        return true;
-      }
-      const updated = await cancelAutoRenew(user.id, 'Cancelled via Mini App');
-      if (!updated) {
-        sendJson(req, res, 404, { success: false, error: 'Subscription tidak ditemukan.' });
-        return true;
-      }
-      sendJson(req, res, 200, { success: true, message: 'Auto-renew berhasil dibatalkan.' });
-      return true;
-    }
-
-    // ----------------------------------------------------
-    // POST /api/subscription/redeem: Redeem kode voucher
-    // ----------------------------------------------------
-    if (pathname === '/api/subscription/redeem' && req.method === 'POST') {
-      const body = await readJsonBody<{ code: string }>(req);
-      if (!body.code) {
-        sendJson(req, res, 400, { success: false, error: 'Kode voucher tidak boleh kosong.' });
-        return true;
-      }
-
-      const result = await redeemVoucher(body.code, user.id, {
-        name: [user.first_name, user.last_name].filter(Boolean).join(' '),
-        username: user.username,
-      });
-
-      sendJson(req, res, result.success ? 200 : 400, result);
-      return true;
-    }
 
     // ----------------------------------------------------
     // GET /api/chats: Daftar dialog / chat untuk broadcast

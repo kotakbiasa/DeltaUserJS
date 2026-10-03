@@ -59,17 +59,15 @@ export function registerOwnerHandlers(bot) {
       return ctx.replyWithRichMessage({ html: `<p><b>Format:</b> <code>/approve &lt;telegram_id&gt;</code></p>` });
     }
     const { approveUser } = await import('../state/approvedUsers.js');
-    const { setTrialClaimed } = await import('../../infrastructure/database.js');
     approveUser(targetId);
-    try { await setTrialClaimed(targetId); } catch (_) { /* ignore */ }
     await ctx.replyWithRichMessage({
-      html: `<p><b>✅ User Disetujui</b><br>ID <code>${targetId}</code> telah disetujui untuk uji coba gratis 7 hari.</p>`
+      html: `<p><b>✅ User Disetujui</b><br>ID <code>${targetId}</code> telah disetujui untuk menggunakan userbot.</p>`
     });
     try {
       await ctx.api.sendMessage(
         targetId,
-        `🎉 <b>Permintaan Uji Coba Disetujui!</b>\n\n` +
-        `<p>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</p>\n\n` +
+        `🎉 <b>Pendaftaran Disetujui!</b>\n\n` +
+        `<p>Owner telah menyetujui permohonan akses userbot untuk akun Anda. Anda memiliki akses penuh tanpa batas masa aktif.</p>\n\n` +
         `<footer>Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:</footer>`,
         {
           parse_mode: 'HTML',
@@ -84,7 +82,7 @@ export function registerOwnerHandlers(bot) {
     } catch (_) { /* ignore */ }
   });
 
-  bot.command('reject', async (ctx) => {
+  bot.command(['reject', 'revoke'], async (ctx) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     const text = ctx.message?.text?.trim() || '';
     const parts = text.split(/\s+/);
@@ -94,13 +92,19 @@ export function registerOwnerHandlers(bot) {
     }
     const { revokeUser } = await import('../state/approvedUsers.js');
     revokeUser(targetId);
+    try {
+      const userbotManager = (await import('../../userbot/engine/manager.js')).default;
+      const { updateUserbotStatus } = await import('../../infrastructure/database.js');
+      await userbotManager.stopUserbot(targetId);
+      await updateUserbotStatus(targetId, false);
+    } catch (_) { /* ignore */ }
     await ctx.replyWithRichMessage({
       html: `<p><b>❌ User Ditolak / Dicabut</b><br>Akses ID <code>${targetId}</code> telah ditolak/dicabut.</p>`
     });
     try {
       await ctx.api.sendMessage(
         targetId,
-        `<h3>❌ Permintaan Uji Coba Ditolak</h3><p>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini.</p>`,
+        `<h3>❌ Akses Userbot Ditolak / Dicabut</h3><p>Maaf, izin akses userbot untuk akun Anda telah ditolak atau dicabut oleh Owner.</p>`,
         {
           parse_mode: 'HTML',
           reply_markup: {

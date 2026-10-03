@@ -15,15 +15,9 @@ import {
   manageVarsConv,
   manageSystemVarsConv,
 } from './conversations/settings.js';
-import {
-  userRedeemVoucherConversation,
-  adminCreateVoucherConversation,
-} from './conversations/voucher.js';
 import { userAddLoopConversation } from './conversations/scheduler.js';
 import { registerRichHandlers } from './ui/keyboards/dashboard.js';
 import { registerInlineHelpHandlers } from './handlers/inlineHelp.js';
-import { registerSubscriptionHandlers } from './handlers/subscription.js';
-import { registerAuditHandlers } from './handlers/audit.js';
 import { registerMarketplaceHandlers } from './handlers/marketplace.js';
 import { registerBackupHandlers } from './handlers/backup.js';
 import { setLoggerBot } from '../utils/logger.js';
@@ -99,8 +93,6 @@ bot.use(createConversation(afkReasonConversation, 'afk-reason-conv'));
 bot.use(createConversation(manageVarsConv, 'manage-vars-conv'));
 bot.use(createConversation(manageSystemVarsConv, 'manage-system-vars-conv'));
 bot.use(createConversation(broadcastConversation, 'broadcast-conv'));
-bot.use(createConversation(userRedeemVoucherConversation, 'user-redeem-voucher-conv'));
-bot.use(createConversation(adminCreateVoucherConversation, 'admin-create-voucher-conv'));
 bot.use(createConversation(userAddLoopConversation, 'user-add-loop-conv'));
 
 setLoggerBot(bot);
@@ -113,11 +105,6 @@ registerRichHandlers(bot);
 // Inline help handlers (menjawab inline query 'help_ubot' dari userbot .help)
 registerInlineHelpHandlers(bot);
 
-// Subscription handlers (manajemen langganan & pembayaran)
-registerSubscriptionHandlers(bot);
-
-// Audit handlers (audit log & compliance)
-registerAuditHandlers(bot);
 
 // Marketplace handlers (plugin marketplace)
 registerMarketplaceHandlers(bot);

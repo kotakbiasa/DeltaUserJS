@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Power, Puzzle, Radio, Sliders, CreditCard, ShieldCheck, RefreshCw, Star, Zap, MoreHorizontal, X, ChevronRight,
+  Power, Puzzle, Radio, Sliders, ShieldCheck, RefreshCw, Star, Zap, MoreHorizontal, X, ChevronRight,
   ShoppingBag, Wrench,
 } from 'lucide-react';
 import { api, UserMe } from './api';
@@ -8,7 +8,6 @@ import { OverviewTab } from './tabs/OverviewTab';
 import { PluginsTab } from './tabs/PluginsTab';
 import { BroadcastTab } from './tabs/BroadcastTab';
 import { SettingsTab } from './tabs/SettingsTab';
-import { SubscriptionTab } from './tabs/SubscriptionTab';
 import { AdminTab } from './tabs/AdminTab';
 import { StoreTab } from './tabs/StoreTab';
 import { UtilitiesTab } from './tabs/UtilitiesTab';
@@ -22,7 +21,6 @@ type TabId =
   | 'plugins'
   | 'broadcast'
   | 'settings'
-  | 'subscription'
   | 'admin';
 
 interface NavItem {
@@ -47,7 +45,6 @@ const NAV: NavItem[] = [
   { id: 'plugins', label: 'Plugin', short: 'Plugin', icon: Puzzle, accent: 'var(--ok)', desc: 'Modul otomatisasi userbot' },
   { id: 'broadcast', label: 'Siaran', short: 'Siaran', icon: Radio, accent: 'var(--info)', desc: 'Kirim pesan massal' },
   { id: 'settings', label: 'Setelan', short: 'Setelan', icon: Sliders, accent: 'var(--warn)', desc: 'Preferensi, vars & diagnostik' },
-  { id: 'subscription', label: 'Paket & Langganan', short: 'Paket', icon: CreditCard, accent: 'var(--gold)', desc: 'Masa aktif, voucher, perpanjangan' },
   { id: 'admin', label: 'Pusat Kontrol Armada', short: 'Admin', icon: ShieldCheck, accent: 'var(--violet)', desc: 'Statistik server & daftar akun', ownerOnly: true },
 ];
 
@@ -320,7 +317,6 @@ export default function App() {
           {activeTab === 'plugins' && <PluginsTab active={visited.has('plugins')} />}
           {activeTab === 'broadcast' && <BroadcastTab active={visited.has('broadcast')} />}
           {activeTab === 'settings' && <SettingsTab user={user} active={visited.has('settings')} />}
-          {activeTab === 'subscription' && <SubscriptionTab active={visited.has('subscription')} />}
           {activeTab === 'admin' && user?.isOwner && <AdminTab active={visited.has('admin')} />}
         </main>
       </div>

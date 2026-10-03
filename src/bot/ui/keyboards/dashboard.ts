@@ -18,15 +18,12 @@ import {
   enablePlugin,
   deleteUserbot,
   updateUserbotFeature,
-  hasClaimedTrial,
-  setTrialClaimed,
   setSystemVar,
   UserbotModel,
   getSchedules,
   updateTelegramPremiumStatus,
 } from '../../../infrastructure/database.js';
 import { stopLoop } from '../../../userbot/handlers/util/loop.js';
-import { getAllVouchers, deleteVoucher, redeemVoucher, broadcastVoucherToChannel } from '../../../services/VoucherService.js';
 import { systemConfigCache } from '../../../infrastructure/dbCore.js';
 import { loadedPlugins } from '../../../userbot/engine/pluginRegistry.js';
 import userbotManager from '../../../userbot/engine/manager.js';
@@ -164,10 +161,10 @@ export function panelMain(ctx) {
     if (pending) {
       return `<h1 align="center">⚡ DeltaUserJS Manager</h1>` +
         `<p>Halo, <b>${escapeHtml(firstName)}</b>!<br>` +
-        `Permohonan coba gratis <b>7 Hari</b> Anda sedang menunggu persetujuan owner.</p>` +
+        `Permohonan pendaftaran akun Anda sedang menunggu persetujuan owner.</p>` +
         `<table bordered striped>` +
         `<tr><th>Tahap Pendaftaran</th><th>Status</th><th>Keterangan</th></tr>` +
-        `<tr><td>1. Request Trial</td><td align="center">✅ Selesai</td><td>Terkirim ke Owner</td></tr>` +
+        `<tr><td>1. Request Approval</td><td align="center">✅ Selesai</td><td>Terkirim ke Owner</td></tr>` +
         `<tr><td>2. Review Owner</td><td align="center">⏳ Menunggu</td><td>Sedang Ditinjau</td></tr>` +
         `<tr><td>3. Tautkan Akun</td><td align="center">🔒 Terkunci</td><td>Scan QR / OTP</td></tr>` +
         `<tr><td>4. Userbot Aktif</td><td align="center">🔒 Terkunci</td><td>Teleproto 229</td></tr>` +
@@ -184,7 +181,7 @@ export function panelMain(ctx) {
         `🎉 <b>Akses Disetujui!</b> Akun Anda siap untuk menghubungkan userbot.</p>` +
         `<table bordered striped>` +
         `<tr><th>Tahap Pendaftaran</th><th>Status</th><th>Keterangan</th></tr>` +
-        `<tr><td>1. Request Trial</td><td align="center">✅ Selesai</td><td>Disetujui</td></tr>` +
+        `<tr><td>1. Request Approval</td><td align="center">✅ Selesai</td><td>Disetujui</td></tr>` +
         `<tr><td>2. Review Owner</td><td align="center">✅ Disetujui</td><td>Izin Diberikan</td></tr>` +
         `<tr><td>3. Tautkan Akun</td><td align="center">🔓 Siap Login</td><td>Scan QR / OTP</td></tr>` +
         `<tr><td>4. Userbot Aktif</td><td align="center">🚀 Siap</td><td>Langkah Terakhir</td></tr>` +
@@ -199,16 +196,15 @@ export function panelMain(ctx) {
       `<tr><th>Layanan Platform</th><th>Status</th><th>Keterangan</th></tr>` +
       `<tr><td>🤖 Userbot Engine</td><td align="center">🟢 Online</td><td>Teleproto Layer 229</td></tr>` +
       `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td><td>${isTgPremium ? 'Telegram Premium' : 'Telegram Reguler'}</td></tr>` +
-      `<tr><td>🎁 Uji Coba Gratis</td><td align="center">7 Hari</td><td>Request ke Owner</td></tr>` +
+      `<tr><td>🛡️ Izin Akses</td><td align="center">🔒 Perlu Approval</td><td>Request ke Owner</td></tr>` +
       `<tr><td>📦 Modul Tersedia</td><td align="center">${loadedPlugins.length} Plugin</td><td>Siap Digunakan</td></tr>` +
       `</table>` +
       `<hr/>` +
-      `<h3>🚀 Alur Pendaftaran Cepat (4 Langkah):</h3>` +
+      `<h3>🚀 Alur Pendaftaran (3 Langkah):</h3>` +
       `<ol>` +
-      `<li>Ajukan coba gratis dengan menekan tombol <b>🎁 Request Coba Gratis</b> di bawah.</li>` +
+      `<li>Ajukan akses dengan menekan tombol <b>📩 Minta Persetujuan (Request Approval)</b> di bawah.</li>` +
       `<li>Tunggu persetujuan singkat dari owner bot.</li>` +
-      `<li>Pindai Scan QR Code atau masukkan kode OTP Telegram.</li>` +
-      `<li>Userbot Anda langsung online &amp; siap digunakan!</li>` +
+      `<li>Pindai Scan QR Code atau masukkan kode OTP Telegram, dan userbot Anda aktif!</li>` +
       `</ol>` +
       `<footer>Silakan pilih menu di bawah untuk memulai.</footer>`;
   }
@@ -221,7 +217,7 @@ export function panelMain(ctx) {
     `<tr><th>Informasi Akun</th><th>Status</th><th>Keterangan</th></tr>` +
     `<tr><td>🤖 Status Userbot</td><td align="center">${running ? '🟢 Online' : '🔴 Offline'}</td><td>${running ? 'Teleproto 229' : 'Siap Dijalankan'}</td></tr>` +
     `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td><td>Telegram Resmi</td></tr>` +
-    `<tr><td>⏳ Masa Aktif</td><td align="center">${daysLeftText(session?.expired_at, true, isOwner(ctx))}</td><td>Akses Penuh</td></tr>` +
+    `<tr><td>🛡️ Status Akses</td><td align="center">🟢 Disetujui</td><td>Akses Penuh</td></tr>` +
     `<tr><td>⚡ Core Engine</td><td align="center">Teleproto Layer 229</td><td>Layer MTProto</td></tr>` +
     `</table>` +
     `<hr/>` +
@@ -251,10 +247,8 @@ export function panelMenuList(ctx) {
       ? `<tr><td>🤖 Panel Userbot</td><td>Kendali daya, restart, &amp; info sesi</td><td align="center">🟢 Siap</td></tr>` +
         `<tr><td>🧩 Plugin Studio</td><td>Manajemen ${loadedPlugins.length} modul perintah aktif</td><td align="center">🟢 Siap</td></tr>` +
         `<tr><td>⚙️ Pengaturan</td><td>Anti-PM, Mode AFK, &amp; custom prefix</td><td align="center">🟢 Siap</td></tr>` +
-        `<tr><td>🩺 Diagnostik</td><td>Uji latensi MTProto &amp; data center</td><td align="center">🟢 Siap</td></tr>` +
-        `<tr><td>💎 Langganan</td><td>Status durasi akses &amp; perpanjangan</td><td align="center">🟢 Siap</td></tr>`
-      : `<tr><td>🚀 Registrasi Akun</td><td>Daftar userbot baru via OTP atau QR Code</td><td align="center">🟡 Perlu Setup</td></tr>` +
-        `<tr><td>💎 Paket VIP</td><td>Pilihan durasi berlangganan premium</td><td align="center">🟢 Tersedia</td></tr>`) +
+        `<tr><td>🩺 Diagnostik</td><td>Uji latensi MTProto &amp; data center</td><td align="center">🟢 Siap</td></tr>`
+      : `<tr><td>🚀 Registrasi Akun</td><td>Daftar userbot baru via OTP atau QR Code</td><td align="center">🟡 Perlu Setup</td></tr>`) +
     (isOwner(ctx) ? `<tr><td>👑 Panel Admin</td><td>Operasi owner &amp; maintenance sistem</td><td align="center">🔴 Owner <sup>ROOT</sup></td></tr>` : '') +
     `</table>` +
     `<footer>Pilih salah satu menu di bawah untuk melanjutkan.</footer>`;
@@ -309,7 +303,6 @@ export function panelUserbot(ctx) {
   const pluginBtn = `<tg-button type="callback_data" data="rich:p_cat:all:1">📦 Buka</tg-button>`;
   const diagBtn = `<tg-button type="callback_data" data="rich:ubot_diag">🩺 Tes</tg-button>`;
   const loopBtn = `<tg-button type="callback_data" data="rich:user_loops:1">⏰ Kelola</tg-button>`;
-  const subBtn = `<tg-button type="callback_data" data="rich:subscription">💎 VIP</tg-button>`;
 
   const phoneText = session?.phone
     ? `<tg-spoiler>${session.phone.startsWith('+') ? session.phone : `+${session.phone}`}</tg-spoiler>`
@@ -334,7 +327,7 @@ export function panelUserbot(ctx) {
     `<tr><td>🧩 Modul Plugin</td><td>🟢 ${activePlugins}/${loadedPlugins.length} Aktif</td><td align="center">${pluginBtn}</td></tr>` +
     `<tr><td>⏰ Auto-Loop</td><td><b>${loopCount}</b> Jadwal Aktif</td><td align="center">${loopBtn}</td></tr>` +
     `<tr><td>🛡️ FloodGuard</td><td>${flood.inCooldown ? `⏳ Cooldown (${flood.secondsLeft}s)` : '🟢 Normal'}</td><td align="center">${diagBtn}</td></tr>` +
-    `<tr><td>⏱️ Masa Langganan</td><td>${daysLeftText(session?.expired_at, true, isOwner(ctx))}</td><td align="center">${subBtn}</td></tr>` +
+    `<tr><td>🛡️ Status Akses</td><td>🟢 Disetujui (Approved)</td><td align="center">Akses Penuh</td></tr>` +
     `</table>` +
     `<table bordered striped><caption>👤 Profil Akun Terhubung</caption>` +
     `<tr><th>Informasi Akun</th><th>Nilai</th></tr>` +
@@ -755,14 +748,12 @@ export function panelDangerDelete(ctx?: any) {
 }
 
 export function panelRegister(ctx) {
-  const claimed = hasClaimedTrial(ctx.from.id);
-  const statusTrial = claimed ? 'Sudah Diklaim' : '🎁 Gratis 7 Hari';
   return `<h1 align="center">🚀 Daftar Userbot Telegram <sup>ONBOARDING</sup></h1>` +
-    `<p>Halo, <b>${escapeHtml(ctx.from.first_name || 'User')}</b>! Pilih metode login untuk mengaktifkan userbot Anda.</p>` +
+    `<p>Halo, <b>${escapeHtml(ctx.from.first_name || 'User')}</b>! Akses akun Anda telah disetujui. Pilih metode login untuk mengaktifkan userbot Anda.</p>` +
     `<table bordered striped>` +
-    `<tr><th>Metode Login</th><th>Keterangan</th><th>Trial</th></tr>` +
-    `<tr><td>📱 OTP Telegram</td><td>Kode verifikasi via SMS / App</td><td align="center">${statusTrial}</td></tr>` +
-    `<tr><td>🔍 Scan QR Code</td><td>Pindai via Settings &gt; Devices</td><td align="center">${statusTrial}</td></tr>` +
+    `<tr><th>Metode Login</th><th>Keterangan</th><th>Akses</th></tr>` +
+    `<tr><td>📱 OTP Telegram</td><td>Kode verifikasi via SMS / App</td><td align="center">🟢 Permanen</td></tr>` +
+    `<tr><td>🔍 Scan QR Code</td><td>Pindai via Settings &gt; Devices</td><td align="center">🟢 Permanen</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>🛡️ Jaminan Keamanan:</h3>` +
@@ -782,164 +773,58 @@ function getSystemVarNum(key: string, fallback: number): number {
 }
 
 export function panelSubscription(ctx?: any) {
-  const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
-  const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
   const isTgPremium = isTelegramPremium(ctx, session);
+  const approved = userId ? (owner || isApproved(userId)) : false;
+  const pending = userId ? isPendingApproval(userId) : false;
 
-  const packagesTable = `<table bordered striped><caption>✨ Pilihan Paket &amp; Tarif Langganan VIP</caption>` +
-    `<tr><th>Pilihan Paket</th><th>Durasi</th><th>Investasi</th><th>Keterangan</th></tr>` +
-    `<tr><td>🎁 Coba Gratis</td><td align="center">${trialDays} Hari</td><td align="center">Rp 0</td><td>Akses awal coba fitur</td></tr>` +
-    `<tr><td>💎 Premium Bulanan</td><td align="center">${premiumDays} Hari</td><td align="center">Rp 50.000</td><td>Full akses 30 hari</td></tr>` +
-    `<tr><td>🚀 Paket Triwulanan</td><td align="center">90 Hari</td><td align="center">Rp 135.000</td><td>Diskon 10% (3 bulan)</td></tr>` +
-    `<tr><td>👑 Paket Tahunan</td><td align="center">365 Hari</td><td align="center">Rp 480.000</td><td>Diskon 20% (1 tahun)</td></tr>` +
-    `<tr><td>♾️ Lifetime VIP</td><td align="center">Selamanya</td><td align="center">Rp 1.500.000</td><td>Bayar sekali selamanya</td></tr>` +
-    `<tr><td>🎟️ Kupon Promo</td><td align="center">Variatif</td><td align="center">Gratis</td><td>Tukar kode voucher promo</td></tr>` +
-    `</table>`;
+  const running = userId ? userbotManager.isRunning(userId) : false;
+  const ubot = userId ? userbotManager.clients.get(userId) : null;
+  const isConnected = running && Boolean(ubot?.client?.connected);
+  const connStatus = running
+    ? (isConnected ? '🟢 Online' : '🟡 Menghubungkan...')
+    : (session ? '🔴 Offline' : '⚪ Belum Ditautkan');
+  const phoneText = session?.phone
+    ? `<tg-spoiler>${session.phone.startsWith('+') ? session.phone : `+${session.phone}`}</tg-spoiler>`
+    : (session ? '<i>Terhubung</i>' : '<i>Belum Ada Sesi</i>');
 
-  // 1. Tampilan Khusus OWNER / SUPERADMIN
-  if (owner) {
-    const running = userId ? userbotManager.isRunning(userId) : false;
-    const ubot = userId ? userbotManager.clients.get(userId) : null;
-    const isConnected = running && Boolean(ubot?.client?.connected);
-    const connStatus = running
-      ? (isConnected ? '🟢 Online' : '🟡 Menghubungkan...')
-      : (session ? '🔴 Offline' : '⚪ Belum Ditautkan');
-    const phoneText = session?.phone
-      ? `<tg-spoiler>${session.phone.startsWith('+') ? session.phone : `+${session.phone}`}</tg-spoiler>`
-      : (session ? '<i>Terhubung</i>' : '<i>Belum Ada Sesi</i>');
+  const statusAkses = owner
+    ? '👑 Owner (Akses Penuh)'
+    : (approved ? '🟢 Disetujui (Permanen)' : (pending ? '⏳ Menunggu Approval Owner' : '🔴 Belum Disetujui'));
 
-    return `<h1 align="center">👑 Status Akses &amp; Langganan <sup>OWNER</sup></h1>` +
-      `<p>Akun Anda terdaftar sebagai <b>Owner / Superadmin</b> dengan hak akses penuh, prioritas server tertinggi, dan tanpa batasan durasi.</p>` +
-      `<table bordered striped><caption>📋 Kartu Status Langganan &amp; Akses</caption>` +
-      `<tr><th>Parameter Akun</th><th>Informasi / Status</th></tr>` +
-      `<tr><td>🆔 ID Telegram</td><td align="center"><code>${userId || 'Root'}</code></td></tr>` +
-      `<tr><td>👑 Tingkat Akses</td><td align="center">👑 Owner</td></tr>` +
-      `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td></tr>` +
-      `<tr><td>⏱️ Masa Aktif</td><td align="center">♾️ Unlimited</td></tr>` +
-      `<tr><td>⚡ Status Mesin</td><td align="center">${connStatus}</td></tr>` +
-      `<tr><td>📱 Akun Userbot</td><td align="center">${phoneText}</td></tr>` +
-      `</table>` +
-      packagesTable +
-      `<hr/>` +
-      `<details>` +
-      `<summary>✨ Fasilitas Eksklusif Akun Owner</summary>` +
-      `<ul>` +
-      `<li><b>Akses Permanen:</b> Tidak terikat batas kedaluwarsa sistem.</li>` +
-      `<li><b>Server Prioritas:</b> Latensi rendah &amp; alokasi memori dedicated Teleproto.</li>` +
-      `<li><b>Pusat Kendali Sistem:</b> Akses penuh ke Panel Admin Command Center &amp; audit log.</li>` +
-      `<li><b>Manajemen Fleet:</b> Pantau dan kelola seluruh userbot yang aktif di sistem.</li>` +
-      `<li><b>Generator Voucher:</b> Buat dan terbitkan kupon promo durasi untuk pengguna.</li>` +
-      `</ul>` +
-      `</details>` +
-      `<footer>Gunakan tombol di bawah untuk membuka menu beli paket, tukar voucher, atau dashboard.</footer>`;
-  }
-
-  // 2. Tampilan Pengguna Terdaftar (Mempunyai Sesi Userbot)
-  if (session) {
-    const running = userId ? userbotManager.isRunning(userId) : false;
-    const ubot = userId ? userbotManager.clients.get(userId) : null;
-    const isConnected = running && Boolean(ubot?.client?.connected);
-    const connStatus = running
-      ? (isConnected ? '🟢 Online' : '🟡 Menghubungkan...')
-      : '🔴 Offline';
-    const phoneText = session.phone
-      ? `<tg-spoiler>${session.phone.startsWith('+') ? session.phone : `+${session.phone}`}</tg-spoiler>`
-      : '<i>Terhubung</i>';
-
-    const expDate = session.expired_at ? new Date(session.expired_at) : null;
-    const isUnlimited = !expDate || Number.isNaN(expDate.getTime());
-    const diffDays = expDate && !isUnlimited ? Math.ceil((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 999;
-    const isExpired = !isUnlimited && diffDays <= 0;
-
-    const tierText = isExpired
-      ? '🔴 VIP Kedaluwarsa'
-      : (isUnlimited ? '♾️ Unlimited VIP' : '💎 VIP Member');
-
-    const durationText = isExpired
-      ? `⚠️ Kedaluwarsa (${expDate!.toLocaleDateString('id-ID')})`
-      : (isUnlimited ? '♾️ Unlimited' : `${expDate!.toLocaleDateString('id-ID')} (${diffDays} hari tersisa)`);
-
-    const headingTitle = isExpired
-      ? `<h1 align="center">⚠️ Masa Aktif Berakhir <sup>EXPIRED</sup></h1>`
-      : `<h1 align="center">💎 Status Langganan &amp; Masa Aktif <sup>VIP</sup></h1>`;
-
-    const subText = isExpired
-      ? `<p>Masa aktif VIP akun Anda telah berakhir. Beli perpanjangan atau tukar kode voucher promo untuk mengaktifkan kembali mesin userbot.</p>`
-      : `<p>Akun userbot Anda aktif dan terhubung ke server cloud DeltaUserJS dengan fitur lengkap.</p>`;
-
-    return headingTitle +
-      subText +
-      `<table bordered striped><caption>📋 Kartu Status Langganan &amp; Akses</caption>` +
-      `<tr><th>Parameter Akun</th><th>Informasi / Status</th></tr>` +
-      `<tr><td>🆔 ID Telegram</td><td align="center"><code>${userId}</code></td></tr>` +
-      `<tr><td>💎 Status Paket</td><td align="center">${tierText}</td></tr>` +
-      `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td></tr>` +
-      `<tr><td>⏱️ Masa Aktif</td><td align="center">${durationText}</td></tr>` +
-      `<tr><td>⚡ Status Mesin</td><td align="center">${connStatus}</td></tr>` +
-      `<tr><td>📱 Nomor Telepon</td><td align="center">${phoneText}</td></tr>` +
-      `</table>` +
-      packagesTable +
-      `<hr/>` +
-      `<details>` +
-      `<summary>✨ Keuntungan &amp; Fasilitas VIP Member</summary>` +
-      `<ul>` +
-      `<li><b>Semua Modul Aktif:</b> Akses ke ${loadedPlugins.length} pustaka modul perintah userbot.</li>` +
-      `<li><b>Anti-PM &amp; Auto-AFK:</b> Perlindungan spam dan balasan otomatis 24/7.</li>` +
-      `<li><b>Auto-Loop Broadcast:</b> Penjadwalan pesan otomatis ke grup/channel.</li>` +
-      `<li><b>FloodGuard Hybrid:</b> Proteksi pintar terhadap pembatasan akun Telegram.</li>` +
-      `<li><b>Server Cloud 24/7:</b> Userbot terus online walau aplikasi Telegram ditutup.</li>` +
-      `</ul>` +
-      `</details>` +
-      `<footer>Gunakan tombol di bawah untuk membeli paket VIP, menukar voucher, atau kembali ke dashboard.</footer>`;
-  }
-
-  // 3. Tampilan Pengguna Tamu / Belum Punya Sesi Userbot
-  return `<h1 align="center">💎 Paket Langganan &amp; Voucher <sup>VIP</sup></h1>` +
-    `<p>Dapatkan akses penuh ke fitur userbot tanpa batas, prioritas server berkecepatan tinggi, dan penukaran kupon promo.</p>` +
-    packagesTable +
-    `<hr/>` +
-    `<h3>💡 Punya Kode Voucher Promo?</h3>` +
-    `<p>Jika Anda memiliki voucher dari owner atau promo spesial, gunakan tombol <b>🎟️ Tukar Kode Voucher Promo</b> di bawah untuk langsung mengaktifkan akun.</p>` +
-    `<details>` +
-    `<summary>📋 Langkah Memulai DeltaUserJS</summary>` +
-    `<ul>` +
-    `<li><b>1. Dapatkan Izin Akses:</b> Klaim coba gratis atau ajukan permohonan ke owner.</li>` +
-    `<li><b>2. Hubungkan Sesi Akun:</b> Login mudah via scan QR Code atau kode OTP.</li>` +
-    `<li><b>3. Nikmati Fitur Lengkap:</b> Langsung gunakan puluhan modul perintah otomatis.</li>` +
-    `</ul>` +
-    `</details>` +
-    `<footer>Pilih salah satu menu di bawah untuk melanjutkan:</footer>`;
-}
-
-export function panelBuySubscription(_ctx?: any) {
-  const premiumDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
-  const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
-
-  return `<h1 align="center">🛒 Beli &amp; Perpanjang Langganan <sup>VIP</sup></h1>` +
-    `<p>Pilih paket langganan <b>DeltaUserJS</b> untuk mendapatkan akses penuh tanpa batasan modul, server prioritas berkecepatan tinggi, dan proteksi cloud 24/7.</p>` +
-    `<table bordered striped><caption>✨ Daftar Paket &amp; Tarif Langganan</caption>` +
-    `<tr><th>Paket VIP</th><th>Durasi</th><th>Investasi</th><th>Keterangan</th></tr>` +
-    `<tr><td>🎁 Coba Gratis</td><td align="center">${trialDays} Hari</td><td align="center">Rp 0</td><td>Akses awal coba fitur</td></tr>` +
-    `<tr><td>💎 Premium Bulanan</td><td align="center">${premiumDays} Hari</td><td align="center">Rp 50.000</td><td>Full akses 30 hari</td></tr>` +
-    `<tr><td>🚀 Paket Triwulanan</td><td align="center">90 Hari</td><td align="center">Rp 135.000</td><td>Diskon 10% (3 bulan)</td></tr>` +
-    `<tr><td>👑 Paket Tahunan</td><td align="center">365 Hari</td><td align="center">Rp 480.000</td><td>Diskon 20% (1 tahun)</td></tr>` +
-    `<tr><td>♾️ Lifetime VIP</td><td align="center">Selamanya</td><td align="center">Rp 1.500.000</td><td>Bayar sekali selamanya</td></tr>` +
+  return `<h1 align="center">🛡️ Status Akses Akun <sup>ACCESS</sup></h1>` +
+    `<p>DeltaUserJS menggunakan sistem <b>Persetujuan Penuh (Approval-Only)</b> tanpa batas masa aktif atau biaya langganan.</p>` +
+    `<table bordered striped><caption>📋 Kartu Status Akses &amp; Mesin</caption>` +
+    `<tr><th>Parameter Akun</th><th>Informasi / Status</th></tr>` +
+    `<tr><td>🆔 ID Telegram</td><td align="center"><code>${userId || 'Root'}</code></td></tr>` +
+    `<tr><td>🛡️ Status Akses</td><td align="center">${statusAkses}</td></tr>` +
+    `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td></tr>` +
+    `<tr><td>⏱️ Masa Aktif</td><td align="center">♾️ Permanen (Tanpa Expired)</td></tr>` +
+    `<tr><td>⚡ Status Mesin</td><td align="center">${connStatus}</td></tr>` +
+    `<tr><td>📱 Akun Userbot</td><td align="center">${phoneText}</td></tr>` +
     `</table>` +
     `<hr/>` +
-    `<h3>💡 Pilihan Cara Aktivasi / Pembelian:</h3>` +
+    `<details>` +
+    `<summary>✨ Fitur &amp; Fasilitas Platform</summary>` +
     `<ul>` +
-    `<li><b>Kupon / Voucher Promo:</b> Jika Anda memiliki kode voucher, tekan tombol <b>🎟️ Tukar Kode Promo</b> di bawah untuk langsung aktif instan tanpa biaya.</li>` +
-    `<li><b>Transfer Bank / e-Wallet (QRIS):</b> Tekan tombol <b>💬 Hubungi Owner untuk Order</b> atau <b>💰 Info Rekening Pembayaran</b> untuk konfirmasi dan aktivasi langsung.</li>` +
-    `<li><b>Garansi Aktif 24/7:</b> Userbot langsung menyala di server cloud dan siap digunakan.</li>` +
+    `<li><b>Akses Permanen:</b> Tidak ada batasan masa aktif selama akun disetujui owner.</li>` +
+    `<li><b>Semua Modul Aktif:</b> Akses ke ${loadedPlugins.length} pustaka modul perintah userbot.</li>` +
+    `<li><b>Anti-PM &amp; Auto-AFK:</b> Perlindungan spam dan balasan otomatis 24/7.</li>` +
+    `<li><b>Auto-Loop Broadcast:</b> Penjadwalan pesan otomatis ke grup/channel.</li>` +
+    `<li><b>FloodGuard Hybrid:</b> Proteksi pintar terhadap pembatasan akun Telegram.</li>` +
+    `<li><b>Server Cloud 24/7:</b> Userbot terus online walau aplikasi Telegram ditutup.</li>` +
     `</ul>` +
-    `<footer>Tekan tombol di bawah untuk memilih opsi pemesanan atau kembali:</footer>`;
+    `</details>` +
+    `<footer>Gunakan menu navigasi di bawah untuk mengelola userbot Anda.</footer>`;
+}
+
+export function panelBuySubscription(ctx?: any) {
+  return panelSubscription(ctx);
 }
 
 export function panelAccessDenied(ctx) {
-  const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
   const pending = isPendingApproval(ctx.from.id);
   const statusText = pending ? '🕐 Menunggu Approval Owner' : '🔴 Belum Disetujui';
   return `<h1 align="center">🔒 Akses Belum Disetujui <sup>RESTRICTED</sup></h1>` +
@@ -948,11 +833,11 @@ export function panelAccessDenied(ctx) {
     `<tr><th>Informasi Akun</th><th>Status</th></tr>` +
     `<tr><td>ID Telegram</td><td align="center"><code>${ctx.from.id}</code></td></tr>` +
     `<tr><td>Status Akses</td><td align="center">${statusText}</td></tr>` +
-    `<tr><td>Uji Coba Gratis</td><td align="center">${trialDays} Hari</td></tr>` +
+    `<tr><td>Masa Aktif</td><td align="center">♾️ Permanen (Setelah Disetujui)</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Cara Mendapatkan Akses:</h3>` +
-    `<p>Tekan tombol <b>🎁 Request Coba Gratis</b> di bawah untuk mengirimkan permohonan ke owner. Begitu disetujui, Anda dapat langsung login via scan QR code atau OTP.</p>` +
+    `<p>Tekan tombol <b>📩 Minta Persetujuan Akses</b> di bawah untuk mengirimkan permohonan ke owner. Begitu disetujui, Anda dapat langsung login via scan QR code atau OTP.</p>` +
     `<footer>Silakan pilih menu di bawah:</footer>`;
 }
 
@@ -962,7 +847,7 @@ export function keyboardAccessDenied(ctx) {
   if (pending) {
     rows.push([{ text: '🔄 Cek Status Approval', callback_data: 'rich:check_approval' }]);
   } else {
-    rows.push([{ text: '🎁 Request Coba Gratis', callback_data: 'rich:claim_trial' }]);
+    rows.push([{ text: '📩 Minta Persetujuan Akses', callback_data: 'rich:claim_trial' }]);
   }
   rows.push([{ text: '🔙 Menu Utama', callback_data: 'rich:main' }]);
   return { inline_keyboard: rows };
@@ -1020,16 +905,13 @@ export function panelAdmin(_ctx) {
   const totalUsers = registeredUsers.length + awaitingCount;
   const running = userbotManager.clients.size;
   const pending = getPendingApprovals();
-  const vouchers = getAllVouchers();
   const mem = process.memoryUsage();
   const uptimeMin = Math.round(process.uptime() / 60);
 
   const pendingBtn = `<tg-button type="callback_data" data="rich:admin_pending">${pending.length > 0 ? `⏳ Review (${pending.length})` : '🔍 Cek'}</tg-button>`;
   const usersBtn = `<tg-button type="callback_data" data="rich:admin_users:1">👥 Kelola</tg-button>`;
   const fleetBtn = `<tg-button type="callback_data" data="rich:admin_fleet">⚡ Kontrol</tg-button>`;
-  const voucherBtn = `<tg-button type="callback_data" data="rich:admin_vouchers:1">🎟️ Kelola</tg-button>`;
   const healthBtn = `<tg-button type="callback_data" data="rich:health">🩺 Health</tg-button>`;
-  const subsBtn = `<tg-button type="callback_data" data="rich:admin_subs">💳 Billing</tg-button>`;
   const backupBtn = `<tg-button type="callback_data" data="rich:admin_backup">💾 Backup</tg-button>`;
 
   const userMetricsStr = awaitingCount > 0
@@ -1043,9 +925,7 @@ export function panelAdmin(_ctx) {
     `<tr><td>👥 Total Pengguna</td><td align="center">${userMetricsStr}</td><td align="center">${usersBtn}</td></tr>` +
     `<tr><td>⚡ Userbot Aktif</td><td align="center"><b>${running}</b> Client Running</td><td align="center">${fleetBtn}</td></tr>` +
     `<tr><td>⏳ Antrean Approval</td><td align="center"><b>${pending.length}</b> Menunggu</td><td align="center">${pendingBtn}</td></tr>` +
-    `<tr><td>🎟️ Voucher Promo</td><td align="center"><b>${vouchers.length}</b> Kupon</td><td align="center">${voucherBtn}</td></tr>` +
-    `<tr><td>💳 Status Langganan</td><td align="center">Metrik Finansial</td><td align="center">${subsBtn}</td></tr>` +
-    `<tr><td>💾 Backup &amp; Audit</td><td align="center">MongoDB Cluster</td><td align="center">${backupBtn}</td></tr>` +
+    `<tr><td>💾 Backup &amp; Data</td><td align="center">Storage Server</td><td align="center">${backupBtn}</td></tr>` +
     `<tr><td>🩺 Kesehatan Server</td><td align="center">${uptimeMin}m · ${formatBytesRef(mem.rss)}</td><td align="center">${healthBtn}</td></tr>` +
     `</table>` +
     `<hr/>` +
@@ -1099,18 +979,18 @@ export function panelAdminUsers(page = 1) {
     if (u.is_awaiting_reg) {
       const status = '🔵 Siap';
       const name = escapeHtml(u.custom_name || 'Calon User');
-      const expiry = '⏳ Belum Login';
+      const akses = '⏳ Belum Login';
       const detailBtn = `<tg-button type="callback_data" data="rich:admin_user:${u.telegram_id}">🔍 Buka</tg-button>`;
-      return `<tr><td align="center">${status}</td><td><code>${u.telegram_id}</code></td><td>${name}</td><td align="center">${expiry}</td><td align="center">${detailBtn}</td></tr>`;
+      return `<tr><td align="center">${status}</td><td><code>${u.telegram_id}</code></td><td>${name}</td><td align="center">${akses}</td><td align="center">${detailBtn}</td></tr>`;
     }
 
     const running = userbotManager.isRunning(u.telegram_id);
     const status = running ? '🟢 On' : (u.is_active === 1 ? '🟡 Off' : '🔴 Revoked');
     const isTgPrem = u.is_telegram_premium === 1;
     const name = (u.custom_name ? escapeHtml(u.custom_name) : 'User') + (isTgPrem ? ' ⭐' : '');
-    const expiry = u.expired_at ? new Date(u.expired_at).toLocaleDateString('id-ID') : '♾️';
+    const akses = isApproved(u.telegram_id) ? '🟢 Permanen' : '🔴 Revoked';
     const detailBtn = `<tg-button type="callback_data" data="rich:admin_user:${u.telegram_id}">🔍 Buka</tg-button>`;
-    return `<tr><td align="center">${status}</td><td><code>${u.telegram_id}</code></td><td>${name}</td><td align="center">${expiry}</td><td align="center">${detailBtn}</td></tr>`;
+    return `<tr><td align="center">${status}</td><td><code>${u.telegram_id}</code></td><td>${name}</td><td align="center">${akses}</td><td align="center">${detailBtn}</td></tr>`;
   }).join('') || '<tr><td colspan="5" align="center">Belum ada user</td></tr>';
 
   const summaryBadge = awaitingCount > 0
@@ -1120,7 +1000,7 @@ export function panelAdminUsers(page = 1) {
   return `<h1 align="center">👥 Manajemen Pengguna <sup>DIRECTORY</sup></h1>` +
     `<p>Total terdaftar: <b>${allUsers.length}</b> akun${summaryBadge} &bull; Halaman <sup>${currentPage}/${totalPages}</sup></p>` +
     `<table bordered striped><caption>📋 Direktori Akun Userbot</caption>` +
-    `<tr><th>Status</th><th>ID Telegram</th><th>Nama Akun</th><th>Expired</th><th align="center">Aksi</th></tr>` +
+    `<tr><th>Status</th><th>ID Telegram</th><th>Nama Akun</th><th>Akses</th><th align="center">Aksi</th></tr>` +
     rows +
     `</table>` +
     `<hr/>` +
@@ -1164,12 +1044,8 @@ export function panelAdminUserDetail(targetId: number) {
   }
   const isRunning = userbotManager.isRunning(targetId);
   const disabledCount = getDisabledPlugins(targetId).length;
-  const expStr = session.expired_at ? new Date(session.expired_at).toLocaleDateString('id-ID') : '♾️';
 
   const powerBtn = `<tg-button type="callback_data" data="rich:admin_power_user:${targetId}">${isRunning ? '⏹️ Matikan' : '▶️ Nyalakan'}</tg-button>`;
-  const ext7Btn = `<tg-button type="callback_data" data="rich:admin_extend:${targetId}:7">➕ 7H</tg-button>`;
-  const ext30Btn = `<tg-button type="callback_data" data="rich:admin_extend:${targetId}:30">➕ 30H</tg-button>`;
-  const extInfBtn = `<tg-button type="callback_data" data="rich:admin_extend:${targetId}:0">♾️ Unlim</tg-button>`;
   const revokeBtn = `<tg-button type="callback_data" data="rich:admin_revoke_user:${targetId}">🚫 Revoke</tg-button>`;
   const deleteBtn = `<tg-button type="callback_data" data="rich:admin_delete_user:${targetId}">🗑️ Hapus</tg-button>`;
 
@@ -1181,8 +1057,7 @@ export function panelAdminUserDetail(targetId: number) {
     `<tr><td>Nomor Telepon</td><td>${session.phone ? `<tg-spoiler>${session.phone}</tg-spoiler>` : '<i>Tidak diset</i>'}</td><td align="center">MTProto</td></tr>` +
     `<tr><td>Status Userbot</td><td>${isRunning ? '🟢 Online' : '🔴 Offline'}</td><td align="center">${powerBtn}</td></tr>` +
     `<tr><td>⭐ Telegram Premium</td><td>${formatTelegramPremiumBadge(session.is_telegram_premium === 1)}</td><td align="center">Telegram</td></tr>` +
-    `<tr><td>Masa Aktif Akun</td><td>${expStr}</td><td align="center">${ext7Btn} ${ext30Btn}</td></tr>` +
-    `<tr><td>Paket Unlimited</td><td>Akses Permanen</td><td align="center">${extInfBtn}</td></tr>` +
+    `<tr><td>Status Akses</td><td>🟢 Disetujui (Approved)</td><td align="center">Permanen</td></tr>` +
     `<tr><td>Proteksi Anti-PM</td><td>${session.anti_pm === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Shield</td></tr>` +
     `<tr><td>Auto-Reply AFK</td><td>${session.auto_reply === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Auto</td></tr>` +
     `<tr><td>Plugin Dinonaktifkan</td><td>${disabledCount} Modul</td><td align="center">Studio</td></tr>` +
@@ -1191,9 +1066,8 @@ export function panelAdminUserDetail(targetId: number) {
     `<hr/>` +
     `<h3>💡 Panduan Aksi Administrator:</h3>` +
     `<ul>` +
-    `<li><b>➕ 7H / ➕ 30H</b>: Perpanjang masa aktif akun secara bertahap.</li>` +
-    `<li><b>♾️ Unlim</b>: Berikan akses unlimited permanen.</li>` +
-    `<li><b>🚫 Revoke</b>: Cabut akses dan matikan userbot.</li>` +
+    `<li><b>▶️ / ⏹️</b>: Kontrol daya hidup atau matikan userbot pengguna.</li>` +
+    `<li><b>🚫 Revoke</b>: Cabut izin approval dan nonaktifkan userbot.</li>` +
     `<li><b>🗑️ Hapus</b>: Hapus sesi userbot secara permanen dari database.</li>` +
     `</ul>` +
     `<footer>Ketuk tombol aksi langsung di tabel atau gunakan tombol di bawah:</footer>`;
@@ -1242,53 +1116,16 @@ export function panelAdminFleet() {
     `<footer>Ketuk tombol aksi langsung di tabel atau gunakan tombol di bawah:</footer>`;
 }
 
-export async function panelAdminSubs() {
-  let stats: any = {
-    total: 0, active: 0, expired: 0, trial: 0, grace: 0, totalRevenue: 0,
-  };
-  try {
-    const { getSubscriptionStats } = await import('../../../services/SubscriptionService.js');
-    stats = await getSubscriptionStats();
-  } catch (_) { /* ignore */ }
-
-  const formattedRev = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(stats.totalRevenue || 0);
-
-  const expiredUsersBtn = `<tg-button type="callback_data" data="rich:admin_expired_users">👥 Lihat (${stats.expired})</tg-button>`;
-  const refreshBtn = `<tg-button type="callback_data" data="rich:admin_subs">🔄 Refresh</tg-button>`;
-
-  return `<h1 align="center">💎 Statistik Langganan &amp; Finansial <sup>FINANCE</sup></h1>` +
-    `<p>Ringkasan metrik pelanggan, status aktif, dan pendapatan platform.</p>` +
-    `<table bordered striped><caption>📊 Analisis Finansial &amp; Akun</caption>` +
-    `<tr><th>Kategori Metrik</th><th>Statistik</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>💰 Total Pendapatan</td><td align="center"><b>${formattedRev}</b></td><td align="center">Semua Transaksi</td></tr>` +
-    `<tr><td>💎 Akun VIP Aktif</td><td align="center"><b>${stats.active}</b> Akun</td><td align="center">Berlangganan Penuh</td></tr>` +
-    `<tr><td>🎁 Akun Trial</td><td align="center"><b>${stats.trial}</b> Akun</td><td align="center">Masa Uji Coba</td></tr>` +
-    `<tr><td>⏳ Masa Tenggang</td><td align="center"><b>${stats.grace}</b> Akun</td><td align="center">Grace Period</td></tr>` +
-    `<tr><td>🔴 Kedaluwarsa</td><td align="center"><b>${stats.expired}</b> Akun</td><td align="center">${expiredUsersBtn}</td></tr>` +
-    `</table>` +
-    `<hr/>` +
-    `<h3>💡 Keterangan Status Langganan:</h3>` +
-    `<ul>` +
-    `<li><b>VIP Aktif</b>: Akun yang memiliki durasi langganan berjalan.</li>` +
-    `<li><b>Akun Trial</b>: Pengguna dalam masa coba gratis 7 hari.</li>` +
-    `<li><b>Masa Tenggang</b>: Akun habis tempo dalam 3 hari terakhir (Grace Period).</li>` +
-    `<li><b>Kedaluwarsa</b>: Akun yang masa aktifnya telah habis sepenuhnya.</li>` +
-    `</ul>` +
-    `<footer>Data diperbarui secara real-time dari riwayat pembayaran. ${refreshBtn}</footer>`;
-}
-
 export function panelAdminBackup() {
   const users = getAllRegisteredUsers();
 
   const downloadBtn = `<tg-button type="callback_data" data="rich:admin_download_backup">📥 Unduh JSON</tg-button>`;
-  const auditBtn = `<tg-button type="callback_data" data="rich:admin_view_audit">📜 10 Log Terakhir</tg-button>`;
 
-  return `<h1 align="center">💾 Backup Database &amp; Riwayat Audit <sup>BACKUP</sup></h1>` +
-    `<p>Pencadangan database MongoDB dan inspeksi riwayat kepatuhan sistem.</p>` +
-    `<table bordered striped><caption>📦 Manajemen Data &amp; Audit</caption>` +
+  return `<h1 align="center">💾 Backup Database <sup>BACKUP</sup></h1>` +
+    `<p>Pencadangan database MongoDB platform DeltaUserJS.</p>` +
+    `<table bordered striped><caption>📦 Manajemen Data</caption>` +
     `<tr><th>Layanan Database</th><th>Status / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>📦 Backup MongoDB</td><td align="center">${users.length} Akun Terdaftar</td><td align="center">${downloadBtn}</td></tr>` +
-    `<tr><td>📜 Riwayat Audit</td><td align="center">Log Aktivitas Sistem</td><td align="center">${auditBtn}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>ℹ️ Format Backup:</h3>` +
@@ -1297,26 +1134,21 @@ export function panelAdminBackup() {
 }
 
 export function panelAdminSettings() {
-  const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
-  const vipDays = getSystemVarNum('SUBSCRIPTION_DAYS', 30);
   const autoApprove = getSystemVarValue('AUTO_APPROVE', '0') === '1';
 
   const toggleApproveBtn = `<tg-button type="callback_data" data="rich:admin_toggle_auto_approve">${autoApprove ? '🔒 Ubah ke Manual' : '🌐 Ubah ke Bebas'}</tg-button>`;
-  const editVarsBtn = `<tg-button type="callback_data" data="rich:edit_system_vars">✏️ Edit Nilai</tg-button>`;
 
   return `<h1 align="center">⚙️ Pengaturan Cepat Sistem <sup>CONFIG</sup></h1>` +
     `<p>Konfigurasi parameter global platform tanpa restart server atau edit file .env.</p>` +
     `<table bordered striped><caption>🛠️ Parameter Global Platform</caption>` +
     `<tr><th>Parameter Sistem</th><th>Setelan Saat Ini</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>🛡️ Mode Registrasi</td><td align="center"><b>${autoApprove ? '🌐 Buka Bebas' : '🔒 Butuh Approval'}</b></td><td align="center">${toggleApproveBtn}</td></tr>` +
-    `<tr><td>🎁 Durasi Trial Default</td><td align="center"><b>${trialDays} Hari</b></td><td align="center">${editVarsBtn}</td></tr>` +
-    `<tr><td>💎 Durasi VIP Default</td><td align="center"><b>${vipDays} Hari</b></td><td align="center">${editVarsBtn}</td></tr>` +
+    `<tr><td>🛡️ Mode Registrasi</td><td align="center"><b>${autoApprove ? '🌐 Buka Bebas (Auto-Approve)' : '🔒 Butuh Approval Manual'}</b></td><td align="center">${toggleApproveBtn}</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Penjelasan Mode Registrasi:</h3>` +
     `<ul>` +
-    `<li><b>🔒 Butuh Approval</b>: Setiap pendaftar baru wajib disetujui owner secara manual sebelum bisa scan QR / OTP.</li>` +
-    `<li><b>🌐 Buka Bebas</b>: Pengguna baru langsung dapat mendaftar tanpa menunggu konfirmasi owner.</li>` +
+    `<li><b>🔒 Butuh Approval Manual</b>: Setiap pendaftar baru wajib disetujui owner secara manual sebelum bisa scan QR / OTP.</li>` +
+    `<li><b>🌐 Buka Bebas (Auto-Approve)</b>: Pengguna baru langsung dapat mendaftar tanpa menunggu konfirmasi owner.</li>` +
     `</ul>` +
     `<footer>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</footer>`;
 }
@@ -1397,50 +1229,6 @@ export function panelUserLoops(ctx: any, page = 1) {
       : `<footer>🟡 Userbot offline: Jadwal tersimpan dan akan langsung aktif saat userbot dinyalakan.</footer>`);
 }
 
-const VOUCHERS_PER_PAGE = 5;
-
-export function panelAdminVouchers(page = 1) {
-  const vouchers = getAllVouchers();
-  const totalPages = Math.max(1, Math.ceil(vouchers.length / VOUCHERS_PER_PAGE));
-  const currentPage = Math.min(Math.max(Number(page) || 1, 1), totalPages);
-  const start = (currentPage - 1) * VOUCHERS_PER_PAGE;
-  const pageItems = vouchers.slice(start, start + VOUCHERS_PER_PAGE);
-
-  let rows: string;
-  if (pageItems.length === 0) {
-    rows = `<tr><td colspan="5" align="center"><i>Belum ada voucher promo yang dibuat.</i></td></tr>`;
-  } else {
-    rows = pageItems.map((v) => {
-      const code = escapeHtml(v.code);
-      const daysStr = v.days === 0 ? '♾️ Unlimited' : `+${v.days}h`;
-      const usesStr = v.max_uses === -1 ? `${v.used_by.length}/♾️` : `${v.used_by.length}/${v.max_uses}`;
-      const isExpired = v.expires_at && v.expires_at < Date.now();
-      const isFull = v.max_uses !== -1 && v.used_by.length >= v.max_uses;
-      const statusBadge = isExpired ? '🔴 Exp' : (isFull ? '🟡 Habis' : '🟢 Aktif');
-      const hexCode = Buffer.from(v.code).toString('hex');
-      const actionBtns = `<tg-button type="callback_data" data="rich:broadcast_voucher:${hexCode}">📢 Kirim</tg-button> <tg-button type="callback_data" data="rich:del_voucher:${hexCode}">🗑️</tg-button>`;
-      return `<tr><td><code>${code}</code></td><td align="center">${daysStr}</td><td align="center">${usesStr}</td><td align="center">${statusBadge}</td><td align="center">${actionBtns}</td></tr>`;
-    }).join('');
-  }
-
-  const createBtn = `<tg-button type="callback_data" data="rich:admin_new_voucher">➕ Buat Voucher Baru</tg-button>`;
-
-  return `<h1 align="center">🎟️ Kelola Voucher Promo <sup>COUPONS</sup></h1>` +
-    `<p>Pusat manajemen kupon promo dan perpanjangan masa aktif userbot.</p>` +
-    `<table bordered striped><caption>🎟️ Daftar Voucher (${vouchers.length} Kupon)</caption>` +
-    `<tr><th>Kode Voucher</th><th align="center">Durasi</th><th align="center">Kuota</th><th align="center">Status</th><th align="center">Aksi</th></tr>` +
-    rows +
-    `</table>` +
-    `<p align="center">${createBtn}</p>` +
-    `<hr/>` +
-    `<h3>💡 Ketentuan Kode Voucher:</h3>` +
-    `<ul>` +
-    `<li><b>Durasi</b>: Memberikan penambahan masa aktif userbot (atau lifetime jika 0 hari).</li>` +
-    `<li><b>Auto-Approval</b>: Pengguna baru yang menukarkan kode voucher otomatis di-approve whitelist!</li>` +
-    `<li><b>Kuota</b>: Tiap pengguna hanya dapat menukarkan 1 kali per kode unik.</li>` +
-    `</ul>` +
-    `<footer>Ketuk tombol aksi di tabel atau gunakan tombol navigasi di bawah:</footer>`;
-}
 
 export function panelQuickHelp(_ctx) {
   return `<h1 align="center">📚 Pusat Bantuan &amp; Panduan <sup>GUIDE</sup></h1>` +
@@ -1611,13 +1399,10 @@ export function keyboardMain(ctx) {
 
     if (approved) {
       rows.push([{ text: '🚀 Mulai Daftar Userbot', callback_data: 'rich:register' }]);
-      rows.push([{ text: '💎 Paket VIP', callback_data: 'rich:subscription' }]);
     } else if (pending) {
       rows.push([{ text: '🔄 Cek Status Approval', callback_data: 'rich:check_approval' }]);
-      rows.push([{ text: '💎 Paket VIP', callback_data: 'rich:subscription' }]);
     } else {
-      rows.push([{ text: '🎁 Request Coba Gratis (7 Hari)', callback_data: 'rich:claim_trial' }]);
-      rows.push([{ text: '💎 Paket VIP', callback_data: 'rich:subscription' }]);
+      rows.push([{ text: '📩 Minta Persetujuan (Request Approval)', callback_data: 'rich:claim_trial' }]);
     }
 
     rows.push([
@@ -1647,13 +1432,12 @@ export function keyboardPanelMenu(ctx) {
       { text: '🩺 Diagnostik & Ping', callback_data: 'rich:ubot_diag' },
     ]);
     rows.push([
-      { text: '💎 Status Langganan', callback_data: 'rich:subscription' },
+      { text: '📜 Cheatsheet Perintah', callback_data: 'rich:help_commands' },
       { text: '❓ Panduan & Bantuan', callback_data: 'rich:guide' },
     ]);
   } else {
     rows.push([
       { text: '🚀 Mulai Daftar Userbot', callback_data: 'rich:register' },
-      { text: '💎 Paket VIP', callback_data: 'rich:subscription' },
     ]);
   }
 
@@ -1711,9 +1495,8 @@ export function keyboardUserbot(ctx) {
     { text: '🩺 Tes Diagnostik MTProto', callback_data: 'rich:ubot_diag' },
   ]);
 
-  // Baris Langganan & Cheatsheet
+  // Baris Cheatsheet
   rows.push([
-    { text: '💎 Status Langganan', callback_data: 'rich:subscription' },
     { text: '📜 Cheatsheet Lengkap', callback_data: 'rich:help_commands' },
   ]);
 
@@ -1858,40 +1641,19 @@ export function keyboardRegister() {
   ] };
 }
 
-export function keyboardBuySubscription(_ctx?: any) {
-  const rows: any[] = [];
-  rows.push([
-    { text: '🎟️ Tukar Kode Voucher Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
-  ]);
-  if (config.ownerId) {
-    rows.push([
-      { text: '💬 Hubungi Owner untuk Order', url: `tg://user?id=${config.ownerId}` },
-      { text: '💰 Info Rekening', callback_data: 'rich:donate' },
-    ]);
-  } else {
-    rows.push([
-      { text: '💰 Info Rekening Pembayaran', callback_data: 'rich:donate' },
-    ]);
-  }
-  rows.push([
-    { text: '💎 Cek Status Langganan', callback_data: 'rich:subscription' },
-    { text: '🔙 Menu Utama', callback_data: 'rich:main' },
-  ]);
-  return { inline_keyboard: rows };
+export function keyboardBuySubscription(ctx?: any) {
+  return keyboardSubscription(ctx);
 }
 
 export function keyboardSubscription(ctx?: any) {
-  const trialDays = getSystemVarNum('TRIAL_DAYS', 7);
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
+  const approved = userId ? (owner || isApproved(userId)) : false;
+  const pending = userId ? isPendingApproval(userId) : false;
   const rows: any[] = [];
 
   if (owner) {
-    rows.push([
-      { text: '🛒 Menu Beli / Paket VIP', callback_data: 'rich:buy_premium', style: 'primary' },
-      { text: '🎟️ Tukar Kode Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
-    ]);
     if (session) {
       rows.push([
         { text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' },
@@ -1903,22 +1665,11 @@ export function keyboardSubscription(ctx?: any) {
         { text: '👑 Panel Admin', callback_data: 'rich:admin' },
       ]);
     }
-    rows.push([
-      { text: '🔙 Menu Utama', callback_data: 'rich:main' },
-    ]);
+    rows.push([{ text: '🔙 Menu Utama', callback_data: 'rich:main' }]);
     return { inline_keyboard: rows };
   }
 
   if (session) {
-    const expDate = session.expired_at ? new Date(session.expired_at) : null;
-    const isUnlimited = !expDate || Number.isNaN(expDate.getTime());
-    const diffDays = expDate && !isUnlimited ? Math.ceil((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 999;
-    const isExpired = !isUnlimited && diffDays <= 0;
-
-    rows.push([
-      { text: isExpired ? '🔴 Masa Aktif Habis — Perpanjang VIP' : '🛒 Beli / Perpanjang VIP', callback_data: 'rich:buy_premium', style: 'primary' },
-      { text: '🎟️ Tukar Voucher Promo', callback_data: 'rich:redeem_voucher', style: 'success' },
-    ]);
     rows.push([
       { text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' },
       { text: '🔙 Menu Utama', callback_data: 'rich:main' },
@@ -1926,28 +1677,15 @@ export function keyboardSubscription(ctx?: any) {
     return { inline_keyboard: rows };
   }
 
-  // Tamu / Pengguna baru tanpa sesi
-  const approved = userId ? isApproved(userId) : false;
-  const pending = userId ? isPendingApproval(userId) : false;
-  const claimed = userId ? hasClaimedTrial(userId) : false;
-
   if (approved) {
-    rows.push([{ text: '🚀 Hubungkan Sesi Userbot (Disetujui)', callback_data: 'rich:register', style: 'success' }]);
+    rows.push([{ text: '🚀 Hubungkan Sesi Userbot', callback_data: 'rich:register', style: 'success' }]);
   } else if (pending) {
-    rows.push([{ text: '⏳ Cek Status Approval Permohonan', callback_data: 'rich:check_approval', style: 'primary' }]);
-  } else if (!claimed) {
-    rows.push([{ text: `🎁 Klaim Coba Gratis (${trialDays} Hari)`, callback_data: 'rich:claim_trial', style: 'success' }]);
+    rows.push([{ text: '⏳ Cek Status Approval', callback_data: 'rich:check_approval', style: 'primary' }]);
   } else {
-    rows.push([{ text: '🚀 Mulai Daftar Userbot Baru', callback_data: 'rich:register', style: 'primary' }]);
+    rows.push([{ text: '📩 Minta Persetujuan Akses', callback_data: 'rich:claim_trial', style: 'success' }]);
   }
 
-  rows.push([
-    { text: '🛒 Menu Beli / Paket VIP', callback_data: 'rich:buy_premium', style: 'primary' },
-    { text: '🎟️ Tukar Kode Voucher Promo', callback_data: 'rich:redeem_voucher' },
-  ]);
-  rows.push([
-    { text: '🔙 Menu Utama', callback_data: 'rich:main' },
-  ]);
+  rows.push([{ text: '🔙 Menu Utama', callback_data: 'rich:main' }]);
   return { inline_keyboard: rows };
 }
 
@@ -1959,12 +1697,8 @@ export function keyboardAdmin(pendingCount = 0) {
       { text: '👥 Daftar Pengguna', callback_data: 'rich:admin_users:1' },
     ],
     [
-      { text: '🎟️ Kelola Voucher', callback_data: 'rich:admin_vouchers:1' },
-      { text: '📢 Broadcast Masal', callback_data: 'rich:admin_broadcast' },
-    ],
-    [
       { text: '⚡ Fleet & Userbot', callback_data: 'rich:admin_fleet' },
-      { text: '💎 Langganan & Subs', callback_data: 'rich:admin_subs' },
+      { text: '📢 Broadcast Masal', callback_data: 'rich:admin_broadcast' },
     ],
     [
       { text: '⚙️ Pengaturan Cepat', callback_data: 'rich:admin_settings' },
@@ -2063,11 +1797,6 @@ export function keyboardAdminUserDetail(targetId: number) {
       { text: isRunning ? '⏹️ Matikan Userbot' : '▶️ Jalankan Userbot', callback_data: `rich:admin_power_user:${targetId}` }
     ],
     [
-      { text: '➕ 7 Hari', callback_data: `rich:admin_extend:${targetId}:7` },
-      { text: '➕ 30 Hari', callback_data: `rich:admin_extend:${targetId}:30` },
-      { text: '♾️ Unlimited', callback_data: `rich:admin_extend:${targetId}:0` },
-    ],
-    [
       { text: '🚫 Cabut Izin', callback_data: `rich:admin_revoke_user:${targetId}` },
       { text: '🗑️ Hapus Akun', callback_data: `rich:admin_delete_user:${targetId}` },
     ],
@@ -2099,21 +1828,10 @@ export function keyboardAdminFleet() {
   ] };
 }
 
-export function keyboardAdminSubs() {
-  return { inline_keyboard: [
-    [
-      { text: '👥 Daftar User Expired', callback_data: 'rich:admin_expired_users' },
-      { text: '🔄 Muat Ulang', callback_data: 'rich:admin_subs' },
-    ],
-    [{ text: '🔙 Admin Hub', callback_data: 'rich:admin' }],
-  ] };
-}
-
 export function keyboardAdminBackup() {
   return { inline_keyboard: [
     [
       { text: '📥 Download Backup (.json)', callback_data: 'rich:admin_download_backup' },
-      { text: '📜 Lihat 10 Audit Log', callback_data: 'rich:admin_view_audit' },
     ],
     [{ text: '🔙 Admin Hub', callback_data: 'rich:admin' }],
   ] };
@@ -2159,36 +1877,6 @@ export function keyboardUserLoops(ctx: any, page = 1) {
   rows.push([
     { text: '🔄 Refresh', callback_data: `rich:user_loops:${currentPage}` },
     { text: '🤖 Dashboard Userbot', callback_data: 'rich:ubot' },
-  ]);
-
-  return { inline_keyboard: rows };
-}
-
-export function keyboardAdminVouchers(page = 1) {
-  const vouchers = getAllVouchers();
-  const totalPages = Math.max(1, Math.ceil(vouchers.length / VOUCHERS_PER_PAGE));
-  const currentPage = Math.min(Math.max(Number(page) || 1, 1), totalPages);
-
-  const rows: any[] = [];
-  rows.push([
-    { text: '➕ Buat Voucher Baru', callback_data: 'rich:admin_new_voucher' },
-  ]);
-
-  if (totalPages > 1) {
-    const nav: any[] = [];
-    if (currentPage > 1) {
-      nav.push({ text: '⬅️ Prev', callback_data: `rich:admin_vouchers:${currentPage - 1}` });
-    }
-    nav.push({ text: `${currentPage}/${totalPages}`, callback_data: 'rich:noop' });
-    if (currentPage < totalPages) {
-      nav.push({ text: 'Next ➡️', callback_data: `rich:admin_vouchers:${currentPage + 1}` });
-    }
-    rows.push(nav);
-  }
-
-  rows.push([
-    { text: '🔄 Refresh', callback_data: `rich:admin_vouchers:${currentPage}` },
-    { text: '👑 Panel Admin', callback_data: 'rich:admin' },
   ]);
 
   return { inline_keyboard: rows };
@@ -2305,87 +1993,18 @@ export function registerRichHandlers(bot) {
       return;
     }
 
-    const match = String(ctx.match || '').trim();
-    if (match.startsWith('claim_') || match.startsWith('voucher_')) {
-      const code = match.replace(/^(claim_|voucher_)/, '').trim();
-      if (code) {
-        const userMeta = { name: ctx.from?.first_name, username: ctx.from?.username };
-        const result = await redeemVoucher(code, ctx.from.id, userMeta);
-        const session = getUserbotSession(ctx.from.id);
-        const keyboard = {
-          inline_keyboard: [
-            session
-              ? [{ text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' }]
-              : [{ text: '🚀 Mulai Hubungkan Userbot', callback_data: 'rich:main' }],
-            [{ text: '💎 Menu Langganan', callback_data: 'rich:subscription' }, { text: '🔙 Menu Utama', callback_data: 'rich:main' }]
-          ]
-        };
-        return replyRich(ctx,
-          result.success
-            ? `<h1 align="center">🎉 Penukaran Voucher Berhasil!</h1>` +
-              `<p>${result.message}</p>` +
-              `<footer>Layanan userbot Anda telah siap digunakan.</footer>`
-            : `<h1 align="center">❌ Gagal Menukarkan Voucher</h1>` +
-              `<p>${escapeHtml(result.message)}</p>`,
-          { reply_markup: keyboard }
-        );
-      }
-    }
-
     await openMain(ctx);
   });
 
   bot.command(['claim', 'voucher', 'tukar'], async (ctx) => {
-    if (ctx.chat.type !== 'private') {
-      return replyRich(ctx, `<p>Silakan lakukan penukaran voucher di Private Chat bot.</p>`);
-    }
-    const code = String(ctx.match || '').trim();
-    if (!code) {
-      return ctx.conversation.enter('user-redeem-voucher-conv');
-    }
-    const userMeta = { name: ctx.from?.first_name, username: ctx.from?.username };
-    const result = await redeemVoucher(code, ctx.from.id, userMeta);
-    const session = getUserbotSession(ctx.from.id);
-    const keyboard = {
-      inline_keyboard: [
-        session
-          ? [{ text: '🤖 Buka Dashboard Userbot', callback_data: 'rich:ubot' }]
-          : [{ text: '🚀 Mulai Hubungkan Userbot', callback_data: 'rich:main' }],
-        [{ text: '💎 Menu Langganan', callback_data: 'rich:subscription' }, { text: '🔙 Menu Utama', callback_data: 'rich:main' }]
-      ]
-    };
-    return replyRich(ctx,
-      result.success
-        ? `<h1 align="center">🎉 Penukaran Voucher Berhasil!</h1>` +
-          `<p>${result.message}</p>` +
-          `<footer>Layanan userbot Anda telah siap digunakan.</footer>`
-        : `<h1 align="center">❌ Gagal Menukarkan Voucher</h1>` +
-          `<p>${escapeHtml(result.message)}</p>`,
-      { reply_markup: keyboard }
-    );
-  });
-
-  bot.command(['sharevoucher', 'postvoucher'], async (ctx) => {
-    if (!isOwner(ctx)) {
-      return;
-    }
-    const code = String(ctx.match || '').trim();
-    if (!code) {
-      return replyRich(ctx, `<h3>💡 Petunjuk Berbagi Voucher</h3><p>Format: <code>/sharevoucher KODE</code><br>Contoh: <code>/sharevoucher PROMO-RAMADHAN</code></p>`);
-    }
-    const res = await broadcastVoucherToChannel(code);
-    if (res.success) {
-      return replyRich(ctx, `<p>✅ Voucher <code>${escapeHtml(code)}</code> berhasil dibagikan ke channel notifikasi dengan tombol klaim!</p>`);
-    } else {
-      return replyRich(ctx, `<p>❌ ${escapeHtml(res.message)}</p>`);
-    }
+    return replyRich(ctx, `<p>ℹ️ <b>Sistem Voucher Telah Dihapus</b><br>DeltaUserJS kini menggunakan sistem persetujuan langsung (Approval-Only). Silakan ajukan persetujuan melalui Menu Utama.</p>`);
   });
 
   bot.command(['paket', 'vip', 'langganan', 'subscribe', 'pricing'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
-      return replyRich(ctx, `<p>Silakan buka menu paket langganan di Private Chat bot.</p>`);
+      return replyRich(ctx, `<p>Silakan buka status akses di Private Chat bot.</p>`);
     }
-    return sendRich(ctx, panelBuySubscription(ctx), keyboardBuySubscription(ctx));
+    return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(ctx));
   });
 
   bot.command(['daftar', 'login', 'register'], async (ctx) => {
@@ -2396,8 +2015,12 @@ export function registerRichHandlers(bot) {
     if (session) {
       return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx));
     }
-    if (!isOwner(ctx) && !isApproved(ctx.from.id)) {
+    const autoApprove = getSystemVarValue('AUTO_APPROVE', '0') === '1';
+    if (!isOwner(ctx) && !isApproved(ctx.from.id) && !autoApprove) {
       return sendRich(ctx, panelAccessDenied(ctx), keyboardAccessDenied(ctx));
+    }
+    if (autoApprove && !isApproved(ctx.from.id)) {
+      approveUser(ctx.from.id, { name: ctx.from.first_name, username: ctx.from.username });
     }
     if (!hasAcceptedTerms(ctx.from.id)) {
       return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: false });
@@ -2769,15 +2392,9 @@ export function registerRichHandlers(bot) {
         return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { edit: true });
       }
 
-      if (hasClaimedTrial(userId)) {
-        return ctx.replyWithRichMessage({
-          html: `<p>❌ Anda sudah pernah menggunakan masa uji coba gratis sebelumnya. Hubungi owner atau pesan paket VIP.</p>`
-        });
-      }
-
       if (isPendingApproval(userId)) {
         return ctx.replyWithRichMessage({
-          html: `<h3>⏳ Permintaan Sedang Diproses</h3><p>Permintaan coba gratis Anda sudah dikirim sebelumnya dan sedang menunggu persetujuan owner.<br>Harap tunggu notifikasi dari bot.</p>`
+          html: `<h3>⏳ Permintaan Sedang Diproses</h3><p>Permintaan pendaftaran Anda sudah dikirim sebelumnya dan sedang menunggu persetujuan owner.<br>Harap tunggu notifikasi dari bot.</p>`
         });
       }
 
@@ -2797,7 +2414,7 @@ export function registerRichHandlers(bot) {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: '✅ Setujui Trial', callback_data: `approve_trial:${userId}` },
+                  { text: '✅ Setujui', callback_data: `approve_trial:${userId}` },
                   { text: '❌ Tolak', callback_data: `reject_trial:${userId}` },
                 ]
               ]
@@ -2808,29 +2425,26 @@ export function registerRichHandlers(bot) {
           }
           await ctx.api.sendMessage(
             targetChat,
-            `🔔 <b>Permintaan Uji Coba Gratis (Trial)</b>\n\n` +
-            `Ada pengguna baru mengajukan permohonan coba gratis:\n` +
+            `🔔 <b>Permintaan Pendaftaran Userbot</b>\n\n` +
+            `Ada pengguna baru mengajukan izin akses userbot:\n` +
             `• <b>Nama:</b> ${firstName}\n` +
             `• <b>Username:</b> ${username}\n` +
             `• <b>ID Pengguna:</b> <code>${userId}</code>\n` +
-            `• <b>Durasi:</b> <b>${trialDays} Hari</b>\n` +
             `• <b>Waktu:</b> <code>${nowWib} WIB</code>\n\n` +
             `<i>Pilih tindakan di bawah untuk menyetujui atau menolak:</i>`,
             { parse_mode: 'HTML', ...extraParams }
           );
         } catch (err) {
-          Logger.logSystem(`Gagal kirim notifikasi trial request ke owner: ${err}`, 'WARN');
+          Logger.logSystem(`Gagal kirim notifikasi approval request ke owner: ${err}`, 'WARN');
         }
       }
 
       const confirmationHtml =
-        `<h1 align="center">🎁 Permintaan Uji Coba Terkirim</h1>` +
-        `<p>Permintaan uji coba gratis <b>${trialDays} Hari</b> berhasil diajukan kepada owner.</p>` +
+        `<h1 align="center">📩 Permintaan Pendaftaran Terkirim</h1>` +
+        `<p>Permintaan akses userbot berhasil diajukan kepada owner.</p>` +
         `<table bordered striped>` +
         `<tr><th>Detail Permintaan</th><th>Keterangan</th></tr>` +
         `<tr><td>ID Telegram</td><td align="center"><code>${userId}</code></td></tr>` +
-        `<tr><td>Paket Diajukan</td><td align="center">🎁 Coba Gratis</td></tr>` +
-        `<tr><td>Durasi Akses</td><td align="center">${trialDays} Hari</td></tr>` +
         `<tr><td>Status Permohonan</td><td align="center">🕐 Menunggu Persetujuan</td></tr>` +
         `</table>` +
         `<h3>ℹ️ Apa langkah selanjutnya?</h3>` +
@@ -2904,14 +2518,13 @@ export function registerRichHandlers(bot) {
       if (targetId) {
         approveUser(targetId);
         removePendingApproval(targetId);
-        try { await setTrialClaimed(targetId); } catch (_) { /* ignore */ }
         await ctx.answerCallbackQuery({ text: `✅ User ${targetId} disetujui!` });
         try {
           await ctx.api.sendMessage(
             targetId,
-            `🎉 <b>Permintaan Uji Coba Disetujui!</b>\n\n` +
-            `<p>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</p>\n\n` +
-            `<footer>Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:</footer>`,
+            `🎉 <b>Permintaan Akses Disetujui!</b>\n\n` +
+            `<p>Owner telah menyetujui akses permanen userbot untuk akun Anda.</p>\n\n` +
+            `<footer>Silakan klik tombol di bawah untuk mulai menghubungkan userbot Anda:</footer>`,
             {
               parse_mode: 'HTML',
               reply_markup: {
@@ -2932,12 +2545,16 @@ export function registerRichHandlers(bot) {
       if (targetId) {
         revokeUser(targetId);
         removePendingApproval(targetId);
-        await ctx.answerCallbackQuery({ text: `❌ User ${targetId} ditolak.` });
+        if (userbotManager.isRunning(targetId)) {
+          try { await userbotManager.stopUserbot(targetId); } catch (_) { /* ignore */ }
+        }
+        try { await updateUserbotStatus(targetId, false); } catch (_) { /* ignore */ }
+        await ctx.answerCallbackQuery({ text: `❌ User ${targetId} ditolak/dicabut.` });
         try {
           await ctx.api.sendMessage(
             targetId,
-            `<h3>❌ Permintaan Uji Coba Ditolak</h3>\n` +
-            `<p>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini.</p>`,
+            `<h3>❌ Akses Userbot Ditolak / Dicabut</h3>\n` +
+            `<p>Maaf, permohonan akses userbot Anda tidak disetujui atau telah dicabut oleh owner.</p>`,
             {
               parse_mode: 'HTML',
               reply_markup: {
@@ -2957,13 +2574,12 @@ export function registerRichHandlers(bot) {
       for (const p of list) {
         approveUser(p.userId);
         removePendingApproval(p.userId);
-        try { await setTrialClaimed(p.userId); } catch (_) { /* ignore */ }
         try {
           await ctx.api.sendMessage(
             p.userId,
-            `🎉 <b>Permintaan Uji Coba Disetujui!</b>\n\n` +
-            `<p>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</p>\n\n` +
-            `<footer>Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda:</footer>`,
+            `🎉 <b>Permintaan Akses Disetujui!</b>\n\n` +
+            `<p>Owner telah menyetujui akses permanen userbot untuk akun Anda.</p>\n\n` +
+            `<footer>Silakan klik tombol di bawah untuk mulai menghubungkan userbot Anda:</footer>`,
             {
               parse_mode: 'HTML',
               reply_markup: {
@@ -3116,26 +2732,7 @@ export function registerRichHandlers(bot) {
     if (action === 'admin_subs') {
       if (!isOwner(ctx)) {return;}
       await ctx.answerCallbackQuery();
-      const subsHtml = await panelAdminSubs();
-      return sendRich(ctx, subsHtml, keyboardAdminSubs(), { edit: true });
-    }
-    if (action === 'admin_expired_users') {
-      if (!isOwner(ctx)) {return;}
-      await ctx.answerCallbackQuery();
-      const allUsers = getAllRegisteredUsers();
-      const now = Date.now();
-      const expired = allUsers.filter(u => u.expired_at && new Date(u.expired_at).getTime() < now);
-      const rows = expired.map(u => {
-        const dateStr = u.expired_at ? new Date(u.expired_at).toLocaleDateString('id-ID') : '—';
-        return `<tr><td><code>${u.telegram_id}</code></td><td>${escapeHtml(u.custom_name || 'User')}</td><td align="center">${dateStr}</td></tr>`;
-      }).join('') || '<tr><td colspan="3" align="center">Tidak ada user expired</td></tr>';
-      const expiredHtml = `<h1 align="center">🔴 Daftar User Expired (${expired.length})</h1>` +
-        `<p>Pengguna yang masa aktifnya telah habis:</p>` +
-        `<table bordered striped>` +
-        `<tr><th>ID Pengguna</th><th>Nama Akun</th><th>Tanggal Expired</th></tr>` +
-        rows +
-        `</table>`;
-      return sendRich(ctx, expiredHtml, keyboardAdminSubs(), { edit: true });
+      return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(ctx), { edit: true });
     }
     if (action === 'admin_backup') {
       if (!isOwner(ctx)) {return;}
@@ -3160,27 +2757,6 @@ export function registerRichHandlers(bot) {
       }
       return;
     }
-    if (action === 'admin_view_audit') {
-      if (!isOwner(ctx)) {return;}
-      await ctx.answerCallbackQuery();
-      try {
-        const { getAuditLogs } = await import('../../../services/SubscriptionService.js');
-        const logs = await getAuditLogs({ limit: 10 });
-        const logRows = logs.map(l => {
-          const time = new Date(l.createdAt).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' });
-          return `<tr><td>${time}</td><td><b>${escapeHtml(l.action)}</b></td><td><code>${l.userId || '—'}</code></td><td>${escapeHtml(l.resource)}</td></tr>`;
-        }).join('') || '<tr><td colspan="4" align="center">Belum ada log audit</td></tr>';
-        const auditHtml = `<h1 align="center">📜 10 Riwayat Audit Terakhir</h1>` +
-          `<p>Aktivitas perubahan data dan akses sistem:</p>` +
-          `<table bordered striped>` +
-          `<tr><th>Waktu</th><th>Aksi</th><th>User</th><th>Resource</th></tr>` +
-          logRows +
-          `</table>`;
-        return sendRich(ctx, auditHtml, keyboardAdminBackup(), { edit: true });
-      } catch (err) {
-        return ctx.replyWithRichMessage({ html: `<p>❌ <b>Gagal memuat audit log:</b> ${escapeHtml(err instanceof Error ? err.message : String(err))}</p>` });
-      }
-    }
     if (action === 'admin_settings') {
       if (!isOwner(ctx)) {return;}
       await ctx.answerCallbackQuery();
@@ -3195,40 +2771,9 @@ export function registerRichHandlers(bot) {
       return sendRich(ctx, panelAdminSettings(), keyboardAdminSettings(), { edit: true });
     }
 
-    // Feature 2: Voucher actions
-    if (action === 'redeem_voucher') {
-      await ctx.answerCallbackQuery();
-      return ctx.conversation.enter('user-redeem-voucher-conv');
-    }
-    if (action === 'admin_vouchers' || action.startsWith('admin_vouchers:')) {
-      if (!isOwner(ctx)) {return;}
-      await ctx.answerCallbackQuery();
-      const page = Number(action.split(':')[1]) || 1;
-      return sendRich(ctx, panelAdminVouchers(page), keyboardAdminVouchers(page), { edit: true });
-    }
-    if (action === 'admin_new_voucher') {
-      if (!isOwner(ctx)) {return;}
-      await ctx.answerCallbackQuery();
-      return ctx.conversation.enter('admin-create-voucher-conv');
-    }
-    if (action.startsWith('del_voucher:')) {
-      if (!isOwner(ctx)) {return;}
-      const hexCode = action.split(':')[1];
-      const code = Buffer.from(hexCode, 'hex').toString('utf8');
-      await deleteVoucher(code);
-      await ctx.answerCallbackQuery({ text: `🗑️ Voucher ${code} dihapus!` });
-      return sendRich(ctx, panelAdminVouchers(1), keyboardAdminVouchers(1), { edit: true });
-    }
-    if (action.startsWith('broadcast_voucher:')) {
-      if (!isOwner(ctx)) {return;}
-      const hexCode = action.split(':')[1];
-      const code = Buffer.from(hexCode, 'hex').toString('utf8');
-      const res = await broadcastVoucherToChannel(code);
-      if (res.success) {
-        await ctx.answerCallbackQuery({ text: `📢 Voucher ${code} dibagikan ke channel!` });
-      } else {
-        await ctx.answerCallbackQuery({ text: `❌ ${res.message}`, show_alert: true });
-      }
+    // Voucher actions disabled
+    if (action === 'redeem_voucher' || action === 'admin_vouchers' || action.startsWith('admin_vouchers:') || action === 'admin_new_voucher' || action.startsWith('del_voucher:') || action.startsWith('broadcast_voucher:')) {
+      await ctx.answerCallbackQuery({ text: 'Sistem voucher telah dinonaktifkan.', show_alert: true });
       return;
     }
 
@@ -3251,8 +2796,12 @@ export function registerRichHandlers(bot) {
     }
 
     if (action === 'otp') {
-      if (!isOwner(ctx) && !isApproved(ctx.from.id)) {
+      const autoApprove = getSystemVarValue('AUTO_APPROVE', '0') === '1';
+      if (!isOwner(ctx) && !isApproved(ctx.from.id) && !autoApprove) {
         return sendAccessDeniedRich(ctx);
+      }
+      if (autoApprove && !isApproved(ctx.from.id)) {
+        approveUser(ctx.from.id, { name: ctx.from.first_name, username: ctx.from.username });
       }
       if (!hasAcceptedTerms(ctx.from.id)) {
         return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
@@ -3260,8 +2809,12 @@ export function registerRichHandlers(bot) {
       return ctx.conversation.enter('otp-reg');
     }
     if (action === 'qr') {
-      if (!isOwner(ctx) && !isApproved(ctx.from.id)) {
+      const autoApprove = getSystemVarValue('AUTO_APPROVE', '0') === '1';
+      if (!isOwner(ctx) && !isApproved(ctx.from.id) && !autoApprove) {
         return sendAccessDeniedRich(ctx);
+      }
+      if (autoApprove && !isApproved(ctx.from.id)) {
+        approveUser(ctx.from.id, { name: ctx.from.first_name, username: ctx.from.username });
       }
       if (!hasAcceptedTerms(ctx.from.id)) {
         return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });

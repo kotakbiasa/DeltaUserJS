@@ -5,7 +5,6 @@ import { sendAccessDeniedRich, panelMain, keyboardMain } from '../ui/keyboards/d
 import { replyRich, editRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { isApproved, approveUser, revokeUser } from '../state/approvedUsers.js';
-import { setTrialClaimed } from '../../infrastructure/database.js';
 
 async function sendMainRich(ctx, deleteOld = false) {
   if (ctx.callbackQuery?.message?.message_id) {
@@ -100,14 +99,13 @@ export function registerLegacyCallbacks(bot) {
     await ctx.answerCallbackQuery();
     const targetId = Number(ctx.match[1]);
     approveUser(targetId);
-    try { await setTrialClaimed(targetId); } catch (_) { /* ignore */ }
     const nowWib = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
-    await editRich(ctx, `<p><b>✅ UJI COBA DISETUJUI</b><br>Pengguna <code>${targetId}</code> telah disetujui untuk uji coba gratis 7 hari.<br>Waktu: <code>${nowWib} WIB</code></p>`);
+    await editRich(ctx, `<p><b>✅ PENDAFTARAN DISETUJUI</b><br>Pengguna <code>${targetId}</code> telah disetujui untuk menggunakan userbot.<br>Waktu: <code>${nowWib} WIB</code></p>`);
     try {
       await ctx.api.sendMessage(
         targetId,
-        `🎉 <b>Permintaan Uji Coba Disetujui!</b>\n\n` +
-        `<p>Owner telah menyetujui permohonan coba gratis userbot <b>7 Hari</b> untuk akun Anda.</p>\n\n` +
+        `🎉 <b>Permintaan Pendaftaran Disetujui!</b>\n\n` +
+        `<p>Owner telah menyetujui permohonan pendaftaran userbot untuk akun Anda. Anda memiliki akses penuh untuk menggunakan layanan userbot.</p>\n\n` +
         `<footer>Silakan klik tombol di bawah untuk mulai mendaftar userbot Anda (via Scan QR Code atau OTP):</footer>`,
         {
           parse_mode: 'HTML',
@@ -131,12 +129,18 @@ export function registerLegacyCallbacks(bot) {
     await ctx.answerCallbackQuery();
     const targetId = Number(ctx.match[1]);
     revokeUser(targetId);
-    await editRich(ctx, `<p><b>❌ UJI COBA DITOLAK</b><br>Permohonan untuk pengguna <code>${targetId}</code> telah ditolak.</p>`);
+    try {
+      const userbotManager = (await import('../../userbot/engine/manager.js')).default;
+      const { updateUserbotStatus } = await import('../../infrastructure/database.js');
+      await userbotManager.stopUserbot(targetId);
+      await updateUserbotStatus(targetId, false);
+    } catch (_) { /* ignore */ }
+    await editRich(ctx, `<p><b>❌ PERMINTAAN DITOLAK</b><br>Permohonan akses untuk pengguna <code>${targetId}</code> telah ditolak/dicabut.</p>`);
     try {
       await ctx.api.sendMessage(
         targetId,
-        `<h3>❌ Permintaan Uji Coba Ditolak</h3>\n` +
-        `<p>Maaf, permohonan coba gratis Anda belum disetujui oleh owner saat ini. Hubungi owner atau pesan paket VIP jika Anda memiliki pertanyaan.</p>`,
+        `<h3>❌ Permintaan Akses Ditolak</h3>\n` +
+        `<p>Maaf, permohonan akses userbot Anda belum disetujui atau izin telah dicabut oleh Owner.</p>`,
         {
           parse_mode: 'HTML',
           reply_markup: {

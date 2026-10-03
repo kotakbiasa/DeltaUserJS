@@ -8,12 +8,7 @@ import { setMasterBotUsername } from './bot/state/botUsername.js';
 import { Logger } from './utils/logger.js';
 import { createServer, type IncomingMessage } from 'http';
 import { startPluginWatcher, stopPluginWatcher } from './userbot/engine/pluginLoader.js';
-import { handleMidtransWebhook, handleXenditWebhook } from './bot/handlers/subscription.js';
 import { isMongo } from './infrastructure/dbCore.js';
-import {
-  checkExpiredSubscriptions,
-  recoverPendingSubscriptionFulfillments,
-} from './services/SubscriptionService.js';
 import { handleApiRequest } from './server/api.js';
 import { serveStaticFiles } from './server/static.js';
 import { initDigitalStore } from './services/DigitalStoreService.js';
@@ -45,32 +40,13 @@ async function readRequestBody(req: IncomingMessage, maxBytes = MAX_WEBHOOK_BYTE
   return Buffer.concat(chunks).toString('utf8');
 }
 
-async function runSubscriptionMaintenance(): Promise<void> {
-  if (!isMongo) {return;}
-  try {
-    const expiration = await checkExpiredSubscriptions();
-    const recovered = await recoverPendingSubscriptionFulfillments();
-    if (expiration.grace || expiration.expired || expiration.trialExpired || recovered) {
-      Logger.logSystem(
-        `Subscription maintenance: grace=${expiration.grace}, expired=${expiration.expired}, ` +
-        `trialExpired=${expiration.trialExpired}, recovered=${recovered}`,
-        'INFO'
-      );
-    }
-  } catch (error) {
-    Logger.logSystem(
-      `Subscription maintenance error: ${error instanceof Error ? error.message : String(error)}`,
-      'ERROR'
-    );
-  }
-}
-
 /**
- * ⏰ SUBSCRIPTION EXPIRATION CHECKER
- * Berjalan periodik di background untuk mendeteksi userbot yang masa aktifnya habis.
+ * 🛡️ APPROVAL ENFORCER SERVICE
+ * Berjalan periodik di background untuk memastikan hanya pengguna yang disetujui (Approved)
+ * oleh Owner yang dapat menjalankan userbot.
  */
-function startExpirationChecker() {
-  Logger.logSystem('Expiration Checker background service started.');
+function startApprovalEnforcer() {
+  Logger.logSystem('Approval Enforcer background service started.');
 
   let isRunning = false;
 
@@ -79,41 +55,40 @@ function startExpirationChecker() {
     isRunning = true;
 
     try {
-      await runSubscriptionMaintenance();
+      const { isApproved } = await import('./bot/state/approvedUsers.js');
       const allUsers = getAllRegisteredUsers();
-      const now = new Date();
 
       for (const user of allUsers) {
-        // Owner's userbot is exempt from expiration — never auto-deactivate.
         if (Number(user.telegram_id) === Number(config.ownerId)) {continue;}
-        if (user.is_active !== 1 || !user.expired_at) {continue;}
-        if (now <= new Date(user.expired_at)) {continue;}
+        if (user.is_active !== 1) {continue;}
 
-        Logger.logSystem(`User [${user.telegram_id}] masa aktif telah kadaluwarsa! Menonaktifkan...`, 'WARN');
+        if (!isApproved(Number(user.telegram_id))) {
+          Logger.logSystem(`User [${user.telegram_id}] tidak memiliki approval aktif! Menonaktifkan...`, 'WARN');
 
-        // 1. Matikan instans userbot
-        await userbotManager.stopUserbot(user.telegram_id);
+          // 1. Matikan instans userbot
+          await userbotManager.stopUserbot(user.telegram_id);
 
-        // 2. Tandai nonaktif di database
-        await updateUserbotStatus(user.telegram_id, false);
+          // 2. Tandai nonaktif di database
+          await updateUserbotStatus(user.telegram_id, false);
 
-        // 3. Kirim notifikasi pribadi via Master Bot
-        try {
-          if (!isMongo) {
-            await bot.api.sendMessage(user.telegram_id,
-              '⚠️ **USERBOT - MASA AKTIF HABIS** ⚠️\n' +
+          // 3. Kirim notifikasi ke pengguna
+          try {
+            await bot.api.sendMessage(
+              user.telegram_id,
+              '⚠️ <b>AKSES USERBOT DINONAKTIFKAN</b> ⚠️\n' +
               '────────────────────────\n' +
-              'Halo, masa aktif layanan userbot Anda telah berakhir secara otomatis.\n\n' +
-              'Seluruh sistem otomatisasi Anda telah **dinonaktifkan**. Silakan hubungi Owner atau lakukan perpanjangan langganan melalui menu **💰 Donasi** di bot ini untuk mengaktifkannya kembali!\n' +
-              '────────────────────────'
+              'Akun Anda belum disetujui atau izin akses userbot telah dicabut oleh Owner.\n\n' +
+              'Silakan hubungi Owner untuk meminta persetujuan akses kembali.\n' +
+              '────────────────────────',
+              { parse_mode: 'HTML' }
             );
+          } catch {
+            // Abaikan jika pengguna memblokir bot
           }
-        } catch {
-          // Abaikan jika pengguna memblokir bot
         }
       }
     } catch (error) {
-      Logger.logSystem(`Error in Expiration Checker service: ${error instanceof Error ? error.message : String(error)}`, 'ERROR');
+      Logger.logSystem(`Error in Approval Enforcer service: ${error instanceof Error ? error.message : String(error)}`, 'ERROR');
     } finally {
       isRunning = false;
     }
@@ -148,8 +123,8 @@ async function main() {
     // Initialize persistent katalog dan pesanan toko digital.
     await initDigitalStore();
 
-    // 1. Start Expiration Checker Service
-    startExpirationChecker();
+    // 1. Start Approval Enforcer Service
+    startApprovalEnforcer();
 
     // 2. Start Userbot Watchdog Service
     userbotManager.startWatchdog();
@@ -161,7 +136,6 @@ async function main() {
       onStart: async (info) => {
         setMasterBotUsername(info.username);
         await setupBotCommands();
-        await runSubscriptionMaintenance();
         Logger.logSystem(`Master Bot [@${info.username}] is running successfully!`, 'SUCCESS');
 
         // 4. Restart all active userbots from database as the final step
@@ -190,53 +164,6 @@ async function main() {
       const apiHandled = await handleApiRequest(req, res);
       if (apiHandled) {return;}
 
-      // Midtrans webhook
-      if (url.pathname === '/webhook/midtrans' && req.method === 'POST') {
-        try {
-          const body = await readRequestBody(req);
-          let payload: unknown;
-          try {payload = JSON.parse(body);}
-          catch {throw new RequestBodyError('JSON webhook tidak valid.', 400);}
-          const headersObj: Record<string, string> = {};
-          for (const [key, value] of Object.entries(req.headers)) {
-            if (typeof value === 'string') {headersObj[key] = value;}
-            else if (Array.isArray(value)) {headersObj[key] = value.join(', ');}
-          }
-          const result = await handleMidtransWebhook(payload, headersObj);
-          res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(result));
-        } catch (err) {
-          const status = err instanceof RequestBodyError ? err.statusCode : 500;
-          if (status === 500) {Logger.logSystem(`Midtrans webhook error: ${err}`, 'ERROR');}
-          res.writeHead(status, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, message: status === 413 ? 'Payload terlalu besar' : 'Webhook tidak valid' }));
-        }
-        return;
-      }
-
-      // Xendit webhook
-      if (url.pathname === '/webhook/xendit' && req.method === 'POST') {
-        try {
-          const body = await readRequestBody(req);
-          let payload: unknown;
-          try {payload = JSON.parse(body);}
-          catch {throw new RequestBodyError('JSON webhook tidak valid.', 400);}
-          const headersObj: Record<string, string> = {};
-          for (const [key, value] of Object.entries(req.headers)) {
-            if (typeof value === 'string') {headersObj[key] = value;}
-            else if (Array.isArray(value)) {headersObj[key] = value.join(', ');}
-          }
-          const result = await handleXenditWebhook(payload, headersObj);
-          res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(result));
-        } catch (err) {
-          const status = err instanceof RequestBodyError ? err.statusCode : 500;
-          if (status === 500) {Logger.logSystem(`Xendit webhook error: ${err}`, 'ERROR');}
-          res.writeHead(status, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, message: status === 413 ? 'Payload terlalu besar' : 'Webhook tidak valid' }));
-        }
-        return;
-      }
 
       // Health check
       if (url.pathname === '/health' || url.pathname === '/healthz') {

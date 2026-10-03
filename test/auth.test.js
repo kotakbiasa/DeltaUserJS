@@ -5,11 +5,9 @@ import crypto from 'node:crypto';
 process.env.BOT_TOKEN = '123456:unit-test-token';
 process.env.OWNER_ID = '123456';
 process.env.NODE_ENV = 'test';
-process.env.XENDIT_CALLBACK_TOKEN = 'xendit-webhook-secret';
 delete process.env.ALLOW_DEV_AUTH;
 
 const { validateTelegramInitData } = await import('../dist/server/auth.js');
-const { handlePaymentWebhook, mapMidtransStatus } = await import('../dist/services/PaymentGateway.js');
 const { normalizeBot } = await import('../dist/infrastructure/dbCore.js');
 
 function signedInitData(fields, botToken = process.env.BOT_TOKEN) {
@@ -65,27 +63,3 @@ test('dev impersonation requires explicit opt-in and loopback', () => {
   delete process.env.ALLOW_DEV_AUTH;
 });
 
-test('Midtrans refunds are represented as refunded, not failed', () => {
-  assert.equal(mapMidtransStatus({ transaction_status: 'refund' }), 'refunded');
-});
-
-test('Xendit webhook requires the configured callback token', async () => {
-  const payload = {
-    id: 'inv_test',
-    external_id: 'SUB-123-MONTHLY',
-    user_id: 'user-123',
-    status: 'PAID',
-    amount: 50000,
-  };
-
-  assert.equal(await handlePaymentWebhook('xendit', payload, {}), null);
-  assert.equal(
-    await handlePaymentWebhook('xendit', payload, { 'x-callback-token': 'wrong-secret' }),
-    null
-  );
-  const accepted = await handlePaymentWebhook('xendit', payload, {
-    'x-callback-token': 'xendit-webhook-secret',
-  });
-  assert.equal(accepted.orderId, 'SUB-123-MONTHLY');
-  assert.equal(accepted.status, 'paid');
-});

@@ -5,8 +5,6 @@ import mongoose from 'mongoose';
 import config from '../config.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
 import { Logger } from '../utils/logger.js';
-// Import subscription models to register them with mongoose
-import './subscriptionModels.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, '../../database.json');
@@ -133,13 +131,8 @@ export function normalizeBot(raw: any = {}, id?: any) {
     }
   }
 
-  // Owner's userbot never expires. An explicit null expiry also means
-  // lifetime; only a missing legacy value receives the default trial.
-  const isOwnerBot = idNum === Number(config.ownerId);
-  const hasExplicitExpiry = Object.prototype.hasOwnProperty.call(raw, 'expired_at');
-  const expiredAt = isOwnerBot
-    ? null
-    : (hasExplicitExpiry ? raw.expired_at : addDays(createdAt, SUBSCRIPTION_DAYS).toISOString());
+  // Userbots have permanent access once approved; no expiration is enforced.
+  const expiredAt = null;
 
   return {
     telegram_id: idNum,
@@ -308,12 +301,6 @@ export async function initDatabaseAndCache() {
         groupConfigCache.set(group.chat_id, group.toObject());
       }
 
-      // Seed default subscription plans
-      const { seedDefaultPlans } = await import('../services/SubscriptionService.js');
-      await seedDefaultPlans();
-
-      const { initVouchers } = await import('../services/VoucherService.js');
-      await initVouchers();
 
       Logger.logSystem(`📦 Loaded ${dbCache.size} userbot sessions from MongoDB.`, 'INFO');
       return;
