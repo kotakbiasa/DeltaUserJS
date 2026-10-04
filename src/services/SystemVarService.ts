@@ -88,44 +88,4 @@ export async function deleteSystemVar(key) {
   });
 }
 
-export function hasClaimedTrial(telegramId) {
-  const raw = getSystemVar('trial_claims');
-  if (!raw) {return false;}
-  const claims = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw;
-  return !!claims[String(telegramId)];
-}
 
-/**
- * Atomically claim a trial. Returns true if this call performed the claim,
- * false if the user had already claimed (check-and-set under the same lock
- * that guards setSystemVar, so two concurrent claims can't both succeed).
- */
-export async function setTrialClaimed(telegramId) {
-  return withKeyLock(SYS_LOCK_KEY, async () => {
-    if (!systemConfigCache.vars) {systemConfigCache.vars = {};}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const vars = systemConfigCache.vars as Record<string, any>;
-    // trial_claims disimpan sebagai string JSON — schema vars = Map of String,
-    // nilai object menyebabkan CastError pada $set 'vars.trial_claims'.
-    const claims = typeof vars.trial_claims === 'string'
-      ? JSON.parse(vars.trial_claims || '{}')
-      : { ...(vars.trial_claims || {}) };
-    if (claims[String(telegramId)]) {return false;}
-    claims[String(telegramId)] = true;
-    const serialized = JSON.stringify(claims);
-    vars.trial_claims = serialized;
-
-    if (isMongo) {
-      await SystemConfigModel.updateOne(
-        { _id: 'system' },
-        { $set: { 'vars.trial_claims': serialized } },
-        { upsert: true }
-      );
-    } else {
-      const data = await readDbFromFile();
-      data.systemConfig = systemConfigCache;
-      await writeDbToFile(data);
-    }
-    return true;
-  });
-}

@@ -22,7 +22,9 @@ npm test                 # unit tests + test/runner.js E2E suite
 
 - **Master bot** uses grammy; **userbots** use mtcute (`@mtcute/node` + `@mtcute/dispatcher`)
 - **Conversation patterns:** Use `@grammyjs/conversations` for multi-step flows (login, subscription)
-- **Menu system:** Use `@grammyjs/menu` for inline keyboards — never raw `reply_markup`
+- **Menu system:** Inline keyboards are plain `reply_markup` objects built by
+  `src/bot/ui/keyboards/dashboard/keyboardParts/*.ts` and routed through the
+  `rich:<action>` callback pattern — do NOT add `@grammyjs/menu`
 - **Rate limiting:** `@grammyjs/ratelimiter` middleware on all user-facing handlers
 - **Error logging:** Structured log format with ANSI timestamps — `[SYSTEM]`, `[SUCCESS]`, `[WARN]`, `[ERROR]`
 - **Database:** Mongoose schemas in `infrastructure/database.js`, connection pooled
@@ -44,7 +46,6 @@ npm test                 # unit tests + test/runner.js E2E suite
 | `@mtcute/dispatcher` | Update dispatching for userbot handlers |
 | `@mtcute/convert` | Legacy GramJS session → mtcute conversion |
 | `@grammyjs/conversations` | Multi-step conversation flows |
-| `@grammyjs/menu` | Inline keyboard menu builder |
 | `@grammyjs/ratelimiter` | Per-user rate limiting |
 | `mongoose` | MongoDB ODM |
 | `qrcode` | QR code generation for userbot auth |

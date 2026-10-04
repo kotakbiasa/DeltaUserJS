@@ -1,5 +1,5 @@
 /**
- * Voucher (deprecated), loop, dan entry point registrasi OTP/QR.
+ * Loop user dan entry point registrasi OTP/QR.
  *
  * Dipecah dari dashboard/handlers.ts (1.081 baris). Isi tiap cabang
  * dipindahkan apa adanya; yang berubah hanya di file mana ia tinggal.
@@ -18,10 +18,6 @@ import { NOT_HANDLED } from './types.js';
 export async function handleMiscRoutes(ctx) {
   const action = ctx.match[1];
 
-  if (action === 'redeem_voucher' || action === 'admin_vouchers' || action.startsWith('admin_vouchers:') || action === 'admin_new_voucher' || action.startsWith('del_voucher:') || action.startsWith('broadcast_voucher:')) {
-    await ctx.answerCallbackQuery({ text: 'Sistem voucher telah dinonaktifkan.', show_alert: true });
-    return;
-  }
 
   if (action === 'user_loops' || action.startsWith('user_loops:')) {
     await ctx.answerCallbackQuery();

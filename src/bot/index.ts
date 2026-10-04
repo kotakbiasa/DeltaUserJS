@@ -129,7 +129,7 @@ bot.command(['app', 'webapp', 'dashboard'], async (ctx) => {
     '• 🛍️ Toko plugin digital dengan pesanan manual owner\n' +
     '• 🧮 Kalkulator, teks, dan password generator lokal\n' +
     '• 📢 Broadcast studio dengan chat selector\n' +
-    '• 💎 Cek masa aktif & klaim kode voucher promo\n' +
+    '• 💎 Cek masa aktif langganan\n' +
     '• 👑 Pusat kontrol armada (khusus owner)\n\n' +
     'Ketuk tombol di bawah untuk membuka:',
     {
@@ -154,7 +154,6 @@ export async function setupBotCommands() {
       { command: 'start', description: 'Buka dashboard utama' },
       { command: 'menu', description: 'Buka menu bot' },
       { command: 'app', description: 'Buka Web Dashboard Mini App' },
-      { command: 'claim', description: 'Tukar kode voucher promo (/claim <kode>)' },
       { command: 'daftar', description: 'Daftar userbot baru' },
       { command: 'cancel', description: 'Batalkan proses pendaftaran yang aktif' },
       { command: 'health', description: 'Cek status server (owner only)' },

@@ -58,7 +58,6 @@ export function registerRichHandlers(bot) {
     await openMain(ctx);
   });
 
-  bot.command(['claim', 'voucher', 'tukar'], async (ctx) => replyRich(ctx, `<p>ℹ️ <b>Sistem Voucher Telah Dihapus</b><br>DeltaUserJS kini menggunakan sistem persetujuan langsung (Approval-Only). Silakan ajukan persetujuan melalui Menu Utama.</p>`));
 
   bot.command(['paket', 'vip', 'langganan', 'subscribe', 'pricing'], async (ctx) => {
     if (ctx.chat.type !== 'private') {
