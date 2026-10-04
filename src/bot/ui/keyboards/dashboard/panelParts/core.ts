@@ -4,7 +4,6 @@ import { getDisabledPlugins, getSchedules, getUserbotSession } from '../../../..
 import userbotManager from '../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../utils/richMessage.js';
-import { Api } from 'teleproto';
 import { isPendingApproval } from '../../../../state/approvedUsers.js';
 import {
   PLUGIN_CATEGORIES,
@@ -448,11 +447,15 @@ export async function panelUserbotDiag(ctx) {
   let connected = false;
 
   if (isRunning && ubot && ubot.client) {
-    connected = Boolean(ubot.client.connected);
-    dcId = String((ubot.client.session as unknown as { dcId?: string | number })?.dcId || '4');
+    connected = Boolean(ubot.isActive || ubot.client.connected);
     try {
       const start = Date.now();
-      await ubot.client.invoke(new Api.help.GetNearestDc());
+      if (typeof ubot.client.call === 'function') {
+        const res = await ubot.client.call({ _: 'help.getNearestDc' });
+        dcId = String((res as any)?.nearestDc || (res as any)?.thisDc || '4');
+      } else if (typeof ubot.client.invoke === 'function') {
+        await ubot.client.invoke({ _: 'help.getNearestDc' });
+      }
       pingMs = Date.now() - start;
     } catch (_) {
       pingMs = -1;

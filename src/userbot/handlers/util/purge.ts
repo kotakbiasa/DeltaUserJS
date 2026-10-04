@@ -1,4 +1,3 @@
-import { TelegramClient } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import type { UserbotMessageLike } from '../../types.js';
 import { Logger } from '../../../utils/logger.js';
@@ -40,7 +39,7 @@ export default {
             '• `.copy` memakai message.copy (forward dengan dropAuthor) — kalau itu gagal, media diunduh lalu dikirim ulang beserta caption aslinya.\n' +
             '• Semua perintah dijalankan sebagai reply/perintah keluar dari akun userbot sendiri.'
   },
-  async execute(client: TelegramClient, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
+  async execute(client: any, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (!message.peerId) {return;}
 
@@ -88,22 +87,22 @@ export default {
         // Ambil pesan via ids array (getMessages) supaya hanya ID valid yang dihapus
         const ids: number[] = [];
         for (let id = startId; id <= endId; id++) {ids.push(id);}
-        const msgs = await client.getMessages(message.peerId, { ids });
+        const msgs = await client.getMessages(message.peerId as any, { ids });
 
         const validIds = (msgs || [])
-          .filter((m) => m && m.id >= startId && m.id <= endId)
-          .map((m) => m.id);
+          .filter((m: any) => m && m.id >= startId && m.id <= endId)
+          .map((m: any) => m.id);
 
         let deleted = 0;
         for (const batch of chunks(validIds, CHUNK_SIZE)) {
-          await client.deleteMessages(message.peerId, batch, { revoke: true });
+          await client.deleteMessages(message.peerId as any, batch, { revoke: true });
           deleted += batch.length;
         }
         // Pesan perintah .purge sendiri dihapus belakangan supaya status bisa tampil
         try { await message.delete({ revoke: true }); } catch (_e) { /* ignore */ }
 
         // Konfirmasi singkat lalu hapus juga
-        const confirm = await client.sendMessage(message.peerId, {
+        const confirm = await client.sendMessage(message.peerId as any, {
           message: `<blockquote>🗑️ <b>${deleted}</b> pesan dihapus.</blockquote>`,
           parseMode: 'html',
           linkPreview: false
@@ -141,17 +140,17 @@ export default {
 
       try {
         // Ambil riwayat chat lalu saring milik sendiri; include pesan perintah ini
-        const history = await client.getMessages(message.peerId, { limit: Math.max(n * 3, 30) });
-        const mine = (history || []).filter((m) => m && m.out).slice(0, n).map((m) => m.id);
+        const history = await client.getMessages(message.peerId as any, { limit: Math.max(n * 3, 30) });
+        const mine = (history || []).filter((m: any) => m && (m.out || m.isOutgoing)).slice(0, n).map((m: any) => m.id);
 
         let deleted = 0;
         for (const batch of chunks(mine, CHUNK_SIZE)) {
-          await client.deleteMessages(message.peerId, batch, { revoke: true });
+          await client.deleteMessages(message.peerId as any, batch, { revoke: true });
           deleted += batch.length;
         }
         try { await message.delete({ revoke: true }); } catch (_e) { /* ignore */ }
 
-        const confirm = await client.sendMessage(message.peerId, {
+        const confirm = await client.sendMessage(message.peerId as any, {
           message: `<blockquote>🗑️ <b>${deleted}</b> pesanmu dihapus.</blockquote>`,
           parseMode: 'html',
           linkPreview: false
@@ -201,7 +200,7 @@ export default {
         if (!sent && replied.media) {
           const buf = await replied.downloadMedia();
           if (buf && typeof buf !== 'string' && buf.length > 0) {
-            await client.sendFile(message.peerId, {
+            await client.sendFile(message.peerId as any, {
               file: buf,
               caption: replied.message || '',
               parseMode: 'html',
@@ -209,7 +208,7 @@ export default {
             });
             sent = true;
           } else if (buf && typeof buf === 'string' && buf.length > 0) {
-            await client.sendFile(message.peerId, {
+            await client.sendFile(message.peerId as any, {
               file: buf,
               caption: replied.message || '',
               parseMode: 'html',
@@ -221,10 +220,10 @@ export default {
 
         // 3) Pesan teks biasa (tanpa media)
         if (!sent && replied.message && !replied.media) {
-          await client.sendMessage(message.peerId, {
+          await client.sendMessage(message.peerId as any, {
             message: replied.message,
             parseMode: false,   // entitas formatting sudah ada di pesan asli
-            formattingEntities: replied.entities as unknown as NonNullable<Parameters<TelegramClient['sendMessage']>[1]>['formattingEntities'],
+            entities: replied.entities,
             linkPreview: false
           });
           sent = true;

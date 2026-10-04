@@ -4,6 +4,7 @@
  * Dipecah dari dashboard.ts (2.821 baris). Isi tiap fungsi dipindahkan apa
  * adanya; yang berubah hanya di file mana ia tinggal.
  */
+import { InputFile } from 'grammy';
 import config from '../../../../config.js';
 import {
   UserbotModel,
@@ -37,8 +38,6 @@ import {
   setAcceptedTerms,
 } from '../../../state/approvedUsers.js';
 import fs from 'fs';
-import { InputFile } from 'grammy';
-import { Api } from 'teleproto';
 import { PROTECTED_PLUGINS, canRegister, getSystemVarValue, isAutoApproveEnabled, isOwner, normalizedDisabled } from './shared.js';
 import {
   panelAccessDenied,
@@ -520,9 +519,13 @@ export function registerRichHandlers(bot) {
       try {
         const ubot = userbotManager.clients.get(telegramId);
         if (ubot && ubot.client) {
-          await ubot.client.invoke(new Api.auth.LogOut());
+          if (typeof ubot.client.logOut === 'function') {
+            await ubot.client.logOut();
+          } else if (typeof ubot.client.call === 'function') {
+            await ubot.client.call({ _: 'auth.logOut' });
+          }
         }
-      } catch (e) {
+      } catch (e: any) {
         Logger.logUser(telegramId, `Failed to logout: ${e.message}`, 'WARN');
       }
 

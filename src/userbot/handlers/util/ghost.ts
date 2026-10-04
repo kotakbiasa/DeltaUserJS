@@ -1,4 +1,3 @@
-import { Api } from 'teleproto';
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 
@@ -41,7 +40,7 @@ export function isGhosted(telegramId, chatId) {
 
 async function markRead(client, chatId) {
   try {
-    await client.invoke(new Api.messages.ReadHistory({ peer: chatId, maxId: 0 }));
+    await client.readHistory(chatId);
   } catch (err) {
     Logger.logSystem(
       `ghost: gagal ReadHistory chat ${chatId}: ${err instanceof Error ? err.message : String(err)}`,

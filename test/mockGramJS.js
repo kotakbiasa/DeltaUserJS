@@ -1,4 +1,4 @@
-import { Api } from 'teleproto';
+import { Api } from './mockApi.js';
 
 // Monotonic message-ID generator. Random IDs (Math.random) can collide across
 // the suite, making getReplyMessage/editedMessages lookups by ID nondeterministic.
@@ -139,36 +139,52 @@ export class MockTelegramClient {
   }
 
   async invoke(rpcCall) {
-    this.invokedCalls.push(rpcCall);
+    let call = rpcCall;
+    if (rpcCall && typeof rpcCall === 'object' && !(rpcCall instanceof Api.channels.EditBanned)) {
+      if (rpcCall._ === 'channels.editBanned' || rpcCall.className === 'EditBanned') {
+        call = new Api.channels.EditBanned({
+          channel: rpcCall.channel,
+          participant: rpcCall.participant,
+          bannedRights: rpcCall.bannedRights instanceof Api.ChatBannedRights
+            ? rpcCall.bannedRights
+            : new Api.ChatBannedRights(rpcCall.bannedRights || {}),
+        });
+      }
+    }
+    this.invokedCalls.push(call);
     
     // Mock responses for expected RPC methods
-    if (rpcCall instanceof Api.messages.SetBotCallbackAnswer) {
-      return { queryId: rpcCall.queryId, alert: rpcCall.alert, message: rpcCall.message };
+    if (call instanceof Api.messages.SetBotCallbackAnswer) {
+      return { queryId: call.queryId, alert: call.alert, message: call.message };
     }
-    if (rpcCall instanceof Api.users.GetFullUser) {
-      const userId = rpcCall.id.userId || rpcCall.id;
+    if (call instanceof Api.users.GetFullUser) {
+      const userId = call.id?.userId || call.id;
       return {
         fullUser: { id: userId },
         user: { id: userId, username: `user_${userId}` }
       };
     }
-    if (rpcCall instanceof Api.channels.GetFullChannel) {
-      const channelId = rpcCall.channel.channelId || rpcCall.channel;
+    if (call instanceof Api.channels.GetFullChannel) {
+      const channelId = call.channel?.channelId || call.channel;
       return {
         fullChat: { id: channelId },
         chats: [{ id: channelId, title: `Channel_${channelId}` }]
       };
     }
-    if (rpcCall instanceof Api.channels.EditBanned) {
+    if (call instanceof Api.channels.EditBanned) {
       return { nModified: 1 };
     }
-    if (rpcCall instanceof Api.channels.EditAdmin) {
+    if (call instanceof Api.channels.EditAdmin) {
       return { nModified: 1 };
     }
-    if (rpcCall instanceof Api.messages.UpdatePinnedMessage) {
+    if (call instanceof Api.messages.UpdatePinnedMessage) {
       return { nModified: 1 };
     }
     return {};
+  }
+
+  async call(rpcCall) {
+    return await this.invoke(rpcCall);
   }
 
   async markAsRead(peerId) {
@@ -237,8 +253,10 @@ export class MockTelegramClient {
     const event = { message: msg };
 
     for (const { handler, eventType } of this.handlers) {
-      const isNewMessage = eventType?.constructor?.name === 'NewMessage' || 
-                           (eventType && typeof eventType === 'object' && eventType.constructor.name.includes('NewMessage'));
+      const isNewMessage = !eventType ||
+                           eventType === 'NewMessage' ||
+                           eventType?.constructor?.name === 'NewMessage' || 
+                           (eventType && typeof eventType === 'object' && eventType.constructor?.name?.includes('NewMessage'));
       if (isNewMessage) {
         await handler(event);
       }
@@ -251,8 +269,10 @@ export class MockTelegramClient {
     const event = { update };
 
     for (const { handler, eventType } of this.handlers) {
-      const isRaw = eventType?.constructor?.name === 'Raw' ||
-                    (eventType && typeof eventType === 'object' && eventType.constructor.name.includes('Raw'));
+      const isRaw = !eventType ||
+                    eventType === 'Raw' ||
+                    eventType?.constructor?.name === 'Raw' ||
+                    (eventType && typeof eventType === 'object' && eventType.constructor?.name?.includes('Raw'));
       if (isRaw) {
         await handler(event);
       }

@@ -1,4 +1,3 @@
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -41,7 +40,7 @@ interface Duration {
 interface Target {
   id: number;
   name: string;
-  entity?: Api.TypeEntityLike;
+  entity?: any;
 }
 
 interface ResolvedTarget {
@@ -181,10 +180,18 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
   }
   const participant = target.entity ?? target.id;
 
+  const chatId = chat.id || chat;
+
   // Grup biasa (basic group): hanya kick yang didukung API-nya.
   if (!isChannel) {
     if (cmd === 'kick') {
-      await client.invoke(new Api.messages.DeleteChatUser({ chatId: chat.id, userId: participant }));
+      if (typeof client.kickChatMember === 'function') {
+        await client.kickChatMember(chatId, participant);
+      } else if (typeof client.call === 'function') {
+        await client.call({ _: 'messages.deleteChatUser', chatId: chat.id, userId: participant });
+      } else if (typeof client.invoke === 'function') {
+        await client.invoke({ _: 'messages.deleteChatUser', chatId: chat.id, userId: participant });
+      }
       await message.edit({
         text: `<blockquote>👢 ${mention(target)} <b>dikeluarkan dari grup.</b>${reasonSuffix(resolved.reason)}</blockquote>`,
         parseMode: 'html'
@@ -207,17 +214,22 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
 
   switch (cmd) {
     case 'kick': {
-      // Kick = ban sekejap lalu langsung unban (pola dua langkah Telegram).
-      await client.invoke(new Api.channels.EditBanned({
-        channel: chat,
-        participant,
-        bannedRights: new Api.ChatBannedRights({ untilDate: 0, viewMessages: true })
-      }));
-      await client.invoke(new Api.channels.EditBanned({
-        channel: chat,
-        participant,
-        bannedRights: new Api.ChatBannedRights({ untilDate: 0, viewMessages: false, sendMessages: false })
-      }));
+      if (typeof client.kickChatMember === 'function') {
+        await client.kickChatMember(chatId, participant);
+      } else if (typeof client.call === 'function') {
+        await client.call({
+          _: 'channels.editBanned',
+          channel: chatId,
+          participant,
+          bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
+        }).catch(() => {});
+        await client.call({
+          _: 'channels.editBanned',
+          channel: chatId,
+          participant,
+          bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
+        });
+      }
       await message.edit({
         text: `<blockquote>👢 ${mention(target)} <b>dikeluarkan (kick).</b>${reasonSuffix(resolved.reason)}</blockquote>`,
         parseMode: 'html'
@@ -225,11 +237,16 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
       return;
     }
     case 'ban': {
-      await client.invoke(new Api.channels.EditBanned({
-        channel: chat,
-        participant,
-        bannedRights: new Api.ChatBannedRights({ untilDate: 0, viewMessages: true })
-      }));
+      if (typeof client.banChatMember === 'function') {
+        await client.banChatMember(chatId, participant);
+      } else if (typeof client.call === 'function') {
+        await client.call({
+          _: 'channels.editBanned',
+          channel: chatId,
+          participant,
+          bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
+        });
+      }
       await message.edit({
         text: `<blockquote>🔨 ${mention(target)} <b>diban permanen.</b>${reasonSuffix(resolved.reason)}</blockquote>`,
         parseMode: 'html'
@@ -237,11 +254,16 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
       return;
     }
     case 'unban': {
-      await client.invoke(new Api.channels.EditBanned({
-        channel: chat,
-        participant,
-        bannedRights: new Api.ChatBannedRights({ untilDate: 0, viewMessages: false, sendMessages: false })
-      }));
+      if (typeof client.unbanChatMember === 'function') {
+        await client.unbanChatMember(chatId, participant);
+      } else if (typeof client.call === 'function') {
+        await client.call({
+          _: 'channels.editBanned',
+          channel: chatId,
+          participant,
+          bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
+        });
+      }
       await message.edit({
         text: `<blockquote>🔓 ${mention(target)} <b>unban — bisa masuk lagi.</b>${reasonSuffix(resolved.reason)}</blockquote>`,
         parseMode: 'html'
@@ -250,11 +272,19 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
     }
     case 'mute': {
       const untilDate = duration ? Math.floor((Date.now() + duration.ms) / 1000) : 0;
-      await client.invoke(new Api.channels.EditBanned({
-        channel: chat,
-        participant,
-        bannedRights: new Api.ChatBannedRights({ untilDate, sendMessages: true })
-      }));
+      if (typeof client.restrictChatMember === 'function') {
+        await client.restrictChatMember(chatId, participant, {
+          restrictions: { sendMessages: false },
+          untilDate,
+        });
+      } else if (typeof client.call === 'function') {
+        await client.call({
+          _: 'channels.editBanned',
+          channel: chatId,
+          participant,
+          bannedRights: { _: 'chatBannedRights', untilDate, sendMessages: true },
+        });
+      }
       const durText = duration ? `\n<b>Durasi</b>: ${duration.label}` : '';
       await message.edit({
         text: `<blockquote>🔇 ${mention(target)} <b>dimute.</b>${durText}${reasonSuffix(resolved.reason)}</blockquote>`,
@@ -263,11 +293,18 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
       return;
     }
     default: {
-      await client.invoke(new Api.channels.EditBanned({
-        channel: chat,
-        participant,
-        bannedRights: new Api.ChatBannedRights({ untilDate: 0, viewMessages: false, sendMessages: false })
-      }));
+      if (typeof client.restrictChatMember === 'function') {
+        await client.restrictChatMember(chatId, participant, {
+          restrictions: { sendMessages: true },
+        });
+      } else if (typeof client.call === 'function') {
+        await client.call({
+          _: 'channels.editBanned',
+          channel: chatId,
+          participant,
+          bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
+        });
+      }
       await message.edit({
         text: `<blockquote>🔊 ${mention(target)} <b>unmute — bisa chat lagi.</b>${reasonSuffix(resolved.reason)}</blockquote>`,
         parseMode: 'html'
@@ -299,8 +336,9 @@ async function handleRole(client, message, chat, isChannel, cmd, args, telegramI
   const isBroadcast = isChannel && !chat.megagroup;
   const title = isPromote ? (resolved.reason.slice(0, 16) || 'Admin') : '';
 
-  const rights = isPromote
-    ? new Api.ChatAdminRights({
+  if (typeof client.setChatAdminRights === 'function') {
+    await client.setChatAdminRights(chat.id || chat, participant, {
+      rights: isPromote ? {
         changeInfo: false,
         postMessages: isBroadcast,
         editMessages: isBroadcast,
@@ -310,18 +348,35 @@ async function handleRole(client, message, chat, isChannel, cmd, args, telegramI
         pinMessages: false,
         addAdmins: false,
         anonymous: false,
-        manageCall: true
-      })
-    : new Api.ChatAdminRights({});
+        manageCall: true,
+      } : {},
+      rank: title,
+    });
+  } else if (typeof client.call === 'function') {
+    const rights = isPromote
+      ? {
+          _: 'chatAdminRights',
+          changeInfo: false,
+          postMessages: isBroadcast,
+          editMessages: isBroadcast,
+          deleteMessages: true,
+          banUsers: true,
+          inviteUsers: true,
+          pinMessages: false,
+          addAdmins: false,
+          anonymous: false,
+          manageCall: true,
+        }
+      : { _: 'chatAdminRights' };
 
-  if (isChannel) {
-    await client.invoke(new Api.channels.EditAdmin({ channel: chat, userId: participant, adminRights: rights, rank: title }));
-  } else {
-    // Grup biasa: EditChatAdmin; jika ternyata sudah migrasi ke supergroup, fallback ke API channel.
-    try {
-      await client.invoke(new Api.messages.EditChatAdmin({ chatId: chat.id, userId: participant, isAdmin: isPromote }));
-    } catch (_err) {
-      await client.invoke(new Api.channels.EditAdmin({ channel: chat, userId: participant, adminRights: rights, rank: title }));
+    if (isChannel) {
+      await client.call({ _: 'channels.editAdmin', channel: chat, userId: participant, adminRights: rights, rank: title });
+    } else {
+      try {
+        await client.call({ _: 'messages.editChatAdmin', chatId: chat.id, userId: participant, isAdmin: isPromote });
+      } catch {
+        await client.call({ _: 'channels.editAdmin', channel: chat, userId: participant, adminRights: rights, rank: title });
+      }
     }
   }
 
@@ -352,31 +407,38 @@ async function handleLock(client, message, chat, cmd, args) {
 
   // EditChatDefaultBannedRights mengganti SELURUH objek hak, jadi hak default
   // yang lama diambil dulu lalu di-merge supaya lock media tidak membuka
-  // lock links sebelumnya (dan sebaliknya).
-  let prev: Api.ChatBannedRights | undefined;
+  let prev: any;
   try {
-    if (chat.className === 'Channel') {
-      const full = await client.invoke(new Api.channels.GetFullChannel({ channel: chat }));
-      prev = full.fullChat?.defaultBannedRights;
-    } else {
-      const full = await client.invoke(new Api.messages.GetFullChat({ chatId: chat.id }));
-      prev = full.fullChat?.defaultBannedRights;
+    if (typeof client.call === 'function') {
+      if (chat.className === 'Channel') {
+        const full = await client.call({ _: 'channels.getFullChannel', channel: chat });
+        prev = full.fullChat?.defaultBannedRights;
+      } else {
+        const full = await client.call({ _: 'messages.getFullChat', chatId: chat.id });
+        prev = full.fullChat?.defaultBannedRights;
+      }
     }
-  } catch (_e) { prev = undefined; }
+  } catch {
+    prev = undefined;
+  }
 
-  const merged: Record<string, boolean | number> = {
+  const merged: Record<string, any> = {
+    _: 'chatBannedRights',
     untilDate: 0
   };
   for (const flag of LOCK_TARGETS.all) {
-    const wasLocked = prev ? prev[flag as keyof Api.ChatBannedRights] === true : false;
+    const wasLocked = prev ? prev[flag] === true : false;
     const isTarget = targets.includes(flag);
     merged[flag] = isLock ? isTarget : (isTarget ? false : wasLocked);
   }
 
-  await client.invoke(new Api.messages.EditChatDefaultBannedRights({
-    peer: chat,
-    bannedRights: new Api.ChatBannedRights(merged as ConstructorParameters<typeof Api.ChatBannedRights>[0])
-  }));
+  if (typeof client.call === 'function') {
+    await client.call({
+      _: 'messages.editChatDefaultBannedRights',
+      peer: chat,
+      bannedRights: merged,
+    });
+  }
 
   const label = LOCK_LABELS[mode];
   const labelCap = label.charAt(0).toUpperCase() + label.slice(1);

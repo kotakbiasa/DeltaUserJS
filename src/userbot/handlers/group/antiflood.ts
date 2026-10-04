@@ -1,5 +1,4 @@
 import { getChatSettings, updateChatSettings, addWarn, resetWarns } from '../../../infrastructure/database.js';
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
 import { Logger } from '../../../utils/logger.js';
@@ -151,38 +150,71 @@ export default {
         floodTracker.delete(key);
 
         const isKick = mode === 'kick';
-        const bannedRights = new Api.ChatBannedRights({
-          untilDate: 0,
-          viewMessages: isKick ? true : false,
-          sendMessages: isKick ? false : true,
-          embedLinks: isKick ? false : true,
-          sendMedia: isKick ? false : true,
-          sendGifs: isKick ? false : true,
-          sendGames: isKick ? false : true,
-          sendInline: isKick ? false : true,
-          sendStickers: isKick ? false : true,
-          pinMessages: isKick ? false : true,
-          changeInfo: isKick ? false : true,
-          inviteUsers: isKick ? false : true
-        });
-
-        await client.invoke(new Api.channels.EditBanned({
-          channel: chatId,
-          participant: senderId,
-          bannedRights
-        }));
-
         if (isKick) {
-          const unbanRights = new Api.ChatBannedRights({
-            untilDate: 0,
-            viewMessages: false,
-            sendMessages: false
-          });
-          await client.invoke(new Api.channels.EditBanned({
-            channel: chatId,
-            participant: senderId,
-            bannedRights: unbanRights
-          }));
+          if (typeof client.kickChatMember === 'function') {
+            await client.kickChatMember(chatId, senderId).catch(() => {});
+          } else if (typeof client.call === 'function') {
+            await client.call({
+              _: 'channels.editBanned',
+              channel: chatId,
+              participant: senderId,
+              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
+            }).catch(() => {});
+            await client.call({
+              _: 'channels.editBanned',
+              channel: chatId,
+              participant: senderId,
+              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
+            }).catch(() => {});
+          } else if (typeof client.invoke === 'function') {
+            await client.invoke({
+              _: 'channels.editBanned',
+              channel: chatId,
+              participant: senderId,
+              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
+            }).catch(() => {});
+            await client.invoke({
+              _: 'channels.editBanned',
+              channel: chatId,
+              participant: senderId,
+              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
+            }).catch(() => {});
+          }
+        } else {
+          // Mute
+          if (typeof client.restrictChatMember === 'function') {
+            await client.restrictChatMember(chatId, senderId, {
+              sendMessages: false,
+              sendMedia: false,
+              embedLinks: false,
+            }).catch(() => {});
+          } else if (typeof client.call === 'function') {
+            await client.call({
+              _: 'channels.editBanned',
+              channel: chatId,
+              participant: senderId,
+              bannedRights: {
+                _: 'chatBannedRights',
+                untilDate: 0,
+                sendMessages: true,
+                sendMedia: true,
+                embedLinks: true,
+              },
+            }).catch(() => {});
+          } else if (typeof client.invoke === 'function') {
+            await client.invoke({
+              _: 'channels.editBanned',
+              channel: chatId,
+              participant: senderId,
+              bannedRights: {
+                _: 'chatBannedRights',
+                untilDate: 0,
+                sendMessages: true,
+                sendMedia: true,
+                embedLinks: true,
+              },
+            }).catch(() => {});
+          }
         }
 
         let name = `User_${senderId}`;
