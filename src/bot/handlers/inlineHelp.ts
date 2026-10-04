@@ -6,6 +6,7 @@
  * menggunakan inline keyboard langsung dari userbot (mtcute buttons).
  */
 import { helpRegistry as userbotHelpRegistry } from '../../userbot/engine/pluginRegistry.js';
+import type { PluginHelp } from '../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../utils/richMessage.js';
 import { editRich } from '../../utils/richMessage.js';
 import { replyRich } from '../../utils/richMessage.js';
@@ -14,7 +15,7 @@ import type { Bot } from 'grammy';
 
 // Registry modul Master Bot (kosong sejak fitur group management dihapus;
 // tetap disediakan agar mudah diperluas kembali di masa depan).
-export const masterHelpRegistry = {};
+export const masterHelpRegistry: Record<string, PluginHelp> = {};
 
 function getRegistry(target: string) {
   if (target === 'ubot') {return userbotHelpRegistry;}

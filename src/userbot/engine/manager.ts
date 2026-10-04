@@ -42,7 +42,7 @@ class UserbotManager {
     this.watchdogRunning = false;
   }
 
-  async startUserbot(telegramId: number, sessionString) {
+  async startUserbot(telegramId: number, sessionString: string) {
     const id = Number(telegramId);
     const release = await acquireLock(id);
     try {

@@ -38,7 +38,7 @@ const LANGS = new Set([
 ]);
 
 /** Hapus file temp dengan aman (abaikan error). */
-function cleanup(...files) {
+function cleanup(...files: Array<string | null | undefined>) {
   for (const f of files) {
     if (!f) {continue;}
     try {

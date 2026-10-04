@@ -18,7 +18,7 @@ function randomRgb() {
 }
 
 // Map command to style configuration
-function getCarbonConfig(theme, code) {
+function getCarbonConfig(theme: string, code: string) {
   const baseConfig = {
     code: code,
     language: "auto",

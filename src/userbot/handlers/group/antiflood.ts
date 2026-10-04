@@ -16,7 +16,7 @@ setInterval(() => {
   const oneHour = 60 * 60 * 1000;
   let cleaned = 0;
   for (const [key, timestamps] of floodTracker.entries()) {
-    const recent = timestamps.filter(t => now - t <= oneHour);
+    const recent = timestamps.filter((t: number) => now - t <= oneHour);
     if (recent.length === 0) {
       floodTracker.delete(key);
       cleaned++;
@@ -143,7 +143,7 @@ export default {
     timestamps.push(now);
 
     // Cleanup: remove old timestamps outside the window
-    timestamps = timestamps.filter(t => now - t <= timeWindow);
+    timestamps = timestamps.filter((t: number) => now - t <= timeWindow);
     floodTracker.set(key, timestamps);
 
     // Clean up empty keys to prevent memory leaks

@@ -12,7 +12,7 @@ export async function saveUserbotSession(telegramId: number, phone: string, sess
   const encryptedSession = sessionString ? encrypt(sessionString) : sessionString;
 
   // Userbots have permanent access once approved; no expiration is enforced.
-  const expDate = null;
+  const expDate: string | null = null;
 
   const botData = normalizeBot({
     ...existing,

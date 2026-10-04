@@ -23,7 +23,7 @@ const keyLocks = new Map();
 export function withKeyLock<T>(key: string | number, fn: () => Promise<T>): Promise<T> {
   const prev = keyLocks.get(key) || Promise.resolve();
   const run = prev.then(fn, fn);
-  keyLocks.set(key, run.then(() => undefined, () => undefined));
+  keyLocks.set(key, run.then((): void => undefined, (): void => undefined));
   return run;
 }
 
@@ -81,7 +81,7 @@ export const GroupConfigModel: mongoose.Model<any> = (mongoose.models.GroupConfi
 
 export const dbCache = new Map();
 export let isMongo = false;
-export let systemConfigCache = { vars: {} };
+export let systemConfigCache: { vars: Record<string, unknown> } = { vars: {} };
 export const groupConfigCache = new Map();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,7 +108,7 @@ export function normalizeBot(raw: any = {}, id?: any) {
   }
 
   // Userbots have permanent access once approved; no expiration is enforced.
-  const expiredAt = null;
+  const expiredAt: string | null = null;
 
   return {
     telegram_id: idNum,
@@ -180,7 +180,7 @@ let writeLock: Promise<unknown> = Promise.resolve();
 
 export function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = writeLock.then(fn, fn);
-  writeLock = run.then(() => undefined, () => undefined);
+  writeLock = run.then((): void => undefined, (): void => undefined);
   return run;
 }
 

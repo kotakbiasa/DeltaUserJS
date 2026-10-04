@@ -3,14 +3,16 @@
  * Menghindari circular import: bot instance di-set sekali dari bot/index.ts.
  */
 
-let botRef = null;
+type NotifyBot = { api: { sendMessage: (chatId: number | string, text: string, other?: Record<string, unknown>) => Promise<unknown> } };
+
+let botRef: NotifyBot | null = null;
 
 /** Set bot instance (dipanggil dari bot/index.ts setelah bot dibuat). */
-export function setNotifyBot(bot) {
+export function setNotifyBot(bot: NotifyBot) {
   botRef = bot;
 }
 
-function resolveChatId(userId) {
+function resolveChatId(userId: string | number) {
   const id = Number(userId);
   return Number.isFinite(id) && id !== 0 ? id : null;
 }
@@ -19,7 +21,7 @@ function resolveChatId(userId) {
  * Kirim notifikasi ke seorang user. Return true jika terkirim.
  * Silent-fail: kegagalan (user block bot, dsb) hanya di-log.
  */
-export async function notifyUser(userId, html) {
+export async function notifyUser(userId: string | number, html: string) {
   const chatId = resolveChatId(userId);
   if (!botRef || !chatId) {return false;}
   try {
@@ -33,7 +35,7 @@ export async function notifyUser(userId, html) {
 }
 
 /** Kirim notifikasi ke owner (config.ownerId). */
-export async function notifyOwner(html) {
+export async function notifyOwner(html: string) {
   const { default: config } = await import('../config.js');
   return notifyUser(config.ownerId, html);
 }

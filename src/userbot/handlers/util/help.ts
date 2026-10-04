@@ -51,7 +51,7 @@ function buildReplyToTopic(message: UserbotMessageLike) {
 /**
  * Format nama modul agar rapi
  */
-function formatModuleName(name) {
+function formatModuleName(name: string) {
   if (name.toLowerCase() === 'antipm') {return 'AntiPM';}
   if (name.length <= 3) {return name.toUpperCase();}
   return name.charAt(0).toUpperCase() + name.slice(1);
@@ -169,7 +169,7 @@ function _buildModuleDetailRich(moduleName: string) {
 /**
  * Bangun teks HTML untuk detail modul (fallback classic)
  */
-function buildModuleDetail(moduleName) {
+function buildModuleDetail(moduleName: string) {
   const mod = helpRegistry[moduleName];
   if (!mod) {return null;}
 
@@ -294,7 +294,10 @@ export default {
   },
 
   // Handle callback dari inline keyboard
-  async onCallbackQuery(client: CompatClient, callbackEvent, _settings: UserbotSettings, _telegramId: number) {
+  async onCallbackQuery(client: CompatClient, callbackEvent: {
+      data?: string | Uint8Array;
+      editMessage?: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
+    }, _settings: UserbotSettings, _telegramId: number) {
     try {
       const data = callbackEvent.data?.toString() || '';
       if (!data.startsWith('help:')) {return false;}

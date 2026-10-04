@@ -51,7 +51,7 @@ const PREVIEW_MAX = 40;
 
 // ---- Helpers ----
 
-function escapeRegExp(str) {
+function escapeRegExp(str: string) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
@@ -60,7 +60,7 @@ function escapeRegExp(str) {
  * Lookaround dipakai agar tepi trigger yang bukan karakter kata
  * (mis. "!", emoji) tetap diperlakukan sebagai batas kata.
  */
-function buildTriggerRegex(trigger) {
+function buildTriggerRegex(trigger: string) {
   const escaped = escapeRegExp(trigger);
   return new RegExp(
     `(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`,
@@ -118,12 +118,14 @@ async function loadFiltersFromSettings(telegramId: number, settings: UserbotSett
     }
   }
   if (!data || typeof data !== 'object') {return;}
-  for (const chatKey of Object.keys(data)) {
-    const rawChat = data[chatKey];
+  const dataMap = data as Record<string, unknown>;
+  for (const chatKey of Object.keys(dataMap)) {
+    const rawChat = dataMap[chatKey];
     if (!rawChat || typeof rawChat !== 'object') {continue;}
     const chatMap = getChatFilters(telegramId, chatKey);
-    for (const key of Object.keys(rawChat)) {
-      const entry = rawChat[key];
+    const chatEntries = rawChat as Record<string, { trigger?: unknown; replyText?: unknown }>;
+    for (const key of Object.keys(chatEntries)) {
+      const entry = chatEntries[key];
       if (!entry || typeof entry !== 'object' || typeof entry.replyText !== 'string') {continue;}
       chatMap.set(String(key), { trigger: String(entry.trigger ?? key), replyText: entry.replyText });
     }
@@ -133,9 +135,9 @@ async function loadFiltersFromSettings(telegramId: number, settings: UserbotSett
 // Snapshot store ke plain object JSON-safe untuk dipersist.
 function serializeFilterStore(telegramId: number) {
   const filterStore = getFilterStore(telegramId);
-  const out = {};
+  const out: Record<string, Record<string, { trigger: string; replyText: string }>> = {};
   for (const [chatKey, chatMap] of filterStore) {
-    const chatData = {};
+    const chatData: Record<string, { trigger: string; replyText: string }> = {};
     for (const [key, entry] of chatMap) {
       chatData[key] = { trigger: entry.trigger, replyText: entry.replyText };
     }

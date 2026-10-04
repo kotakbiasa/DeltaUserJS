@@ -109,7 +109,7 @@ function reasonSuffix(reason: string): string {
 
 // Target user: reply ke pesan user, atau token pertama args = @username /
 // username / link t.me / ID numerik. Token sisanya jadi alasan.
-async function resolveTarget(client: CompatClient, message: UserbotMessageLike, args): Promise<ResolvedTarget> {
+async function resolveTarget(client: CompatClient, message: UserbotMessageLike, args: string): Promise<ResolvedTarget> {
   let token = '';
   let reason = args;
   if (args !== '') {
@@ -152,7 +152,7 @@ async function resolveTarget(client: CompatClient, message: UserbotMessageLike, 
   return { reason, error: 'Balas pesan user, atau tulis username/ID-nya' };
 }
 
-async function handleMember(client: CompatClient, message: UserbotMessageLike, chat, isChannel, cmd, args, telegramId: number) {
+async function handleMember(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, isChannel: boolean, cmd: string, args: string, telegramId: number) {
   let duration: Duration | null = null;
   let targetArgs = args;
   if (cmd === 'mute') {
@@ -335,7 +335,7 @@ async function handleMember(client: CompatClient, message: UserbotMessageLike, c
   }
 }
 
-async function handleRole(client: CompatClient, message: UserbotMessageLike, chat, isChannel, cmd, args, telegramId: number) {
+async function handleRole(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, isChannel: boolean, cmd: string, args: string, telegramId: number) {
   const resolved = await resolveTarget(client, message, args);
   if (resolved.error || !resolved.target) {
     await message.edit({
@@ -439,7 +439,7 @@ async function handleRole(client: CompatClient, message: UserbotMessageLike, cha
   }
 }
 
-async function handleLock(client: CompatClient, message: UserbotMessageLike, chat, cmd, args) {
+async function handleLock(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, cmd: string, args: string) {
   const mode = args.trim().toLowerCase();
   if (mode !== 'all' && mode !== 'media' && mode !== 'links') {
     await message.edit({

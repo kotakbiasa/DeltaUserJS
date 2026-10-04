@@ -82,18 +82,19 @@ function loadWarnsFromSettings(telegramId: number, settings: UserbotSettings) {
   if (loadedIds.has(idNum)) {return;}
   loadedIds.add(idNum);
   const warnStore = getWarnStore(idNum);
-  const data = settings?.warn_data;
+  const data = settings?.warn_data as Record<string, unknown> | undefined;
   if (!data || typeof data !== 'object') {return;}
   for (const chatKey of Object.keys(data)) {
     const rawChat = data[chatKey];
     if (!rawChat || typeof rawChat !== 'object') {continue;}
     const chatMap = getChatWarns(warnStore, chatKey);
-    for (const userKey of Object.keys(rawChat)) {
-      const entry = rawChat[userKey];
+    const chatEntries = rawChat as Record<string, { count?: unknown; reasons?: unknown }>;
+    for (const userKey of Object.keys(chatEntries)) {
+      const entry = chatEntries[userKey];
       if (!entry || typeof entry !== 'object' || !Number.isFinite(Number(entry.count))) {continue;}
       chatMap.set(String(userKey), {
         count: Number(entry.count),
-        reasons: Array.isArray(entry.reasons) ? entry.reasons.map(r => String(r)) : []
+        reasons: Array.isArray(entry.reasons) ? entry.reasons.map((r: unknown) => String(r)) : []
       });
     }
   }
@@ -160,7 +161,7 @@ function listWarns(entry: WarnEntry): string {
 
 // Target user: reply ke pesan user, atau token pertama args =
 // @username / username / link t.me / ID numerik. Sisa args = alasan.
-async function resolveTarget(client: CompatClient, message: UserbotMessageLike, args): Promise<ResolvedTarget> {
+async function resolveTarget(client: CompatClient, message: UserbotMessageLike, args: string): Promise<ResolvedTarget> {
   let token = '';
   let reason = args;
   if (args !== '') {
@@ -203,7 +204,7 @@ async function resolveTarget(client: CompatClient, message: UserbotMessageLike, 
 }
 
 // Kick = kickChatMember atau ban sekejap lalu unban
-async function kickUser(client: CompatClient, chat: LegacyEntity | EntityLike, _isChannel: boolean, target: Target) {
+async function kickUser(client: CompatClient, chat: UserbotEntityLike, _isChannel: boolean, target: Target) {
   const chatId = (chat as { id?: unknown }).id ?? chat;
   const participant = target.entity ?? target.id;
   if (typeof client.kickChatMember === 'function') {
@@ -240,7 +241,7 @@ async function kickUser(client: CompatClient, chat: LegacyEntity | EntityLike, _
 
 // ---- Command handlers ----
 
-async function handleWarn(client: CompatClient, message: UserbotMessageLike, chat, isChannel, warnStore, chatKey: string, telegramId: number, target, reason: string) {
+async function handleWarn(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, isChannel: boolean, warnStore: WarnStore, chatKey: string, telegramId: number, target: Target, reason: string) {
   const chatMap = getChatWarns(warnStore, chatKey);
   const userKey = String(target.id);
   const entry = getEntry(warnStore, chatKey, userKey);
@@ -284,7 +285,7 @@ async function handleWarn(client: CompatClient, message: UserbotMessageLike, cha
   });
 }
 
-async function handleWarns(message: UserbotMessageLike, warnStore, chatKey: string, target) {
+async function handleWarns(message: UserbotMessageLike, warnStore: WarnStore, chatKey: string, target: Target) {
   const chatMap = warnStore.get(chatKey);
   const entry = chatMap ? chatMap.get(String(target.id)) : undefined;
   if (!entry || entry.count === 0) {
@@ -300,7 +301,7 @@ async function handleWarns(message: UserbotMessageLike, warnStore, chatKey: stri
   });
 }
 
-async function handleResetWarn(message: UserbotMessageLike, warnStore, chatKey: string, telegramId: number, target) {
+async function handleResetWarn(message: UserbotMessageLike, warnStore: WarnStore, chatKey: string, telegramId: number, target: Target) {
   const chatMap = warnStore.get(chatKey);
   if (chatMap) {
     chatMap.delete(String(target.id));

@@ -114,7 +114,7 @@ async function resolveTargets(client: CompatClient, message: UserbotMessageLike,
   return { targets };
 }
 
-async function handleInvite(client: CompatClient, message: UserbotMessageLike, chat, isChannel: boolean, args: string): Promise<void> {
+async function handleInvite(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, isChannel: boolean, args: string): Promise<void> {
   const resolved = await resolveTargets(client, message, args);
   if (resolved.error) {
     await message.edit({
@@ -149,7 +149,7 @@ async function handleInvite(client: CompatClient, message: UserbotMessageLike, c
       } else {
         await client.call({
           _: 'messages.addChatUser',
-          chatId: chat.id,
+          chatId: Number(chat.id),
           userId: await client.resolveUser(toPeer(participant as EntityLike)),
           fwdLimit: FWD_LIMIT,
         });

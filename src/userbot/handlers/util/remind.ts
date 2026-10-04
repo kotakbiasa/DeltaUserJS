@@ -39,7 +39,7 @@ const remindStore = new Map<number, ReminderEntry[]>();
  * Satuan: s (detik), m (menit), h (jam), d (hari).
  * Mengembalikan total milidetik, atau null bila format tidak valid.
  */
-function parseDurationMs(raw) {
+function parseDurationMs(raw: string) {
   const clean = String(raw || '').toLowerCase().replace(/\s+/g, '');
   if (!clean) {return null;}
   if (!/^(\d+[smhd])+$/.test(clean)) {return null;}
@@ -52,7 +52,7 @@ function parseDurationMs(raw) {
 }
 
 /** Format waktu target: locale id-ID, timezone Asia/Jakarta (WIB). */
-function formatTarget(epochMs) {
+function formatTarget(epochMs: number) {
   return new Date(epochMs).toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
     day: '2-digit',
@@ -66,7 +66,7 @@ function formatTarget(epochMs) {
 }
 
 /** Sisa waktu manusiawi, mis. "1 jam 29 menit 5 detik". */
-function formatRemaining(ms) {
+function formatRemaining(ms: number) {
   const sec = Math.max(0, Math.floor(ms / 1000));
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
@@ -84,7 +84,7 @@ function formatRemaining(ms) {
  * Pasang timer pengingat. Saat waktu tiba, entry dihapus dari store
  * dan pesan pengingat dikirim ke chat tempat reminder dibuat.
  */
-function startReminderTimer(client: CompatClient, idNum, entry, delayMs) {
+function startReminderTimer(client: CompatClient, idNum: number, entry: ReminderEntry, delayMs: number) {
   const timeoutId = setTimeout(() => {
     const list = remindStore.get(idNum);
     if (list) {

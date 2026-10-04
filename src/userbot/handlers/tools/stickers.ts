@@ -72,7 +72,7 @@ import { toPeer } from '../../engine/compatClient.js';
 const QUOTLY = '@QuotLyBot';
 const STICKER_MAX_EDGE = 512;
 const VIDEO_STICKER_MAX_SEC = 3;
-const PACK_LIMITS = { static: 120, anim: 50, video: 50 };
+const PACK_LIMITS: Record<string, number> = { static: 120, anim: 50, video: 50 };
 
 const EMOJIS = [
   '✨', '🤡', '🙂', '🤔', '😂', '💀', '🔥', '❤️', '💯', '👍',
@@ -80,18 +80,18 @@ const EMOJIS = [
   '👻', '🎭', '🎨', '⚡', '💎', '🌟', '🌈', '⭐', '🍕', '🐱'
 ];
 
-function errMsg(err) {
+function errMsg(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function editStatus(message: UserbotMessageLike, html) {
+async function editStatus(message: UserbotMessageLike, html: string) {
   await message.edit({
     text: `<blockquote>${html}</blockquote>`,
     parseMode: 'html'
   });
 }
 
-async function runFfmpeg(args) {
+async function runFfmpeg(args: string[]) {
   return new Promise((resolve, reject) => {
     execFile('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], {
       timeout: 60000,
@@ -106,7 +106,7 @@ async function runFfmpeg(args) {
   });
 }
 
-async function probeMedia(file) {
+async function probeMedia(file: string) {
   try {
     const out = await new Promise<string>((resolve, reject) => {
       execFile('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_streams', '-show_format', file], {
@@ -118,7 +118,7 @@ async function probeMedia(file) {
       });
     });
     const parsed = JSON.parse(out);
-    const vs = (parsed.streams || []).find(s => s.codec_type === 'video');
+    const vs = (parsed.streams || []).find((s: { codec_type?: string }) => s.codec_type === 'video');
     if (!vs) {return null;}
     return {
       w: Number(vs.width) || 0,
@@ -130,11 +130,11 @@ async function probeMedia(file) {
   }
 }
 
-function tmpFile(ext) {
+function tmpFile(ext: string) {
   return path.join(os.tmpdir(), `duserjs_sticker_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
 }
 
-function unlinkQuiet(p) {
+function unlinkQuiet(p: string) {
   try {
     if (p && fs.existsSync(p)) {fs.unlinkSync(p);}
   } catch (_e) { /* ignore */ }
@@ -209,20 +209,20 @@ function classifyMedia(msg: UserbotMessageLike) {
   return null;
 }
 
-function packShortName(me, pack, kind) {
+function packShortName(me: { id?: string | number; username?: string; firstName?: string }, pack: number, kind: string) {
   const suffix = me.username ? `_by_${me.username}` : `_by_user_${me.id}`;
   const kindTag = kind === 'anim' ? '_anim' : kind === 'video' ? '_video' : '';
   return `kang_${me.id}_v${pack}${kindTag}${suffix}`.toLowerCase();
 }
 
-function packTitle(me, pack, kind) {
+function packTitle(me: { id?: string | number; username?: string; firstName?: string }, pack: number, kind: string) {
   const name = me.firstName || me.username || 'User';
   const tag = kind === 'anim' ? ' (Animated)' : kind === 'video' ? ' (Video)' : '';
   return `${name}'s Kang Pack Vol.${pack}${tag}`;
 }
 
 // Cari pack yang punya slot; buat volume baru kalau penuh.
-async function resolvePack(client: CompatClient, me, kind, startPack) {
+async function resolvePack(client: CompatClient, me: { id?: string | number; username?: string; firstName?: string }, kind: string, startPack: number) {
   let pack = Math.max(1, startPack);
   for (let attempt = 0; attempt < 10; attempt++) {
     const shortName = packShortName(me, pack, kind);
@@ -239,7 +239,7 @@ async function resolvePack(client: CompatClient, me, kind, startPack) {
     if (!existing) {
       return { pack, shortName, title: packTitle(me, pack, kind), existing: null };
     }
-    if ((existing.count || 0) < (PACK_LIMITS[kind] || PACK_LIMITS.static)) {
+    if (((existing as { count?: number }).count || 0) < (PACK_LIMITS[kind] || PACK_LIMITS.static)) {
       return { pack, shortName, title: packTitle(me, pack, kind), existing };
     }
     pack += 1; // pack penuh -> volume berikutnya
@@ -247,7 +247,7 @@ async function resolvePack(client: CompatClient, me, kind, startPack) {
   throw new Error('Tidak ada slot pack yang tersedia');
 }
 
-async function invokeAddSticker(client: CompatClient, packInfo, stickerItem) {
+async function invokeAddSticker(client: CompatClient, packInfo: { pack: number; shortName: string; title: string; existing: { id?: unknown; accessHash?: unknown } | null }, stickerItem: unknown) {
   if (packInfo.existing) {
     await client.invoke(new Api.stickers.AddStickerToSet({
       stickerset: new Api.InputStickerSetID({
@@ -268,7 +268,7 @@ async function invokeAddSticker(client: CompatClient, packInfo, stickerItem) {
 
 // Upload file sementara ke Saved Messages untuk mendapat InputDocument,
 // lalu langsung dihapus lagi. (Pola yang sama dengan kang.ts)
-async function uploadTempAsDocument(client: CompatClient, filePath, attributes = null) {
+async function uploadTempAsDocument(client: CompatClient, filePath: string, attributes: unknown[] = null) {
   const sent = await client.sendFile('me', {
     file: filePath,
     forceDocument: true,
@@ -283,7 +283,7 @@ async function uploadTempAsDocument(client: CompatClient, filePath, attributes =
 
 // Fallback: re-upload ulang bytes dokumen sticker asli (kalau referensi
 // langsung ditolak Telegram karena file_reference/ownership).
-function makeStickerUploadFallback(client: CompatClient, currentMsg: UserbotMessageLike, kind, tmpFiles) {
+function makeStickerUploadFallback(client: CompatClient, currentMsg: UserbotMessageLike, kind: string, tmpFiles: string[]) {
   return async () => {
     const buf = await downloadMediaBuffer(client, currentMsg);
     if (!buf || !buf.length) {throw new Error('Gagal mengunduh media sticker');}
@@ -312,7 +312,7 @@ function makeStickerUploadFallback(client: CompatClient, currentMsg: UserbotMess
 }
 
 // Foto/gambar biasa -> resize 512 via Jimp (fallback ffmpeg) -> upload.
-async function buildStaticFromImage(client: CompatClient, currentMsg: UserbotMessageLike, tmpFiles, telegramId: number) {
+async function buildStaticFromImage(client: CompatClient, currentMsg: UserbotMessageLike, tmpFiles: string[], telegramId: number) {
   const buf = await downloadMediaBuffer(client, currentMsg);
   if (!buf || !buf.length) {throw new Error('Gagal mengunduh media');}
   const srcPath = tmpFile('.bin');
@@ -324,7 +324,8 @@ async function buildStaticFromImage(client: CompatClient, currentMsg: UserbotMes
     const image = await Jimp.read(srcPath);
     image.scaleToFit({ w: STICKER_MAX_EDGE, h: STICKER_MAX_EDGE });
     outPath = tmpFile('.png');
-    await image.write(outPath);
+    // Jimp mensyaratkan path bertipe template `${string}.${string}`.
+    await image.write(outPath as `${string}.${string}`);
   } catch (e) {
     Logger.logUser(telegramId, `kang: Jimp gagal (${errMsg(e)}), mencoba ffmpeg`, 'WARN');
     outPath = tmpFile('.webp');
@@ -340,7 +341,7 @@ async function buildStaticFromImage(client: CompatClient, currentMsg: UserbotMes
 }
 
 // Video biasa -> konversi webm 512px (VP9, maks 3 detik) -> upload.
-async function buildVideoFromMedia(client: CompatClient, currentMsg: UserbotMessageLike, tmpFiles) {
+async function buildVideoFromMedia(client: CompatClient, currentMsg: UserbotMessageLike, tmpFiles: string[]) {
   const buf = await downloadMediaBuffer(client, currentMsg);
   if (!buf || !buf.length) {throw new Error('Gagal mengunduh media');}
   const srcPath = tmpFile('.bin');
@@ -369,7 +370,7 @@ async function buildVideoFromMedia(client: CompatClient, currentMsg: UserbotMess
 
 // Tambahkan satu stiker ke pack; kalau referensi langsung ditolak,
 // coba sekali lagi lewat fallback re-upload.
-async function addStickerToPack(client: CompatClient, packInfo, candidate, emoji) {
+async function addStickerToPack(client: CompatClient, packInfo: { pack: number; shortName: string; title: string; existing: { id?: unknown; accessHash?: unknown } | null }, candidate: { ref: unknown; fallback?: () => Promise<unknown> }, emoji: string) {
   const stickerItem = new Api.InputStickerSetItem({ document: candidate.ref, emoji });
   try {
     await invokeAddSticker(client, packInfo, stickerItem);
@@ -447,7 +448,7 @@ export default {
 
       const me = await client.getMe();
       const total = items.length;
-      const packCounters = { static: startPack, anim: startPack, video: startPack };
+      const packCounters: Record<string, number> = { static: startPack, anim: startPack, video: startPack };
       const resultLinks = [];
       let successCount = 0;
 
@@ -456,7 +457,7 @@ export default {
 
         for (let i = 0; i < total; i++) {
           const { msg: currentMsg, cls } = items[i];
-          const tmpFiles = [];
+          const tmpFiles: string[] = [];
           try {
             if (i > 0) {
               await editStatus(message, `📥 <b>Mencuri (kang) media...</b> [${escapeHtml(String(i + 1))}/${escapeHtml(String(total))}]`);

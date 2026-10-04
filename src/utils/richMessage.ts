@@ -143,28 +143,28 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
-export const b = (t) => `<b>${t}</b>`;
-export const i = (t) => `<i>${t}</i>`;
-export const u = (t) => `<u>${t}</u>`;
-export const s = (t) => `<s>${t}</s>`;
-export const code = (t) => `<code>${t}</code>`;
-export const pre = (t, lang) => `<pre${lang ? ` language="${lang}"` : ''}>${t}</pre>`;
-export const spoiler = (t) => `<tg-spoiler>${t}</tg-spoiler>`;
-export const link = (text, url) => `<a href="${url}">${text}</a>`;
+export const b = (t: string) => `<b>${t}</b>`;
+export const i = (t: string) => `<i>${t}</i>`;
+export const u = (t: string) => `<u>${t}</u>`;
+export const s = (t: string) => `<s>${t}</s>`;
+export const code = (t: string) => `<code>${t}</code>`;
+export const pre = (t: string, lang: string) => `<pre${lang ? ` language="${lang}"` : ''}>${t}</pre>`;
+export const spoiler = (t: string) => `<tg-spoiler>${t}</tg-spoiler>`;
+export const link = (text: string, url: string) => `<a href="${url}">${text}</a>`;
 
 /** A block quote. Pass `{ expandable: true }` for a collapsible quote. */
-export const quote = (t, { expandable = false } = {}) =>
+export const quote = (t: string, { expandable = false } = {}) =>
   `<blockquote${expandable ? ' expandable' : ''}>${t}</blockquote>`;
 
 /** Bullet list from an array of (already-formatted) items. */
-export const list = (items = []) =>
+export const list = (items: string[] = []) =>
   `<ul>${items.map((it) => `<li>${it}</li>`).join('')}</ul>`;
 
 /** Section heading (rich-message only; degrades to bold text in classic mode). */
-export const heading = (t) => `<h3 align="center">${t}</h3>`;
+export const heading = (t: string) => `<h3 align="center">${t}</h3>`;
 
 /** Collapsible details block (rich-message only). */
-export const details = (summary, body, { open = false } = {}) =>
+export const details = (summary: string, body: string, { open = false } = {}) =>
   `<details${open ? ' open' : ''}><summary>${summary}</summary>${body}</details>`;
 
 /** Build a simple table (rich-message only; degrades to preformatted in classic). */

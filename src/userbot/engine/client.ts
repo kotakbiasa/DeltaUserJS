@@ -343,7 +343,7 @@ export class UserbotClient {
         data: query.data,
         peer: query.chat.id,
         msgId: query.messageId,
-        message: null,
+        message: null as unknown,
         getMessage: fetchMessage,
         editMessage: async (text: string, options: { parseMode?: 'html' | 'markdown'; replyMarkup?: unknown; buttons?: unknown } = {}) => {
           try {

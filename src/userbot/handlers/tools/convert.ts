@@ -17,7 +17,7 @@ const MAX_DURATION = 120; // detik — batas video pendek untuk togif
 const TMP_DIR = path.join(os.tmpdir(), 'deltauserjs-convert');
 
 /** Jalankan ffmpeg via execFile (tanpa shell). Melempar Error dengan stderr ringkas. */
-async function runFfmpeg(args) {
+async function runFfmpeg(args: string[]) {
   try {
     await execFileAsync(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-y', ...args], {
       timeout: 90_000,
@@ -32,7 +32,7 @@ async function runFfmpeg(args) {
 }
 
 /** Probe durasi video & keberadaan stream audio via ffprobe. */
-async function probeVideo(filePath) {
+async function probeVideo(filePath: string) {
   const { stdout } = await execFileAsync(
     FFPROBE,
     ['-v', 'error', '-print_format', 'json', '-show_streams', '-show_format', filePath],
@@ -40,8 +40,8 @@ async function probeVideo(filePath) {
   );
   const data = JSON.parse(stdout);
   const streams = Array.isArray(data.streams) ? data.streams : [];
-  const hasAudio = streams.some((s) => s.codec_type === 'audio');
-  const video = streams.find((s) => s.codec_type === 'video');
+  const hasAudio = streams.some((s: { codec_type?: string }) => s.codec_type === 'audio');
+  const video = streams.find((s: { codec_type?: string }) => s.codec_type === 'video');
   let duration = 0;
   const fmtDur = parseFloat(data.format && data.format.duration);
   if (!Number.isNaN(fmtDur) && fmtDur > 0) {
@@ -53,7 +53,7 @@ async function probeVideo(filePath) {
 }
 
 /** Hapus file temp dengan aman (abaikan error). */
-function cleanup(...files) {
+function cleanup(...files: Array<string | null | undefined>) {
   for (const f of files) {
     if (!f) {continue;}
     try {
@@ -115,7 +115,7 @@ async function downloadBuffer(client: CompatClient, replied: UserbotMessageLike)
 }
 
 /** Simpan Buffer ke file temp dengan ekstensi tertentu, kembalikan path. */
-function bufferToTempFile(buffer, filename) {
+function bufferToTempFile(buffer: Buffer, filename: string) {
   fs.mkdirSync(TMP_DIR, { recursive: true });
   const filePath = path.join(TMP_DIR, filename);
   fs.writeFileSync(filePath, buffer);

@@ -7,9 +7,9 @@ import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
 const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 // Fungsi upload ke tmpfiles.org; fallback ke uguu.se. Keduanya terverifikasi jalan.
-async function uploadToTmpfiles(buf, filename) {
+async function uploadToTmpfiles(buf: Buffer, filename: string) {
   const form = new FormData();
-  form.append('file', new Blob([buf]), filename);
+  form.append('file', new Blob([new Uint8Array(buf)]), filename);
   const res = await fetchWithTimeout('https://tmpfiles.org/api/v1/upload', {
     method: 'POST',
     body: form,
@@ -23,9 +23,9 @@ async function uploadToTmpfiles(buf, filename) {
   return url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
 }
 
-async function uploadToUguu(buf, filename) {
+async function uploadToUguu(buf: Buffer, filename: string) {
   const form = new FormData();
-  form.append('files[]', new Blob([buf]), filename);
+  form.append('files[]', new Blob([new Uint8Array(buf)]), filename);
   const res = await fetchWithTimeout('https://uguu.se/upload.php', {
     method: 'POST',
     body: form,
@@ -89,10 +89,10 @@ export default {
 
       let url;
       try {
-        url = await uploadToTmpfiles(buffer, filename);
+        url = await uploadToTmpfiles(Buffer.from(buffer), filename);
       } catch (e1) {
         Logger.logUser(telegramId, `tourl tmpfiles failed: ${e1 instanceof Error ? e1.message : String(e1)}, mencoba uguu`, 'WARN');
-        url = await uploadToUguu(buffer, filename);
+        url = await uploadToUguu(Buffer.from(buffer), filename);
       }
 
       await message.edit({

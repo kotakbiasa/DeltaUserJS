@@ -109,11 +109,11 @@ export function isPmGuardOn(telegramId: number) {
 }
 
 /** Cek apakah userId ada di whitelist PM Guard milik telegramId. */
-export function isPmAllowed(telegramId: number, userId) {
+export function isPmAllowed(telegramId: number, userId: string | number) {
   return pmguardStore.get(Number(telegramId))?.whitelist.has(Number(userId)) ?? false;
 }
 
-function parsePositiveId(raw) {
+function parsePositiveId(raw: string | number | bigint) {
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }

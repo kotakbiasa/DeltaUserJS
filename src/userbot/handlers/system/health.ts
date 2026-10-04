@@ -46,8 +46,9 @@ interface MonitorState {
 
 // telegramId -> MonitorState (pinned di globalThis, survive hot-reload)
 const MONITOR_KEY = '__deltauserjs_health_monitor__';
-const monitorStore: Map<number, MonitorState> = (globalThis)[MONITOR_KEY] || new Map();
-(globalThis)[MONITOR_KEY] = monitorStore;
+const globalScope = globalThis as unknown as Record<string, unknown>;
+const monitorStore: Map<number, MonitorState> = (globalScope[MONITOR_KEY] as Map<number, MonitorState>) || new Map();
+globalScope[MONITOR_KEY] = monitorStore;
 
 // ---- Helpers ----
 

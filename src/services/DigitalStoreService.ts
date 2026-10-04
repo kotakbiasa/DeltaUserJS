@@ -200,7 +200,7 @@ async function persistStore(data: DigitalStoreData): Promise<void> {
       }
     }
   } finally {
-    await rm(tempPath, { force: true }).catch(() => undefined);
+    await rm(tempPath, { force: true }).catch((): void => undefined);
   }
   storeCache = cloneData(data);
 }
@@ -213,7 +213,7 @@ async function withStoreWrite<T>(operation: (data: DigitalStoreData) => Promise<
     await persistStore(draft);
     return result;
   });
-  writeQueue = run.then(() => undefined, () => undefined);
+  writeQueue = run.then((): void => undefined, (): void => undefined);
   return run;
 }
 

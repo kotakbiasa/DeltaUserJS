@@ -94,5 +94,5 @@ export function keyboardHelpBack() {
 }
 
 export function keyboardDangerDelete() {
-  return { inline_keyboard: [] };
+  return { inline_keyboard: [] as Array<Array<{ text: string; callback_data?: string }>> };
 }

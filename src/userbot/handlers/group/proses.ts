@@ -22,13 +22,13 @@ function nowWib() {
   });
 }
 
-const CARDS = {
+const CARDS: Record<string, { label: string; statusId: string }> = {
   proses: { label: 'PROCESSING', statusId: 'Sedang Diproses' },
   done: { label: 'DONE', statusId: 'Selesai' },
   batal: { label: 'CANCELED', statusId: 'Dibatalkan' }
 };
 
-function buildCard(kind, rawItem, settings?: unknown) {
+function buildCard(kind: string, rawItem: string, settings?: unknown) {
   const card = CARDS[kind];
   const emoji = getCustomEmoji(settings, kind);
   const itemEmoji = getCustomEmoji(settings, 'item');
@@ -45,7 +45,7 @@ function buildCard(kind, rawItem, settings?: unknown) {
   );
 }
 
-async function sendCard(message: UserbotMessageLike, kind, rawItem, settings?: unknown) {
+async function sendCard(message: UserbotMessageLike, kind: string, rawItem: string, settings?: unknown) {
   if (!rawItem || !rawItem.trim()) {
     await message.edit({
       text: `<blockquote>📚 <b>Penggunaan:</b> <code>.${kind} &lt;nama item&gt;</code>\nContoh: <code>.${kind} Panel Premium 1 Bulan</code></blockquote>`,

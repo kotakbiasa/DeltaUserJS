@@ -61,7 +61,7 @@ export default {
         if (list.length === 0) {
         await message.edit({ text: `<blockquote>📝 <b>Daftar Blacklist Kosong.</b>\nSemua grup saat ini akan menerima pesan Broadcast Anda.</blockquote>`, parseMode: 'html' });
         } else {
-        const listText = list.map(id => `• <code>${escapeHtml(String(id))}</code>`).join('\n');
+        const listText = list.map((id: string | number) => `• <code>${escapeHtml(String(id))}</code>`).join('\n');
         await message.edit({
           text: `<blockquote>🛡️ <b>Daftar Grup Blacklist (Diabaikan oleh Gcast):</b>\n\n${listText}</blockquote>`,
           parseMode: 'html'

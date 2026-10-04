@@ -15,7 +15,7 @@ function getCpuUsage() {
   let totalIdle = 0, totalTick = 0;
   for (const cpu of cpus) {
     for (const type in cpu.times) {
-      totalTick += cpu.times[type];
+      totalTick += (cpu.times as unknown as Record<string, number>)[type];
     }
     totalIdle += cpu.times.idle;
   }

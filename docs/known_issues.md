@@ -158,16 +158,41 @@ diam-diam, bukan crash.
 Helper `toPeer()` di `compatClient.ts` menormalkan identitas peer gaya legacy
 (bigint / objek entity) ke bentuk yang diterima mtcute.
 
-**Catatan cakupan.** `tsconfig.json` memakai `strict: false`, jadi
-`noImplicitAny` mati: masih ada ~650 parameter tanpa anotasi (67 di antaranya
-parameter `client`), dan pemanggilan di dalamnya **tidak** diperiksa compiler.
-Temuan di tabel atas yang berada di file-file itu ditemukan lewat audit nama
-manual terhadap `keyof CompatClient`, bukan oleh `tsc`. Menyalakan
-`noImplicitAny` adalah langkah lanjutan yang masuk akal bila ingin jaminan
-menyeluruh.
+**Catatan cakupan.** ✅ `noImplicitAny` kini **aktif** di `tsconfig.json`
+(`strict` masih `false`). Seluruh ~650 parameter implicit-any sudah diketik,
+sehingga setiap pemanggilan API di dalamnya diperiksa compiler. Ronde
+pengetikan itu memunculkan tabel temuan tambahan di §6.
 
 Keduanya kini dideklarasikan sebagai properti opsional ber-`@deprecated` di
 `CompatClient` supaya kebohongannya terlihat di tipe. `ITelegramClient` mtcute
 tidak punya padanan publik untuk status koneksi maupun DC saat ini, jadi
 memperbaikinya butuh melacak status sendiri lewat event koneksi — pekerjaan
 tersendiri yang mengubah perilaku UI.
+
+---
+
+## 6. Bug yang ditemukan saat menyalakan `noImplicitAny` ✅ SUDAH DIPERBAIKI
+
+Mengetik parameter bukan pekerjaan kosmetik: begitu `tsc` bisa melihat **bentuk
+argumen**, kelas bug berikut muncul. Semuanya sudah diperbaiki.
+
+| Lokasi | Bug | Dampak sebelum perbaikan |
+|---|---|---|
+| `admin/moderate.ts` | `.kick/.ban/.unban/.mute` memanggil mtcute secara posisional di dalam cabang `if (typeof client.X === 'function')` yang **selalu** benar | seluruh suite moderasi melempar `TypeError`; fallback `client.call()` tidak pernah tercapai |
+| `admin/moderate.ts` | `.unmute` mengirim `restrictions: { sendMessages: true }` (semantik TL: `true` = DILARANG) | unmute justru membisukan; cabang TL-nya malah mem-ban total lewat `viewMessages: true` |
+| `admin/moderate.ts` | panggilan TL mentah dikirimi objek entity sebagai `channel`/`peer` | butuh `InputChannel`/`InputPeer` — selalu ditolak |
+| `admin/moderate.ts` (`.lock`) | pembeda supergroup memakai `chat.className === 'Channel'` | `getEntity()` tidak pernah menghasilkan nilai itu → selalu jalur basic group |
+| `group/antiflood.ts` | kick/mute posisional + restriction terbalik | hukuman flood tidak pernah terpasang (error ditelan `.catch`) |
+| `group/antiflood.ts` | service message disaring lewat `action.className` gaya GramJS | pesan join/leave ikut dihitung sebagai flood |
+| `group/welcome.ts` | event join/leave dicocokkan dengan `className` GramJS | **welcome & leave tidak pernah terpicu** |
+| `group/gnotes.ts` | `message.peerId.className === 'PeerChat'` padahal `peerId` hanya ID angka | recall `#hashtag` dan `.gsave/.gnotes` selalu menolak dengan "hanya di grup" |
+| adapter | media tidak diturunkan dari `Message.media` mtcute | `msg.sticker/.gif/.photo/.video/...` selalu `undefined` → `.toimg`, `.tovid`, `.tovoice` dkk menolak bekerja |
+| `tools/stickers.ts` | `classifyMedia()` membaca `media.photo` / `media.document` ala TL mentah | `.kang` menolak semua media |
+| `tools/stickers.ts` (`.q`) | balasan QuotLyBot dibaca via `media.document.mimeType` dan `date` sebagai epoch detik | deteksi hasil quote selalu gagal |
+| `system/sessions.ts` | `hash` untuk `account.resetAuthorization` dibuat dengan `BigInt()` | skema TL mtcute memakai `Long` → serialisasi gagal |
+| `test/mockMtcute.js` | mock tidak punya `kick/ban/unban/restrictChatMember` sama sekali | test selalu melewati jalur fallback TL, sehingga **semua bug moderasi di atas lolos dari 178 test** |
+
+Pelajaran yang paling mahal: pola
+`if (typeof client.X === 'function') { client.X(posisional) } else { client.call(TL) }`
+adalah jebakan. Pada mtcute cabang pertama selalu diambil, fallback TL jadi kode
+mati, dan bentuk argumen yang salah lolos karena bertipe `any`.

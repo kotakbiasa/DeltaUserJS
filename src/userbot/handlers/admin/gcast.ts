@@ -100,7 +100,7 @@ export default {
 
       for (let i = 0; i < targetGroups.length; i++) {
         const group = targetGroups[i];
-        const chatIdStr = String(group.id);
+        const chatIdStr = String(group.peer.id);
         
         if (blacklist.includes(chatIdStr)) {
           skippedCount++;
@@ -113,17 +113,17 @@ export default {
               // Forward media with its caption (or the override text) so the
               // broadcast isn't an empty message. Passing the replied message
               // as `file` lets mtcute resend the media payload correctly.
-              await client.sendFile(group.id, {
+              await client.sendFile(group.peer.id, {
                 file: repliedMsg.media,
                 caption: broadcastMsg || repliedMsg.message || '',
               });
             } else {
-              await client.sendMessage(group.id, {
+              await client.sendMessage(group.peer.id, {
                 message: broadcastMsg || repliedMsg.message,
               });
             }
           } else {
-            await client.sendMessage(group.id, { message: broadcastMsg });
+            await client.sendMessage(group.peer.id, { message: broadcastMsg });
           }
           successCount++;
           
