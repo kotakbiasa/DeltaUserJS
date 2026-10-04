@@ -6,8 +6,11 @@ import config from '../../../config.js';
 import { buildModuleHtml } from '../../../bot/handlers/inlineHelp.js';
 import { getMasterBotUsername } from '../../../bot/state/botUsername.js';
 import { errorMessage } from '../../../utils/errors.js';
-import type { UserbotMessageLike } from '../../types.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
 import { toPeer } from '../../engine/compatClient.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import type { tl } from '@mtcute/core';
+import { randomLong } from '@mtcute/core/utils.js';
 
 /**
  * Bangun InputReplyToMessage untuk forum topic — memastikan pesan bot
@@ -24,7 +27,7 @@ function buildReplyToTopic(message: UserbotMessageLike) {
           _: 'inputReplyToMessage',
           replyToMsgId,
           topMsgId: topId,
-        };
+        } as tl.RawInputReplyToMessage;
       }
     }
     // Message ada di topic tapi replyTo kosong — reply ke pesan asli
@@ -37,7 +40,7 @@ function buildReplyToTopic(message: UserbotMessageLike) {
         _: 'inputReplyToMessage',
         replyToMsgId: msgId,
         topMsgId: msgId,
-      };
+      } as tl.RawInputReplyToMessage;
     }
     return undefined;
   } catch (_e) {
@@ -57,14 +60,14 @@ function formatModuleName(name) {
 /**
  * Strip HTML tags untuk preview singkat
  */
-function stripHtml(text) {
+function stripHtml(text: string) {
   return String(text ?? '').replace(/<[^>]+>/g, '');
 }
 
 /**
  * Konversi Markdown sederhana ke HTML
  */
-function markdownToHtml(text) {
+function markdownToHtml(text: string) {
   if (!text) {return '';}
   const escaped = escapeHtml(text);
   return escaped
@@ -190,7 +193,7 @@ export default {
     detail: 'Menu help interaktif ditampilkan oleh Master Bot dengan tombol yang bisa diklik (navigasi halaman, detail modul, tutup).'
   },
 
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (!message.message.toLowerCase().startsWith('.help')) {return;}
 
@@ -215,12 +218,17 @@ export default {
           _: 'contacts.resolveUsername',
           username: masterBotUsername,
         });
-        const botUser = (resolved.users || []).find((u) => String(u.id) === String(resolved.peer?.userId));
+        // Peer hasil resolveUsername bisa user/chat/channel; yang relevan di
+        // sini hanya cabang user, dan hanya RawUser yang punya accessHash.
+        const resolvedPeer = resolved.peer as { userId?: number };
+        const botUser = (resolved.users || []).find(
+          (u): u is tl.RawUser => u._ === 'user' && String(u.id) === String(resolvedPeer.userId),
+        );
         if (!botUser) {throw new Error(`Bot @${masterBotUsername} tidak ditemukan`);}
-        const botPeer = {
-          _: 'inputPeerUser',
+        const botPeer: tl.RawInputUser = {
+          _: 'inputUser',
           userId: botUser.id,
-          accessHash: botUser.accessHash,
+          accessHash: botUser.accessHash ?? 0n as unknown as tl.Long,
         };
         console.log(`[HELP-INLINE] Bot resolved: @${masterBotUsername} id=${botUser.id}`);
 
@@ -246,6 +254,8 @@ export default {
             id: String(results[0].id),
             hideVia: true,
             replyTo,
+            // Wajib menurut skema TL; tanpa ini pemanggilan ditolak.
+            randomId: randomLong(),
           });
           console.log(`[HELP-INLINE] Sent inline result to chat`);
           await message.delete().catch(() => {});
@@ -284,7 +294,7 @@ export default {
   },
 
   // Handle callback dari inline keyboard
-  async onCallbackQuery(client, callbackEvent, _settings, _telegramId) {
+  async onCallbackQuery(client: CompatClient, callbackEvent, _settings: UserbotSettings, _telegramId: number) {
     try {
       const data = callbackEvent.data?.toString() || '';
       if (!data.startsWith('help:')) {return false;}

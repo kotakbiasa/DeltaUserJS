@@ -1,6 +1,7 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { withTimeout } from '../../../utils/http.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -291,7 +292,7 @@ export default {
     usage: '• `.dns <domain>` — resolve A record via dns.google\n• `.pingweb <domain>` — ukur latency HTTPS GET + status code\n• `.whois <domain>` — registrar, tanggal dibuat/expired, nameserver via rdap.org\n• `.ud <kata>` — definisi teratas Urban Dictionary\n• `.spcheck <email>` — cek kebocoran data email',
     detail: 'Semua lookup memakai API publik gratis: dns.google, rdap.org, api.urbandictionary.com, api.xposedornot.com (breach-analytics; breachedaccount mati), leakcheck.io (fallback).'
   },
-  async execute(_client, message, _settings, telegramId) {
+  async execute(_client, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.(\w+)(?:\s+([\s\S]+))?$/i);
@@ -301,10 +302,12 @@ export default {
     if (!commands.includes(cmd)) {return;}
     const arg = (match[2] || '').trim();
 
-    const usage = (text: string): Promise<void> => message.edit({
-      text: `<blockquote>❌ <b>Format salah:</b> ${text}</blockquote>`,
-      parseMode: 'html'
-    });
+    const usage = async (text: string): Promise<void> => {
+      await message.edit({
+        text: `<blockquote>❌ <b>Format salah:</b> ${text}</blockquote>`,
+        parseMode: 'html'
+      });
+    };
 
     const run = async (loading: string, fn: () => Promise<string>): Promise<void> => {
       await message.edit({ text: `<blockquote>⏳ ${loading}</blockquote>`, parseMode: 'html' });

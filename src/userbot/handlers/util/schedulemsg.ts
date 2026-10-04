@@ -1,5 +1,8 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // ============================================================
 // Schedule Message — jadwalkan kirim ulang PESAN ASLI.
@@ -101,7 +104,7 @@ function contentKind(entry: { text: string; media: unknown }): string {
  * parseMode: false => teks dikirim apa adanya (tanpa parsing),
  * sehingga konten persis sama dengan pesan aslinya.
  */
-function startScheduleTimer(client, idNum: number, entry: ScheduleEntry, delayMs: number) {
+function startScheduleTimer(client: CompatClient, idNum: number, entry: ScheduleEntry, delayMs: number) {
   const timeoutId = setTimeout(() => {
     const list = scheduleStore.get(idNum);
     if (list) {
@@ -146,7 +149,7 @@ export default {
       'Waktu target ditampilkan dalam format id-ID dengan timezone Asia/Jakarta (WIB). ' +
       'Jadwal disimpan in-memory per akun — hilang jika userbot direstart.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const text = message.message.trim();
@@ -224,7 +227,7 @@ export default {
 
       const targetAt = Date.now() + delayMs;
       const entry: ScheduleEntry = {
-        chatId,
+        chatId: Number(toPeer(chatId)),
         text: replyText,
         media,
         durationText,

@@ -1,6 +1,8 @@
 import { Logger } from '../../../utils/logger.js';
 import { updateUserbotFeature, UserbotModel, isMongo, readDbFromFile } from '../../../infrastructure/database.js';
 import { getCustomEmoji, parseTgEmojiTemplate } from '../../../utils/customEmoji.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ============================================================
 // PM Guard — anti-PM sederhana ala getter pmpermit
@@ -36,7 +38,7 @@ pmguardGlobal.__pmguardStore = pmguardStore;
 const loadedIds: Set<number> = pmguardGlobal.__pmguardLoadedIds ?? new Set();
 pmguardGlobal.__pmguardLoadedIds = loadedIds;
 
-function getState(telegramId) {
+function getState(telegramId: number) {
   const idNum = Number(telegramId);
   const existing = pmguardStore.get(idNum);
   if (existing) {return existing;}
@@ -55,7 +57,7 @@ function getState(telegramId) {
 
 // Load sekali per proses per id: isi state dari settings yang
 // diterima execute.
-async function loadPmGuardFromSettings(telegramId, settings) {
+async function loadPmGuardFromSettings(telegramId: number, settings: UserbotSettings) {
   const idNum = Number(telegramId);
   if (loadedIds.has(idNum)) {return;}
   loadedIds.add(idNum);
@@ -76,10 +78,11 @@ async function loadPmGuardFromSettings(telegramId, settings) {
     }
   }
   if (!data || typeof data !== 'object') {return;}
+  const payload = data as { enabled?: unknown; whitelist?: unknown };
   const state = getState(idNum);
-  state.enabled = Boolean(data.enabled);
-  if (Array.isArray(data.whitelist)) {
-    for (const uid of data.whitelist) {
+  state.enabled = Boolean(payload.enabled);
+  if (Array.isArray(payload.whitelist)) {
+    for (const uid of payload.whitelist) {
       const parsed = parsePositiveId(uid);
       if (parsed !== null) {state.whitelist.add(parsed);}
     }
@@ -87,7 +90,7 @@ async function loadPmGuardFromSettings(telegramId, settings) {
 }
 
 // Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
-async function persistPmGuard(telegramId) {
+async function persistPmGuard(telegramId: number) {
   try {
     const state = pmguardStore.get(Number(telegramId));
     if (!state) {return;}
@@ -101,12 +104,12 @@ async function persistPmGuard(telegramId) {
 }
 
 /** Status aktif/tidaknya PM Guard milik akun tertentu. */
-export function isPmGuardOn(telegramId) {
+export function isPmGuardOn(telegramId: number) {
   return pmguardStore.get(Number(telegramId))?.enabled ?? false;
 }
 
 /** Cek apakah userId ada di whitelist PM Guard milik telegramId. */
-export function isPmAllowed(telegramId, userId) {
+export function isPmAllowed(telegramId: number, userId) {
   return pmguardStore.get(Number(telegramId))?.whitelist.has(Number(userId)) ?? false;
 }
 
@@ -128,7 +131,7 @@ export default {
       'Status dan whitelist dipersist ke database per userbot (field pmguard_data) dan di-load ulang otomatis saat userbot start. ' +
       'Plugin lain bisa memakai helper isPmGuardOn(telegramId) dan isPmAllowed(telegramId, userId).'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     await loadPmGuardFromSettings(telegramId, settings);
     const text: string = message.message || '';
     const idNum = Number(telegramId);
@@ -290,7 +293,7 @@ export default {
     guardState.warned.add(senderId);
     try {
       const shieldEmoji = getCustomEmoji(settings, 'status', '🛡️');
-      const customAway = settings?.vars?.PMGUARD_TEXT || settings?.pmguard_text;
+      const customAway = String(settings?.vars?.PMGUARD_TEXT || settings?.pmguard_text || '');
       const textToSend = customAway ? parseTgEmojiTemplate(customAway) : (
         `${shieldEmoji} <b>Auto-Reply</b>\n\n` +
         'Owner sedang away. Pesan kamu sudah diterima dan akan dibalas saat owner kembali aktif. 🙏\n\n' +

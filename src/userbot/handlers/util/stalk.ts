@@ -1,5 +1,8 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 export default {
   name: 'stalk',
@@ -9,7 +12,7 @@ export default {
     usage: '• `.stalk <@username atau ID>`\n• Atau balas pesan target dan ketik `.stalk`',
     detail: 'Fitur ini menembus batasan API normal dengan menyedot hingga 100 pesan riwayat terakhir milik target di dalam grup ini.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
@@ -18,7 +21,7 @@ export default {
     
     if (cmd !== '.stalk') {return;}
 
-    let targetUser = args[1];
+    let targetUser: string | number = args[1];
     const replied = await message.getReplyMessage();
 
     if (replied && replied.senderId) {
@@ -48,9 +51,13 @@ export default {
       }
 
       // Ambil hingga 100 pesan terakhir dari user tersebut di chat ini
-      const history = await client.getMessages(message.peerId, {
+      // getHistory() mtcute tidak punya filter fromUser — memakainya di sini
+      // membuat laporan menghitung SEMUA pesan di chat, bukan punya target.
+      // Jalur yang benar adalah searchMessages().
+      const history = await client.searchMessages({
+        chatId: toPeer(message.peerId),
         fromUser: targetUser,
-        limit: 100
+        limit: 100,
       });
 
       if (!history || history.length === 0) {
@@ -62,7 +69,8 @@ export default {
       }
 
       const totalFound = history.length;
-      const firstSeenDate = history[history.length - 1].date; // Pesan paling tua yang didapat (indeks terakhir)
+      // Message.date mtcute sudah berupa Date, bukan detik unix.
+      const firstSeenDate = history[history.length - 1].date;
       
       const firstName = entity ? (entity.firstName || '') : 'Pengguna';
       const lastName = entity ? (entity.lastName || '') : '';
@@ -72,18 +80,20 @@ export default {
       let report = `<blockquote>🕵️ <b>Laporan Deep Stalking</b>\n\n`;
       report += `👤 <b>Target:</b> <a href="tg://user?id=${userId}">${escapeHtml(fullName)}</a> (<code>${escapeHtml(String(userId))}</code>)\n`;
       report += `📊 <b>Aktivitas (100 Pesan Terakhir):</b> Ditemukan ${escapeHtml(String(totalFound))} pesan.\n`;
-      report += `🕒 <b>Jejak Paling Awal Terdeteksi:</b> ${new Date(firstSeenDate * 1000).toLocaleString()}\n\n`;
+      report += `🕒 <b>Jejak Paling Awal Terdeteksi:</b> ${firstSeenDate.toLocaleString()}\n\n`;
       
       report += `💬 <b>Cuplikan Pesan Terakhir:</b>\n`;
       
       // Ambil maksimal 3 pesan berteks terbaru
       let textMessagesFound = 0;
       for (const msg of history) {
-        if (msg.message && msg.message.trim().length > 0) {
-          let excerpt = msg.message.trim();
+        // Message mtcute memakai `.text`; `.message` selalu undefined di sini
+        // sehingga cuplikan tidak pernah tampil.
+        if (msg.text && msg.text.trim().length > 0) {
+          let excerpt = msg.text.trim();
           if (excerpt.length > 50) {excerpt = excerpt.substring(0, 50) + '...';}
           
-          const dateStr = new Date(msg.date * 1000).toLocaleDateString();
+          const dateStr = msg.date.toLocaleDateString();
           report += `• <i>"${escapeHtml(excerpt)}"</i> (${escapeHtml(dateStr)})\n`;
           
           textMessagesFound++;

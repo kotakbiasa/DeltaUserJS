@@ -41,6 +41,8 @@ export interface UserbotEntityLike {
 
 export interface UserbotMessageLike {
   out?: boolean;
+  /** True bila pesan menyebut/mention kita (mtcute: Message.isMention). */
+  mentioned?: boolean;
   message?: string;
   peerId?: EntityLike;
   chatId?: EntityLike;

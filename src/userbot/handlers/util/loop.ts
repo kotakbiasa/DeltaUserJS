@@ -1,6 +1,9 @@
 import { saveSchedule, deleteSchedule } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient, LegacyPeer } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // Map untuk menyimpan status loop per akun telegram
 // Struktur: telegramId -> Map<chatId, { intervalId, message, minutes, startedAt }>
@@ -14,7 +17,7 @@ type FloodAwareClient = {
 /**
  * Memulai loop pesan untuk chatId tertentu.
  */
-export function startLoop(client, telegramId, chatId, minutes, loopMessage, saveToDb = false) {
+export function startLoop(client: CompatClient, telegramId: number, chatId: LegacyPeer, minutes: number, loopMessage: string, saveToDb = false) {
   const idNum = Number(telegramId);
   if (!loopStore.has(idNum)) {
     loopStore.set(idNum, new Map());
@@ -70,7 +73,7 @@ export function startLoop(client, telegramId, chatId, minutes, loopMessage, save
 /**
  * Menghentikan loop pesan untuk chatId tertentu.
  */
-export function stopLoop(telegramId, chatId, deleteFromDb = false) {
+export function stopLoop(telegramId: number, chatId: LegacyPeer, deleteFromDb = false) {
   const idNum = Number(telegramId);
   const myLoops = loopStore.get(idNum);
   if (!myLoops) {return false;}
@@ -94,7 +97,7 @@ export function stopLoop(telegramId, chatId, deleteFromDb = false) {
  * Menghentikan semua loop untuk akun tertentu. Dipanggil saat userbot
  * disconnect/stop/crash agar tidak ada interval yang bocor.
  */
-export function stopAllLoops(telegramId) {
+export function stopAllLoops(telegramId: number) {
   const idNum = Number(telegramId);
   const myLoops = loopStore.get(idNum);
   if (!myLoops) {return 0;}
@@ -116,7 +119,7 @@ export default {
     usage: '• `.loop <menit> <pesan>` (Mulai loop)\n• `.rmloop` (Hentikan loop di chat ini)\n• `.listloop` (Lihat semua loop berjalan)',
     detail: 'Pesan loop disimpan di database dan akan dipulihkan otomatis ketika bot direstart.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
@@ -155,7 +158,7 @@ export default {
       const loopMessage = text.substring(cmd.length + args[1].length + 2).trim();
       
       // Start loop in-memory
-      startLoop(client, telegramId, chatId, minutes, loopMessage, false);
+      startLoop(client, telegramId, toPeer(chatId), minutes, loopMessage, false);
       // Persist synchronously to DB
       await saveSchedule(telegramId, chatId, 'loop', minutes, loopMessage);
 
@@ -166,7 +169,7 @@ export default {
     }
     
     else if (cmd === '.rmloop') {
-      const stopped = stopLoop(telegramId, chatId, false);
+      const stopped = stopLoop(telegramId, toPeer(chatId), false);
       await deleteSchedule(telegramId, chatId, 'loop');
       if (stopped) {
         await message.edit({ 

@@ -1,5 +1,8 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // ============================================================
 // Reminder — pengingat pribadi berbasis timer untuk userbot
@@ -81,7 +84,7 @@ function formatRemaining(ms) {
  * Pasang timer pengingat. Saat waktu tiba, entry dihapus dari store
  * dan pesan pengingat dikirim ke chat tempat reminder dibuat.
  */
-function startReminderTimer(client, idNum, entry, delayMs) {
+function startReminderTimer(client: CompatClient, idNum, entry, delayMs) {
   const timeoutId = setTimeout(() => {
     const list = remindStore.get(idNum);
     if (list) {
@@ -118,7 +121,7 @@ export default {
       'Waktu target ditampilkan dalam format id-ID dengan timezone Asia/Jakarta (WIB). ' +
       'Reminder disimpan in-memory per akun — hilang jika userbot direstart.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const text = message.message.trim();
@@ -172,7 +175,7 @@ export default {
 
       const targetAt = Date.now() + delayMs;
       const entry: ReminderEntry = {
-        chatId,
+        chatId: Number(toPeer(chatId)),
         message: reminderMessage,
         durationText,
         targetAt,

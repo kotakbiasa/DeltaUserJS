@@ -1,5 +1,8 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient, LegacyPeer } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // ============================================================
 // Ghost — mode hantu: chat yang di-ghost otomatis di-mark-as-read
@@ -23,7 +26,7 @@ const ghostGlobal = globalThis as typeof globalThis & GhostGlobal;
 const ghostStore: Map<number, Set<string>> = ghostGlobal.__deltaGhostStore ?? new Map();
 ghostGlobal.__deltaGhostStore = ghostStore;
 
-function getGhostSet(telegramId) {
+function getGhostSet(telegramId: number) {
   const idNum = Number(telegramId);
   let set = ghostStore.get(idNum);
   if (!set) {
@@ -34,11 +37,11 @@ function getGhostSet(telegramId) {
 }
 
 /** Cek apakah sebuah chat sedang di-ghost oleh akun tertentu. */
-export function isGhosted(telegramId, chatId) {
+export function isGhosted(telegramId: number, chatId: string | number) {
   return ghostStore.get(Number(telegramId))?.has(String(chatId)) ?? false;
 }
 
-async function markRead(client, chatId) {
+async function markRead(client: CompatClient, chatId: LegacyPeer) {
   try {
     await client.readHistory(chatId);
   } catch (err) {
@@ -67,7 +70,7 @@ export default {
       'tanpa notifikasi apa pun. Hanya pesan masuk (non-outgoing) yang diproses. ' +
       'State in-memory per akun: bertahan antar hot-reload, hilang saat proses userbot direstart.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     const text: string = message.message || '';
     const idNum = Number(telegramId);
     const chatId = message.chatId;
@@ -77,7 +80,7 @@ export default {
     // ===== 1. Pesan masuk: auto ReadHistory bila chat di-ghost =====
     if (!message.out) {
       if (!ghostStore.get(idNum)?.has(chatKey)) {return;}
-      await markRead(client, chatId);
+      await markRead(client, toPeer(chatId));
       return;
     }
 

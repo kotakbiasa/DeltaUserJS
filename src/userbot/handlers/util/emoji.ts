@@ -6,6 +6,8 @@ import {
   extractEmojiFromContext,
   formatTgEmoji
 } from '../../../utils/customEmoji.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 const VALID_KEYS = [
   'ping',
@@ -40,7 +42,7 @@ export default {
     detail: 'Tipe yang didukung: ping, pong, proses/loading, done/success, batal/error, warn, uptime, speed, status, afk, item, time.\n' +
       'Mendukung custom emoji Telegram Premium langsung, numeric ID, tag <tg-emoji>, maupun unicode biasa.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const text = message.message.trim();

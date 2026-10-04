@@ -12,6 +12,9 @@ export function createUserbotMessageAdapter(rawMsg: Message, client: CompatClien
 
   const adapter: UserbotMessageLike = {
     out: Boolean(rawMsg.isOutgoing),
+    // Dipakai .afk untuk auto-reply saat ditag; sebelumnya tidak pernah
+    // diteruskan sehingga pemeriksaan mention selalu false.
+    mentioned: Boolean(rawMsg.isMention),
     get message() {
       return messageText;
     },
