@@ -10,6 +10,8 @@
   memahami test harness.
 - [Development cheatsheet](./development_cheatsheet.md) — catatan pengembangan.
 - [Teleproto examples](./teleproto/README.md) — contoh penggunaan teleproto.
+- [Known issues](./known_issues.md) — masalah yang sudah diketahui tapi belum
+  diperbaiki (mis. Voice Chat belum mtcute-ready).
 
 ## Arsip
 

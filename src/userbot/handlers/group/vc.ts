@@ -43,6 +43,16 @@ import { Logger } from '../../../utils/logger.js';
 // ============================================================
 // VC — native Telegram Voice Chat (Obrolan Suara) via tgcalls-js (WebRTC).
 //
+// ⚠️ TODO (known issue — lihat docs/known_issues.md §1):
+//   Modul ini BELUM sepenuhnya ikut migrasi ke mtcute. tgcalls-js@0.2.0 masih
+//   berasumsi klien GramJS-family: ia menyaring update dengan `className`
+//   (mtcute memakai `_`), mengoper marked-id numerik ke channels.GetFullChannel
+//   (mtcute butuh InputChannel), dan memanggil client.addEventHandler (tidak ada
+//   di mtcute). Akibatnya join voice chat kemungkinan besar gagal saat runtime
+//   meski `tsc` bersih — semua titik sentuh bertipe unknown/never sehingga
+//   compiler tidak menangkapnya. Baris ~228 di file ini juga masih memakai
+//   `chat.className === 'Channel'`.
+//
 // Fitur:
 //   • Pure WebRTC Voice Chat (bukan RTMP livestream / siaran langsung)
 //   • Masuk sebagai peserta obrolan suara dengan ikon mic/speaker
