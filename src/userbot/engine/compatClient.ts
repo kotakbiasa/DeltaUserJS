@@ -34,6 +34,8 @@ export interface LegacySendMessageParams {
 /** Bentuk entity yang dikembalikan alias `getEntity`. */
 export interface LegacyEntity {
   id: unknown;
+  /** 'User' atau 'Chat', meniru className GramJS yang masih dibaca plugin. */
+  className?: string;
   title?: string;
   username?: string;
   firstName?: string;

@@ -3,6 +3,7 @@ import type { UserbotMessageLike } from '../../types.js';
 import { Logger } from '../../../utils/logger.js';
 import { withTimeout } from '../../../utils/http.js';
 import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const FETCH_TIMEOUT = 45_000;
@@ -205,7 +206,7 @@ export default {
 
     try {
       const { buffer, provider } = await getShot(url);
-      await client.sendFile(message.chatId as any, {
+      await client.sendFile(toPeer(message.chatId), {
         file: buffer,
         forceDocument: false,
         caption: `📸 <code>${escapeHtml(url)}</code> <i>(${provider})</i>`,

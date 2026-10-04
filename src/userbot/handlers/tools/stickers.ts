@@ -1,7 +1,17 @@
-function createTlProxy(prefix = ''): any {
+/**
+ * Konstruktor TL dinamis gaya GramJS (`Api.phone.JoinGroupCall`). mtcute tidak
+ * punya padanannya, jadi proxy ini merakit objek `{ _: 'nama.tl' }` sesuai
+ * jalur properti yang diakses. Tipenya rekursif: setiap properti adalah proxy
+ * lain yang juga bisa dipanggil dengan `new`.
+ */
+type TlProxy = (new (args?: Record<string, unknown>) => { _: string }) & {
+  [key: string]: TlProxy;
+};
+
+function createTlProxy(prefix = ''): TlProxy {
   const Cls = class {
     _: string;
-    constructor(args?: any) {
+    constructor(args?: Record<string, unknown>) {
       this._ = prefix;
       if (args) {
         Object.assign(this, args);
@@ -14,14 +24,14 @@ function createTlProxy(prefix = ''): any {
         return Reflect.get(target, prop);
       }
       if (prop in target) {
-        return (target as any)[prop];
+        return (target as unknown as Record<string, unknown>)[prop];
       }
       const next = prefix
         ? `${prefix}.${prop.charAt(0).toLowerCase() + prop.slice(1)}`
         : prop.charAt(0).toLowerCase() + prop.slice(1);
       return createTlProxy(next);
     },
-  });
+  }) as unknown as TlProxy;
 }
 const Api = createTlProxy();
 import fs from 'fs';

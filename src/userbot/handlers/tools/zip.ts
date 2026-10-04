@@ -6,6 +6,7 @@ import path from 'path';
 import { Logger } from '../../../utils/logger.js';
 import type { UserbotMessageLike } from '../../types.js';
 import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -167,7 +168,7 @@ async function handleZip(client: CompatClient, message: UserbotMessageLike, tele
     }
 
     await editProcess(message, '<b>Mengunggah arsip...</b>');
-    await client.sendFile(message.chatId as any, {
+    await client.sendFile(toPeer(message.chatId), {
       file: outPath,
       forceDocument: true,
       caption: `<code>${safeBase}.zip</code>`,
@@ -260,7 +261,7 @@ async function handleUnzip(client: CompatClient, message: UserbotMessageLike, te
         const st = fs.statSync(f);
         if (st.size > MAX_SIZE) {continue;}
         const rel = path.relative(extractDir, f);
-        await client.sendFile(message.chatId as any, {
+        await client.sendFile(toPeer(message.chatId), {
           file: f,
           forceDocument: true,
           caption: `<code>${rel.replace(/[<>&]/g, '')}</code>`,
@@ -326,7 +327,7 @@ async function handleDoZip(client: CompatClient, message: UserbotMessageLike, ar
     }
 
     await editProcess(message, '<b>Mengunggah arsip...</b>');
-    await client.sendFile(message.chatId as any, {
+    await client.sendFile(toPeer(message.chatId), {
       file: outPath,
       forceDocument: true,
       caption: `<code>${customName}.zip</code>`,

@@ -1,5 +1,6 @@
 import type { UserbotMessageLike } from '../../types.js';
 import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 const BOT_PRIMARY = '@SangMata_BOT';
 const BOT_BETA = '@SangMata_beta_bot';
@@ -125,7 +126,7 @@ export default {
         if (message.replyToMsgId) {
           sendOpts.replyTo = message.replyToMsgId;
         }
-        await client.sendMessage(message.chatId as any, sendOpts);
+        await client.sendMessage(toPeer(message.chatId), sendOpts);
         await new Promise((r) => setTimeout(r, 300));
       }
     } else {

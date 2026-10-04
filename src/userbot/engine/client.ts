@@ -491,6 +491,9 @@ export class UserbotClient {
             // Chat mtcute hanya mengekspos nama ini untuk peer user.
             firstName: (chat as { firstName?: string }).firstName,
             lastName: (chat as { lastName?: string }).lastName,
+            // Pemanggil legacy (mis. .info) membedakan user vs grup lewat
+            // className gaya GramJS; tanpa ini field-nya selalu undefined.
+            className: (chat as { type?: string }).type === 'user' ? 'User' : 'Chat',
           };
         } catch {
           return { id: peer };

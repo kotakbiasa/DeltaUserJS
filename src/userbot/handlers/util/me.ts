@@ -165,7 +165,7 @@ export default {
         } catch (_e) { photo = undefined; }
 
         if (photo && typeof photo !== 'string' && photo.length > 0) {
-          await client.sendMessage(message.peerId as any, {
+          await client.sendMessage(toPeer(message.peerId), {
             message: cardText,
             file: photo,
             parseMode: 'html',

@@ -107,7 +107,9 @@ export function createUserbotMessageAdapter(rawMsg: any, client: CompatClient): 
         id: c.id,
         title: c.title,
         username: c.username,
-        className: c.type === 'channel' || c.type === 'supergroup' ? 'Channel' : 'Chat',
+        // Peer mtcute: `type` cuma 'user'|'chat'; jenis grup ada di `chatType`.
+        // Perbandingan lama ('channel'/'supergroup') tidak pernah benar.
+        className: c.type === 'chat' && (c.chatType === 'channel' || c.chatType === 'supergroup') ? 'Channel' : 'Chat',
       };
     },
 

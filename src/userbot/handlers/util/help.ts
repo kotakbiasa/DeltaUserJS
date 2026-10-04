@@ -6,12 +6,13 @@ import config from '../../../config.js';
 import { buildModuleHtml } from '../../../bot/handlers/inlineHelp.js';
 import { getMasterBotUsername } from '../../../bot/state/botUsername.js';
 import { errorMessage } from '../../../utils/errors.js';
+import type { UserbotMessageLike } from '../../types.js';
 
 /**
  * Bangun InputReplyToMessage untuk forum topic — memastikan pesan bot
  * masuk ke topic yang sama dengan .help, bukan main topic.
  */
-function buildReplyToTopic(message: any) {
+function buildReplyToTopic(message: UserbotMessageLike) {
   try {
     const header = message.replyTo;
     if (header) {
@@ -26,7 +27,10 @@ function buildReplyToTopic(message: any) {
       }
     }
     // Message ada di topic tapi replyTo kosong — reply ke pesan asli
-    if ((message.peerId?.className === 'PeerChannel' || message.isChannel || message.isGroup) && message.message) {
+    // peerId dari adapter mtcute berupa ID angka, jadi cabang className gaya
+    // GramJS ini sudah tidak pernah benar; disisakan untuk klien mock lama.
+    const peerClassName = (message.peerId as { className?: string } | undefined)?.className;
+    if ((peerClassName === 'PeerChannel' || message.isChannel || message.isGroup) && message.message) {
       const msgId = message.id;
       return {
         _: 'inputReplyToMessage',
@@ -206,11 +210,11 @@ export default {
 
       try {
         // Resolve bot FRESH via contacts.ResolveUsername (hindari cache rusak)
-        const resolved: any = await client.call({
+        const resolved = await client.call({
           _: 'contacts.resolveUsername',
           username: masterBotUsername,
         });
-        const botUser = (resolved.users || []).find((u: any) => String(u.id) === String(resolved.peer?.userId));
+        const botUser = (resolved.users || []).find((u) => String(u.id) === String(resolved.peer?.userId));
         if (!botUser) {throw new Error(`Bot @${masterBotUsername} tidak ditemukan`);}
         const botPeer = {
           _: 'inputPeerUser',
@@ -220,7 +224,7 @@ export default {
         console.log(`[HELP-INLINE] Bot resolved: @${masterBotUsername} id=${botUser.id}`);
 
         // Dapatkan inline query results dari bot (peer='me' = user sendiri sebagai konteks)
-        const botResults: any = await client.call({
+        const botResults = await client.call({
           _: 'messages.getInlineBotResults',
           bot: botPeer,
           peer: { _: 'inputPeerSelf' },
