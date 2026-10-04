@@ -78,7 +78,11 @@ Solusi permanen (bila diinginkan nanti): re-resolve lockfile memakai
 
 ## 3. Hutang lint di `src/` 🟡
 
-`npm run lint` melaporkan **143 warning** `@typescript-eslint/no-explicit-any`.
+**Progres:** 143 → **111 warning**. `src/userbot/engine/client.ts` (32 warning,
+penyumbang terbesar) sudah nol: `UserbotClient.client` kini bertipe
+`CompatClient` (`src/userbot/engine/compatClient.ts`) alih-alih `any`.
+
+`npm run lint` sebelumnya melaporkan **143 warning** `@typescript-eslint/no-explicit-any`.
 Error sudah nol (dulu 42, dibereskan terpisah). Warning `any` ini belum
 disentuh — dan `any`-lah yang menyembunyikan ketidakcocokan VC di §1 dari
 compiler, jadi mengetatkannya punya nilai lebih dari sekadar kerapian.
@@ -95,3 +99,36 @@ menyambung.
 Khusus `.exec`, pengamanannya tidak bergantung pada skema itu dan tetap utuh:
 owner-only, gerbang `EXEC_ALLOWED`, `execFile` tanpa shell, whitelist 12
 perintah, dan penolakan karakter khusus.
+
+---
+
+## 5. Pemanggilan API hantu yang dulu disembunyikan `any` 🔴
+
+Begitu `UserbotClient.client` diberi tipe nyata, compiler menemukan beberapa
+pemanggilan ke method/properti yang **tidak pernah ada di mtcute**. Semuanya
+berada di dalam `try/catch` atau dibaca sebagai `undefined`, jadi gagal
+diam-diam, bukan crash.
+
+**Sudah diperbaiki:**
+
+| Pemanggilan lama | Kenyataan | Perbaikan |
+|---|---|---|
+| `client.getMessage(chatId, msgId)` | tidak ada | `(await client.getMessages(chat, [id]))[0]` — akibatnya `getMessage()` pada callback query **selalu** `null`, tombol inline yang butuh pesan asalnya tidak pernah bekerja |
+| `query.message` di `onAnyCallbackQuery` | hanya ada di *business* callback query | handler dipindah ke `onCallbackQuery` (callback pesan chat biasa) dan pesan selalu diambil lewat `getMessages`; inline/business callback memang tidak pernah didukung UI ini dan dulu pasti gagal di `query.chat.id` |
+| `client.getProfilePhoto(peer)` | butuh `(userId, photoId)` | `getProfilePhotos(peer, { limit: 1 })` — shim `downloadProfilePhoto()` selalu melempar, jadi `.info`, `.me`, dan `.profiles` **tidak pernah** menampilkan foto profil |
+| rantai `close()` / `disconnect()` di `stop()` | hanya `destroy()` yang nyata | dipersempit ke tipe probe eksplisit; dua cabang lain hanya untuk mock test |
+
+**Belum diperbaiki (sengaja — mengubahnya mengubah tampilan UI):**
+
+- `ubot.client.connected` dibaca di `panelParts/core/main.ts`,
+  `core/onboarding.ts`, dan `core/settings.ts`. mtcute tidak mengekspos
+  properti ini, jadi nilainya **selalu `undefined`** dan indikator koneksi di
+  dashboard permanen menampilkan status "tidak terhubung".
+- `client.session.dcId` di `panelParts/core/main.ts` juga tidak ada, sehingga
+  DC yang ditampilkan **selalu jatuh ke hardcode `'4'`**.
+
+Keduanya kini dideklarasikan sebagai properti opsional ber-`@deprecated` di
+`CompatClient` supaya kebohongannya terlihat di tipe. `ITelegramClient` mtcute
+tidak punya padanan publik untuk status koneksi maupun DC saat ini, jadi
+memperbaikinya butuh melacak status sendiri lewat event koneksi — pekerjaan
+tersendiri yang mengubah perilaku UI.

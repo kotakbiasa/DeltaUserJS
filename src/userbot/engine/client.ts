@@ -11,8 +11,10 @@ import { checkRateLimit, shouldCountForRateLimit } from './rateLimiter.js';
 import { isTestEnv } from '../../utils/env.js';
 import { animateEmojisWithRestrictedPack, stripTgEmojiTags } from '../../utils/customEmoji.js';
 import { createUserbotMessageAdapter } from './adapter.js';
+import type { CompatClient, LegacyPeer, LegacySendMessageParams, LegacySendFileOptions } from './compatClient.js';
+import type { InputPeerLike } from '@mtcute/core';
 
-function disabledSet(settings: any) {
+function disabledSet(settings: { disabled_plugins?: string[] } | null | undefined) {
   return new Set((settings?.disabled_plugins || []).map(normalizePluginName));
 }
 
@@ -21,8 +23,9 @@ let pluginLoadPromise: Promise<unknown> | null = null;
 export class UserbotClient {
   public telegramId: number;
   public sessionString: string;
-  public client: any;
-  public dp: any;
+  /** mtcute client + alias legacy; null sebelum start()/setelah stop(). */
+  public client: CompatClient;
+  public dp: Dispatcher | null;
   public isActive: boolean;
   public floodWaitUntil: number | null;
   public lastFloodSeconds: number;
@@ -67,8 +70,8 @@ export class UserbotClient {
   handlePossibleFloodError(err: unknown) {
     const errStr = String(err || '');
     const seconds =
-      typeof err === 'object' && err !== null && 'seconds' in err && typeof (err as any).seconds === 'number'
-        ? (err as any).seconds
+      typeof err === 'object' && err !== null && 'seconds' in err && typeof (err as { seconds?: unknown }).seconds === 'number'
+        ? (err as { seconds: number }).seconds
         : null;
     const match = errStr.match(/FLOOD_WAIT_(\d+)/i) || (seconds !== null ? [null, String(seconds)] : null);
     if (match && match[1]) {
@@ -91,6 +94,8 @@ export class UserbotClient {
 
       // 1. Prepare mtcute storage & client
       const storage = new MemoryStorage();
+      // Alias legacy baru ditempel setelahnya oleh setupClientCompatibility(),
+      // jadi satu cast terdokumentasi di sini, bukan `any` yang menyebar.
       this.client = new TelegramClient({
         apiId: config.apiId,
         apiHash: config.apiHash,
@@ -102,7 +107,7 @@ export class UserbotClient {
           langCode: 'id',
           systemLangCode: 'id-ID',
         },
-      });
+      }) as unknown as CompatClient;
 
       // 2. Import session (with automatic GramJS session conversion)
       if (this.sessionString) {
@@ -208,12 +213,18 @@ export class UserbotClient {
         if (this.dp) {
           this.dp.destroy();
         }
-        if (typeof this.client.destroy === 'function') {
-          await this.client.destroy();
-        } else if (typeof this.client.close === 'function') {
-          await this.client.close();
-        } else if (typeof this.client.disconnect === 'function') {
-          await this.client.disconnect();
+        // mtcute: destroy(). close()/disconnect() hanya ada di klien mock test.
+        const shutdown = this.client as unknown as {
+          destroy?: () => Promise<void>;
+          close?: () => Promise<void>;
+          disconnect?: () => Promise<void>;
+        };
+        if (typeof shutdown.destroy === 'function') {
+          await shutdown.destroy();
+        } else if (typeof shutdown.close === 'function') {
+          await shutdown.close();
+        } else if (typeof shutdown.disconnect === 'function') {
+          await shutdown.disconnect();
         }
         Logger.logUser(this.telegramId, `🔌 DeltaUbotJS [${this.telegramId}] disconnected gracefully.`, 'INFO');
       } catch (err) {
@@ -233,12 +244,14 @@ export class UserbotClient {
       return;
     }
 
-    this.dp = Dispatcher.for(this.client);
+    // Dispatcher menuntut TelegramClient asli; CompatClient hanya beda di
+    // signature alias legacy, instance-nya tetap klien mtcute yang sama.
+    this.dp = Dispatcher.for(this.client as unknown as TelegramClient);
 
     // ==========================================
     // Handler 1: Pesan Masuk (NewMessage)
     // ==========================================
-    this.dp.onNewMessage(async (rawMsg: any) => {
+    this.dp.onNewMessage(async (rawMsg) => {
       if (!rawMsg) {return;}
 
       if (this.isFloodWaiting()) {
@@ -294,26 +307,34 @@ export class UserbotClient {
     // ==========================================
     // Handler 2: Callback Query (Inline Button Clicks)
     // ==========================================
-    this.dp.onAnyCallbackQuery(async (query: any) => {
+    // Hanya callback dari pesan chat biasa: inline & business callback query
+    // tidak punya `chat`/`messageId`, dan seluruh UI userbot ini berbasis
+    // pesan chat. Dulu dipasang lewat onAnyCallbackQuery dan dua jenis
+    // lainnya pasti gagal diam-diam di `query.chat.id`.
+    this.dp.onCallbackQuery(async (query) => {
       if (this.isFloodWaiting()) {return;}
+
+      let cachedMessage: ReturnType<typeof createUserbotMessageAdapter> | null = null;
+      const fetchMessage = async () => {
+        if (cachedMessage) {return cachedMessage;}
+        try {
+          // mtcute tidak punya getMessage() tunggal — pemanggilan lama selalu
+          // melempar dan tertelan catch, jadi pesan tidak pernah ketemu.
+          const [found] = await this.client.getMessages(query.chat.id, [query.messageId]);
+          cachedMessage = found ? createUserbotMessageAdapter(found, this.client) : null;
+          return cachedMessage;
+        } catch {
+          return null;
+        }
+      };
 
       const callbackEvent = {
         data: query.data,
-        peer: query.chat?.id,
+        peer: query.chat.id,
         msgId: query.messageId,
-        message: query.message ? createUserbotMessageAdapter(query.message, this.client) : null,
-        getMessage: async () => {
-          if (query.message) {
-            return createUserbotMessageAdapter(query.message, this.client);
-          }
-          try {
-            const found = await this.client.getMessage(query.chat.id, query.messageId);
-            return found ? createUserbotMessageAdapter(found, this.client) : null;
-          } catch {
-            return null;
-          }
-        },
-        editMessage: async (text: string, options: any = {}) => {
+        message: null,
+        getMessage: fetchMessage,
+        editMessage: async (text: string, options: { parseMode?: 'html' | 'markdown'; replyMarkup?: unknown; buttons?: unknown } = {}) => {
           try {
             await this.client.editMessage({
               chat: query.chat.id,
@@ -362,7 +383,7 @@ export class UserbotClient {
     // ==========================================
     // Handler 3: Edit Message (Auto-delete signal '␡')
     // ==========================================
-    this.dp.onEditMessage(async (msg: any) => {
+    this.dp.onEditMessage(async (msg) => {
       try {
         if (msg && msg.isOutgoing && msg.text === '␡') {
           await this.client.deleteMessages(msg.chat.id, [msg.id]);
@@ -377,8 +398,15 @@ export class UserbotClient {
    * Fallback for mock environments (such as E2E test runner)
    */
   private registerMockHandlers() {
-    this.client.addEventHandler(async (event: any) => {
-      const message = event.message;
+    /** Bentuk pesan yang dikirim mock client E2E (gaya legacy, bukan mtcute). */
+    type MockEventMessage = {
+      chatId: number | string;
+      out?: boolean;
+      message: string;
+    };
+
+    this.client.addEventHandler?.(async (rawEvent: unknown) => {
+      const message = (rawEvent as { message?: MockEventMessage }).message;
       if (!message) {return;}
 
       const settings = getUserbotSession(this.telegramId);
@@ -426,25 +454,27 @@ export class UserbotClient {
     if (!this.client) {return;}
 
     if (!this.client.sendMessage) {
-      this.client.sendMessage = async (peer: any, params: any) => {
-        const text = typeof params === 'string' ? params : (params?.message ?? params?.text ?? '');
+      this.client.sendMessage = async (peer: LegacyPeer, params: LegacySendMessageParams | string) => {
+        const opts = typeof params === 'string' ? {} : (params ?? {});
+        const text = typeof params === 'string' ? params : (opts.message ?? opts.text ?? '');
         return await this.client.sendText(peer, text, {
-          replyTo: params?.replyTo,
-          parseMode: params?.parseMode || 'html',
+          replyTo: opts.replyTo,
+          parseMode: opts.parseMode || 'html',
         });
       };
     }
 
     if (!this.client.getEntity) {
-      this.client.getEntity = async (peer: any) => {
+      this.client.getEntity = async (peer: LegacyPeer) => {
         try {
           const chat = await this.client.getChat(peer);
           return {
             id: chat.id,
             title: chat.title,
             username: chat.username,
-            firstName: (chat as any).firstName,
-            lastName: (chat as any).lastName,
+            // Chat mtcute hanya mengekspos nama ini untuk peer user.
+            firstName: (chat as { firstName?: string }).firstName,
+            lastName: (chat as { lastName?: string }).lastName,
           };
         } catch {
           return { id: peer };
@@ -453,68 +483,67 @@ export class UserbotClient {
     }
 
     if (!this.client.invoke) {
-      this.client.invoke = async (call: any) => {
-        if (call && typeof call === 'object' && call._) {
-          return await this.client.call(call);
-        }
-        return await this.client.call(call);
-      };
+      this.client.invoke = async (call: unknown) => 
+        // Objek TL mentah (punya `_`); mtcute mengeksposnya lewat call().
+         await this.client.call(call as Parameters<CompatClient['call']>[0])
+      ;
     }
 
     if (!this.client.getMessages) {
-      this.client.getMessages = async (peer: any, params: any) => {
+      this.client.getMessages = async (peer: LegacyPeer, params?: { ids?: number[] } & Record<string, unknown>) => {
         if (params?.ids) {
           return await this.client.getMessages(peer, params.ids);
         }
-        return await this.client.getHistory(peer, params);
+        return await this.client.getHistory(peer, params as Parameters<CompatClient['getHistory']>[1]);
       };
     }
 
     if (!this.client.sendFile) {
-      this.client.sendFile = async (chat: any, options: any) => {
+      this.client.sendFile = async (chat: LegacyPeer, options: LegacySendFileOptions) => {
         const file = options?.file ?? options;
         const caption = options?.caption ?? options?.message ?? '';
-        const params: any = {
+        const params: Record<string, unknown> = {
           caption,
           replyTo: options?.replyTo,
           parseMode: options?.parseMode || 'html',
         };
-        let mediaObj: any;
+        let mediaObj: unknown;
         if (options?.forceDocument) {
-          mediaObj = InputMedia.document(file);
+          mediaObj = InputMedia.document(file as Parameters<typeof InputMedia.document>[0]);
         } else if (
           options?.attributes?.some(
-            (a: any) => a?._ === 'documentAttributeAnimated' || a?.className === 'DocumentAttributeAnimated'
+            (a) => a?._ === 'documentAttributeAnimated' || a?.className === 'DocumentAttributeAnimated'
           )
         ) {
-          mediaObj = InputMedia.animation(file);
+          mediaObj = InputMedia.animation(file as Parameters<typeof InputMedia.animation>[0]);
         } else {
-          mediaObj = InputMedia.auto(file);
+          mediaObj = InputMedia.auto(file as Parameters<typeof InputMedia.auto>[0]);
         }
-        return await this.client.sendMedia(chat, mediaObj, params);
+        return await this.client.sendMedia(chat, mediaObj as Parameters<CompatClient['sendMedia']>[1], params);
       };
     }
 
     const origDeleteMessages = this.client.deleteMessages?.bind(this.client);
-    this.client.deleteMessages = async (chatOrMsgs: any, idsOrParams?: any, maybeParams?: any) => {
+    this.client.deleteMessages = async (chatOrMsgs: unknown, idsOrParams?: unknown, maybeParams?: unknown) => {
       if (Array.isArray(idsOrParams) && typeof idsOrParams[0] === 'number') {
-        return await this.client.deleteMessagesById(chatOrMsgs, idsOrParams, maybeParams);
+        return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, idsOrParams, maybeParams);
       }
       if (Array.isArray(chatOrMsgs) && typeof chatOrMsgs[0] === 'object') {
         return await origDeleteMessages(chatOrMsgs, idsOrParams);
       }
       if (Array.isArray(idsOrParams)) {
-        return await this.client.deleteMessagesById(chatOrMsgs, idsOrParams, maybeParams);
+        return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, idsOrParams as number[], maybeParams);
       }
-      return await this.client.deleteMessagesById(chatOrMsgs, [idsOrParams], maybeParams);
+      return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, [idsOrParams as number], maybeParams);
     };
 
     if (!this.client.downloadProfilePhoto) {
-      this.client.downloadProfilePhoto = async (peer: any) => {
+      this.client.downloadProfilePhoto = async (peer: LegacyPeer) => {
         try {
-          const photo = await this.client.getProfilePhoto(peer);
+          // getProfilePhoto() mtcute butuh photoId; ambil foto terbaru dulu.
+          const [photo] = await this.client.getProfilePhotos(peer as InputPeerLike, { limit: 1 });
           if (!photo) {return undefined;}
-          return await this.client.downloadAsBuffer(photo);
+          return Buffer.from(await this.client.downloadAsBuffer(photo));
         } catch {
           return undefined;
         }
@@ -536,7 +565,7 @@ export class UserbotClient {
     // Intercept sendText
     const origSendText = this.client.sendText?.bind(this.client);
     if (origSendText) {
-      this.client.sendText = (chat: any, text: any, params?: any) => {
+      this.client.sendText = (chat: LegacyPeer, text: unknown, params?: unknown) => {
         if (typeof text === 'string') {
           text = renderEmojiText(text);
         }
@@ -547,7 +576,8 @@ export class UserbotClient {
     // Intercept editMessage
     const origEditMessage = this.client.editMessage?.bind(this.client);
     if (origEditMessage) {
-      this.client.editMessage = (params: any, maybeParams?: any) => {
+      type EditPayload = { text?: string } & Record<string, unknown>;
+      this.client.editMessage = (params: EditPayload, maybeParams?: EditPayload) => {
         if (maybeParams !== undefined) {
           // Legacy call (peer, { message, text })
           if (typeof maybeParams.text === 'string') {
