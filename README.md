@@ -164,7 +164,7 @@ docker compose up -d
 
 - [Arsitektur saat ini](./docs/architecture.md) - Struktur source, alur runtime, dan plugin dinamis
 - [Security & correctness review](./docs/security.md) - Status verifikasi keamanan/kualitas terbaru
-- [Indeks dokumentasi](./docs/README.md) - Testing, teleproto, cheatsheet, dan arsip review
+- [Indeks dokumentasi](./docs/README.md) - Testing, known issues, cheatsheet, dan arsip review
 
 Tool diagnostik dashboard manual tersedia melalui `npm run diagnostics:panels`,
 `npm run diagnostics:menus`, dan `npm run diagnostics:tags`.

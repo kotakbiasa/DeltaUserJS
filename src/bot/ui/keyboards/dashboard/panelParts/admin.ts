@@ -50,7 +50,7 @@ export function panelAdmin(_ctx) {
     `<hr/>` +
     `<h3>💡 Status Lingkungan Runtime:</h3>` +
     `<ul>` +
-    `<li>Engine: <b>Teleproto Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)</li>` +
+    `<li>Engine: <b>mtcute Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)</li>` +
     `<li>Node.js: <code>${process.version}</code> · PID <code>${process.pid}</code></li>` +
     `<li>Alokasi RAM (Heap): ${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</li>` +
     `</ul>` +

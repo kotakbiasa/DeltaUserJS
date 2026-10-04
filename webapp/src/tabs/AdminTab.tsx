@@ -104,7 +104,7 @@ export const AdminTab: React.FC<{ active?: boolean }> = ({ active = true }) => {
           <Tile icon={<Users size={15} />} label="Total pengguna" value={stats?.totalRegisteredUsers ?? 0} foot="Terdaftar di DB" accent="var(--info)" />
           <Tile icon={<Server size={15} />} label="Userbot online" value={stats?.activeRunningClients ?? online} foot="Sedang berjalan" accent="var(--ok)" />
           <Tile icon={<Cpu size={15} />} label="Memory RSS" value={`${stats?.memoryRssMb ?? 0} MB`} foot="RAM server" accent="var(--violet)" />
-          <Tile icon={<Terminal size={15} />} label="Engine runtime" value={stats?.nodeVersion || '—'} foot="Node.js · Teleproto" accent="var(--gold)" />
+          <Tile icon={<Terminal size={15} />} label="Engine runtime" value={stats?.nodeVersion || '—'} foot="Node.js · mtcute" accent="var(--gold)" />
         </div>
       </section>
 

@@ -38,7 +38,7 @@ src/
 webapp/                         # React/Vite Telegram Mini App
 scripts/diagnostics/            # Tool manual, bukan runtime/deployment
 test/                           # Unit, integration, dan E2E test berbasis dist/
-docs/                           # Dokumentasi aktif dan contoh teleproto
+docs/                           # Dokumentasi aktif dan known issues
 ```
 
 ## Alur runtime

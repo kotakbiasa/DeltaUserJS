@@ -12,7 +12,7 @@ export default {
     title: 'Statistics (.stats)',
     description: 'Menampilkan statistik dan informasi sistem ubot.',
     usage: 'Ketik `.stats`',
-    detail: 'Menampilkan detail versi NodeJS, grammY, Teleproto, serta penggunaan RAM dan Uptime.'
+    detail: 'Menampilkan detail versi NodeJS, grammY, mtcute, serta penggunaan RAM dan Uptime.'
   },
   async execute(client, message, settings, telegramId) {
     if (message.out && message.message && message.message.toLowerCase() === '.stats') {

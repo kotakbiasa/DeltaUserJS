@@ -48,7 +48,7 @@ export function panelMain(ctx) {
         `<tr><td>1. Request Approval</td><td align="center">✅ Selesai</td><td>Terkirim ke Owner</td></tr>` +
         `<tr><td>2. Review Owner</td><td align="center">⏳ Menunggu</td><td>Sedang Ditinjau</td></tr>` +
         `<tr><td>3. Tautkan Akun</td><td align="center">🔒 Terkunci</td><td>Scan QR / OTP</td></tr>` +
-        `<tr><td>4. Userbot Aktif</td><td align="center">🔒 Terkunci</td><td>Teleproto 229</td></tr>` +
+        `<tr><td>4. Userbot Aktif</td><td align="center">🔒 Terkunci</td><td>mtcute 229</td></tr>` +
         `</table>` +
         `<hr/>` +
         `<h3>ℹ️ Langkah Selanjutnya</h3>` +
@@ -75,7 +75,7 @@ export function panelMain(ctx) {
       `Platform modular untuk mengelola userbot Telegram Anda dengan mudah, cepat, dan aman.</p>` +
       `<table bordered striped>` +
       `<tr><th>Layanan Platform</th><th>Status</th><th>Keterangan</th></tr>` +
-      `<tr><td>🤖 Userbot Engine</td><td align="center">🟢 Online</td><td>Teleproto Layer 229</td></tr>` +
+      `<tr><td>🤖 Userbot Engine</td><td align="center">🟢 Online</td><td>mtcute Layer 229</td></tr>` +
       `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td><td>${isTgPremium ? 'Telegram Premium' : 'Telegram Reguler'}</td></tr>` +
       `<tr><td>🛡️ Izin Akses</td><td align="center">🔒 Perlu Approval</td><td>Request ke Owner</td></tr>` +
       `<tr><td>📦 Modul Tersedia</td><td align="center">${loadedPlugins.length} Plugin</td><td>Siap Digunakan</td></tr>` +
@@ -96,10 +96,10 @@ export function panelMain(ctx) {
     `Pusat kendali &amp; portal utama userbot Telegram Anda.</p>` +
     `<table bordered striped>` +
     `<tr><th>Informasi Akun</th><th>Status</th><th>Keterangan</th></tr>` +
-    `<tr><td>🤖 Status Userbot</td><td align="center">${running ? '🟢 Online' : '🔴 Offline'}</td><td>${running ? 'Teleproto 229' : 'Siap Dijalankan'}</td></tr>` +
+    `<tr><td>🤖 Status Userbot</td><td align="center">${running ? '🟢 Online' : '🔴 Offline'}</td><td>${running ? 'mtcute 229' : 'Siap Dijalankan'}</td></tr>` +
     `<tr><td>⭐ Akun Telegram</td><td align="center">${formatTelegramPremiumBadge(isTgPremium)}</td><td>Telegram Resmi</td></tr>` +
     `<tr><td>🛡️ Status Akses</td><td align="center">🟢 Disetujui</td><td>Akses Penuh</td></tr>` +
-    `<tr><td>⚡ Core Engine</td><td align="center">Teleproto Layer 229</td><td>Layer MTProto</td></tr>` +
+    `<tr><td>⚡ Core Engine</td><td align="center">mtcute Layer 229</td><td>Layer MTProto</td></tr>` +
     `</table>` +
     `<hr/>` +
     `<h3>💡 Akses Cepat Pengguna:</h3>` +
@@ -197,7 +197,7 @@ export function panelUserbot(ctx) {
   return `<h1 align="center">🤖 Dashboard ${escapeHtml(botName)} <sup>PRO</sup></h1>` +
     floodBanner +
     `<h3>${running ? '🟢 Status: Online' : '🔴 Status: Offline'}</h3>` +
-    `<p>Teleproto Layer 229 · Telegram Datacenter DC ${dcId} · Latensi Real-time</p>` +
+    `<p>mtcute Layer 229 · Telegram Datacenter DC ${dcId} · Latensi Real-time</p>` +
     `<table bordered striped><caption>🎛️ Panel Kendali &amp; Aksi Interaktif</caption>` +
     `<tr><th>Fitur / Layanan</th><th>Status Saat Ini</th><th align="center">Aksi Cepat</th></tr>` +
     `<tr><td>⚡ Daya Userbot</td><td>${connStatus}</td><td align="center">${powerBtn}${restartBtn}</td></tr>` +
@@ -481,7 +481,7 @@ export async function panelUserbotDiag(ctx) {
     `<tr><th>Parameter Uji</th><th>Hasil / Nilai</th><th align="center">Aksi</th></tr>` +
     `<tr><td>⚡ Status Client</td><td>${isRunning ? (connected ? '🟢 Online &amp; Terhubung' : '🟡 Menghubungkan...') : '🔴 Offline / Mati'}</td><td align="center">${retryBtn}</td></tr>` +
     `<tr><td>📡 Latensi Telegram DC</td><td>${pingMs > 0 ? `<b>${pingMs} ms</b>` : (isRunning ? '🟡 Mengukur...' : '🔴 N/A')}</td><td align="center">Layer 229</td></tr>` +
-    `<tr><td>🌐 Server Datacenter</td><td>Telegram DC ${dcId}</td><td align="center">Teleproto</td></tr>` +
+    `<tr><td>🌐 Server Datacenter</td><td>Telegram DC ${dcId}</td><td align="center">mtcute</td></tr>` +
     `<tr><td>🛡️ FloodWait Guard</td><td>${flood.inCooldown ? `⏳ Hibernasi (${flood.secondsLeft}s)` : '🟢 Normal'}</td><td align="center">Proteksi</td></tr>` +
     `<tr><td>🧩 Modul Aktif</td><td>🟢 ${activeCount} / ${loadedPlugins.length} Plugin</td><td align="center">${backUbotBtn}</td></tr>` +
     `<tr><td>🛡️ Filter Anti-PM</td><td>${session?.anti_pm === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Spam Shield</td></tr>` +
