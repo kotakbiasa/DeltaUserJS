@@ -1,7 +1,6 @@
 import { TelegramClient, InputMedia } from '@mtcute/node';
 import { MemoryStorage } from '@mtcute/core';
 import { Dispatcher } from '@mtcute/dispatcher';
-import { convertFromGramjsSession } from '@mtcute/convert';
 import config from '../../config.js';
 import { getUserbotSession, updateTelegramPremiumStatus } from '../../infrastructure/database.js';
 import { loadAllPlugins } from './pluginLoader.js';
@@ -129,27 +128,19 @@ export class UserbotClient {
         },
       }) as unknown as CompatClient;
 
-      // 2. Import session (with automatic GramJS session conversion)
+      // 2. Import sesi. Hanya format mtcute yang didukung: konversi sesi
+      //    GramJS on-the-fly sudah dihapus (repo full mtcute). Sesi lama harus
+      //    dibuat ulang lewat login dari awal.
       if (this.sessionString) {
-        let imported = false;
-        // Try importing directly as mtcute session
         try {
           await this.client.importSession(this.sessionString);
-          imported = true;
-        } catch {
-          // If direct import fails, try converting from GramJS format
-          try {
-            const converted = convertFromGramjsSession(this.sessionString);
-            await this.client.importSession(converted);
-            imported = true;
-            Logger.logUser(this.telegramId, `🔄 Sesi GramJS berhasil dimigrasi ke mtcute on-the-fly.`, 'INFO');
-          } catch (convErr) {
-            Logger.logUser(this.telegramId, `⚠️ Gagal konversi sesi GramJS: ${convErr}`, 'WARN');
-          }
-        }
-
-        if (!imported) {
-          throw new Error('Sesi userbot tidak valid atau gagal diimpor ke mtcute');
+        } catch (err) {
+          Logger.logUser(this.telegramId, `⚠️ Sesi gagal diimpor: ${err}`, 'WARN');
+          throw new Error(
+            'Sesi userbot tidak valid atau bukan format mtcute. ' +
+              'Hapus userbot ini lalu login ulang untuk membuat sesi baru.',
+            { cause: err },
+          );
         }
       }
 

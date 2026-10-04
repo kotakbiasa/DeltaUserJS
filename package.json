@@ -30,7 +30,6 @@
   "dependencies": {
     "@grammyjs/conversations": "^2.1.1",
     "@grammyjs/ratelimiter": "^1.2.1",
-    "@mtcute/convert": "^0.32.3",
     "@mtcute/dispatcher": "^0.32.3",
     "@mtcute/node": "^0.32.3",
     "dotenv": "^17.4.2",

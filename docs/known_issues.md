@@ -246,3 +246,21 @@ ditarik teleproto kini yatim di lockfile: `node-localstorage`, `store2`,
 pun, hanya menambah ukuran `npm ci`. Membersihkannya butuh satu `npm install`
 penuh, yang akan me-resolve ulang `tgcalls-js` — ditunda sampai pekerjaan
 tgcalls (§1/§2) selesai.
+
+---
+
+## 9. Konversi sesi GramJS dihapus — repo full mtcute ✅
+
+`client.ts` dulu mencoba `convertFromGramjsSession()` sebagai fallback ketika
+`importSession()` gagal, sehingga sesi lama era GramJS masih bisa dipakai.
+Jalur itu kini **dihapus total**, berikut dependensi `@mtcute/convert` dari
+`package.json` dan `package-lock.json` (suntingan bedah 2 entri; `@mtcute/core`
+dan `@fuman/*` tetap ada karena dipakai `@mtcute/node`).
+
+**Dampak yang perlu diketahui.** Semua sesi baru memang sudah lahir dari
+`client.exportSession()` milik mtcute (lihat `registration/otp.ts` dan
+`registration/qr.ts`), jadi alur login normal tidak terpengaruh. Tetapi baris
+userbot di database yang **masih menyimpan string sesi format GramJS dari
+sebelum migrasi tidak akan bisa start lagi** — pemiliknya harus menghapus
+userbot itu dan login ulang. Pesan error sudah diubah agar menyebutkan hal itu
+secara eksplisit, bukan sekadar "sesi tidak valid".
