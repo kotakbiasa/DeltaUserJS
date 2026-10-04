@@ -78,8 +78,20 @@ Solusi permanen (bila diinginkan nanti): re-resolve lockfile memakai
 
 ## 3. Hutang lint di `src/` 🟡
 
-`npm run lint` melaporkan **42 error + 143 warning** (mayoritas
-`@typescript-eslint/no-explicit-any`; 41 error auto-fixable via `--fix`).
-Angka ini **sudah ada sebelum migrasi mtcute** dan tidak berubah karenanya —
-diverifikasi dengan membandingkan hasil lint pada working tree bersih.
-Belum ada rencana pembersihan.
+`npm run lint` melaporkan **143 warning** `@typescript-eslint/no-explicit-any`.
+Error sudah nol (dulu 42, dibereskan terpisah). Warning `any` ini belum
+disentuh — dan `any`-lah yang menyembunyikan ketidakcocokan VC di §1 dari
+compiler, jadi mengetatkannya punya nilai lebih dari sekadar kerapian.
+
+## 4. Tidak ada lapisan validasi input perintah 🟡
+
+Dulu ada `src/utils/validation.ts` (10 skema zod) yang **tidak pernah
+tersambung ke handler manapun**, lalu dihapus. Skemanya mendeskripsikan API
+berparameter terstruktur (`{ text, silent, pin }`, `{ code, language }`),
+sedangkan handler yang nyata mem-parse string mentah dari `message.message` —
+jadi memasangnya butuh mendesain ulang parsing perintah, bukan sekadar
+menyambung.
+
+Khusus `.exec`, pengamanannya tidak bergantung pada skema itu dan tetap utuh:
+owner-only, gerbang `EXEC_ALLOWED`, `execFile` tanpa shell, whitelist 12
+perintah, dan penolakan karakter khusus.
