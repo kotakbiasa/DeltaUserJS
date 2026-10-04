@@ -45,7 +45,6 @@ cp .env.example .env   # lalu isi nilainya
 | `APP_URL` | ✅ | URL HTTPS Mini App yang terdaftar di BotFather |
 | `ALLOW_DEV_AUTH` | ➖ | `true` hanya untuk browser development lokal; jangan aktifkan di production |
 | `DIGITAL_STORE_PATH` | ➖ | Lokasi JSON toko digital; default `data/digital-store.json` |
-| `MIDTRANS_SERVER_KEY` / `XENDIT_API_KEY` | ➖ | Payment gateway untuk checkout langganan |
 
 ## ▶️ Menjalankan
 
@@ -76,9 +75,8 @@ Untuk deployment:
 
 Data toko digital disimpan pada `data/digital-store.json` secara default.
 Backup file ini bersama database utama. Jangan menyimpan `initData` pengguna
-di browser atau log server. Checkout paket berbayar memerlukan MongoDB serta
-Midtrans/Xendit; jika belum dikonfigurasi, Mini App mengarahkan pengguna ke owner.
-Renewal otomatis belum melakukan penagihan; konfirmasi perpanjangan tetap manual.
+di browser atau log server. Tidak ada integrasi payment gateway: perpanjangan
+langganan dikonfirmasi manual oleh owner.
 Penyimpanan JSON toko digital mengasumsikan satu instance aplikasi; gunakan database bersama bila menjalankan beberapa worker.
 
 ## 🤖 Cara Pakai
