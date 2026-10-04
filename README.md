@@ -2,7 +2,7 @@
 
 Multi-userbot manager untuk Telegram. **Master Bot** dibangun dengan
 [grammY](https://grammy.dev), sedangkan **userbot** memakai
-[GramJS/teleproto](https://github.com/gram-js/gramjs). State persisten disimpan di
+[mtcute](https://mtcute.dev). State persisten disimpan di
 MongoDB (dengan fallback file JSON lokal) dan di-cache di memori untuk akses cepat.
 
 ## ✨ Fitur
@@ -105,7 +105,7 @@ src/
 │   ├── handlers/          # Command & callback handlers
 │   ├── ui/                # Dashboard UI components
 │   └── index.ts
-├── userbot/               # Userbot Layer (GramJS)
+├── userbot/               # Userbot Layer (mtcute)
 │   ├── engine/           # Client, manager, plugin system
 │   └── handlers/         # Plugin commands (admin, system, tools, util)
 ├── services/             # Business logic services

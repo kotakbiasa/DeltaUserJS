@@ -7,7 +7,7 @@ function nextMsgId() {
   return ++__msgIdCounter;
 }
 
-export class MockTelegramClient {
+export class MockMtcuteClient {
   constructor(telegramId) {
     this.telegramId = Number(telegramId);
     this.handlers = [];

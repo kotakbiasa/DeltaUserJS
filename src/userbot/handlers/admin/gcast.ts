@@ -102,7 +102,7 @@ export default {
             if (repliedMsg.media) {
               // Forward media with its caption (or the override text) so the
               // broadcast isn't an empty message. Passing the replied message
-              // as `file` lets GramJS resend the media payload correctly.
+              // as `file` lets mtcute resend the media payload correctly.
               await client.sendFile(group.id, {
                 file: repliedMsg.media,
                 caption: broadcastMsg || repliedMsg.message || '',

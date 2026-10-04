@@ -1,6 +1,6 @@
 # DeltaUserJS — AI Agent Guide
 
-**Stack:** TypeScript 6.0, Node.js ≥18, grammy 1.44, teleproto 1.227, GramJS, MongoDB 9.7, PM2  
+**Stack:** TypeScript 6.0, Node.js ≥18, grammy 1.46, mtcute 0.32, MongoDB 9.9, PM2  
 **Package Manager:** npm (package-lock.json locked)
 
 ## Commands
@@ -20,7 +20,7 @@ npm run test             # node test/runner.js
 
 ## Conventions
 
-- **Master bot** uses grammy; **userbots** use GramJS via `teleproto` bridge
+- **Master bot** uses grammy; **userbots** use mtcute (`@mtcute/node` + `@mtcute/dispatcher`)
 - **Conversation patterns:** Use `@grammyjs/conversations` for multi-step flows (login, subscription)
 - **Menu system:** Use `@grammyjs/menu` for inline keyboards — never raw `reply_markup`
 - **Rate limiting:** `@grammyjs/ratelimiter` middleware on all user-facing handlers
@@ -40,7 +40,9 @@ npm run test             # node test/runner.js
 | Package | Purpose |
 |---------|---------|
 | `grammy` | Master bot framework |
-| `teleproto` | GramJS ↔ grammy protocol bridge for userbots |
+| `@mtcute/node` | MTProto client for userbots |
+| `@mtcute/dispatcher` | Update dispatching for userbot handlers |
+| `@mtcute/convert` | Legacy GramJS session → mtcute conversion |
 | `@grammyjs/conversations` | Multi-step conversation flows |
 | `@grammyjs/menu` | Inline keyboard menu builder |
 | `@grammyjs/ratelimiter` | Per-user rate limiting |
@@ -71,7 +73,7 @@ The canonical current structure, runtime flow, and plugin-loading rules are in
 ```
 src/
 ├── bot/              # Master bot: conversations, handlers, UI, state
-├── userbot/          # GramJS/teleproto engine and dynamically loaded handlers
+├── userbot/          # mtcute engine and dynamically loaded handlers
 ├── server/           # Mini App API, route groups, and static files
 ├── services/         # Cross-layer business logic
 ├── infrastructure/  # MongoDB/file persistence, models, and cache
@@ -80,7 +82,7 @@ src/
 ```
 
 - **Master bot** runs in polling mode and manages user sessions.
-- **Userbot manager** spawns isolated GramJS clients per user.
+- **Userbot manager** spawns isolated mtcute clients per user.
 - **Plugin loader** recursively loads every handler file; do not remove a plugin
   based only on the absence of static imports.
 - **Expiration/approval services** run in the background and control active bots.
@@ -88,7 +90,7 @@ src/
 ## Error Handling
 
 - Missing `BOT_TOKEN` → exit(1) immediately
-- GramJS client crashes → auto-reconnect with exponential backoff (max 3 retries)
+- mtcute client crashes → auto-reconnect with exponential backoff (max 3 retries)
 - MongoDB connection failures → retry every 5s, log to `LOG_GROUP_ID`
 - Userbot session invalid → mark inactive, notify user, offer re-auth flow
 - All unhandled errors caught at top-level with structured logging

@@ -75,7 +75,7 @@ export default {
     });
 
     try {
-      // GramJS: iterasi member grup
+      // mtcute: iterasi member grup
       const members: unknown[] = [];
       for await (const member of client.iterParticipants(message.chatId, { limit: 500 })) {
         const u = member as { id?: number | string; bot?: boolean; deleted?: boolean };

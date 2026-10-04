@@ -6,9 +6,9 @@ This document outlines the architecture, design, and execution of the E2E testin
 
 The test suite is designed as a requirement-driven, opaque-box testing framework. It simulates a live Telegram environment offline and ensures 100% test isolation.
 
-### 1. Mock GramJS Interface (`test/mockGramJS.js`)
+### 1. Mock mtcute Interface (`test/mockMtcute.js`)
 
-To test Telegram client plugins without network access, credentials, or live Telegram servers, we implement `MockTelegramClient`. It replaces `TelegramClient` and intercepts all outgoing calls, recording them for assertions:
+To test Telegram client plugins without network access, credentials, or live Telegram servers, we implement `MockMtcuteClient`. It replaces the real mtcute `TelegramClient` and intercepts all outgoing calls, recording them for assertions:
 *   **Outgoing Actions**: `sendMessage` (records in `sentMessages`), `edit` (records in `editedMessages`), `deleteMessages` (records in `deletedMessages`), and `markAsRead` (records in `markedAsRead`).
 *   **RPC Method Invocation**: `invoke` intercepts core Telegram API calls:
     *   `Api.messages.SetBotCallbackAnswer`
@@ -35,7 +35,7 @@ To ensure the test runner runs in complete isolation without polluting the disk 
 ### 3. Test Runner (`test/runner.js`)
 
 *   **Setup**: Loads `test/setupStubs.js` first, overriding MongoDB and fs methods before the application loads.
-*   **Injection**: Patches `UserbotClient.prototype.start` to inject `MockTelegramClient` and register handlers.
+*   **Injection**: Patches `UserbotClient.prototype.start` to inject `MockMtcuteClient` and register handlers.
 *   **Execution**: Iterates through the test registry, resets mock client state between tests, catches assert errors, prints formatted results, and outputs a summary.
 *   **Exit Status**: Returns exit code `0` on success, or `1` if any test fails.
 

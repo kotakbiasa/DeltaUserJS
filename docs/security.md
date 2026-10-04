@@ -153,7 +153,7 @@ tidak bisa didekripsi setelah restart.
 
 Diperparah: kegagalan decrypt di `dbCore.ts` ditangkap dengan `catch {}` kosong
 lalu **ciphertext mentah diteruskan sebagai session string**. Tidak ada error
-yang jelas — semua userbot logout diam-diam dan GramJS hanya gagal auth.
+yang jelas — semua userbot logout diam-diam dan mtcute hanya gagal auth.
 
 ---
 

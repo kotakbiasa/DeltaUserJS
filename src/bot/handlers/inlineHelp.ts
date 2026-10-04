@@ -3,7 +3,7 @@
  *
  * Callback query handlers untuk tombol help di master bot dashboard.
  * Tidak lagi bergantung pada inline mode — .help userbot sekarang
- * menggunakan inline keyboard langsung dari userbot (GramJS buttons).
+ * menggunakan inline keyboard langsung dari userbot (mtcute buttons).
  */
 import { helpRegistry as userbotHelpRegistry } from '../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../utils/richMessage.js';

@@ -4,10 +4,10 @@ import './setupStubs.js';
 import userbotManager from '../dist/userbot/engine/manager.js';
 import { UserbotClient } from '../dist/userbot/engine/client.js';
 import { loadAllPlugins } from '../dist/userbot/engine/pluginLoader.js';
-import { MockTelegramClient } from './mockGramJS.js';
+import { MockMtcuteClient } from './mockMtcute.js';
 import { tests } from './e2e.test.js';
 
-// 2. Override UserbotClient start method to bypass GramJS connection and inject mock client
+// 2. Override UserbotClient start method to bypass mtcute connection and inject mock client
 let pluginsLoaded = false;
 UserbotClient.prototype.start = async function() {
   if (!pluginsLoaded) {
@@ -19,7 +19,7 @@ UserbotClient.prototype.start = async function() {
     pluginsLoaded = true;
   }
   
-  this.client = new MockTelegramClient(this.telegramId);
+  this.client = new MockMtcuteClient(this.telegramId);
   this.isActive = true;
   this.registerHandlers();
   console.log(`🤖 Mocked DeltaUbotJS [${this.telegramId}] started successfully.`);

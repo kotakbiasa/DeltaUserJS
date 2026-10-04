@@ -34,7 +34,7 @@ function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-// Baris sesi untuk list/monitor: hash long dari GramJS dibaca via String().
+// Baris sesi untuk list/monitor: hash long dari mtcute dibaca via String().
 interface SessionRow {
   hash: string;
   current?: boolean;

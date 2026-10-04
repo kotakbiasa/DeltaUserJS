@@ -109,6 +109,6 @@ Simpan tautan ini, jangan sampai hilang saat Anda kebingungan mencari *library* 
 
 1. **Telegram Bot API Resmi**: [https://core.telegram.org/bots/api](https://core.telegram.org/bots/api)
 2. **Panduan grammY (Bahasa Indonesia)**: [https://grammy.dev/id/](https://grammy.dev/id/)
-3. **GramJS (Core Userbot)**: [https://painor.gitbook.io/gramjs/](https://painor.gitbook.io/gramjs/)
+3. **mtcute (Core Userbot)**: [https://mtcute.dev](https://mtcute.dev)
 4. **RegEx101 (Untuk mengetes Regex)**: [https://regex101.com](https://regex101.com)
 5. **JSON Formatter (Biar JSON enak dibaca)**: [https://jsonformatter.org](https://jsonformatter.org)

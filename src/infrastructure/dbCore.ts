@@ -130,7 +130,7 @@ export function normalizeBot(raw: any = {}, id?: any) {
     } catch (err) {
       // Jangan ditelan diam-diam. Kegagalan di sini hampir selalu berarti
       // ENCRYPTION_KEY berubah/hilang, dan nilai mentah yang diteruskan akan
-      // membuat GramJS gagal auth tanpa petunjuk apa pun.
+      // membuat mtcute gagal auth tanpa petunjuk apa pun.
       Logger.logSystem(
         `🔑 Gagal mendekripsi session untuk ${idNum} — kemungkinan ENCRYPTION_KEY berubah atau tidak diset. ` +
         `Userbot ini tidak akan bisa login sampai key yang benar dipulihkan. (${err instanceof Error ? err.message : String(err)})`,

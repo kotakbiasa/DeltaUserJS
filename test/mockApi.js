@@ -1,5 +1,5 @@
 /**
- * Mock Telegram API TL Classes for E2E Testing without teleproto dependency
+ * Mock Telegram API TL Classes for E2E Testing without mtcute dependency
  */
 
 export class EditBanned {

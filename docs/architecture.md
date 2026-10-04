@@ -16,7 +16,7 @@ src/
 │   ├── ui/keyboards/            # Panel dashboard dan keyboard inline
 │   │   └── dashboard/           # Handler, panel, keyboard, dan shared helpers
 │   └── index.ts                 # Inisialisasi bot utama
-├── userbot/                    # Engine userbot GramJS/teleproto
+├── userbot/                    # Engine userbot mtcute
 │   ├── engine/                 # Client, lifecycle manager, registry, loader
 │   └── handlers/               # Plugin yang dimuat secara dinamis
 │       ├── admin/
