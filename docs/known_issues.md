@@ -224,3 +224,25 @@ ulang**, dan tidak pernah cocok dengan entri `plugins_marketplace/` di
 
 Kini tiga tingkat ke atas (root repo), bisa ditimpa lewat
 `PLUGINS_MARKETPLACE_DIR`, dan dijaga satu unit test.
+
+---
+
+## 8. Sisa `teleproto` di `package-lock.json` ✅ SUDAH DIPERBAIKI
+
+`teleproto` sudah lama dicopot dari `package.json`, tetapi lockfile masih
+mencantumkannya di blok root **dan** sebagai paket utuh
+(`node_modules/teleproto@1.229.0`). Akibatnya `npm install` terlihat bersih,
+sementara **`npm ci` tetap menarik kembali** paket GramJS-family itu ke CI dan
+image produksi.
+
+Diperbaiki dengan suntingan bedah: hanya dua entri tersebut yang dihapus
+(21 baris), sehingga resolusi paket lain — termasuk `tgcalls-js` yang memakai
+`git+ssh` dan pin commit `ac64497` — tidak bergeser sama sekali. `big-integer`
+sengaja **dipertahankan** karena `tgcalls-js` masih membutuhkannya (`>=1.6`).
+
+**Sisa yang sengaja dibiarkan.** Lima dependensi transitif yang dulu hanya
+ditarik teleproto kini yatim di lockfile: `node-localstorage`, `store2`,
+`write-file-atomic`, `graceful-fs`, `slide`. Semuanya tidak diimpor kode mana
+pun, hanya menambah ukuran `npm ci`. Membersihkannya butuh satu `npm install`
+penuh, yang akan me-resolve ulang `tgcalls-js` — ditunda sampai pekerjaan
+tgcalls (§1/§2) selesai.
