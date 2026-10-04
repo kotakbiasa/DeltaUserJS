@@ -4,8 +4,12 @@ import { Logger } from '../../../utils/logger.js';
 import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
 import type { CompatClient, LegacyPeer } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
+import { parseIntArg, validationErrorText } from '../../engine/validate.js';
 
 // Map untuk menyimpan status loop per akun telegram
+/** 7 hari. Di bawah batas aman setInterval (~24,8 hari) dengan marjin besar. */
+const MAX_LOOP_MINUTES = 7 * 24 * 60;
+
 // Struktur: telegramId -> Map<chatId, { intervalId, message, minutes, startedAt }>
 export const loopStore = new Map();
 
@@ -146,14 +150,18 @@ export default {
         return;
       }
 
-      const minutes = parseInt(args[1]);
-      if (isNaN(minutes) || minutes < 1) {
-        await message.edit({ 
-          text: `<blockquote>❌ <b>Menit Tidak Valid:</b> Harap masukkan angka menit minimal 1.</blockquote>`, 
-          parseMode: 'html' 
+      // Batas atas WAJIB: setInterval memakai penghitung 32-bit bertanda, dan
+      // delay di atas ~24,8 hari diam-diam dijadikan 1 ms oleh Node — artinya
+      // `.loop 99999999 hai` dulu berubah menjadi spam tiap milidetik.
+      const minutesArg = parseIntArg(args[1], { min: 1, max: MAX_LOOP_MINUTES, label: 'Menit' });
+      if (!minutesArg.ok) {
+        await message.edit({
+          text: validationErrorText(minutesArg.error, '.loop <menit> <pesan>'),
+          parseMode: 'html'
         });
         return;
       }
+      const minutes = minutesArg.value as number;
 
       const loopMessage = text.substring(cmd.length + args[1].length + 2).trim();
       

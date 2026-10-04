@@ -726,9 +726,16 @@ registerTest('AF-T2-17', 'Anti-Flood', 'Anti-Flood - Invalid threshold configura
     out: true
   });
   
+  // Dulu pesan errornya berbunyi "Kembali ke default / Batal" padahal tidak ada
+  // fallback apa pun. Yang benar-benar penting: nilainya DITOLAK dan tidak
+  // tersimpan, jadi itu yang diuji sekarang.
   const lastEdit = ubot.client.editedMessages.find(m => m.messageId === msg.id);
-  if (!lastEdit || (!lastEdit.text.includes('default') && !lastEdit.text.includes('Batal'))) {
-    throw new Error('Negative flood limit must fallback to default or throw rejection');
+  if (!lastEdit || !lastEdit.text.includes('Tidak Valid')) {
+    throw new Error('Negative flood limit must be rejected with a validation error');
+  }
+  const stored = getChatSettings(ubot.telegramId, chatId).flood_limit;
+  if (stored !== undefined && Number(stored) <= 0) {
+    throw new Error('Negative flood limit must never be persisted');
   }
 });
 

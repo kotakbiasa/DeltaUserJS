@@ -3,6 +3,7 @@ import { Logger } from '../../../utils/logger.js';
 import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
 import type { CompatClient } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
+import { parseDurationMsArg } from '../../engine/validate.js';
 
 // ============================================================
 // Schedule Message — jadwalkan kirim ulang PESAN ASLI.
@@ -19,12 +20,6 @@ import { toPeer } from '../../engine/compatClient.js';
 // ============================================================
 
 const MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
-const UNIT_MS: Record<string, number> = {
-  s: 1000,
-  m: 60 * 1000,
-  h: 60 * 60 * 1000,
-  d: 24 * 60 * 60 * 1000
-};
 
 interface ScheduleEntry {
   chatId: number;       // chat tempat jadwal dibuat & pesan dikirim ulang
@@ -45,16 +40,10 @@ const scheduleStore = new Map<number, ScheduleEntry[]>();
  * Satuan: s (detik), m (menit), h (jam), d (hari).
  * Mengembalikan total milidetik, atau null bila format tidak valid.
  */
+/** Durasi dibatasi MAX_DURATION_MS agar tidak melampaui batas aman setTimeout. */
 function parseDurationMs(raw: string): number | null {
-  const clean = String(raw || '').toLowerCase().replace(/\s+/g, '');
-  if (!clean) {return null;}
-  if (!/^(\d+[smhd])+$/.test(clean)) {return null;}
-  const re = /(\d+)([smhd])/g;
-  let totalMs = 0;
-  for (const m of clean.matchAll(re)) {
-    totalMs += parseInt(m[1], 10) * UNIT_MS[m[2]];
-  }
-  return totalMs > 0 ? totalMs : null;
+  const parsed = parseDurationMsArg(raw, { maxMs: MAX_DURATION_MS });
+  return parsed.ok ? (parsed.value as number) : null;
 }
 
 /** Format waktu target: locale id-ID, timezone Asia/Jakarta (WIB). */

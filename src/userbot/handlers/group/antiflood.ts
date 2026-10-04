@@ -5,6 +5,7 @@ import { Logger } from '../../../utils/logger.js';
 import type { UserbotMessageLike, UserbotSettings, EntityLike } from '../../types.js';
 import type { CompatClient } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
+import { parseIntArg, validationErrorText } from '../../engine/validate.js';
 
 // In-memory tracker for message timestamps
 // Key: telegramId_chatId_senderId -> Array of timestamps (numbers)
@@ -54,36 +55,38 @@ export default {
       }
 
       else if (cmd === '.setfloodlimit') {
-        if (args.length < 2) {return;}
-        const limit = parseInt(args[1]);
-        if (isNaN(limit) || limit <= 0) {
-          await message.edit({ text: `❌ <b>Gagal:</b> Batas limit tidak valid! Kembali ke default / Batal.`, parseMode: 'html' });
+        // Dulu memakai parseInt() tanpa batas atas, jadi "5abc" lolos sebagai 5
+        // dan .setfloodlimit 999999 mematikan anti-flood tanpa pemberitahuan.
+        const limitArg = parseIntArg(args[1], { min: 2, max: 100, label: 'Batas limit flood' });
+        if (!limitArg.ok) {
+          await message.edit({ text: validationErrorText(limitArg.error, '.setfloodlimit <2-100>'), parseMode: 'html' });
           return;
         }
+        const limit = limitArg.value as number;
         await updateChatSettings(telegramId, chatId, 'flood_limit', limit);
         await message.edit({ text: `✅ <b>Berhasil:</b> Batas limit flood diubah menjadi: <b>${escapeHtml(String(limit))} pesan</b>`, parseMode: 'html' });
         return;
       }
 
       else if (cmd === '.setfloodwarn') {
-        if (args.length < 2) {return;}
-        const warns = parseInt(args[1]);
-        if (isNaN(warns) || warns <= 0) {
-          await message.edit({ text: `❌ <b>Gagal:</b> Batas warning tidak valid!`, parseMode: 'html' });
+        const warnsArg = parseIntArg(args[1], { min: 1, max: 20, label: 'Batas warning flood' });
+        if (!warnsArg.ok) {
+          await message.edit({ text: validationErrorText(warnsArg.error, '.setfloodwarn <1-20>'), parseMode: 'html' });
           return;
         }
+        const warns = warnsArg.value as number;
         await updateChatSettings(telegramId, chatId, 'flood_warn_limit', warns);
         await message.edit({ text: `✅ <b>Berhasil:</b> Batas warning flood diubah menjadi: <b>${escapeHtml(String(warns))} kali</b>`, parseMode: 'html' });
         return;
       }
 
       else if (cmd === '.setfloodtime') {
-        if (args.length < 2) {return;}
-        const seconds = parseInt(args[1]);
-        if (isNaN(seconds) || seconds <= 0) {
-          await message.edit({ text: `❌ <b>Gagal:</b> Rentang waktu tidak valid!`, parseMode: 'html' });
+        const secondsArg = parseIntArg(args[1], { min: 1, max: 3600, label: 'Rentang waktu flood' });
+        if (!secondsArg.ok) {
+          await message.edit({ text: validationErrorText(secondsArg.error, '.setfloodtime <1-3600>'), parseMode: 'html' });
           return;
         }
+        const seconds = secondsArg.value as number;
         await updateChatSettings(telegramId, chatId, 'flood_time_window', seconds);
         await message.edit({ text: `✅ <b>Berhasil:</b> Rentang waktu flood diubah menjadi: <b>${escapeHtml(String(seconds))} detik</b>`, parseMode: 'html' });
         return;

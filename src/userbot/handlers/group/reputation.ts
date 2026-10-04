@@ -5,6 +5,7 @@ import { Logger } from '../../../utils/logger.js';
 import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
 import type { CompatClient } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
+import { parseIntArg, parseTelegramIdArg, validationErrorText } from '../../engine/validate.js';
 
 // Key: telegramId_chatId_voterId_targetId -> last voted timestamp
 const cooldownMap = new Map();
@@ -42,9 +43,14 @@ export default {
       const cmd = args[0].toLowerCase();
 
       if (cmd === '.setrepfloor') {
-        if (args.length < 2) {return;}
-        const floor = parseInt(args[1]);
-        if (isNaN(floor)) {return;}
+        // Sebelumnya argumen tidak valid hanya `return` tanpa kabar apa pun ke
+        // pengguna, sehingga perintahnya tampak "tidak melakukan apa-apa".
+        const floorArg = parseIntArg(args[1], { min: -100000, max: 100000, label: 'Batas bawah reputasi' });
+        if (!floorArg.ok) {
+          await message.edit({ text: validationErrorText(floorArg.error, '.setrepfloor <angka>'), parseMode: 'html' });
+          return;
+        }
+        const floor = floorArg.value as number;
         await updateChatSettings(telegramId, chatId, 'rep_floor', floor);
         await message.edit({ text: `✅ <b>Berhasil:</b> Batas bawah reputasi diubah menjadi: <b>${escapeHtml(String(floor))}</b>`, parseMode: 'html' });
         return;
@@ -68,7 +74,14 @@ export default {
 
         let targetId = null;
         if (args.length >= 2) {
-          targetId = Number(args[1]);
+          // Number('abc') menghasilkan NaN dan Number('') menghasilkan 0;
+          // keduanya dulu lolos sampai ke query database.
+          const targetArg = parseTelegramIdArg(args[1], { label: 'User ID' });
+          if (!targetArg.ok) {
+            await message.edit({ text: validationErrorText(targetArg.error, '.rep <user_id>'), parseMode: 'html' });
+            return;
+          }
+          targetId = targetArg.value as number;
         } else {
           const replied = await message.getReplyMessage();
           if (replied) {
