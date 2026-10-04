@@ -76,16 +76,25 @@ Solusi permanen (bila diinginkan nanti): re-resolve lockfile memakai
 
 ---
 
-## 3. Hutang lint di `src/` 🟡
+## 3. Hutang lint di `src/` ✅ SELESAI
 
-**Progres:** 143 → **80 warning**. `src/userbot/engine/client.ts` (32 warning,
-penyumbang terbesar) sudah nol: `UserbotClient.client` kini bertipe
-`CompatClient` (`src/userbot/engine/compatClient.ts`) alih-alih `any`.
+`npm run lint` kini **0 error, 0 warning** (sebelumnya 143 warning
+`@typescript-eslint/no-explicit-any`). Tidak ada lagi `any` eksplisit di
+`src/`.
 
-`npm run lint` sebelumnya melaporkan **143 warning** `@typescript-eslint/no-explicit-any`.
-Error sudah nol (dulu 42, dibereskan terpisah). Warning `any` ini belum
-disentuh — dan `any`-lah yang menyembunyikan ketidakcocokan VC di §1 dari
-compiler, jadi mengetatkannya punya nilai lebih dari sekadar kerapian.
+Yang membuat ini lebih dari sekadar kerapian: `any` pada `UserbotClient.client`
+dan pada adapter pesan membuat seluruh pemanggilan ke API Telegram lolos tanpa
+diperiksa compiler. Setelah diketik, belasan pemanggilan ke method/field
+GramJS yang tidak ada di mtcute langsung ketahuan — semuanya gagal diam-diam
+di produksi. Daftarnya ada di §5.
+
+Infrastruktur tipe yang dipakai:
+
+| Berkas | Isi |
+|---|---|
+| `src/userbot/engine/compatClient.ts` | `CompatClient` (TelegramClient + alias legacy), `LegacyPeer`/`LegacyEntity`/`LegacySendMessageParams`/`LegacySendFileOptions`, helper `toPeer()` |
+| `src/userbot/types.ts` | `UserbotMessageLike`, `UserbotEntityLike`, `UserbotSettings` |
+| `src/utils/errors.ts` | `errorMessage()`, `rpcErrorText()`, `errorName()`, `isRpcError()` untuk nilai `catch` bertipe `unknown` |
 
 ## 4. Tidak ada lapisan validasi input perintah 🟡
 
@@ -125,6 +134,11 @@ diam-diam, bukan crash.
 | `fresh.message` di `.profiles` | `Message` mtcute memakai `.text` | guard anti-dobel selalu benar → handler **selalu** berhenti di baris pertama |
 | `fullChat.description` | `FullChat` mtcute memakai `.bio` | deskripsi grup/channel selalu kosong |
 | `client.downloadMedia()` di `.zip` | tidak ada di mtcute | cabang mati, dihapus; `downloadAsBuffer()` tetap jalur utama |
+| `message.downloadMedia()` mengoper objek `Message` ke `downloadAsBuffer()` | parameternya lokasi file (media), bukan pesan | unduhan media lewat adapter **tidak pernah berhasil**; kini memakai `rawMsg.media` |
+| `isPrivate`/`isGroup`/`isChannel` dibandingkan dengan `'private'`/`'group'`/`'channel'` | `Peer.type` hanya `'user'` \| `'chat'`; jenis grup ada di `chatType` | ketiga flag **selalu false** |
+| `rawMsg.replyToMessageId` | mtcute: `replyToMessage` (`RepliedMessageInfo`) | `replyToMsgId`/`replyTo` selalu `undefined`; `getReplyMessage()` bahkan mengadaptasi objek metadata seolah-olah `Message` |
+| `getEntity()` tidak pernah mengisi `className` | pembaca legacy (`.info`) memakainya untuk membedakan user vs grup | shim kini mengisinya dari `Peer.type` |
+| `getChat().className` dari `c.type === 'channel'/'supergroup'` | nilai itu tidak pernah muncul di `Peer.type` | dibaca dari `chatType` |
 
 **Belum diperbaiki (sengaja — mengubahnya mengubah tampilan UI):**
 

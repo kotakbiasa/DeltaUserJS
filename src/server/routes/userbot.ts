@@ -103,7 +103,7 @@ export async function handleUserbotRoutes(ctx: RouteContext): Promise<boolean> {
           const start = Date.now();
           if (typeof client.client.call === 'function') {
             const res = await client.client.call({ _: 'help.getNearestDc' });
-            dcId = String((res as any)?.nearestDc || (res as any)?.thisDc || '4');
+            dcId = String(res?.nearestDc || res?.thisDc || '4');
           } else if (typeof client.client.invoke === 'function') {
             await client.client.invoke({ _: 'help.getNearestDc' });
           }

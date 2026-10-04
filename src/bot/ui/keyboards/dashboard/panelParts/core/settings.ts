@@ -100,7 +100,7 @@ export async function panelUserbotDiag(ctx) {
       const start = Date.now();
       if (typeof ubot.client.call === 'function') {
         const res = await ubot.client.call({ _: 'help.getNearestDc' });
-        dcId = String((res as any)?.nearestDc || (res as any)?.thisDc || '4');
+        dcId = String(res?.nearestDc || res?.thisDc || '4');
       } else if (typeof ubot.client.invoke === 'function') {
         await ubot.client.invoke({ _: 'help.getNearestDc' });
       }

@@ -15,11 +15,13 @@ import {
   waitForInput,
 } from './shared.js';
 import { errorMessage, errorName, isRpcError, rpcErrorText } from '../../../utils/errors.js';
+import type { Conversation } from '@grammyjs/conversations';
+import type { Context } from 'grammy';
 
 /**
  * Conversation handler for OTP Registration via mtcute
  */
-export async function otpRegistrationConversation(conversation: any, ctx: any) {
+export async function otpRegistrationConversation(conversation: Conversation<Context, Context>, ctx: Context) {
   const telegramId = ctx.from.id;
 
   if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {

@@ -3,6 +3,8 @@ import { replyRich } from '../../../utils/richMessage.js';
 import { TelegramClient } from '@mtcute/node';
 import { MemoryStorage } from '@mtcute/core';
 import config from '../../../config.js';
+import type { Conversation } from '@grammyjs/conversations';
+import type { Context } from 'grammy';
 
 export const cancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel_reg');
 
@@ -108,7 +110,7 @@ export async function cleanupClient(telegramId: number) {
 /**
  * Helper to wait for either text input or cancellation button
  */
-export async function waitForInput(conversation: any, ctx: any): Promise<string> {
+export async function waitForInput(conversation: Conversation<Context, Context>, ctx: Context): Promise<string> {
   const result = await conversation.waitFor(['message:text', 'callback_query:data']);
 
   const cbData = result.callbackQuery?.data;

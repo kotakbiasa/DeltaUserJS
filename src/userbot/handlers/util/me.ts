@@ -129,7 +129,7 @@ export default {
           } catch (_e) { entity = undefined; }
           if (!entity) {
             try {
-              entity = await client.getEntity(replied.senderId as any) as unknown as UserbotEntityLike;
+              entity = await client.getEntity(toPeer(replied.senderId)) as unknown as UserbotEntityLike;
             } catch (_e) {
               entity = undefined;
             }

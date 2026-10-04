@@ -1,6 +1,7 @@
 import type { UserbotMessageLike } from '../../types.js';
 import type { CompatClient } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
+import type { LegacySendMessageParams } from '../../engine/compatClient.js';
 
 const BOT_PRIMARY = '@SangMata_BOT';
 const BOT_BETA = '@SangMata_beta_bot';
@@ -119,7 +120,7 @@ export default {
 
       // Kirim hasil balasan SangMata ke chat saat ini
       for (const msg of foundMessages) {
-        const sendOpts: any = { message: msg.message || '' };
+        const sendOpts: LegacySendMessageParams = { message: msg.message || '' };
         if (msg.entities && msg.entities.length > 0) {
           sendOpts.entities = msg.entities;
         }

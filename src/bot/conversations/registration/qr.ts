@@ -14,11 +14,22 @@ import {
   getOrCreateClient,
 } from './shared.js';
 import { errorMessage, errorName } from '../../../utils/errors.js';
+import type { Conversation } from '@grammyjs/conversations';
+import type { Context } from 'grammy';
 
 /**
  * Conversation handler for QR Code Registration via mtcute
  */
-export async function qrRegistrationConversation(conversation: any, ctx: any) {
+/** Hasil tahap login QR yang dioper keluar dari conversation.external(). */
+type QrTaskResult = {
+  status: string;
+  sessionString?: string;
+  phone?: string | null;
+  customName?: string;
+  error?: string;
+};
+
+export async function qrRegistrationConversation(conversation: Conversation<Context, Context>, ctx: Context) {
   const telegramId = ctx.from.id;
   const chatId = ctx.chat.id;
 
@@ -59,10 +70,10 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
     );
 
     let twoFaDeferredPassword: ((pwd: string) => void) | null = null;
-    let twoFaReject: ((err: any) => void) | null = null;
+    let twoFaReject: ((err: unknown) => void) | null = null;
 
     const qrResult = await conversation.external({
-      task: async (outsideCtx: any) => {
+      task: async (outsideCtx: Context) => {
         const client = getOrCreateClient(telegramId);
         activeRegClients.set(telegramId, client);
 
@@ -117,7 +128,7 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
           setTimeout(() => reject(new Error('TIMEOUT')), 120000)
         );
 
-        let result: { status: string; sessionString?: string; phone?: string | null; customName?: string };
+        let result: QrTaskResult;
 
         try {
           // If 2FA triggers, start() hangs until password() resolves
@@ -174,8 +185,8 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
 
         return result;
       },
-      beforeStore: (data: any) => data,
-      afterLoad: (data: any) => data,
+      beforeStore: (data: QrTaskResult) => data,
+      afterLoad: (data: QrTaskResult) => data,
     });
 
     // --- Handle 2FA jika diperlukan ---
