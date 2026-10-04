@@ -4,6 +4,7 @@ import { Logger } from '../../../utils/logger.js';
 import { sleep } from '../../../utils/async.js';
 import type { CompatClient } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
+import type { Message } from '@mtcute/core';
 
 /**
  * Purge — hapus pesan massal & kirim ulang konten.
@@ -92,8 +93,8 @@ export default {
         const msgs = await client.getMessages(toPeer(message.peerId), { ids });
 
         const validIds = (msgs || [])
-          .filter((m: any) => m && m.id >= startId && m.id <= endId)
-          .map((m: any) => m.id);
+          .filter((m): m is Message => Boolean(m) && m!.id >= startId && m!.id <= endId)
+          .map((m) => m.id);
 
         let deleted = 0;
         for (const batch of chunks(validIds, CHUNK_SIZE)) {
@@ -146,7 +147,10 @@ export default {
       try {
         // Ambil riwayat chat lalu saring milik sendiri; include pesan perintah ini
         const history = await client.getMessages(toPeer(message.peerId), { limit: Math.max(n * 3, 30) });
-        const mine = (history || []).filter((m: any) => m && (m.out || m.isOutgoing)).slice(0, n).map((m: any) => m.id);
+        const mine = (history || [])
+          .filter((m): m is Message => Boolean(m?.isOutgoing))
+          .slice(0, n)
+          .map((m) => m.id);
 
         let deleted = 0;
         for (const batch of chunks(mine, CHUNK_SIZE)) {

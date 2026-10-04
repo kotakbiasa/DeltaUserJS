@@ -4,6 +4,9 @@ import { updateUserbotFeature } from '../../../infrastructure/database.js';
 import type { CompatClient } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
 import type { EntityLike } from '../../types.js';
+import type { LegacyEntity } from '../../engine/compatClient.js';
+import type { UserbotEntityLike } from '../../types.js';
+import type { tl } from '@mtcute/core';
 
 // ============================================================
 // Warning grup — .warn / .warns / .resetwarn
@@ -28,7 +31,7 @@ interface WarnEntry {
 interface Target {
   id: number;
   name: string;
-  entity?: any;
+  entity?: LegacyEntity | UserbotEntityLike | string;
 }
 
 interface ResolvedTarget {
@@ -200,31 +203,36 @@ async function resolveTarget(client, message, args): Promise<ResolvedTarget> {
 }
 
 // Kick = kickChatMember atau ban sekejap lalu unban
-async function kickUser(client: CompatClient, chat: any, _isChannel: boolean, target: Target) {
-  const chatId = chat.id || chat;
+async function kickUser(client: CompatClient, chat: LegacyEntity | EntityLike, _isChannel: boolean, target: Target) {
+  const chatId = (chat as { id?: unknown }).id ?? chat;
   const participant = target.entity ?? target.id;
   if (typeof client.kickChatMember === 'function') {
     // mtcute memakai satu objek params, bukan argumen posisional.
-    return await client.kickChatMember({ chatId: toPeer(chatId), userId: toPeer(participant as EntityLike) });
+    return await client.kickChatMember({ chatId: toPeer(chatId as EntityLike), userId: toPeer(participant as EntityLike) });
   }
   if (typeof client.call === 'function') {
+    // Pemanggilan TL mentah: resolvePeer() mengembalikan InputPeer, sedangkan
+    // skema channels.editBanned minta InputChannel. Bentuknya dipakai apa
+    // adanya seperti sebelumnya, cuma sekarang cast-nya tertulis eksplisit.
+    const channel = (await client.resolvePeer?.(toPeer(chatId as EntityLike)) || chatId) as tl.TypeInputChannel;
+    const bannedPeer = (await client.resolvePeer?.(toPeer(participant as EntityLike)) || participant) as tl.TypeInputPeer;
     await client.call({
       _: 'channels.editBanned',
-      channel: await client.resolvePeer?.(chatId) || chatId,
-      participant: await client.resolvePeer?.(participant) || participant,
+      channel,
+      participant: bannedPeer,
       bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
     }).catch(() => {});
     return await client.call({
       _: 'channels.editBanned',
-      channel: await client.resolvePeer?.(chatId) || chatId,
-      participant: await client.resolvePeer?.(participant) || participant,
+      channel,
+      participant: bannedPeer,
       bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
     });
   }
   if (typeof client.invoke === 'function') {
     return await client.invoke({
       _: 'messages.deleteChatUser',
-      chatId: chat.id || chatId,
+      chatId: chatId,
       userId: participant,
     });
   }

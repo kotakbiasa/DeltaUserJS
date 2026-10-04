@@ -4,6 +4,8 @@ import { Logger } from '../../../utils/logger.js';
 import type { CompatClient } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
 import type { EntityLike } from '../../types.js';
+import type { UserbotEntityLike } from '../../types.js';
+import type { LegacyEntity } from '../../engine/compatClient.js';
 
 /**
  * Profiles — info pengguna & info grup/channel.
@@ -29,6 +31,26 @@ function statusTags(u: { premium?: boolean; bot?: boolean; verified?: boolean; s
   if (u.fake) {tags.push('🎭 Fake');}
   return tags.length > 0 ? tags.join(' · ') : 'Normal User';
 }
+
+/**
+ * Irisan field yang benar-benar dirender `.profiles`. Sumbernya bisa `FullUser`
+ * mtcute atau entity legacy dari `getEntity()`, jadi tipe ini sengaja hanya
+ * mendeskripsikan yang dipakai.
+ */
+type UserProfileView = {
+  id?: unknown;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  bio?: string;
+  /** Hanya ada pada entity legacy. */
+  about?: string;
+  premium?: boolean;
+  bot?: boolean;
+  verified?: boolean;
+  scam?: boolean;
+  fake?: boolean;
+};
 
 export default {
   name: 'profiles',
@@ -69,12 +91,12 @@ export default {
         });
 
         // getSender dulu, fallback getEntity/getChat
-        let target: any;
+        let target: UserbotEntityLike | LegacyEntity | undefined;
         try {
           target = await replied.getSender();
         } catch (_e) { target = undefined; }
         if (!target && replied.senderId) {
-          try { target = await client.getEntity(replied.senderId as any); } catch (_e) { target = undefined; }
+          try { target = await client.getEntity(toPeer(replied.senderId)); } catch (_e) { target = undefined; }
         }
         if (!target) {
           try { target = await message.getChat(); } catch (_e) { target = undefined; }
@@ -89,11 +111,11 @@ export default {
 
         let caption: string;
         if (target.className === 'User' || target.className === 'UserEmpty' || !target.className) {
-          let u: any;
+          let u: UserProfileView | undefined;
           try {
-            u = await client.getFullUser(target.id || target);
+            u = await client.getFullUser(toPeer((target.id || target) as EntityLike)) as UserProfileView;
           } catch (_e) {
-            u = target;
+            u = target as UserProfileView;
           }
           if (!u) {throw new Error('Data user kosong dari server.');}
           const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Tanpa Nama';
@@ -113,13 +135,13 @@ export default {
             `📛 <b>Nama:</b> ${escapeHtml(name)}\n` +
             `🆔 <b>ID:</b> <code>${target.id}</code>\n` +
             `🔗 <b>Username:</b> ${escapeHtml(uname)}\n` +
-            `📌 <b>Tipe:</b> ${escapeHtml(target.className)}</blockquote>`;
+            `📌 <b>Tipe:</b> ${escapeHtml(String(target.className ?? 'Chat'))}</blockquote>`;
         }
 
         // Foto profil besar
         let photo: Buffer | string | undefined = undefined;
         try {
-          photo = await client.downloadProfilePhoto(target.id || target);
+          photo = await client.downloadProfilePhoto(toPeer((target.id || target) as EntityLike));
         } catch (e) {
           Logger.logUser(telegramId, `Profiles: gagal download foto profil: ${e instanceof Error ? e.message : String(e)}`, 'WARN');
         }

@@ -2,7 +2,22 @@ import { saveGroupNote, deleteGroupNote, getAllGroupNotes, getGroupNote } from '
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { escapeHtmlPreservingTgEmoji, parseTgEmojiTemplate } from '../../../utils/customEmoji.js';
 
-function unparseEntities(text: string, entities?: any[]): string {
+/**
+ * Entity teks dari berbagai sumber: TL mentah (`_`), entity gaya GramJS
+ * (`className`), atau Bot API (`type`). Ketiganya diperiksa saat merender.
+ */
+type TextEntityLike = {
+  offset?: number;
+  length?: number;
+  _?: string;
+  className?: string;
+  type?: string;
+  url?: string;
+  documentId?: string | number | bigint;
+  customEmojiId?: string | number | bigint;
+};
+
+function unparseEntities(text: string, entities?: TextEntityLike[]): string {
   if (!entities || !entities.length) {return text;}
   const sorted = [...entities].sort((a, b) => {
     const offA = a.offset ?? 0;

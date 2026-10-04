@@ -1,5 +1,6 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { sleep } from '../../../utils/async.js';
+import type { LegacyPeer } from '../../engine/compatClient.js';
 
 export default {
   name: 'clearnotif',
@@ -20,7 +21,7 @@ export default {
     if (!validCommands.includes(cmd)) {return;}
 
     try {
-      const callApi = async (method: string, peer: any) => {
+      const callApi = async (method: string, peer: LegacyPeer) => {
         if (typeof client.call === 'function') {
           return await client.call({ _: method, peer: await client.resolvePeer?.(peer) || peer });
         }

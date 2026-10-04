@@ -1,5 +1,7 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { LegacyEntity } from '../../engine/compatClient.js';
+import type { UserbotEntityLike } from '../../types.js';
 
 // ============================================================
 // INVITE — invite user ke grup via username atau reply.
@@ -20,7 +22,7 @@ const FWD_LIMIT = 100;
 interface ResolvedUser {
   id: number;
   name: string;
-  entity?: any;
+  entity?: LegacyEntity | UserbotEntityLike | string;
 }
 
 function errText(err: unknown): string {
@@ -69,7 +71,7 @@ async function resolveTargets(client, message, args: string): Promise<{ targets:
   const replied = await message.getReplyMessage();
   if (replied && replied.senderId) {
     let name = `User ${replied.senderId}`;
-    let entity: any | undefined;
+    let entity: LegacyEntity | UserbotEntityLike | string | undefined;
     try {
       const sender = await replied.getSender();
       if (sender) {
@@ -92,7 +94,7 @@ async function resolveTargets(client, message, args: string): Promise<{ targets:
       targets.push({ id: 0, name: token });
       continue;
     }
-    let entity: any | undefined;
+    let entity: LegacyEntity | UserbotEntityLike | string | undefined;
     try {
       entity = await client.getEntity(/^\d+$/.test(lookup) ? Number(lookup) : lookup);
     } catch (_e) { entity = undefined; }

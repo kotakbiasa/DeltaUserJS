@@ -1,5 +1,7 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { LegacyEntity } from '../../engine/compatClient.js';
+import type { UserbotEntityLike } from '../../types.js';
 
 // Moderate: moderasi grup lengkap. Konsep diadaptasi dari getter admintools.py
 // (kastaid/getter) ke pola plugin DeltaUserJS — bukan salinan mentah.
@@ -40,7 +42,7 @@ interface Duration {
 interface Target {
   id: number;
   name: string;
-  entity?: any;
+  entity?: LegacyEntity | UserbotEntityLike | string;
 }
 
 interface ResolvedTarget {
@@ -407,7 +409,7 @@ async function handleLock(client, message, chat, cmd, args) {
 
   // EditChatDefaultBannedRights mengganti SELURUH objek hak, jadi hak default
   // yang lama diambil dulu lalu di-merge supaya lock media tidak membuka
-  let prev: any;
+  let prev: Record<string, boolean | undefined> | undefined;
   try {
     if (typeof client.call === 'function') {
       if (chat.className === 'Channel') {
@@ -422,7 +424,7 @@ async function handleLock(client, message, chat, cmd, args) {
     prev = undefined;
   }
 
-  const merged: Record<string, any> = {
+  const merged: Record<string, unknown> = {
     _: 'chatBannedRights',
     untilDate: 0
   };

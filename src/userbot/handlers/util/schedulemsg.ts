@@ -207,9 +207,10 @@ export default {
       }
 
       // Preview web bukan media sungguhan — kirim sebagai teks saja.
-      const isWebPage = (replied.media as any)?._ === 'messageMediaWebPage' ||
-        (replied.media as any)?.type === 'webpage' ||
-        (replied.media as any)?.className === 'MessageMediaWebPage';
+      const mediaTag = replied.media as { _?: string; type?: string; className?: string } | undefined;
+      const isWebPage = mediaTag?._ === 'messageMediaWebPage' ||
+        mediaTag?.type === 'webpage' ||
+        mediaTag?.className === 'MessageMediaWebPage';
       const media = isWebPage ? null : replied.media;
       const replyText = String(replied.message || '');
 
