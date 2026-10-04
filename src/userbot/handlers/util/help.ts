@@ -102,7 +102,7 @@ function _buildMenuRich(_page = 1) {
   const rows: string[][] = [['#', 'Modul', 'Deskripsi']];
   names.forEach((name, i) => {
     const mod = helpRegistry[name];
-    const desc = mod ? stripHtml(mod.description).slice(0, 45) : '';
+    const desc = mod ? stripHtml(mod.description ?? '').slice(0, 45) : '';
     rows.push([String(i + 1), `<code>${escapeHtml(name)}</code>`, escapeHtml(desc)]);
   });
 
@@ -133,7 +133,7 @@ function buildMenuText(_page = 1) {
       const mod = helpRegistry[name];
       const num = i + 1;
       const title = mod?.title || formatModuleName(name);
-      const desc = mod ? stripHtml(mod.description).slice(0, 60) : '';
+      const desc = mod ? stripHtml(mod.description ?? '').slice(0, 60) : '';
       return `<b>${num}.</b> <code>${escapeHtml(name)}</code> — ${escapeHtml(title)}${desc ? `\n    <i>${escapeHtml(desc)}…</i>` : ''}`;
     })
     .join('\n\n');
@@ -158,9 +158,9 @@ function _buildModuleDetailRich(moduleName: string) {
   const tableHtml =
     `<table bordered striped>` +
     `<tr><th>Item</th><th>Detail</th></tr>` +
-    `<tr><td>📝 Deskripsi</td><td>${markdownToHtml(mod.description)}</td></tr>` +
-    `<tr><td>🚀 Penggunaan</td><td><code>${escapeHtml(stripHtml(mod.usage))}</code></td></tr>` +
-    (mod.detail ? `<tr><td>💡 Detail</td><td>${markdownToHtml(mod.detail)}</td></tr>` : '') +
+    `<tr><td>📝 Deskripsi</td><td>${markdownToHtml(mod.description ?? '')}</td></tr>` +
+    `<tr><td>🚀 Penggunaan</td><td><code>${escapeHtml(stripHtml(mod.usage ?? ''))}</code></td></tr>` +
+    (mod.detail ? `<tr><td>💡 Detail</td><td>${markdownToHtml(mod.detail ?? '')}</td></tr>` : '') +
     `</table>`;
 
   return `<h2>📦 Modul: ${title}</h2>` + tableHtml;
@@ -177,10 +177,10 @@ function buildModuleDetail(moduleName: string) {
     `📦 <b>MODUL: ${escapeHtml(mod.title?.toUpperCase() || formatModuleName(moduleName).toUpperCase())}</b>\n` +
     `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n` +
     `📝 <b>Deskripsi:</b>\n` +
-    `<blockquote>${markdownToHtml(mod.description)}</blockquote>\n\n` +
+    `<blockquote>${markdownToHtml(mod.description ?? '')}</blockquote>\n\n` +
     `🚀 <b>Penggunaan:</b>\n` +
-    `<blockquote>${markdownToHtml(mod.usage)}</blockquote>` +
-    (mod.detail ? `\n\n💡 <b>Detail Tambahan:</b>\n<blockquote>${markdownToHtml(mod.detail)}</blockquote>` : '')
+    `<blockquote>${markdownToHtml(mod.usage ?? '')}</blockquote>` +
+    (mod.detail ? `\n\n💡 <b>Detail Tambahan:</b>\n<blockquote>${markdownToHtml(mod.detail ?? '')}</blockquote>` : '')
   );
 }
 
@@ -273,7 +273,7 @@ export default {
           await message.edit({ text: buildModuleDetail(moduleArg), parseMode: 'html' });
         } else {
           const available = Object.keys(helpRegistry).join(', ');
-          const safeName = escapeHtml(parts[1]);
+          const safeName = escapeHtml(parts[1] ?? moduleArg);
           const errText = `❌ <b>Modul "${safeName}" tidak ditemukan.</b>\n\n<blockquote>Modul tersedia: <code>${escapeHtml(available)}</code></blockquote>`;
           await message.edit({ text: errText, parseMode: 'html' });
         }
@@ -305,16 +305,20 @@ export default {
       const parts = data.split(':');
       const action = parts[1];
 
+      // Beberapa pemanggil (mis. mock) tidak menyediakan editMessage.
+      if (typeof callbackEvent.editMessage !== 'function') {return false;}
+      const editMessage = callbackEvent.editMessage;
+
       if (action === 'close') {
         // Tutup / hapus pesan
-        await callbackEvent.editMessage('Menu help ditutup.', { parseMode: 'html' });
+        await editMessage('Menu help ditutup.', { parseMode: 'html' });
         return true;
       }
 
       // Tampilkan detail modul
       const moduleName = action;
       const html = buildModuleHtml(moduleName, 'ubot');
-      await callbackEvent.editMessage(html, { parseMode: 'html' });
+      await editMessage(html, { parseMode: 'html' });
       console.log(`[HELP-CALLBACK] Edited message to show ${moduleName}`);
       return true;
     } catch (err) {

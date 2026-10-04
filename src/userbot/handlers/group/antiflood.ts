@@ -38,6 +38,9 @@ export default {
   },
   async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const chatId = message.chatId;
+    // Tanpa chat tidak ada yang bisa dimoderasi; dulu nilainya diam-diam
+    // menjadi string "undefined" dan dipakai sebagai kunci pengaturan.
+    if (chatId === undefined) {return;}
     const _chatKey = String(chatId);
 
     // --- 1. Handle Settings Commands ---

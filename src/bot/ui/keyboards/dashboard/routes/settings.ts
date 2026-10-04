@@ -19,7 +19,9 @@ import { errorMessage } from '../../../../../utils/errors.js';
 import type { BotContext } from '../../../../context.js';
 
 export async function handleSettingsRoutes(ctx: BotContext) {
-  const action = ctx.match[1];
+  const action = ctx.match?.[1];
+  // ctx.match kosong berarti pola callback tidak cocok — bukan rute ini.
+  if (action === undefined) {return NOT_HANDLED;}
 
   if (action === 'settings') {return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx));}
 

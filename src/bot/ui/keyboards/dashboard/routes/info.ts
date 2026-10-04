@@ -14,7 +14,9 @@ import { NOT_HANDLED } from './types.js';
 import type { BotContext } from '../../../../context.js';
 
 export async function handleInfoRoutes(ctx: BotContext) {
-  const action = ctx.match[1];
+  const action = ctx.match?.[1];
+  // ctx.match kosong berarti pola callback tidak cocok — bukan rute ini.
+  if (action === undefined) {return NOT_HANDLED;}
 
   if (action === 'stats') {return sendRich(ctx, panelStats(ctx), keyboardBack('main'), { edit: true });}
 

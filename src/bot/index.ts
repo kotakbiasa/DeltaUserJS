@@ -55,6 +55,15 @@ function sequentialize(keyFn: (ctx: Context) => string) {
   };
 }
 
+// Buang update yang tidak berasal dari seorang user (channel post, poll
+// update, dsb.). Bot ini tidak punya handler untuk update seperti itu, dan
+// penjagaan di sini yang membuat `BotContext['from']` non-opsional menjadi
+// janji yang benar — bukan sekadar asumsi tipe.
+bot.use(async (ctx, next) => {
+  if (!ctx.from) {return;}
+  await next();
+});
+
 bot.use(sequentialize((ctx) => {
   const chatId = ctx.chat?.id;
   const userId = ctx.from?.id;

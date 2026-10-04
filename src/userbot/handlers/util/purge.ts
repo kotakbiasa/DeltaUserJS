@@ -64,6 +64,14 @@ export default {
 
       const startId = replied.id;
       const endId = message.id; // termasuk pesan perintah sendiri
+      // Tanpa ID, rentang penghapusan tidak bisa dihitung sama sekali.
+      if (startId === undefined || endId === undefined) {
+        await message.edit({
+          text: '<blockquote>❌ <b>Tidak bisa membaca ID pesan untuk menentukan rentang purge.</b></blockquote>',
+          parseMode: 'html'
+        });
+        return;
+      }
       if (endId - startId < 0) {
         await message.edit({
           text: '<blockquote>❌ <b>Pesan yang dibalas lebih baru dari perintah ini.</b></blockquote>',

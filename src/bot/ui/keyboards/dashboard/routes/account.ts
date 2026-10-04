@@ -20,7 +20,9 @@ import { NOT_HANDLED } from './types.js';
 import type { BotContext } from '../../../../context.js';
 
 export async function handleAccountRoutes(ctx: BotContext) {
-  const action = ctx.match[1];
+  const action = ctx.match?.[1];
+  // ctx.match kosong berarti pola callback tidak cocok — bukan rute ini.
+  if (action === undefined) {return NOT_HANDLED;}
 
   if (action === 'subscription') {return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(ctx), { edit: true });}
 
