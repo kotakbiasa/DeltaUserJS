@@ -2,6 +2,9 @@ import { getChatSettings, updateChatSettings, getReputation, updateReputation } 
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // Key: telegramId_chatId_voterId_targetId -> last voted timestamp
 const cooldownMap = new Map();
@@ -28,7 +31,7 @@ export default {
     usage: '• Balas pesan target dengan: <code>+rep</code> atau <code>-rep</code>\n• `.reputation [userId]` (Lihat reputasi)\n• `.reps` (Lihat leaderboard)\n• `.setrepfloor <angka>` (Batas bawah reputasi)',
     detail: 'Mencegah pemungutan suara berulang (cooldown) dan pemungutan suara mandiri (self-vote).'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const chatId = message.chatId;
     const _chatKey = String(chatId);
 
@@ -177,18 +180,18 @@ export default {
 
       let targetName = `User_${targetId}`;
       try {
-        const targetEntity = await client.getEntity(targetId);
+        const targetEntity = await client.getEntity(toPeer(targetId));
         targetName = targetEntity.firstName || targetEntity.username || `User_${targetId}`;
       } catch (_e) { /* ignore: use default name */ }
 
       let voterName = `User_${senderId}`;
       try {
-        const voterEntity = await client.getEntity(senderId);
+        const voterEntity = await client.getEntity(toPeer(senderId));
         voterName = voterEntity.firstName || voterEntity.username || `User_${senderId}`;
       } catch (_e) { /* ignore: use default name */ }
 
       // Reply confirmation in chat
-      await client.sendMessage(message.peerId, {
+      await client.sendMessage(toPeer(message.peerId), {
         message: `📢 <b>Reputasi Terupdate!</b>\n` +
                  `<blockquote>` +
                  `User <b>${targetName}</b> telah di-${isUpvote ? 'upvote' : 'downvote'} oleh <b>${voterName}</b>.\n` +

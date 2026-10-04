@@ -15,6 +15,9 @@ export function createUserbotMessageAdapter(rawMsg: Message, client: CompatClien
     // Dipakai .afk untuk auto-reply saat ditag; sebelumnya tidak pernah
     // diteruskan sehingga pemeriksaan mention selalu false.
     mentioned: Boolean(rawMsg.isMention),
+    // Service message (user join/leave dsb). Sebelumnya tidak diteruskan,
+    // sehingga penyaring service message di antiflood tidak pernah kena.
+    action: (rawMsg.action ?? null) as UserbotMessageLike['action'],
     get message() {
       return messageText;
     },
@@ -26,6 +29,8 @@ export function createUserbotMessageAdapter(rawMsg: Message, client: CompatClien
     id: rawMsg.id,
     chatId: rawMsg.chat?.id,
     peerId: rawMsg.chat?.id,
+    // peerId hanya berupa ID angka, jadi tipe chat perlu diteruskan terpisah.
+    chatType: (rawMsg.chat as { chatType?: string } | undefined)?.chatType,
     senderId: rawMsg.sender?.id,
     // mtcute: info balasan ada di `replyToMessage` (RepliedMessageInfo), tidak
     // ada field `replyToMessageId`. Versi lama membaca nama yang tidak pernah

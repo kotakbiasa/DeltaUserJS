@@ -2,6 +2,9 @@ import { getChatSettings, updateChatSettings, addWarn, resetWarns } from '../../
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings, EntityLike } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // In-memory tracker for message timestamps
 // Key: telegramId_chatId_senderId -> Array of timestamps (numbers)
@@ -32,7 +35,7 @@ export default {
     usage: '• `.antiflood on/off` (Toggle fitur)\n• `.setfloodlimit <angka>` (Batas pesan)\n• `.setfloodwarn <angka>` (Batas peringatan)\n• `.setfloodtime <detik>` (Rentang waktu)\n• `.setfloodmode mute/kick` (Hukuman)',
     detail: 'Mencegah spam masal dengan sistem warning terintegrasi.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const chatId = message.chatId;
     const _chatKey = String(chatId);
 
@@ -108,9 +111,14 @@ export default {
     if (message.out || message.senderId === telegramId) {return;}
 
     // Ignore join/leave service messages
-    if (message.action?.className === 'MessageActionChatAddUser' ||
-        message.action?.className === 'MessageActionChatJoinedByLink' ||
-        message.action?.className === 'MessageActionChatDeleteUser') {
+    // mtcute memakai `type` (snake_case); className adalah penamaan GramJS
+    // yang tidak pernah cocok, jadi service message dulu ikut terhitung flood.
+    const actionType = message.action?.type ?? message.action?.className;
+    if (actionType && [
+      'users_added', 'user_joined_link', 'user_joined_approved', 'user_joined_community',
+      'user_left', 'user_removed',
+      'MessageActionChatAddUser', 'MessageActionChatJoinedByLink', 'MessageActionChatDeleteUser',
+    ].includes(actionType)) {
       return;
     }
 
@@ -118,7 +126,9 @@ export default {
     if (!senderId) {return;}
 
     // Admin & whitelisted immunity check
-    const isApproved = (settings?.approved_users || []).includes(senderId) || (chatSettings.admins || []).includes(senderId);
+    const approvedUsers = (settings?.approved_users ?? []) as Array<string | number>;
+    const chatAdmins = (chatSettings.admins ?? []) as Array<string | number>;
+    const isApproved = approvedUsers.includes(senderId as string | number) || chatAdmins.includes(senderId as string | number);
     if (isApproved) {return;}
 
     // Fetch config
@@ -150,76 +160,26 @@ export default {
         floodTracker.delete(key);
 
         const isKick = mode === 'kick';
+        // mtcute memakai parameter objek. Versi lama memanggil posisional gaya
+        // GramJS di dalam cabang `typeof === 'function'` yang selalu benar,
+        // sehingga kick/mute antiflood selalu melempar (dan tertelan .catch).
+        const floodChat = toPeer(chatId as EntityLike);
+        const floodUser = toPeer(senderId as EntityLike);
         if (isKick) {
-          if (typeof client.kickChatMember === 'function') {
-            await client.kickChatMember(chatId, senderId).catch(() => {});
-          } else if (typeof client.call === 'function') {
-            await client.call({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
-            }).catch(() => {});
-            await client.call({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
-            }).catch(() => {});
-          } else if (typeof client.invoke === 'function') {
-            await client.invoke({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
-            }).catch(() => {});
-            await client.invoke({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
-            }).catch(() => {});
-          }
+          await client.kickChatMember({ chatId: floodChat, userId: floodUser }).catch(() => {});
         } else {
-          // Mute
-          if (typeof client.restrictChatMember === 'function') {
-            await client.restrictChatMember(chatId, senderId, {
-              sendMessages: false,
-              sendMedia: false,
-              embedLinks: false,
-            }).catch(() => {});
-          } else if (typeof client.call === 'function') {
-            await client.call({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: {
-                _: 'chatBannedRights',
-                untilDate: 0,
-                sendMessages: true,
-                sendMedia: true,
-                embedLinks: true,
-              },
-            }).catch(() => {});
-          } else if (typeof client.invoke === 'function') {
-            await client.invoke({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: {
-                _: 'chatBannedRights',
-                untilDate: 0,
-                sendMessages: true,
-                sendMedia: true,
-                embedLinks: true,
-              },
-            }).catch(() => {});
-          }
+          // Semantik TL: `true` = DILARANG. Dulu dikirim `false`, yang justru
+          // membuka pembatasan alih-alih membisukan.
+          await client.restrictChatMember({
+            chatId: floodChat,
+            userId: floodUser,
+            restrictions: { sendMessages: true, sendMedia: true, embedLinks: true },
+          }).catch(() => {});
         }
 
         let name = `User_${senderId}`;
         try {
-          const userEntity = await client.getEntity(senderId);
+          const userEntity = await client.getEntity(toPeer(senderId));
           name = userEntity.firstName || userEntity.username || `User_${senderId}`;
         } catch (_e) { /* ignore: use default name */ }
 
@@ -231,11 +191,11 @@ export default {
 
         let name = `User_${senderId}`;
         try {
-          const userEntity = await client.getEntity(senderId);
+          const userEntity = await client.getEntity(toPeer(senderId));
           name = userEntity.firstName || userEntity.username || `User_${senderId}`;
         } catch (_e) { /* ignore: use default name */ }
 
-        await client.sendMessage(chatId, {
+        await client.sendMessage(toPeer(chatId), {
           message: `⚠️ <b>warning</b>: Mohon jangan spam, ${escapeHtml(name)}! [Peringatan: ${escapeHtml(String(warnInfo.count))}/${escapeHtml(String(maxWarns))}]`
         });
       }

@@ -3,7 +3,7 @@ import { Logger } from '../../../utils/logger.js';
 import { updateUserbotFeature } from '../../../infrastructure/database.js';
 import type { CompatClient } from '../../engine/compatClient.js';
 import { toPeer } from '../../engine/compatClient.js';
-import type { EntityLike } from '../../types.js';
+import type { EntityLike, UserbotMessageLike, UserbotSettings } from '../../types.js';
 import type { LegacyEntity } from '../../engine/compatClient.js';
 import type { UserbotEntityLike } from '../../types.js';
 import type { tl } from '@mtcute/core';
@@ -77,7 +77,7 @@ function getWarnStore(telegramId: number): WarnStore {
 // execute. Settings (doc userbot dari cache) berisi field ini
 // karena updateFeature mempersist-nya; kalau tidak berisi field itu
 // (undefined), store mulai kosong.
-function loadWarnsFromSettings(telegramId, settings) {
+function loadWarnsFromSettings(telegramId: number, settings: UserbotSettings) {
   const idNum = Number(telegramId);
   if (loadedIds.has(idNum)) {return;}
   loadedIds.add(idNum);
@@ -100,7 +100,7 @@ function loadWarnsFromSettings(telegramId, settings) {
 }
 
 // Snapshot store ke plain object JSON-safe untuk dipersist.
-function serializeWarnStore(telegramId) {
+function serializeWarnStore(telegramId: number) {
   const warnStore = getWarnStore(telegramId);
   const out: Record<string, Record<string, WarnEntry>> = {};
   for (const [chatKey, chatMap] of warnStore) {
@@ -114,7 +114,7 @@ function serializeWarnStore(telegramId) {
 }
 
 // Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
-async function persistWarns(telegramId) {
+async function persistWarns(telegramId: number) {
   try {
     await updateUserbotFeature(telegramId, 'warn_data', serializeWarnStore(telegramId));
   } catch (err) {
@@ -160,7 +160,7 @@ function listWarns(entry: WarnEntry): string {
 
 // Target user: reply ke pesan user, atau token pertama args =
 // @username / username / link t.me / ID numerik. Sisa args = alasan.
-async function resolveTarget(client, message, args): Promise<ResolvedTarget> {
+async function resolveTarget(client: CompatClient, message: UserbotMessageLike, args): Promise<ResolvedTarget> {
   let token = '';
   let reason = args;
   if (args !== '') {
@@ -240,7 +240,7 @@ async function kickUser(client: CompatClient, chat: LegacyEntity | EntityLike, _
 
 // ---- Command handlers ----
 
-async function handleWarn(client, message, chat, isChannel, warnStore, chatKey, telegramId, target, reason) {
+async function handleWarn(client: CompatClient, message: UserbotMessageLike, chat, isChannel, warnStore, chatKey: string, telegramId: number, target, reason: string) {
   const chatMap = getChatWarns(warnStore, chatKey);
   const userKey = String(target.id);
   const entry = getEntry(warnStore, chatKey, userKey);
@@ -284,7 +284,7 @@ async function handleWarn(client, message, chat, isChannel, warnStore, chatKey, 
   });
 }
 
-async function handleWarns(message, warnStore, chatKey, target) {
+async function handleWarns(message: UserbotMessageLike, warnStore, chatKey: string, target) {
   const chatMap = warnStore.get(chatKey);
   const entry = chatMap ? chatMap.get(String(target.id)) : undefined;
   if (!entry || entry.count === 0) {
@@ -300,7 +300,7 @@ async function handleWarns(message, warnStore, chatKey, target) {
   });
 }
 
-async function handleResetWarn(message, warnStore, chatKey, telegramId, target) {
+async function handleResetWarn(message: UserbotMessageLike, warnStore, chatKey: string, telegramId: number, target) {
   const chatMap = warnStore.get(chatKey);
   if (chatMap) {
     chatMap.delete(String(target.id));
@@ -330,7 +330,7 @@ export default {
       'Warn dipersist ke database per userbot (field warn_data) dan di-load ulang otomatis saat userbot start. ' +
       'Hanya owner userbot yang bisa memakai command ini.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     loadWarnsFromSettings(telegramId, settings);

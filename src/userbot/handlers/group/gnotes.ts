@@ -1,6 +1,9 @@
 import { saveGroupNote, deleteGroupNote, getAllGroupNotes, getGroupNote } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { escapeHtmlPreservingTgEmoji, parseTgEmojiTemplate } from '../../../utils/customEmoji.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 /**
  * Entity teks dari berbagai sumber: TL mentah (`_`), entity gaya GramJS
@@ -56,6 +59,13 @@ function unparseEntities(text: string, entities?: TextEntityLike[]): string {
 }
 
 // Recall #hashtag: setiap pesan masuk diawali '#namacatatan' → kirim isi note.
+/** Grup/supergroup, lewat chatType mtcute dengan fallback className legacy. */
+function isGroupChat(message: UserbotMessageLike): boolean {
+  if (message.chatType) {return message.chatType === 'group' || message.chatType === 'supergroup';}
+  const cls = (message.peerId as { className?: string } | undefined)?.className;
+  return cls === 'PeerChat' || cls === 'PeerChannel';
+}
+
 export default {
   name: 'gnotes',
   help: {
@@ -64,20 +74,20 @@ export default {
     usage: '`.gsave <nama>` — Simpan teks ke note grup\n`.gclear <nama>` — Hapus note grup\n`.gnotes` — Lihat daftar note grup',
     detail: 'Catatan yang disimpan di sini bisa dipanggil oleh siapa saja di grup menggunakan `#namacatatan` jika Master Bot ada di grup.'
   },
-  async execute(client, message, _settings, _telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, _telegramId: number) {
     const text = message.message;
     if (!text) {return;}
 
     // ===== HASHTAG RECALL: pesan masuk '#nama' → kirim isi note =====
     if (!message.out && /^#[a-z0-9_]+$/i.test(text.trim())) {
       const noteName = text.trim().slice(1).toLowerCase();
-      const peerIdR = message.peerId;
-      const isGroupR = peerIdR.className === 'PeerChat' || peerIdR.className === 'PeerChannel';
-      if (!isGroupR) {return;}
-      const chatIdR = peerIdR.chatId || peerIdR.channelId;
+      // peerId dari adapter mtcute hanyalah ID angka, sehingga pemeriksaan
+      // className gaya GramJS selalu gagal dan recall hashtag tidak pernah jalan.
+      if (!isGroupChat(message)) {return;}
+      const chatIdR = message.chatId ?? message.peerId;
       const note = getGroupNote(chatIdR, noteName);
       if (note) {
-        client.sendMessage(message.chatId, {
+        client.sendMessage(toPeer(message.chatId), {
           message: `📋 <b>#${escapeHtml(noteName)}</b>\n\n${escapeHtmlPreservingTgEmoji(note)}`,
           parseMode: 'html',
           replyTo: message.id
@@ -94,14 +104,12 @@ export default {
     if (!['.gsave', '.gclear', '.gnotes'].includes(cmd)) {return;}
 
     // Pastikan ini di dalam grup/supergroup
-    const peerId = message.peerId;
-    const isGroup = peerId.className === 'PeerChat' || peerId.className === 'PeerChannel';
-    if (!isGroup) {
+    if (!isGroupChat(message)) {
       await message.edit({ text: `<blockquote>❌ <b>Perintah ini hanya dapat digunakan di dalam Grup!</b></blockquote>`, parseMode: 'html' });
       return;
     }
 
-    const chatId = peerId.chatId || peerId.channelId;
+    const chatId = message.chatId ?? message.peerId;
     const noteName = parts[1] ? parts[1].toLowerCase() : null;
 
     if (cmd === '.gsave') {

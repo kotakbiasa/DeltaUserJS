@@ -1,6 +1,8 @@
 import { getBroadcastBlacklist } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // Rate limiting: max 1 gcast per 60 seconds per user
 const LAST_GCAST = new Map();
@@ -30,7 +32,7 @@ export default {
     usage: '• `.gcast <teks>`\n• Atau balas (reply) sebuah pesan/foto lalu ketik `.gcast`',
     detail: 'Modul ini akan mengabaikan grup yang ada di daftar Blacklist Anda. Sistem dilengkapi dengan Anti-Spam Delay untuk melindungi akun.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();

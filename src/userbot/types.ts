@@ -43,6 +43,13 @@ export interface UserbotMessageLike {
   out?: boolean;
   /** True bila pesan menyebut/mention kita (mtcute: Message.isMention). */
   mentioned?: boolean;
+  /** Tipe chat mtcute: 'private' | 'group' | 'supergroup' | 'channel' | 'bot'. */
+  chatType?: string;
+  /**
+   * Aksi service message (join/leave/dll). mtcute memakai `type` bergaya
+   * snake_case; `className` hanya ada pada klien mock legacy.
+   */
+  action?: ({ type?: string; className?: string } & Record<string, unknown>) | null;
   message?: string;
   peerId?: EntityLike;
   chatId?: EntityLike;

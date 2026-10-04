@@ -2,6 +2,9 @@ import { getChatSettings, updateChatSettings } from '../../../infrastructure/dat
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
 import { parseTgEmojiTemplate } from '../../../utils/customEmoji.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 export default {
   name: 'welcome',
@@ -11,7 +14,7 @@ export default {
     usage: '• `.welcome on/off`\n• `.setwelcomemsg <pesan>`\n• `.setgoodbyemsg <pesan>`\n• `.cleanservice on/off`',
     detail: 'Placeholders: {name}, {id}, {title}'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const chatId = message.chatId;
     const chatKey = String(chatId);
 
@@ -21,10 +24,12 @@ export default {
       const welcomeEnabled = chatSettings.welcome !== undefined ? chatSettings.welcome : isTestEnv;
       if (!welcomeEnabled) {return;}
 
-      const isJoin = message.action.className === 'MessageActionChatAddUser' || 
-                     message.action.className === 'MessageActionChatJoinedByLink';
-      
-      const isLeave = message.action.className === 'MessageActionChatDeleteUser';
+      // mtcute memakai `type` snake_case; className adalah penamaan GramJS,
+      // sehingga welcome/leave sebelumnya tidak pernah terpicu sama sekali.
+      const actionType = String(message.action.type ?? message.action.className ?? '');
+      const isJoin = ['users_added', 'user_joined_link', 'user_joined_approved', 'user_joined_community',
+        'MessageActionChatAddUser', 'MessageActionChatJoinedByLink'].includes(actionType);
+      const isLeave = ['user_left', 'user_removed', 'MessageActionChatDeleteUser'].includes(actionType);
 
       if (isJoin) {
         // CleanService: Hapus pesan service join jika diaktifkan
@@ -35,12 +40,11 @@ export default {
         }
 
         // Dapatkan user baru
-        let userIds;
-        if (message.action.className === 'MessageActionChatAddUser') {
-          userIds = message.action.users || [];
-        } else {
-          userIds = [message.senderId];
-        }
+        const addedUsers = message.action.users as Array<string | number> | undefined;
+        const userIds: Array<string | number | undefined> =
+          actionType === 'users_added' || actionType === 'MessageActionChatAddUser'
+            ? (addedUsers ?? [])
+            : [message.senderId as string | number | undefined];
 
         for (const uId of userIds) {
           let name = `User_${uId}`;
@@ -51,7 +55,7 @@ export default {
           
           let title = String(chatId);
           try {
-            const chatEntity = await client.getEntity(chatId);
+            const chatEntity = await client.getEntity(toPeer(chatId));
             title = chatEntity.title || String(chatId);
           } catch (_e) { /* ignore */ }
 
@@ -69,12 +73,13 @@ export default {
             .replace(/{id}/g, String(uId))
             .replace(/{title}/g, safeTitle);
 
-          await client.sendMessage(chatId, { message: parsedMsg, parseMode: 'html' });
+          await client.sendMessage(toPeer(chatId), { message: parsedMsg, parseMode: 'html' });
         }
       }
 
       if (isLeave) {
-        const uId = message.action.userId || message.senderId;
+        // mtcute: user_removed membawa `user`; skema TL lama memakai `userId`.
+        const uId = (message.action.user ?? message.action.userId ?? message.senderId) as string | number | undefined;
         let name = `User_${uId}`;
         try {
           const userEntity = await client.getEntity(uId);
@@ -83,7 +88,7 @@ export default {
 
         let title = String(chatId);
         try {
-          const chatEntity = await client.getEntity(chatId);
+          const chatEntity = await client.getEntity(toPeer(chatId));
           title = chatEntity.title || String(chatId);
         } catch (_e) { /* ignore */ }
 
@@ -101,7 +106,7 @@ export default {
           .replace(/{id}/g, String(uId))
           .replace(/{title}/g, safeTitle);
 
-        await client.sendMessage(chatId, { message: parsedMsg, parseMode: 'html' });
+        await client.sendMessage(toPeer(chatId), { message: parsedMsg, parseMode: 'html' });
       }
       return;
     }

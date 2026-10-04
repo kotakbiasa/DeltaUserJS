@@ -49,6 +49,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ============================================================
 // VC — native Telegram Voice Chat (Obrolan Suara) via tgcalls-js (WebRTC).
@@ -225,7 +227,7 @@ export default {
   onLoad: () => {
     Logger.logSystem('🎵 Plugin VC v2.2 loaded (Pure WebRTC Voice Chat)', 'INFO');
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.(\w+)(?:\s+([\s\S]+))?$/i);

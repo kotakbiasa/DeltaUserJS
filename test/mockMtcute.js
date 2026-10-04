@@ -138,6 +138,48 @@ export class MockMtcuteClient {
     return true;
   }
 
+  // --- API anggota gaya mtcute (parameter objek) ---
+  // Sebelumnya mock tidak punya method ini sama sekali, sehingga handler
+  // jatuh ke cabang client.call() dan bug pemanggilan posisional di produksi
+  // tidak pernah terlihat oleh test.
+  _peerNum(peer) {
+    if (typeof peer === 'number') return peer;
+    if (typeof peer === 'string') return Number(peer) || peer;
+    return peer?.userId ?? peer?.channelId ?? peer?.chatId ?? peer?.id ?? peer;
+  }
+
+  async _editBanned(chatId, userId, rights) {
+    return await this.invoke({
+      _: 'channels.editBanned',
+      channel: this._peerNum(chatId),
+      participant: this._peerNum(userId),
+      bannedRights: { _: 'chatBannedRights', untilDate: 0, ...rights },
+    });
+  }
+
+  async kickChatMember({ chatId, userId }) {
+    await this._editBanned(chatId, userId, { viewMessages: true });
+    return await this._editBanned(chatId, userId, { viewMessages: false });
+  }
+
+  async banChatMember({ chatId, participantId, untilDate }) {
+    return await this._editBanned(chatId, participantId, {
+      viewMessages: true,
+      untilDate: untilDate ? Math.floor(new Date(untilDate).getTime() / 1000) : 0,
+    });
+  }
+
+  async unbanChatMember({ chatId, participantId }) {
+    return await this._editBanned(chatId, participantId, { viewMessages: false });
+  }
+
+  async restrictChatMember({ chatId, userId, restrictions = {}, until }) {
+    return await this._editBanned(chatId, userId, {
+      ...restrictions,
+      untilDate: until ? Math.floor(new Date(until).getTime() / 1000) : 0,
+    });
+  }
+
   async invoke(rpcCall) {
     let call = rpcCall;
     if (rpcCall && typeof rpcCall === 'object' && !(rpcCall instanceof Api.channels.EditBanned)) {
