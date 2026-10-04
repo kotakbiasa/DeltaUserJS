@@ -138,8 +138,10 @@ export function panelUserbot(ctx: BotContext) {
   const running = userbotManager.isRunning(ctx.from.id);
   const isTgPremium = isTelegramPremium(ctx, session);
   const ubot = userbotManager.clients.get(ctx.from.id);
-  const isConnected = running && Boolean(ubot?.client?.connected);
-  const dcId = String((ubot?.client?.session as unknown as { dcId?: string | number })?.dcId || '4');
+  // Status koneksi & DC nyata dari mtcute. Dulu `client.connected` (nama
+  // GramJS) selalu undefined dan DC selalu jatuh ke hardcode '4'.
+  const isConnected = running && Boolean(ubot?.isConnected?.());
+  const dcId = ubot?.dcId ? String(ubot.dcId) : '—';
   const botName = session?.custom_name || ctx.me?.first_name || 'Bot';
   const currentPrefix = session?.vars?.PREFIX || '.';
   const disabled = normalizedDisabled(ctx.from.id);

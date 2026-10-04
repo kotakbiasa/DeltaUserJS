@@ -1,6 +1,9 @@
 # Known Issues
 
-Catatan masalah yang **sudah diketahui tapi belum diperbaiki**. Status per 2026-10-04.
+Catatan masalah yang sudah diketahui, berikut statusnya. Per 2026-10-04 satu-satunya
+yang **masih terbuka** adalah §1 (Voice Chat / tgcalls-js) beserta §2 yang menempel
+padanya — keduanya sengaja ditahan atas permintaan pemilik repo. Sisanya sudah
+diperbaiki dan dicatat di sini sebagai rekam jejak.
 
 ---
 
@@ -96,22 +99,34 @@ Infrastruktur tipe yang dipakai:
 | `src/userbot/types.ts` | `UserbotMessageLike`, `UserbotEntityLike`, `UserbotSettings` |
 | `src/utils/errors.ts` | `errorMessage()`, `rpcErrorText()`, `errorName()`, `isRpcError()` untuk nilai `catch` bertipe `unknown` |
 
-## 4. Tidak ada lapisan validasi input perintah 🟡
+## 4. Lapisan validasi input perintah ✅ SELESAI
 
-Dulu ada `src/utils/validation.ts` (10 skema zod) yang **tidak pernah
-tersambung ke handler manapun**, lalu dihapus. Skemanya mendeskripsikan API
-berparameter terstruktur (`{ text, silent, pin }`, `{ code, language }`),
-sedangkan handler yang nyata mem-parse string mentah dari `message.message` —
-jadi memasangnya butuh mendesain ulang parsing perintah, bukan sekadar
-menyambung.
+Dulu `src/utils/validation.ts` (10 skema zod) **tidak pernah tersambung ke
+handler manapun** lalu dihapus; skemanya mengasumsikan API berparameter
+terstruktur, sedangkan handler nyata mem-parse string mentah dari
+`message.message`.
 
-Khusus `.exec`, pengamanannya tidak bergantung pada skema itu dan tetap utuh:
-owner-only, gerbang `EXEC_ALLOWED`, `execFile` tanpa shell, whitelist 12
-perintah, dan penolakan karakter khusus.
+Gantinya sekarang `src/userbot/engine/validate.ts` — helper yang memang cocok
+dengan cara handler bekerja (`parseIntArg`, `parseTelegramIdArg`,
+`parseDurationMsArg`, `parseChoiceArg`, `parseTextArg`, `validationErrorText`),
+dengan 14 unit test di `test/validate.test.js`.
+
+Yang ikut ketahuan dan diperbaiki saat memasangnya:
+
+| Perintah | Bug | Akibat |
+|---|---|---|
+| `.loop <menit>` | tidak ada batas atas | `setInterval` Node memakai penghitung 32-bit: delay > ~24,8 hari **tidak ditolak**, melainkan diam-diam jadi 1 ms → `.loop 99999999 hai` berubah jadi spam tiap milidetik. Kini dibatasi 7 hari |
+| `.setfloodlimit` / `.setfloodwarn` / `.setfloodtime` | `parseInt()` tanpa batas | `"5abc"` lolos sebagai 5; `999999` mematikan anti-flood tanpa pemberitahuan |
+| `.setrepfloor`, `.rep <id>` | argumen tidak valid hanya `return` | perintah tampak "tidak melakukan apa-apa"; `Number('')` juga lolos sebagai 0 |
+| `remind.ts` + `schedulemsg.ts` | `parseDurationMs()` diduplikat | dua salinan aturan yang bisa menyimpang; kini satu helper (batas 7 hari tetap) |
+
+Khusus `.exec`, pengamanannya tidak pernah bergantung pada skema zod itu dan
+tetap utuh: owner-only, gerbang `EXEC_ALLOWED`, `execFile` tanpa shell,
+whitelist 12 perintah, dan penolakan karakter khusus.
 
 ---
 
-## 5. Pemanggilan API hantu yang dulu disembunyikan `any` 🔴
+## 5. Pemanggilan API hantu yang dulu disembunyikan `any` ✅ SUDAH DIPERBAIKI
 
 Begitu `UserbotClient.client` diberi tipe nyata, compiler menemukan beberapa
 pemanggilan ke method/properti yang **tidak pernah ada di mtcute**. Semuanya
@@ -146,14 +161,19 @@ diam-diam, bukan crash.
 | `getEntity()` tidak pernah mengisi `className` | pembaca legacy (`.info`) memakainya untuk membedakan user vs grup | shim kini mengisinya dari `Peer.type` |
 | `getChat().className` dari `c.type === 'channel'/'supergroup'` | nilai itu tidak pernah muncul di `Peer.type` | dibaca dari `chatType` |
 
-**Belum diperbaiki (sengaja — mengubahnya mengubah tampilan UI):**
+**Indikator koneksi & DC — ✅ kini diperbaiki (dulu sengaja dibiarkan):**
 
-- `ubot.client.connected` dibaca di `panelParts/core/main.ts`,
-  `core/onboarding.ts`, dan `core/settings.ts`. mtcute tidak mengekspos
-  properti ini, jadi nilainya **selalu `undefined`** dan indikator koneksi di
-  dashboard permanen menampilkan status "tidak terhubung".
-- `client.session.dcId` di `panelParts/core/main.ts` juga tidak ada, sehingga
-  DC yang ditampilkan **selalu jatuh ke hardcode `'4'`**.
+- `ubot.client.connected` (nama GramJS) selalu `undefined`, jadi indikator
+  koneksi di dashboard permanen "tidak terhubung". Kini `UserbotClient`
+  berlangganan `client.onConnectionState` milik mtcute dan mengeksposnya lewat
+  `isConnected()`; saat emitter tidak tersedia (mock test) statusnya `unknown`
+  dan tidak dianggap mati.
+- `client.session.dcId` juga tidak ada, sehingga DC yang ditampilkan **selalu
+  hardcode `'4'`**. Kini diambil dari `client.getPrimaryDcId()` (di-prefetch
+  saat start agar panel sinkron bisa membacanya) dan menampilkan `—` bila
+  benar-benar belum diketahui, bukan angka palsu.
+- Keduanya sudah dihapus dari tipe `CompatClient` karena tidak ada lagi
+  pembacanya.
 
 Helper `toPeer()` di `compatClient.ts` menormalkan identitas peer gaya legacy
 (bigint / objek entity) ke bentuk yang diterima mtcute.
@@ -162,12 +182,6 @@ Helper `toPeer()` di `compatClient.ts` menormalkan identitas peer gaya legacy
 (`strict` masih `false`). Seluruh ~650 parameter implicit-any sudah diketik,
 sehingga setiap pemanggilan API di dalamnya diperiksa compiler. Ronde
 pengetikan itu memunculkan tabel temuan tambahan di §6.
-
-Keduanya kini dideklarasikan sebagai properti opsional ber-`@deprecated` di
-`CompatClient` supaya kebohongannya terlihat di tipe. `ITelegramClient` mtcute
-tidak punya padanan publik untuk status koneksi maupun DC saat ini, jadi
-memperbaikinya butuh melacak status sendiri lewat event koneksi — pekerjaan
-tersendiri yang mengubah perilaku UI.
 
 ---
 
@@ -196,3 +210,17 @@ Pelajaran yang paling mahal: pola
 `if (typeof client.X === 'function') { client.X(posisional) } else { client.call(TL) }`
 adalah jebakan. Pada mtcute cabang pertama selalu diambil, fallback TL jadi kode
 mati, dan bentuk argumen yang salah lolos karena bertipe `any`.
+
+---
+
+## 7. Direktori data marketplace tersimpan di dalam `dist/` ✅ SUDAH DIPERBAIKI
+
+`pluginMarketplace.ts` me-resolve `path.join(__dirname, '../../plugins_marketplace')`.
+Dari `dist/userbot/engine`, dua tingkat hanya sampai ke `dist/`, jadi
+`registry.json` dan seluruh plugin terpasang disimpan di
+`dist/plugins_marketplace` — **ikut terhapus setiap kali `dist/` dibangun
+ulang**, dan tidak pernah cocok dengan entri `plugins_marketplace/` di
+`.gitignore` yang menunjuk root repo.
+
+Kini tiga tingkat ke atas (root repo), bisa ditimpa lewat
+`PLUGINS_MARKETPLACE_DIR`, dan dijaga satu unit test.

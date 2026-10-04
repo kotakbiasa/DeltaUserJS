@@ -113,3 +113,15 @@ test('validationErrorText menyertakan contoh penggunaan bila diberikan', () => {
   assert.match(withUsage, /\.loop &lt;menit&gt;|\.loop <menit>/);
   assert.doesNotMatch(validationErrorText('Menit minimal 1.'), /Penggunaan/);
 });
+
+test('direktori marketplace berada di root repo, bukan di dalam dist/', async () => {
+  // Bug lama: path relatifnya kurang satu tingkat sehingga registry plugin
+  // disimpan di dist/plugins_marketplace dan hilang tiap kali build ulang.
+  const { marketplaceDir } = await import('../dist/userbot/engine/pluginMarketplace.js');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+  assert.equal(marketplaceDir, path.join(repoRoot, 'plugins_marketplace'));
+  assert.doesNotMatch(marketplaceDir, /(^|\/)dist(\/|$)/);
+});

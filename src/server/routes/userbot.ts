@@ -96,14 +96,17 @@ export async function handleUserbotRoutes(ctx: RouteContext): Promise<boolean> {
       const client = userbotManager.clients.get(Number(user.id));
       const isConnected = Boolean(client && client.isConnected());
       let pingMs = -1;
-      let dcId = '4';
+      let dcId = '—';
 
       if (isConnected && client?.client) {
+        // DC akun yang sebenarnya; sebelumnya selalu jatuh ke hardcode '4'.
+        const primaryDc = await client.getDcId();
+        if (primaryDc) {dcId = String(primaryDc);}
         try {
           const start = Date.now();
           if (typeof client.client.call === 'function') {
             const res = await client.client.call({ _: 'help.getNearestDc' });
-            dcId = String(res?.nearestDc || res?.thisDc || '4');
+            if (!primaryDc) {dcId = String(res?.thisDc ?? res?.nearestDc ?? '—');}
           } else if (typeof client.client.invoke === 'function') {
             await client.client.invoke({ _: 'help.getNearestDc' });
           }

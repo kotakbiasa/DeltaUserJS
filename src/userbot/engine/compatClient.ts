@@ -75,18 +75,6 @@ export type CompatClient = Omit<TelegramClient, LegacyOverridden> & {
   sendText(chat: LegacyPeer, text: string, params?: { replyTo?: unknown; parseMode?: string } & Record<string, unknown>): Promise<Message>;
   editMessage(params: unknown, maybeParams?: unknown): Promise<unknown>;
 
-  /**
-   * Properti era GramJS yang **tidak ada di mtcute** sehingga selalu
-   * `undefined`. Dibiarkan opsional (bukan dihapus) supaya pembacaannya di
-   * panel dashboard tetap kompilasi, tapi tipenya jujur bahwa nilainya tidak
-   * pernah terisi. Lihat docs/known_issues.md §5.
-   *
-   * @deprecated Tidak tersedia di mtcute — jangan dipakai untuk logika baru.
-   */
-  connected?: boolean;
-  /** @deprecated Tidak tersedia di mtcute — lihat `connected`. */
-  session?: { dcId?: number | string };
-
   // --- dipakai mock test & tgcalls-js, tidak ada di TelegramClient mtcute ---
   addEventHandler?(handler: (event: unknown) => unknown, builder?: unknown): void;
   removeEventHandler?(handler: (event: unknown) => unknown, builder?: unknown): void;

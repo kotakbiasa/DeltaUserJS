@@ -41,6 +41,13 @@ export class UserbotClient {
   public floodWaitUntil: number | null;
   public lastFloodSeconds: number;
   public lastError: string | null;
+  /**
+   * Status koneksi MTProto nyata dari `client.onConnectionState`.
+   * Sebelumnya dashboard membaca `client.connected` — properti GramJS yang
+   * tidak ada di mtcute, jadi indikatornya permanen "tidak terhubung".
+   */
+  public connectionState: 'offline' | 'connecting' | 'updating' | 'connected' | 'unknown';
+  private _dcId: number | null;
   private _stopping: boolean;
 
   constructor(telegramId: number, sessionString: string) {
@@ -52,6 +59,8 @@ export class UserbotClient {
     this.floodWaitUntil = null;
     this.lastFloodSeconds = 0;
     this.lastError = null;
+    this.connectionState = 'offline';
+    this._dcId = null;
     this._stopping = false;
   }
 
@@ -146,6 +155,7 @@ export class UserbotClient {
 
       // 3. Connect & start mtcute
       await this.client.start();
+      this.trackConnectionState();
       this.setupClientCompatibility();
       this.setupEmojiInterceptor();
       this.isActive = true;
@@ -160,6 +170,9 @@ export class UserbotClient {
       } catch (err) {
         Logger.logUser(this.telegramId, `⚠️ Could not sync Telegram Premium status: ${err}`, 'WARN');
       }
+
+      // Prefetch DC utama supaya panel dashboard yang sinkron bisa membacanya.
+      void this.getDcId();
 
       // 5. Register dispatcher handlers
       this.registerHandlers();
@@ -190,8 +203,55 @@ export class UserbotClient {
     }
   }
 
+  /**
+   * Berlangganan status koneksi mtcute. Emitter-nya opsional di sini karena
+   * mock test tidak menyediakannya — dalam kasus itu statusnya 'unknown' dan
+   * `isConnected()` kembali bersandar pada `isActive`.
+   */
+  private trackConnectionState() {
+    const emitter = (this.client as unknown as {
+      onConnectionState?: { add?: (fn: (state: string) => void) => void };
+    }).onConnectionState;
+
+    if (!emitter || typeof emitter.add !== 'function') {
+      this.connectionState = 'unknown';
+      return;
+    }
+
+    this.connectionState = 'connecting';
+    emitter.add((state: string) => {
+      this.connectionState = state as UserbotClient['connectionState'];
+      if (state === 'offline') {
+        Logger.logUser(this.telegramId, `🔌 Koneksi MTProto terputus (offline).`, 'WARN');
+      }
+    });
+  }
+
   isConnected() {
-    return this.isActive;
+    if (!this.isActive) {return false;}
+    // 'unknown' = emitter tidak tersedia (mock test), jadi jangan dianggap mati.
+    return this.connectionState !== 'offline';
+  }
+
+  /**
+   * DC utama akun. Dulu dibaca dari `client.session.dcId` yang tidak ada di
+   * mtcute, sehingga dashboard SELALU menampilkan hardcode DC 4.
+   */
+  /** DC yang sudah di-prefetch (null bila belum/ tidak tersedia). */
+  get dcId(): number | null {
+    return this._dcId;
+  }
+
+  async getDcId(): Promise<number | null> {
+    if (this._dcId !== null) {return this._dcId;}
+    const getter = (this.client as unknown as { getPrimaryDcId?: () => Promise<number> })?.getPrimaryDcId;
+    if (typeof getter !== 'function') {return null;}
+    try {
+      this._dcId = await getter.call(this.client);
+      return this._dcId;
+    } catch {
+      return null;
+    }
   }
 
   async stop() {
@@ -243,6 +303,8 @@ export class UserbotClient {
       }
     }
     this.isActive = false;
+    this.connectionState = 'offline';
+    this._dcId = null;
     this._stopping = false;
   }
 

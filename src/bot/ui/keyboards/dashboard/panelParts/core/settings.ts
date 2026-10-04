@@ -92,16 +92,20 @@ export async function panelUserbotDiag(ctx: BotContext) {
   const ubot = userbotManager.clients.get(telegramId);
 
   let pingMs = -1;
-  let dcId = '4';
+  let dcId = '—';
   let connected = false;
 
   if (isRunning && ubot && ubot.client) {
-    connected = Boolean(ubot.isActive || ubot.client.connected);
+    connected = Boolean(ubot.isConnected());
+    // DC akun diambil dari mtcute (getPrimaryDcId). help.getNearestDc hanya
+    // dipakai sebagai pengukur latensi dan cadangan bila DC belum ter-prefetch.
+    const primaryDc = await ubot.getDcId();
+    if (primaryDc) {dcId = String(primaryDc);}
     try {
       const start = Date.now();
       if (typeof ubot.client.call === 'function') {
         const res = await ubot.client.call({ _: 'help.getNearestDc' });
-        dcId = String(res?.nearestDc || res?.thisDc || '4');
+        if (!primaryDc) {dcId = String(res?.thisDc ?? res?.nearestDc ?? '—');}
       } else if (typeof ubot.client.invoke === 'function') {
         await ubot.client.invoke({ _: 'help.getNearestDc' });
       }

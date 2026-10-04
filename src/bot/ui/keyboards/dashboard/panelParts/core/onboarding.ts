@@ -173,7 +173,8 @@ export function panelSubscription(ctx?: BotContext) {
 
   const running = userId ? userbotManager.isRunning(userId) : false;
   const ubot = userId ? userbotManager.clients.get(userId) : null;
-  const isConnected = running && Boolean(ubot?.client?.connected);
+  // mtcute: status koneksi nyata, bukan `client.connected` gaya GramJS.
+  const isConnected = running && Boolean(ubot?.isConnected?.());
   const connStatus = running
     ? (isConnected ? '🟢 Online' : '🟡 Menghubungkan...')
     : (session ? '🔴 Offline' : '⚪ Belum Ditautkan');
