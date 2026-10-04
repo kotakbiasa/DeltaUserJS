@@ -1,5 +1,3 @@
-import { Api } from 'teleproto';
-import bigInt from 'big-integer';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -52,8 +50,10 @@ interface SessionRow {
   country?: string;
 }
 
-async function fetchAuthorizations(client): Promise<SessionRow[]> {
-  const result = await client.invoke(new Api.account.GetAuthorizations());
+async function fetchAuthorizations(client: any): Promise<SessionRow[]> {
+  const result = typeof client.call === 'function'
+    ? await client.call({ _: 'account.getAuthorizations' })
+    : await client.invoke({ _: 'account.getAuthorizations' });
   const list = (result && Array.isArray((result as unknown as { authorizations?: unknown[] }).authorizations))
     ? (result as unknown as { authorizations: SessionRow[] }).authorizations
     : [];
@@ -118,7 +118,12 @@ async function monitorTick(client, telegramId: number, st: KillerState): Promise
     const details: string[] = [];
     for (const auth of newcomers) {
       try {
-        await client.invoke(new Api.account.ResetAuthorization({ hash: bigInt(String(auth.hash)) }));
+        const hashVal = BigInt(String(auth.hash));
+        if (typeof client.call === 'function') {
+          await client.call({ _: 'account.resetAuthorization', hash: hashVal });
+        } else {
+          await client.invoke({ _: 'account.resetAuthorization', hash: hashVal });
+        }
         killed++;
         details.push(`🚫 ${escapeHtml(auth.deviceModel || 'Unknown')} — ${escapeHtml(auth.appName || 'Unknown')} • <code>${escapeHtml(auth.ip || '?')}</code> (${escapeHtml(auth.country || '?')})`);
       } catch (err) {
@@ -217,7 +222,12 @@ export default {
           return;
         }
         try {
-          await client.invoke(new Api.account.ResetAuthorization({ hash: bigInt(String(hash)) }));
+          const hashVal = BigInt(String(hash));
+          if (typeof client.call === 'function') {
+            await client.call({ _: 'account.resetAuthorization', hash: hashVal });
+          } else {
+            await client.invoke({ _: 'account.resetAuthorization', hash: hashVal });
+          }
         } catch (err) {
           const msg = errText(err);
           const hint = /FRESH_RESET|24 hour/i.test(msg)

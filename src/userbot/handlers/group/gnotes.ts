@@ -2,6 +2,44 @@ import { saveGroupNote, deleteGroupNote, getAllGroupNotes, getGroupNote } from '
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { escapeHtmlPreservingTgEmoji, parseTgEmojiTemplate } from '../../../utils/customEmoji.js';
 
+function unparseEntities(text: string, entities?: any[]): string {
+  if (!entities || !entities.length) return text;
+  const sorted = [...entities].sort((a, b) => {
+    const offA = a.offset ?? 0;
+    const offB = b.offset ?? 0;
+    if (offA !== offB) return offB - offA;
+    const lenA = a.length ?? 0;
+    const lenB = b.length ?? 0;
+    return lenA - lenB;
+  });
+
+  let res = text;
+  for (const ent of sorted) {
+    const type = ent._ || ent.className || ent.type || '';
+    const offset = ent.offset ?? 0;
+    const length = ent.length ?? 0;
+    const inner = res.slice(offset, offset + length);
+    let tagged = inner;
+
+    if (/bold/i.test(type)) tagged = `<b>${inner}</b>`;
+    else if (/italic/i.test(type)) tagged = `<i>${inner}</i>`;
+    else if (/code/i.test(type)) tagged = `<code>${inner}</code>`;
+    else if (/pre/i.test(type)) tagged = `<pre>${inner}</pre>`;
+    else if (/strike/i.test(type)) tagged = `<s>${inner}</s>`;
+    else if (/underline/i.test(type)) tagged = `<u>${inner}</u>`;
+    else if (/spoiler/i.test(type)) tagged = `<tg-spoiler>${inner}</tg-spoiler>`;
+    else if (/blockquote/i.test(type)) tagged = `<blockquote>${inner}</blockquote>`;
+    else if (/texturl|text_link/i.test(type) && ent.url) tagged = `<a href="${ent.url}">${inner}</a>`;
+    else if (/customemoji|custom_emoji/i.test(type) && (ent.documentId || ent.customEmojiId)) {
+      const emojiId = ent.documentId || ent.customEmojiId;
+      tagged = `<tg-emoji emoji-id="${emojiId}">${inner}</tg-emoji>`;
+    }
+
+    res = res.slice(0, offset) + tagged + res.slice(offset + length);
+  }
+  return res;
+}
+
 // Recall #hashtag: setiap pesan masuk diawali '#namacatatan' → kirim isi note.
 export default {
   name: 'gnotes',
@@ -66,12 +104,7 @@ export default {
       const replied = await message.getReplyMessage();
       if (!noteText && replied && replied.message) {
         if (replied.entities && replied.entities.length > 0) {
-          try {
-            const { HTMLParser } = await import('teleproto/extensions/html.js');
-            noteText = HTMLParser.unparse(replied.message, replied.entities);
-          } catch {
-            noteText = replied.message;
-          }
+          noteText = unparseEntities(replied.message, replied.entities);
         } else {
           noteText = replied.message;
         }

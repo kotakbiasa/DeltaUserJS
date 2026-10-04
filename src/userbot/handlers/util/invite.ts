@@ -1,4 +1,3 @@
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -21,7 +20,7 @@ const FWD_LIMIT = 100;
 interface ResolvedUser {
   id: number;
   name: string;
-  entity?: Api.TypeEntityLike;
+  entity?: any;
 }
 
 function errText(err: unknown): string {
@@ -70,7 +69,7 @@ async function resolveTargets(client, message, args: string): Promise<{ targets:
   const replied = await message.getReplyMessage();
   if (replied && replied.senderId) {
     let name = `User ${replied.senderId}`;
-    let entity: Api.TypeEntityLike | undefined;
+    let entity: any | undefined;
     try {
       const sender = await replied.getSender();
       if (sender) {
@@ -93,7 +92,7 @@ async function resolveTargets(client, message, args: string): Promise<{ targets:
       targets.push({ id: 0, name: token });
       continue;
     }
-    let entity: Api.TypeEntityLike | undefined;
+    let entity: any | undefined;
     try {
       entity = await client.getEntity(/^\d+$/.test(lookup) ? Number(lookup) : lookup);
     } catch (_e) { entity = undefined; }
@@ -134,17 +133,21 @@ async function handleInvite(client, message, chat, isChannel: boolean, args: str
     const label = escapeHtml(target.name.length > 24 ? `${target.name.slice(0, 24)}…` : target.name);
     const participant = target.entity ?? target.id;
     try {
-      if (isChannel) {
-        await client.invoke(new Api.channels.InviteToChannel({
-          channel: chat,
-          users: [participant],
-        }));
+      if (typeof client.addChatMembers === 'function') {
+        await client.addChatMembers(message.chatId, [target.id], { forwardCount: FWD_LIMIT });
+      } else if (isChannel) {
+        await client.call({
+          _: 'channels.inviteToChannel',
+          channel: await client.getInputPeer(message.chatId),
+          users: [await client.getInputPeer(participant)],
+        });
       } else {
-        await client.invoke(new Api.messages.AddChatUser({
+        await client.call({
+          _: 'messages.addChatUser',
           chatId: chat.id,
-          userId: participant,
+          userId: await client.getInputPeer(participant),
           fwdLimit: FWD_LIMIT,
-        }));
+        });
       }
       ok.push(`✅ <a href="tg://user?id=${target.id}">${label}</a>`);
     } catch (err) {

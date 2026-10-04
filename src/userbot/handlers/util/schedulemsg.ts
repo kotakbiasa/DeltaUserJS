@@ -1,4 +1,3 @@
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -208,7 +207,9 @@ export default {
       }
 
       // Preview web bukan media sungguhan — kirim sebagai teks saja.
-      const isWebPage = replied.media instanceof Api.MessageMediaWebPage;
+      const isWebPage = (replied.media as any)?._ === 'messageMediaWebPage' ||
+        (replied.media as any)?.type === 'webpage' ||
+        (replied.media as any)?.className === 'MessageMediaWebPage';
       const media = isWebPage ? null : replied.media;
       const replyText = String(replied.message || '');
 

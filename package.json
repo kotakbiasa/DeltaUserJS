@@ -1,7 +1,7 @@
 {
   "name": "delta-ubot-js",
   "version": "1.0.0",
-  "description": "Multi-userbot manager using grammY for Master Bot and GramJS/teleproto for userbots",
+  "description": "Multi-userbot manager using grammY for Master Bot and mtcute for userbots",
   "type": "module",
   "main": "dist/index.js",
   "engines": {
@@ -31,12 +31,14 @@
     "@grammyjs/conversations": "^2.1.1",
     "@grammyjs/menu": "^1.4.0",
     "@grammyjs/ratelimiter": "^1.2.1",
+    "@mtcute/convert": "^0.32.3",
+    "@mtcute/dispatcher": "^0.32.3",
+    "@mtcute/node": "^0.32.3",
     "dotenv": "^17.4.2",
     "grammy": "^1.46.0",
     "jimp": "^1.6.1",
     "mongoose": "^9.9.4",
     "qrcode": "^1.5.4",
-    "teleproto": "^1.229.0",
     "tgcalls-js": "github:kotakbiasa/tgcalls-js",
     "zod": "^4.4.3"
   },
@@ -51,8 +53,5 @@
     "tsx": "^4.23.11",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.66.0"
-  },
-  "allowScripts": {
-    "esbuild@0.28.1": true
   }
 }

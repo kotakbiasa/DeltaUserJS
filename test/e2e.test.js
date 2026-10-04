@@ -1,4 +1,4 @@
-import { Api } from 'teleproto';
+import { Api } from './mockApi.js';
 import {
   getSchedules,
   getChatSettings,

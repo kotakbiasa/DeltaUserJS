@@ -36,12 +36,12 @@ export default {
 
         // Ambil versi package dari package.json
         let grammyVer = 'N/A';
-        let teleprotoVer = 'N/A';
+        let mtcuteVer = 'N/A';
         try {
            const pkgPath = path.join(process.cwd(), 'package.json');
            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
            grammyVer = (pkg.dependencies['grammy'] || 'N/A').replace(/^[\^~>=]+/, '');
-           teleprotoVer = (pkg.dependencies['teleproto'] || 'N/A').replace(/^[\^~>=]+/, '');
+           mtcuteVer = (pkg.dependencies['@mtcute/node'] || 'N/A').replace(/^[\^~>=]+/, '');
         } catch (_e) { /* ignore */ }
 
         const text = `📊 <b>USERBOT STATS</b>\n\n` +
@@ -51,7 +51,7 @@ export default {
           `💾 <b>RAM:</b> <code>${rssMB} MB</code> (Heap: <code>${heapMB} MB</code>)\n` +
           `⚙️ <b>Runtime:</b> <code>${escapeHtml(runtimeLabel)} ${escapeHtml(runtimeVersion)}</code>\n` +
           `📦 <b>grammY:</b> <code>v${escapeHtml(grammyVer)}</code>\n` +
-          `📦 <b>Teleproto:</b> <code>v${escapeHtml(teleprotoVer)}</code>\n` +
+          `📦 <b>mtcute:</b> <code>v${escapeHtml(mtcuteVer)}</code>\n` +
           `💻 <b>OS:</b> <code>${escapeHtml(os.type())} ${escapeHtml(os.release())} (${escapeHtml(os.arch())})</code>` +
           `</blockquote>`;
 

@@ -1,4 +1,3 @@
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { sleep } from '../../../utils/async.js';
 
@@ -21,28 +20,35 @@ export default {
     if (!validCommands.includes(cmd)) {return;}
 
     try {
+      const callApi = async (method: string, peer: any) => {
+        if (typeof client.call === 'function') {
+          return await client.call({ _: method, peer: await client.resolvePeer?.(peer) || peer });
+        }
+        if (typeof client.invoke === 'function') {
+          return await client.invoke({ _: method, peer });
+        }
+      };
+
       if (cmd === '.clear_@') {
         await message.delete().catch(() => { /* ignore */ });
-        await client.invoke(new Api.messages.ReadMentions({ peer: message.chatId }));
+        await callApi('messages.readMentions', message.chatId);
       }
 
       else if (cmd === '.clear_reacts') {
         await message.delete().catch(() => { /* ignore */ });
-        await client.invoke(new Api.messages.ReadReactions({ peer: message.chatId }));
+        await callApi('messages.readReactions', message.chatId);
       }
 
       else if (cmd === '.clear_all_@') {
         let counter = 0;
         await message.edit({ text: '⏳ <b>Menyapu bersih semua mention (tag)...</b>', parseMode: 'html' });
 
-        const dialogs = await client.getDialogs();
+        const dialogs = typeof client.getDialogs === 'function' ? await client.getDialogs() : [];
         for (const dialog of dialogs) {
-          // Hanya bersihkan jika benar-benar ada mention yang belum dibaca
           if (dialog.unreadMentionsCount > 0) {
-            await client.invoke(new Api.messages.ReadMentions({ peer: dialog.entity || dialog.id }));
+            await callApi('messages.readMentions', dialog.entity || dialog.id || dialog.chat?.id);
             counter++;
 
-            // Update pesan hanya per 5 pembersihan & beri jeda agar TIDAK terkena FloodWait
             if (counter % 5 === 0) {
               await message.edit({ text: `⏳ <b>Menyapu bersih semua mention (tag)...</b>\n\n✅ <b>Dibersihkan:</b> <code>${escapeHtml(String(counter))}</code> chat`, parseMode: 'html' }).catch(() => { /* ignore */ });
               await sleep(1500); 
@@ -56,20 +62,19 @@ export default {
         let counter = 0;
         await message.edit({ text: '⏳ <b>Menyapu bersih semua reaksi...</b>', parseMode: 'html' });
 
-        const dialogs = await client.getDialogs();
+        const dialogs = typeof client.getDialogs === 'function' ? await client.getDialogs() : [];
         for (const dialog of dialogs) {
-          // Hanya bersihkan chat yang berpotensi memiliki reaksi belum dibaca
           if (dialog.unreadMark || dialog.unreadCount > 0) {
             try {
-              await client.invoke(new Api.messages.ReadReactions({ peer: dialog.entity || dialog.id }));
+              await callApi('messages.readReactions', dialog.entity || dialog.id || dialog.chat?.id);
               counter++;
 
               if (counter % 5 === 0) {
                 await message.edit({ text: `⏳ <b>Menyapu bersih semua reaksi...</b>\n\n✅ <b>Dibersihkan:</b> <code>${escapeHtml(String(counter))}</code> chat`, parseMode: 'html' }).catch(() => { /* ignore */ });
                 await sleep(1500);
               }
-            } catch (_err) {
-              // Abaikan error pada entitas yang tidak mendukung ReadReactions
+            } catch {
+              // ignore
             }
           }
         }

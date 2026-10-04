@@ -477,7 +477,7 @@ export function animateEmojisWithRestrictedPack(html: string): string {
  * Apply the animated premium emoji pack to Telegram Bot API payloads.
  *
  * Master Bot responses use grammY and therefore do not pass through the
- * userbot's teleproto interceptor. Keep this adapter at the API boundary so
+ * userbot's mtcute interceptor. Keep this adapter at the API boundary so
  * direct replies, edits, captions, and rich-message fallbacks all get the
  * same treatment without changing every handler individually.
  */

@@ -3,7 +3,6 @@ import { promisify } from 'util';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 
@@ -337,7 +336,7 @@ async function handleToGif(client, message, telegramId) {
     await client.sendFile(message.chatId, {
       file: outPath,
       forceDocument: false,
-      attributes: [new Api.DocumentAttributeAnimated()],
+      attributes: [{ _: 'documentAttributeAnimated', className: 'DocumentAttributeAnimated' }],
       replyTo: replyToId(message),
     });
     try { await message.delete(); } catch (_e) { /* ignore */ }

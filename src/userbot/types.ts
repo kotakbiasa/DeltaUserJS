@@ -1,4 +1,4 @@
-import type { EntityLike } from 'teleproto/define.js';
+export type EntityLike = string | number | bigint | { id?: unknown; [key: string]: unknown };
 
 export type MessageEditOptions = {
   text?: string;
@@ -33,6 +33,14 @@ export interface UserbotMessageLike {
   replyToMsgId?: number;
   senderId?: EntityLike;
   date?: number;
+  isPrivate?: boolean;
+  isGroup?: boolean;
+  isChannel?: boolean;
+  replyTo?: {
+    replyToMsgId?: number;
+    replyToTopId?: number;
+    [key: string]: unknown;
+  };
   entities?: Array<{
     className?: string;
     documentId?: string | number | bigint;
@@ -53,6 +61,7 @@ export interface UserbotMessageLike {
         alt?: string;
       }>;
     };
+    [key: string]: unknown;
   };
   getReplyMessage: () => Promise<UserbotMessageLike | null>;
   getSender: () => Promise<UserbotEntityLike | null>;
@@ -61,4 +70,5 @@ export interface UserbotMessageLike {
   downloadMedia: () => Promise<Buffer | string | undefined>;
   edit: (options: MessageEditOptions) => Promise<unknown>;
   delete: (options?: Record<string, unknown>) => Promise<unknown>;
+  reply?: (options: any) => Promise<unknown>;
 }

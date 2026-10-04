@@ -1,4 +1,3 @@
-import { Api, TelegramClient } from 'teleproto';
 import type { UserbotMessageLike } from '../../types.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
@@ -39,7 +38,7 @@ export default {
             '• `.cinfo` menampilkan jumlah member lewat full-chat API (supergroup/channel) atau daftar participant (grup biasa).\n' +
             '• `.id` untuk ID chat/user cepat ada di plugin terpisah.'
   },
-  async execute(client: TelegramClient, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
+  async execute(client: any, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (!message.peerId) {return;}
 
@@ -55,7 +54,7 @@ export default {
 
       try {
         // Anti-dobel: kalau pesan perintah sudah diedit/dihapus plugin lain (info.ts), skip.
-        const fresh = (await client.getMessages(message.peerId, { ids: [message.id] }))?.[0];
+        const fresh = (await client.getMessages(message.peerId as any, { ids: [message.id] }))?.[0];
         if (!fresh || fresh.message !== message.message) {return;}
 
         await message.edit({
@@ -64,12 +63,12 @@ export default {
         });
 
         // getSender dulu, fallback getEntity/getChat
-        let target;
+        let target: any;
         try {
           target = await replied.getSender();
         } catch (_e) { target = undefined; }
         if (!target && replied.senderId) {
-          try { target = await client.getEntity(replied.senderId); } catch (_e) { target = undefined; }
+          try { target = await client.getEntity(replied.senderId as any); } catch (_e) { target = undefined; }
         }
         if (!target) {
           try { target = await message.getChat(); } catch (_e) { target = undefined; }
@@ -83,20 +82,13 @@ export default {
         }
 
         let caption: string;
-        if (target.className === 'User' || target.className === 'UserEmpty') {
-          const full = await client.invoke(new Api.users.GetFullUser({ id: target }));
-          const u = full.users?.[0] as unknown as {
-            id?: unknown;
-            firstName?: string;
-            lastName?: string;
-            username?: string;
-            premium?: boolean;
-            bot?: boolean;
-            verified?: boolean;
-            scam?: boolean;
-            fake?: boolean;
-          } | undefined;
-          const f = full.fullUser;
+        if (target.className === 'User' || target.className === 'UserEmpty' || !target.className) {
+          let u: any;
+          try {
+            u = await client.getFullUser(target.id || target);
+          } catch (_e) {
+            u = target;
+          }
           if (!u) {throw new Error('Data user kosong dari server.');}
           const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Tanpa Nama';
           const uname = u.username ? `@${u.username}` : 'Tidak ada';
@@ -106,7 +98,7 @@ export default {
             `🆔 <b>ID:</b> <code>${u.id}</code>\n` +
             `🔗 <b>Username:</b> ${escapeHtml(uname)}\n` +
             `🔖 <b>Status:</b> ${statusTags(u)}\n` +
-            `📝 <b>Bio:</b> <i>${escapeHtml(f?.about || 'Tidak ada bio')}</i></blockquote>`;
+            `📝 <b>Bio:</b> <i>${escapeHtml(u?.bio || u?.about || 'Tidak ada bio')}</i></blockquote>`;
         } else {
           const name = target.title || 'Tanpa Nama';
           const uname = target.username ? `@${target.username}` : 'Tidak ada';
@@ -121,13 +113,13 @@ export default {
         // Foto profil besar
         let photo: Buffer | string | undefined = undefined;
         try {
-          photo = await client.downloadProfilePhoto(target, { isBig: true });
+          photo = await client.downloadProfilePhoto(target.id || target);
         } catch (e) {
           Logger.logUser(telegramId, `Profiles: gagal download foto profil: ${e instanceof Error ? e.message : String(e)}`, 'WARN');
         }
 
         if (photo && typeof photo !== 'string' && photo.length > 0) {
-          await client.sendMessage(message.peerId, {
+          await client.sendMessage(message.peerId as any, {
             message: caption,
             file: photo,
             parseMode: 'html',
@@ -172,23 +164,12 @@ export default {
         let about = '';
         let members: number | string | undefined;
 
-        if (chat.className === 'Channel') {
-          const full = await client.invoke(new Api.channels.GetFullChannel({ channel: chat as never }));
-          const fullChat = full.fullChat as unknown as { about?: string; participantsCount?: number } | undefined;
-          about = fullChat?.about || '';
-          members = fullChat?.participantsCount;
-        } else {
-          // Grup basic → messages.GetFullChat, jumlah member dari participants
-          try {
-            const full = await client.invoke(new Api.messages.GetFullChat({ chatId: chat.id as never }));
-            const fullChat = full.fullChat as unknown as {
-              about?: string;
-              participants?: { className?: string; participants?: unknown[] };
-            } | undefined;
-            about = fullChat?.about || '';
-            const p = fullChat?.participants;
-            members = p && p.className === 'ChatParticipants' ? p.participants?.length : undefined;
-          } catch (_e) { /* fallback ke participantsCount entity di bawah */ }
+        try {
+          const fullChat: any = await client.getFullChat(chat.id || chat);
+          about = fullChat?.description || '';
+          members = fullChat?.membersCount;
+        } catch (_e) {
+          about = '';
         }
         if (members === undefined || members === null) {
           members = chat.participantsCount ?? 'Tidak diketahui';

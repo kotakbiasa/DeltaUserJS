@@ -18,7 +18,7 @@ const routesDir = path.join(repoRoot, 'src/server/routes');
 const routeFiles = fs.readdirSync(routesDir)
   .filter(f => f.endsWith('.ts') && f !== 'context.ts');
 
-const read = (f) => fs.readFileSync(path.join(routesDir, f), 'utf8');
+const read = (f) => fs.readFileSync(path.join(routesDir, f), 'utf8').replace(/\r\n/g, '\n');
 const apiSrc = fs.readFileSync(path.join(repoRoot, 'src/server/api.ts'), 'utf8');
 
 function routesIn(src) {

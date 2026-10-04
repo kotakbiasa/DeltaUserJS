@@ -1,6 +1,7 @@
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { Logger } from '../../../utils/logger.js';
 
 export default {
@@ -11,7 +12,7 @@ export default {
     usage: '• `.info` (Melihat info diri sendiri, atau grup jika di grup)\n• `.info <username>` (Melihat info username)\n• Balas pesan orang lalu ketik `.info` (Melihat info orang tersebut)',
     detail: 'Menampilkan foto profil utama, bio, status akun, dan data detail lainnya dengan tampilan elegan.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: any, message: any, settings: any, telegramId: number) {
     if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
@@ -25,7 +26,7 @@ export default {
       parseMode: 'html' 
     });
 
-    let targetEntity;
+    let targetEntity: any;
     let _isGroup = false;
 
     try {
@@ -48,42 +49,44 @@ export default {
       }
 
       // 1. Ambil Foto Profil Target
-      let profilePhotoBuffer = null;
+      let profilePhotoBuffer: any = null;
       try {
-        profilePhotoBuffer = await client.downloadProfilePhoto(targetEntity);
-      } catch (e) {
-        Logger.logUser(telegramId, `Gagal download foto profil: ${e.message}`, 'ERROR');
+        profilePhotoBuffer = await client.downloadProfilePhoto(targetEntity.id || targetEntity);
+      } catch (e: any) {
+        Logger.logUser(telegramId, `Gagal download foto profil: ${e.message}`, 'WARN');
       }
 
       // 2. Ambil Full Info (Bio, dll)
       let captionText = ``;
+      const targetId = targetEntity.id ?? targetEntity;
+      const isUser = targetEntity.className === 'User' || targetEntity.className === 'UserEmpty' || (!_isGroup && !targetEntity.title);
 
-      if (targetEntity.className === 'User' || targetEntity.className === 'UserEmpty') {
-        const fullInfo = await client.invoke(new Api.users.GetFullUser({ id: targetEntity }));
-        const u = fullInfo.users[0];
-        const f = fullInfo.fullUser;
-
-        const pName = [u.firstName, u.lastName].filter(Boolean).join(' ');
-        const pUser = u.username ? `@${u.username}` : 'Tidak disetel';
-        const pId = u.id.toString();
-        const pBio = f.about || 'Tidak ada deskripsi / bio';
-        
-        const tags = [];
-        if (u.premium) {tags.push('💎 Premium');}
-        if (u.bot) {tags.push('🤖 Bot');}
-        if (u.verified) {tags.push('✅ Verified');}
-        if (u.scam) {tags.push('⚠️ Scam');}
-        if (u.fake) {tags.push('🎭 Fake');}
-
+      if (isUser) {
+        let pName = targetEntity.firstName || 'Tanpa Nama';
+        let pUser = targetEntity.username ? `@${targetEntity.username}` : 'Tidak disetel';
+        let pId = String(targetId);
+        let pBio = 'Tidak ada deskripsi / bio';
+        const tags: string[] = [];
         let photoCount = 0;
+
         try {
-          const userPhotos = await client.invoke(new Api.photos.GetUserPhotos({
-            userId: targetEntity,
-            offset: 0,
-            maxId: 0 as unknown as import('big-integer').BigInteger,
-            limit: 1
-          }));
-          photoCount = userPhotos.count || userPhotos.photos.length || 0;
+          const u: any = await client.getFullUser(targetId);
+          pName = u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || pName;
+          pUser = u.username ? `@${u.username}` : pUser;
+          pId = String(u.id);
+          pBio = u.bio || pBio;
+          if (u.isPremium) { tags.push('💎 Premium'); }
+          if (u.isBot) { tags.push('🤖 Bot'); }
+          if (u.isVerified) { tags.push('✅ Verified'); }
+          if (u.isScam) { tags.push('⚠️ Scam'); }
+          if (u.isFake) { tags.push('🎭 Fake'); }
+        } catch (e: any) {
+          Logger.logUser(telegramId, `Gagal getFullUser: ${e.message}`, 'WARN');
+        }
+
+        try {
+          const userPhotos: any = await client.getProfilePhotos(targetId, { limit: 1 });
+          photoCount = userPhotos.total || userPhotos.length || 0;
         } catch (_e) { /* ignore */ }
 
         captionText = `<blockquote>👤 <b>USER INFORMATION</b>\n` +
@@ -94,21 +97,16 @@ export default {
                       `📸 <b>Foto Profil:</b> ${photoCount}\n` +
                       `🔖 <b>Status:</b> ${tags.length > 0 ? tags.join(' · ') : 'Normal User'}\n` +
                       `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
-                      `📝 <b>Bio:</b>\n<i>${escapeHtml(pBio)}</i></blockquote>` +
-                      ``;
+                      `📝 <b>Bio:</b>\n<i>${escapeHtml(pBio)}</i></blockquote>`;
       } else {
         // Group Info (Megagroup/Channel or Basic Chat)
         try {
-          // Coba ambil sebagai Channel/Supergroup
-          const fullInfo = await client.invoke(new Api.channels.GetFullChannel({ channel: targetEntity }));
-          const c = fullInfo.chats[0];
-          const f = fullInfo.fullChat;
-
-          const cName = c.title;
-          const cUser = c.username ? `@${c.username}` : 'Private Group';
-          const cId = c.id.toString();
-          const cBio = f.about || 'Tidak ada deskripsi grup';
-          const cMembers = f.participantsCount || c.participantsCount || '?';
+          const fullInfo: any = await client.getFullChat(targetId);
+          const cName = fullInfo.title || targetEntity.title || 'Group';
+          const cUser = fullInfo.username ? `@${fullInfo.username}` : 'Private Group';
+          const cId = String(fullInfo.id || targetEntity.id);
+          const cBio = fullInfo.description || 'Tidak ada deskripsi grup';
+          const cMembers = fullInfo.membersCount || '?';
 
           captionText = `<blockquote>👥 <b>GROUP INFORMATION</b>\n` +
                         `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
@@ -117,34 +115,31 @@ export default {
                         `🆔 <b>Group ID:</b> <code>${escapeHtml(cId)}</code>\n` +
                         `👥 <b>Total Member:</b> ${cMembers}\n` +
                         `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
-                        `📝 <b>Deskripsi:</b>\n<i>${escapeHtml(cBio)}</i></blockquote>` +
-                        ``;
+                        `📝 <b>Deskripsi:</b>\n<i>${escapeHtml(cBio)}</i></blockquote>`;
         } catch (_chanErr) {
-          // Jika Basic Chat
-          const cName = targetEntity.title;
-          const cId = targetEntity.id.toString();
+          const cName = targetEntity.title || 'Basic Group';
+          const cId = String(targetEntity.id || targetId);
           captionText = `<blockquote>👥 <b>BASIC GROUP INFO</b>\n` +
                         `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n` +
                         `📌 <b>Nama:</b> ${escapeHtml(cName)}\n` +
                         `🆔 <b>ID:</b> <code>-${escapeHtml(cId)}</code>\n` +
-                        `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</blockquote>` +
-                        ``;
+                        `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</blockquote>`;
         }
       }
 
       if (profilePhotoBuffer && profilePhotoBuffer.length > 0) {
-        const tmpPath = `/tmp/info_${Date.now()}.jpg`;
+        const tmpPath = path.join(os.tmpdir(), `info_${Date.now()}.jpg`);
         fs.writeFileSync(tmpPath, profilePhotoBuffer);
         
-        await client.sendMessage(message.peerId, {
-          message: captionText,
+        await client.sendFile(message.peerId || message.chatId, {
+          caption: captionText,
           file: tmpPath,
           parseMode: 'html',
           replyTo: message.replyToMsgId
         });
         
-        await message.delete();
-        fs.unlinkSync(tmpPath);
+        await message.delete().catch(() => {});
+        try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
       } else {
         await message.edit({ text: captionText, parseMode: 'html' });
       }

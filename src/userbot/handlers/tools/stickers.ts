@@ -1,4 +1,29 @@
-import { Api } from 'teleproto';
+function createTlProxy(prefix = ''): any {
+  const Cls = class {
+    _: string;
+    constructor(args?: any) {
+      this._ = prefix;
+      if (args) {
+        Object.assign(this, args);
+      }
+    }
+  };
+  return new Proxy(Cls, {
+    get(target, prop: string) {
+      if (typeof prop !== 'string') {
+        return Reflect.get(target, prop);
+      }
+      if (prop in target) {
+        return (target as any)[prop];
+      }
+      const next = prefix
+        ? `${prefix}.${prop.charAt(0).toLowerCase() + prop.slice(1)}`
+        : prop.charAt(0).toLowerCase() + prop.slice(1);
+      return createTlProxy(next);
+    },
+  });
+}
+const Api = createTlProxy();
 import fs from 'fs';
 import os from 'os';
 import path from 'path';

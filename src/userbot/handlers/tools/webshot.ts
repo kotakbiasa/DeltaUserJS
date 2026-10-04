@@ -1,4 +1,3 @@
-import { TelegramClient } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import type { UserbotMessageLike } from '../../types.js';
 import { Logger } from '../../../utils/logger.js';
@@ -184,7 +183,7 @@ export default {
     usage: '• `.webshot <url>` — screenshot URL yang diberikan.\n• `.webshot` (balas pesan berisi URL) — screenshot URL dari pesan yang dibalas.',
     detail: 'Screenshot diambil via thum.io; fallback otomatis ke WordPress mshots lalu microlink bila provider utama gagal. URL harus http(s).'
   },
-  async execute(client: TelegramClient, message: UserbotMessageLike, _settings: unknown, telegramId: number): Promise<void> {
+  async execute(client: any, message: UserbotMessageLike, _settings: unknown, telegramId: number): Promise<void> {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.webshot(?:\s+([\s\S]+))?$/i);
@@ -205,7 +204,7 @@ export default {
 
     try {
       const { buffer, provider } = await getShot(url);
-      await client.sendFile(message.chatId, {
+      await client.sendFile(message.chatId as any, {
         file: buffer,
         forceDocument: false,
         caption: `📸 <code>${escapeHtml(url)}</code> <i>(${provider})</i>`,

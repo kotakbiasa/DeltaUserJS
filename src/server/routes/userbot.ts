@@ -9,7 +9,6 @@ import { deleteUserbot, getDisabledPlugins, getUserbotSession, updateUserbotStat
 import userbotManager from '../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../userbot/engine/pluginRegistry.js';
 import { Logger } from '../../utils/logger.js';
-import { Api } from 'teleproto';
 import { RouteContext, readJsonBody, sendJson } from './context.js';
 
 export async function handleUserbotRoutes(ctx: RouteContext): Promise<boolean> {
@@ -100,10 +99,14 @@ export async function handleUserbotRoutes(ctx: RouteContext): Promise<boolean> {
       let dcId = '4';
 
       if (isConnected && client?.client) {
-        dcId = String((client.client.session as unknown as { dcId?: string | number })?.dcId || '4');
         try {
           const start = Date.now();
-          await client.client.invoke(new Api.help.GetNearestDc());
+          if (typeof client.client.call === 'function') {
+            const res = await client.client.call({ _: 'help.getNearestDc' });
+            dcId = String((res as any)?.nearestDc || (res as any)?.thisDc || '4');
+          } else if (typeof client.client.invoke === 'function') {
+            await client.client.invoke({ _: 'help.getNearestDc' });
+          }
           pingMs = Date.now() - start;
         } catch (_) {
           pingMs = -1;
@@ -135,7 +138,11 @@ export async function handleUserbotRoutes(ctx: RouteContext): Promise<boolean> {
       try {
         const ubot = userbotManager.clients.get(telegramId);
         if (ubot && ubot.client) {
-          await ubot.client.invoke(new Api.auth.LogOut());
+          if (typeof ubot.client.logOut === 'function') {
+            await ubot.client.logOut();
+          } else if (typeof ubot.client.call === 'function') {
+            await ubot.client.call({ _: 'auth.logOut' });
+          }
         }
       } catch (e) {
         Logger.logUser(telegramId, `Logout Telegram exception: ${e instanceof Error ? e.message : String(e)}`, 'WARN');

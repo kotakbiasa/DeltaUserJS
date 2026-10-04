@@ -1,4 +1,3 @@
-import { Api } from 'teleproto';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { updateUserbotFeature } from '../../../infrastructure/database.js';
@@ -26,7 +25,7 @@ interface WarnEntry {
 interface Target {
   id: number;
   name: string;
-  entity?: Api.TypeEntityLike;
+  entity?: any;
 }
 
 interface ResolvedTarget {
@@ -197,23 +196,34 @@ async function resolveTarget(client, message, args): Promise<ResolvedTarget> {
   return { reason, error: 'Balas pesan user yang mau diwarn, atau tulis username/ID-nya' };
 }
 
-// Kick = ban sekejap lalu unban (supergroup), atau DeleteChatUser (grup biasa).
-async function kickUser(client, chat, isChannel, target: Target) {
+// Kick = kickChatMember atau ban sekejap lalu unban
+async function kickUser(client: any, chat: any, _isChannel: boolean, target: Target) {
+  const chatId = chat.id || chat;
   const participant = target.entity ?? target.id;
-  if (isChannel) {
-    await client.invoke(new Api.channels.EditBanned({
-      channel: chat,
-      participant,
-      bannedRights: new Api.ChatBannedRights({ untilDate: 0, viewMessages: true })
-    }));
-    await client.invoke(new Api.channels.EditBanned({
-      channel: chat,
-      participant,
-      bannedRights: new Api.ChatBannedRights({ untilDate: 0, viewMessages: false, sendMessages: false })
-    }));
-    return;
+  if (typeof client.kickChatMember === 'function') {
+    return await client.kickChatMember(chatId, participant);
   }
-  await client.invoke(new Api.messages.DeleteChatUser({ chatId: chat.id, userId: participant }));
+  if (typeof client.call === 'function') {
+    await client.call({
+      _: 'channels.editBanned',
+      channel: await client.resolvePeer?.(chatId) || chatId,
+      participant: await client.resolvePeer?.(participant) || participant,
+      bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
+    }).catch(() => {});
+    return await client.call({
+      _: 'channels.editBanned',
+      channel: await client.resolvePeer?.(chatId) || chatId,
+      participant: await client.resolvePeer?.(participant) || participant,
+      bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
+    });
+  }
+  if (typeof client.invoke === 'function') {
+    return await client.invoke({
+      _: 'messages.deleteChatUser',
+      chatId: chat.id || chatId,
+      userId: participant,
+    });
+  }
 }
 
 // ---- Command handlers ----
