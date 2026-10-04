@@ -1,4 +1,5 @@
 import { InlineKeyboard } from 'grammy';
+import type { BotContext, BotConversation } from '../../context.js';
 import { replyRich } from '../../../utils/richMessage.js';
 import { TelegramClient } from '@mtcute/node';
 import { MemoryStorage } from '@mtcute/core';
@@ -57,7 +58,7 @@ export const pendingOtpState = new Map<
  */
 export function getOrCreateClient(telegramId: number, _phoneNumber?: string): TelegramClient {
   let client = activeRegClients.get(telegramId);
-  if (client) return client;
+  if (client) {return client;}
 
   const storage = new MemoryStorage();
   client = new TelegramClient({
@@ -82,7 +83,7 @@ export function getOrCreateClient(telegramId: number, _phoneNumber?: string): Te
 export async function ensureConnected(client: TelegramClient) {
   try {
     await client.connect();
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (!String(err).includes('already connected')) {
       throw err;
     }
@@ -108,7 +109,7 @@ export async function cleanupClient(telegramId: number) {
 /**
  * Helper to wait for either text input or cancellation button
  */
-export async function waitForInput(conversation: any, ctx: any): Promise<string> {
+export async function waitForInput(conversation: BotConversation, ctx: BotContext): Promise<string> {
   const result = await conversation.waitFor(['message:text', 'callback_query:data']);
 
   const cbData = result.callbackQuery?.data;

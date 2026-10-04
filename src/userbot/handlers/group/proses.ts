@@ -1,5 +1,7 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { getCustomEmoji, escapeHtmlPreservingTgEmoji } from '../../../utils/customEmoji.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ============================================================
 // PROSES — kartu status transaksi (teks estetik HTML blockquote)
@@ -20,13 +22,13 @@ function nowWib() {
   });
 }
 
-const CARDS = {
+const CARDS: Record<string, { label: string; statusId: string }> = {
   proses: { label: 'PROCESSING', statusId: 'Sedang Diproses' },
   done: { label: 'DONE', statusId: 'Selesai' },
   batal: { label: 'CANCELED', statusId: 'Dibatalkan' }
 };
 
-function buildCard(kind, rawItem, settings?: unknown) {
+function buildCard(kind: string, rawItem: string, settings?: unknown) {
   const card = CARDS[kind];
   const emoji = getCustomEmoji(settings, kind);
   const itemEmoji = getCustomEmoji(settings, 'item');
@@ -43,7 +45,7 @@ function buildCard(kind, rawItem, settings?: unknown) {
   );
 }
 
-async function sendCard(message, kind, rawItem, settings?: unknown) {
+async function sendCard(message: UserbotMessageLike, kind: string, rawItem: string, settings?: unknown) {
   if (!rawItem || !rawItem.trim()) {
     await message.edit({
       text: `<blockquote>📚 <b>Penggunaan:</b> <code>.${kind} &lt;nama item&gt;</code>\nContoh: <code>.${kind} Panel Premium 1 Bulan</code></blockquote>`,
@@ -71,7 +73,7 @@ export default {
     detail: 'Semua kartu dirender sebagai HTML blockquote: judul status, nama item, status dalam Bahasa Indonesia, dan waktu WIB (Asia/Jakarta). ' +
       'Cocok untuk update cepat pembeli di chat transaksi.'
   },
-  async execute(client, message, settings, _telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, _telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.(\w+)(?:\s+([\s\S]+))?$/);

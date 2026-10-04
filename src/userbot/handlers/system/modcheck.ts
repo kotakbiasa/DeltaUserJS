@@ -6,6 +6,8 @@ import path from 'path';
 import config from '../../../config.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ─────────────────────────────────────────────────────────────
 // ModCheck — security scanner untuk file plugin (ala Kitsune).
@@ -192,7 +194,7 @@ export default {
   onLoad: () => {
     Logger.logSystem('🛡️ Plugin ModCheck loaded — security scanner aktif (.modcheck | .modcheck save | .modcheck diff)', 'INFO');
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out) {return;}
     if (Number(telegramId) !== Number(config.ownerId)) {return;}
 

@@ -1,6 +1,12 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { updateUserbotFeature } from '../../../infrastructure/database.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { EntityLike, UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { LegacyEntity } from '../../engine/compatClient.js';
+import type { UserbotEntityLike } from '../../types.js';
+import type { tl } from '@mtcute/core';
 
 // ============================================================
 // Warning grup — .warn / .warns / .resetwarn
@@ -25,7 +31,7 @@ interface WarnEntry {
 interface Target {
   id: number;
   name: string;
-  entity?: any;
+  entity?: LegacyEntity | UserbotEntityLike | string;
 }
 
 interface ResolvedTarget {
@@ -71,30 +77,31 @@ function getWarnStore(telegramId: number): WarnStore {
 // execute. Settings (doc userbot dari cache) berisi field ini
 // karena updateFeature mempersist-nya; kalau tidak berisi field itu
 // (undefined), store mulai kosong.
-function loadWarnsFromSettings(telegramId, settings) {
+function loadWarnsFromSettings(telegramId: number, settings: UserbotSettings) {
   const idNum = Number(telegramId);
   if (loadedIds.has(idNum)) {return;}
   loadedIds.add(idNum);
   const warnStore = getWarnStore(idNum);
-  const data = settings?.warn_data;
+  const data = settings?.warn_data as Record<string, unknown> | undefined;
   if (!data || typeof data !== 'object') {return;}
   for (const chatKey of Object.keys(data)) {
     const rawChat = data[chatKey];
     if (!rawChat || typeof rawChat !== 'object') {continue;}
     const chatMap = getChatWarns(warnStore, chatKey);
-    for (const userKey of Object.keys(rawChat)) {
-      const entry = rawChat[userKey];
+    const chatEntries = rawChat as Record<string, { count?: unknown; reasons?: unknown }>;
+    for (const userKey of Object.keys(chatEntries)) {
+      const entry = chatEntries[userKey];
       if (!entry || typeof entry !== 'object' || !Number.isFinite(Number(entry.count))) {continue;}
       chatMap.set(String(userKey), {
         count: Number(entry.count),
-        reasons: Array.isArray(entry.reasons) ? entry.reasons.map(r => String(r)) : []
+        reasons: Array.isArray(entry.reasons) ? entry.reasons.map((r: unknown) => String(r)) : []
       });
     }
   }
 }
 
 // Snapshot store ke plain object JSON-safe untuk dipersist.
-function serializeWarnStore(telegramId) {
+function serializeWarnStore(telegramId: number) {
   const warnStore = getWarnStore(telegramId);
   const out: Record<string, Record<string, WarnEntry>> = {};
   for (const [chatKey, chatMap] of warnStore) {
@@ -108,7 +115,7 @@ function serializeWarnStore(telegramId) {
 }
 
 // Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
-async function persistWarns(telegramId) {
+async function persistWarns(telegramId: number) {
   try {
     await updateUserbotFeature(telegramId, 'warn_data', serializeWarnStore(telegramId));
   } catch (err) {
@@ -154,7 +161,7 @@ function listWarns(entry: WarnEntry): string {
 
 // Target user: reply ke pesan user, atau token pertama args =
 // @username / username / link t.me / ID numerik. Sisa args = alasan.
-async function resolveTarget(client, message, args): Promise<ResolvedTarget> {
+async function resolveTarget(client: CompatClient, message: UserbotMessageLike, args: string): Promise<ResolvedTarget> {
   let token = '';
   let reason = args;
   if (args !== '') {
@@ -197,30 +204,36 @@ async function resolveTarget(client, message, args): Promise<ResolvedTarget> {
 }
 
 // Kick = kickChatMember atau ban sekejap lalu unban
-async function kickUser(client: any, chat: any, _isChannel: boolean, target: Target) {
-  const chatId = chat.id || chat;
+async function kickUser(client: CompatClient, chat: UserbotEntityLike, _isChannel: boolean, target: Target) {
+  const chatId = (chat as { id?: unknown }).id ?? chat;
   const participant = target.entity ?? target.id;
   if (typeof client.kickChatMember === 'function') {
-    return await client.kickChatMember(chatId, participant);
+    // mtcute memakai satu objek params, bukan argumen posisional.
+    return await client.kickChatMember({ chatId: toPeer(chatId as EntityLike), userId: toPeer(participant as EntityLike) });
   }
   if (typeof client.call === 'function') {
+    // Pemanggilan TL mentah: resolvePeer() mengembalikan InputPeer, sedangkan
+    // skema channels.editBanned minta InputChannel. Bentuknya dipakai apa
+    // adanya seperti sebelumnya, cuma sekarang cast-nya tertulis eksplisit.
+    const channel = (await client.resolvePeer?.(toPeer(chatId as EntityLike)) || chatId) as unknown as tl.TypeInputChannel;
+    const bannedPeer = (await client.resolvePeer?.(toPeer(participant as EntityLike)) || participant) as unknown as tl.TypeInputPeer;
     await client.call({
       _: 'channels.editBanned',
-      channel: await client.resolvePeer?.(chatId) || chatId,
-      participant: await client.resolvePeer?.(participant) || participant,
+      channel,
+      participant: bannedPeer,
       bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
     }).catch(() => {});
     return await client.call({
       _: 'channels.editBanned',
-      channel: await client.resolvePeer?.(chatId) || chatId,
-      participant: await client.resolvePeer?.(participant) || participant,
+      channel,
+      participant: bannedPeer,
       bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
     });
   }
   if (typeof client.invoke === 'function') {
     return await client.invoke({
       _: 'messages.deleteChatUser',
-      chatId: chat.id || chatId,
+      chatId: chatId,
       userId: participant,
     });
   }
@@ -228,7 +241,7 @@ async function kickUser(client: any, chat: any, _isChannel: boolean, target: Tar
 
 // ---- Command handlers ----
 
-async function handleWarn(client, message, chat, isChannel, warnStore, chatKey, telegramId, target, reason) {
+async function handleWarn(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, isChannel: boolean, warnStore: WarnStore, chatKey: string, telegramId: number, target: Target, reason: string) {
   const chatMap = getChatWarns(warnStore, chatKey);
   const userKey = String(target.id);
   const entry = getEntry(warnStore, chatKey, userKey);
@@ -272,7 +285,7 @@ async function handleWarn(client, message, chat, isChannel, warnStore, chatKey, 
   });
 }
 
-async function handleWarns(message, warnStore, chatKey, target) {
+async function handleWarns(message: UserbotMessageLike, warnStore: WarnStore, chatKey: string, target: Target) {
   const chatMap = warnStore.get(chatKey);
   const entry = chatMap ? chatMap.get(String(target.id)) : undefined;
   if (!entry || entry.count === 0) {
@@ -288,7 +301,7 @@ async function handleWarns(message, warnStore, chatKey, target) {
   });
 }
 
-async function handleResetWarn(message, warnStore, chatKey, telegramId, target) {
+async function handleResetWarn(message: UserbotMessageLike, warnStore: WarnStore, chatKey: string, telegramId: number, target: Target) {
   const chatMap = warnStore.get(chatKey);
   if (chatMap) {
     chatMap.delete(String(target.id));
@@ -318,7 +331,7 @@ export default {
       'Warn dipersist ke database per userbot (field warn_data) dan di-load ulang otomatis saat userbot start. ' +
       'Hanya owner userbot yang bisa memakai command ini.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     loadWarnsFromSettings(telegramId, settings);

@@ -18,20 +18,21 @@ const pluginsDir = path.join(__dirname, '../handlers');
 let watcher: FSWatcher | null = null;
 let isWatching = false;
 
-function helpIsComplete(help) {
+function helpIsComplete(help: unknown) {
   if (!help) {return true;}
-  return ['title', 'description', 'usage', 'detail'].every(key => Boolean(help[key]));
+  const h = help as Record<string, unknown>;
+  return ['title', 'description', 'usage', 'detail'].every(key => Boolean(h[key]));
 }
 
-async function importPlugin(filePath) {
+async function importPlugin(filePath: string) {
   const url = pathToFileURL(filePath).href;
   // cache-bust in dev restarts so rewritten plugins are re-read in the same process if needed
   const module = await import(`${url}?v=${Date.now()}`);
   return module.default;
 }
 
-async function getJsFilesRecursively(dir) {
-  let results = [];
+async function getJsFilesRecursively(dir: string) {
+  let results: string[] = [];
   const list = await readdir(dir);
   for (const file of list) {
     const filePath = path.join(dir, file);

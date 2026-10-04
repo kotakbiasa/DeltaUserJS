@@ -5,6 +5,9 @@ import os from 'os';
 import path from 'path';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -14,7 +17,7 @@ const MAX_DURATION = 120; // detik — batas video pendek untuk togif
 const TMP_DIR = path.join(os.tmpdir(), 'deltauserjs-convert');
 
 /** Jalankan ffmpeg via execFile (tanpa shell). Melempar Error dengan stderr ringkas. */
-async function runFfmpeg(args) {
+async function runFfmpeg(args: string[]) {
   try {
     await execFileAsync(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-y', ...args], {
       timeout: 90_000,
@@ -29,7 +32,7 @@ async function runFfmpeg(args) {
 }
 
 /** Probe durasi video & keberadaan stream audio via ffprobe. */
-async function probeVideo(filePath) {
+async function probeVideo(filePath: string) {
   const { stdout } = await execFileAsync(
     FFPROBE,
     ['-v', 'error', '-print_format', 'json', '-show_streams', '-show_format', filePath],
@@ -37,8 +40,8 @@ async function probeVideo(filePath) {
   );
   const data = JSON.parse(stdout);
   const streams = Array.isArray(data.streams) ? data.streams : [];
-  const hasAudio = streams.some((s) => s.codec_type === 'audio');
-  const video = streams.find((s) => s.codec_type === 'video');
+  const hasAudio = streams.some((s: { codec_type?: string }) => s.codec_type === 'audio');
+  const video = streams.find((s: { codec_type?: string }) => s.codec_type === 'video');
   let duration = 0;
   const fmtDur = parseFloat(data.format && data.format.duration);
   if (!Number.isNaN(fmtDur) && fmtDur > 0) {
@@ -50,7 +53,7 @@ async function probeVideo(filePath) {
 }
 
 /** Hapus file temp dengan aman (abaikan error). */
-function cleanup(...files) {
+function cleanup(...files: Array<string | null | undefined>) {
   for (const f of files) {
     if (!f) {continue;}
     try {
@@ -60,22 +63,22 @@ function cleanup(...files) {
 }
 
 /** Pesan proses dengan blockquote (gaya plugin lain). */
-function procText(text) {
+function procText(text: string) {
   return `<blockquote>⏳ ${text}</blockquote>`;
 }
 
-async function editProcess(message, text) {
+async function editProcess(message: UserbotMessageLike, text: string) {
   await message.edit({ text: procText(text), parseMode: 'html' });
 }
 
-async function editError(message, text) {
+async function editError(message: UserbotMessageLike, text: string) {
   await message.edit({
     text: `<blockquote>❌ <b>Gagal:</b> ${escapeHtml(text)}</blockquote>`,
     parseMode: 'html',
   });
 }
 
-async function editSuccess(message, text) {
+async function editSuccess(message: UserbotMessageLike, text: string) {
   await message.edit({
     text: `<blockquote>✅ <b>Berhasil!</b> ${text}</blockquote>`,
     parseMode: 'html',
@@ -83,7 +86,7 @@ async function editSuccess(message, text) {
 }
 
 /** Ambil pesan yang di-reply (null jika tidak ada). */
-async function getReplied(message) {
+async function getReplied(message: UserbotMessageLike) {
   try {
     return await message.getReplyMessage();
   } catch (_e) {
@@ -92,16 +95,27 @@ async function getReplied(message) {
 }
 
 /** Download media sebagai Buffer (tolak jika kosong). */
-async function downloadBuffer(client, replied) {
-  const buffer = await client.downloadMedia(replied, {});
+async function downloadBuffer(client: CompatClient, replied: UserbotMessageLike): Promise<Buffer> {
+  // mtcute tidak punya client.downloadMedia(); jalur yang benar adalah
+  // adapter pesan, dengan downloadAsBuffer() atas objek media sebagai cadangan.
+  let buffer: Buffer | string | undefined;
+  if (typeof replied.downloadMedia === 'function') {
+    buffer = await replied.downloadMedia();
+  }
+  if (!buffer) {
+    const media = (replied as { media?: unknown }).media;
+    if (media && typeof client.downloadAsBuffer === 'function') {
+      buffer = Buffer.from(await client.downloadAsBuffer(media as Parameters<CompatClient['downloadAsBuffer']>[0]));
+    }
+  }
   if (!buffer || buffer.length === 0) {
     throw new Error('gagal mengunduh media');
   }
-  return buffer;
+  return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
 }
 
 /** Simpan Buffer ke file temp dengan ekstensi tertentu, kembalikan path. */
-function bufferToTempFile(buffer, filename) {
+function bufferToTempFile(buffer: Buffer, filename: string) {
   fs.mkdirSync(TMP_DIR, { recursive: true });
   const filePath = path.join(TMP_DIR, filename);
   fs.writeFileSync(filePath, buffer);
@@ -109,14 +123,14 @@ function bufferToTempFile(buffer, filename) {
 }
 
 /** Reply target untuk pesan hasil (reply ke perintah .toxxx). */
-function replyToId(message) {
+function replyToId(message: UserbotMessageLike) {
   return message.replyToMsgId || message.id;
 }
 
 // ============================================================
 // .toimg — sticker (webp/tgs) / gif / animasi → foto
 // ============================================================
-async function handleToImg(client, message, telegramId) {
+async function handleToImg(client: CompatClient, message: UserbotMessageLike, telegramId: number) {
   const replied = await getReplied(message);
   if (!replied || !replied.media) {
     await editError(message, 'Balas sebuah sticker atau GIF untuk diubah ke foto!');
@@ -142,7 +156,7 @@ async function handleToImg(client, message, telegramId) {
     // Sticker webp statis bisa langsung dikirim sebagai photo — Telegram
     // menerimanya. Sticker animasi (tgs) dan GIF dikonversi ke PNG dulu.
     if (!stickerAnim && !isGif) {
-      await client.sendFile(message.chatId, {
+      await client.sendFile(toPeer(message.chatId), {
         file: tmpPath,
         forceDocument: false,
         replyTo: replyToId(message),
@@ -152,7 +166,7 @@ async function handleToImg(client, message, telegramId) {
       const pngPath = path.join(TMP_DIR, `toimg_${Date.now()}.png`);
       try {
         await runFfmpeg(['-i', tmpPath, '-frames:v', '1', pngPath]);
-        await client.sendFile(message.chatId, {
+        await client.sendFile(toPeer(message.chatId), {
           file: pngPath,
           forceDocument: false,
           replyTo: replyToId(message),
@@ -176,7 +190,7 @@ async function handleToImg(client, message, telegramId) {
 // ============================================================
 // .tosticker — foto / video pendek → sticker webp
 // ============================================================
-async function handleToSticker(client, message, telegramId) {
+async function handleToSticker(client: CompatClient, message: UserbotMessageLike, telegramId: number) {
   const replied = await getReplied(message);
   if (!replied || !replied.media) {
     await editError(message, 'Balas sebuah foto atau video pendek untuk diubah ke sticker!');
@@ -227,7 +241,7 @@ async function handleToSticker(client, message, telegramId) {
     }
 
     await editProcess(message, '<b>Mengunggah sticker...</b>');
-    await client.sendFile(message.chatId, {
+    await client.sendFile(toPeer(message.chatId), {
       file: outPath,
       forceDocument: false,
       replyTo: replyToId(message),
@@ -245,7 +259,7 @@ async function handleToSticker(client, message, telegramId) {
 // ============================================================
 // .toaudio — video / voice → audio mp3 (dikirim sebagai voice note)
 // ============================================================
-async function handleToAudio(client, message, telegramId) {
+async function handleToAudio(client: CompatClient, message: UserbotMessageLike, telegramId: number) {
   const replied = await getReplied(message);
   if (!replied || !replied.media) {
     await editError(message, 'Balas sebuah video/voice untuk diekstrak audionya!');
@@ -273,7 +287,7 @@ async function handleToAudio(client, message, telegramId) {
     await runFfmpeg(['-i', tmpPath, '-vn', '-map', 'a:0', '-acodec', 'libmp3lame', '-q:a', '0', outPath]);
 
     await editProcess(message, '<b>Mengunggah voice note...</b>');
-    await client.sendFile(message.chatId, {
+    await client.sendFile(toPeer(message.chatId), {
       file: outPath,
       voiceNote: true,
       replyTo: replyToId(message),
@@ -291,7 +305,7 @@ async function handleToAudio(client, message, telegramId) {
 // ============================================================
 // .togif — video pendek TANPA audio → mp4 animasi
 // ============================================================
-async function handleToGif(client, message, telegramId) {
+async function handleToGif(client: CompatClient, message: UserbotMessageLike, telegramId: number) {
   const replied = await getReplied(message);
   if (!replied || !replied.media) {
     await editError(message, 'Balas sebuah video pendek untuk diubah ke animasi!');
@@ -333,7 +347,7 @@ async function handleToGif(client, message, telegramId) {
     ]);
 
     await editProcess(message, '<b>Mengunggah animasi...</b>');
-    await client.sendFile(message.chatId, {
+    await client.sendFile(toPeer(message.chatId), {
       file: outPath,
       forceDocument: false,
       attributes: [{ _: 'documentAttributeAnimated', className: 'DocumentAttributeAnimated' }],
@@ -362,7 +376,7 @@ export default {
     usage: '• `.toimg` — balas sticker/GIF → kirim sebagai foto.\n• `.tosticker` — balas foto/video pendek → kirim sebagai sticker webp.\n• `.toaudio` — balas video/voice → ekstrak audio mp3, kirim sebagai voice note.\n• `.togif` — balas video pendek TANPA audio → kirim sebagai animasi (GIF).',
     detail: 'Semua konversi memakai ffmpeg (v6) di server: foto→webp 512px, video→animated webp 15fps, audio diekstrak ke mp3 (libmp3lame), video→mp4 H.264 tanpa audio. Maksimal durasi video: 120 detik. Pesan perintah otomatis dihapus setelah sukses.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().toLowerCase().match(/^\.to(img|sticker|audio|gif)\b/);

@@ -2,7 +2,7 @@
 
 Multi-userbot manager untuk Telegram. **Master Bot** dibangun dengan
 [grammY](https://grammy.dev), sedangkan **userbot** memakai
-[GramJS/teleproto](https://github.com/gram-js/gramjs). State persisten disimpan di
+[mtcute](https://mtcute.dev). State persisten disimpan di
 MongoDB (dengan fallback file JSON lokal) dan di-cache di memori untuk akses cepat.
 
 ## ✨ Fitur
@@ -45,7 +45,6 @@ cp .env.example .env   # lalu isi nilainya
 | `APP_URL` | ✅ | URL HTTPS Mini App yang terdaftar di BotFather |
 | `ALLOW_DEV_AUTH` | ➖ | `true` hanya untuk browser development lokal; jangan aktifkan di production |
 | `DIGITAL_STORE_PATH` | ➖ | Lokasi JSON toko digital; default `data/digital-store.json` |
-| `MIDTRANS_SERVER_KEY` / `XENDIT_API_KEY` | ➖ | Payment gateway untuk checkout langganan |
 
 ## ▶️ Menjalankan
 
@@ -76,9 +75,8 @@ Untuk deployment:
 
 Data toko digital disimpan pada `data/digital-store.json` secara default.
 Backup file ini bersama database utama. Jangan menyimpan `initData` pengguna
-di browser atau log server. Checkout paket berbayar memerlukan MongoDB serta
-Midtrans/Xendit; jika belum dikonfigurasi, Mini App mengarahkan pengguna ke owner.
-Renewal otomatis belum melakukan penagihan; konfirmasi perpanjangan tetap manual.
+di browser atau log server. Tidak ada integrasi payment gateway: perpanjangan
+langganan dikonfirmasi manual oleh owner.
 Penyimpanan JSON toko digital mengasumsikan satu instance aplikasi; gunakan database bersama bila menjalankan beberapa worker.
 
 ## 🤖 Cara Pakai
@@ -105,7 +103,7 @@ src/
 │   ├── handlers/          # Command & callback handlers
 │   ├── ui/                # Dashboard UI components
 │   └── index.ts
-├── userbot/               # Userbot Layer (GramJS)
+├── userbot/               # Userbot Layer (mtcute)
 │   ├── engine/           # Client, manager, plugin system
 │   └── handlers/         # Plugin commands (admin, system, tools, util)
 ├── services/             # Business logic services
@@ -164,7 +162,7 @@ docker compose up -d
 
 - [Arsitektur saat ini](./docs/architecture.md) - Struktur source, alur runtime, dan plugin dinamis
 - [Security & correctness review](./docs/security.md) - Status verifikasi keamanan/kualitas terbaru
-- [Indeks dokumentasi](./docs/README.md) - Testing, teleproto, cheatsheet, dan arsip review
+- [Indeks dokumentasi](./docs/README.md) - Testing, known issues, cheatsheet, dan arsip review
 
 Tool diagnostik dashboard manual tersedia melalui `npm run diagnostics:panels`,
 `npm run diagnostics:menus`, dan `npm run diagnostics:tags`.

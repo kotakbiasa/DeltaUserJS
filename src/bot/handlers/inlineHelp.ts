@@ -3,18 +3,21 @@
  *
  * Callback query handlers untuk tombol help di master bot dashboard.
  * Tidak lagi bergantung pada inline mode — .help userbot sekarang
- * menggunakan inline keyboard langsung dari userbot (GramJS buttons).
+ * menggunakan inline keyboard langsung dari userbot (mtcute buttons).
  */
 import { helpRegistry as userbotHelpRegistry } from '../../userbot/engine/pluginRegistry.js';
+import type { PluginHelp } from '../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../utils/richMessage.js';
 import { editRich } from '../../utils/richMessage.js';
 import { replyRich } from '../../utils/richMessage.js';
+import type { BotContext } from '../context.js';
+import type { Bot } from 'grammy';
 
 // Registry modul Master Bot (kosong sejak fitur group management dihapus;
 // tetap disediakan agar mudah diperluas kembali di masa depan).
-export const masterHelpRegistry = {};
+export const masterHelpRegistry: Record<string, PluginHelp> = {};
 
-function getRegistry(target) {
+function getRegistry(target: string) {
   if (target === 'ubot') {return userbotHelpRegistry;}
   return masterHelpRegistry;
 }
@@ -23,7 +26,7 @@ function moduleNames(target = 'main') {
   return Object.keys(getRegistry(target)).sort();
 }
 
-function formatModuleName(name) {
+function formatModuleName(name: string) {
   if (name.toLowerCase() === 'antipm') {return 'AntiPM';}
   if (name.length <= 3) {return name.toUpperCase();}
   return name.charAt(0).toUpperCase() + name.slice(1);
@@ -69,7 +72,7 @@ export function buildHelpMenuHtml(page = 1, target = 'main') {
     (list || 'Tidak ada modul.');
 }
 
-export function buildModuleHtml(moduleName, target = 'main') {
+export function buildModuleHtml(moduleName: string, target = 'main') {
   const mod = getRegistry(target)[moduleName];
   if (!mod) {return `<b>📦 Modul Tidak Ditemukan</b>`;}
   const title = mod.title || formatModuleName(moduleName);
@@ -122,7 +125,7 @@ function moduleBackKeyboard(target = 'main') {
   ] };
 }
 
-function resolveModuleTarget(moduleName) {
+function resolveModuleTarget(moduleName: string) {
   if (userbotHelpRegistry[moduleName]) {return 'ubot';}
   if (masterHelpRegistry[moduleName]) {return 'main';}
   return null;
@@ -130,7 +133,7 @@ function resolveModuleTarget(moduleName) {
 
 // --- Exported for dashboard ---
 
-export function buildHelpMenuRichHtml(session, _page = 1, target = 'main') {
+export function buildHelpMenuRichHtml(session: Record<string, unknown>, _page = 1, target = 'main') {
   return `<h1 align="center">📖 Help ${target === 'ubot' ? '(Userbot)' : '(Master)'}</h1>` +
     `<p>Pilih modul untuk melihat command dan detail penggunaan.</p>`;
 }
@@ -141,7 +144,7 @@ export function helpKeyboardExported(page = 1, target = 'main') {
 
 // --- Register callback & inline_query handlers ---
 
-export function registerInlineHelpHandlers(bot) {
+export function registerInlineHelpHandlers(bot: Bot<BotContext>) {
   // inline_query: dipicu saat userbot memanggil getInlineBotResults
   // untuk mendapatkan menu help + tombol, lalu userbot posting via
   // sendInlineBotResult ke chat manapun (termasuk Chat Pribadi/Saved).
@@ -164,7 +167,9 @@ export function registerInlineHelpHandlers(bot) {
           input_message_content: { rich_message: { html } },
           reply_markup: moduleBackKeyboard('ubot'),
         };
-        return ctx.answerInlineQuery([result], { cache_time: 0 });
+        // `rich_message` adalah payload khusus Delta yang dirakit transformer
+        // richMessage, jadi bentuknya memang di luar tipe Bot API standar.
+        return ctx.answerInlineQuery([result as unknown as Parameters<typeof ctx.answerInlineQuery>[0][number]], { cache_time: 0 });
       }
     }
 
@@ -180,7 +185,9 @@ export function registerInlineHelpHandlers(bot) {
       input_message_content: { rich_message: { html } },
       reply_markup: helpKeyboard(1, 'ubot'),
     };
-    return ctx.answerInlineQuery([result], { cache_time: 0 });
+    // `rich_message` adalah payload khusus Delta yang dirakit transformer
+        // richMessage, jadi bentuknya memang di luar tipe Bot API standar.
+        return ctx.answerInlineQuery([result as unknown as Parameters<typeof ctx.answerInlineQuery>[0][number]], { cache_time: 0 });
   });
 
   // Pesan "help_ubot" / "help_ubot:<module>" dari userbot (dikirim via DM ke

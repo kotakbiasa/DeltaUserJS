@@ -1,5 +1,7 @@
 import { addBroadcastBlacklist, removeBroadcastBlacklist, getBroadcastBlacklist } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 export default {
   name: 'blacklist',
@@ -9,7 +11,7 @@ export default {
     usage: '• `.addbl` (Di dalam grup yg ingin di-blacklist)\n• `.rmbl` (Di dalam grup yg ingin dihapus dari blacklist)\n• `.listbl` (Melihat daftar ID grup yang di-blacklist)',
     detail: 'Grup yang masuk blacklist tidak akan pernah menerima pesan dari perintah `.gcast`.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
@@ -59,7 +61,7 @@ export default {
         if (list.length === 0) {
         await message.edit({ text: `<blockquote>📝 <b>Daftar Blacklist Kosong.</b>\nSemua grup saat ini akan menerima pesan Broadcast Anda.</blockquote>`, parseMode: 'html' });
         } else {
-        const listText = list.map(id => `• <code>${escapeHtml(String(id))}</code>`).join('\n');
+        const listText = list.map((id: string | number) => `• <code>${escapeHtml(String(id))}</code>`).join('\n');
         await message.edit({
           text: `<blockquote>🛡️ <b>Daftar Grup Blacklist (Diabaikan oleh Gcast):</b>\n\n${listText}</blockquote>`,
           parseMode: 'html'

@@ -16,7 +16,7 @@ src/
 │   ├── ui/keyboards/            # Panel dashboard dan keyboard inline
 │   │   └── dashboard/           # Handler, panel, keyboard, dan shared helpers
 │   └── index.ts                 # Inisialisasi bot utama
-├── userbot/                    # Engine userbot GramJS/teleproto
+├── userbot/                    # Engine userbot mtcute
 │   ├── engine/                 # Client, lifecycle manager, registry, loader
 │   └── handlers/               # Plugin yang dimuat secara dinamis
 │       ├── admin/
@@ -38,7 +38,7 @@ src/
 webapp/                         # React/Vite Telegram Mini App
 scripts/diagnostics/            # Tool manual, bukan runtime/deployment
 test/                           # Unit, integration, dan E2E test berbasis dist/
-docs/                           # Dokumentasi aktif dan contoh teleproto
+docs/                           # Dokumentasi aktif dan known issues
 ```
 
 ## Alur runtime

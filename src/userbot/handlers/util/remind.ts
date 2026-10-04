@@ -1,5 +1,9 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import { parseDurationMsArg } from '../../engine/validate.js';
 
 // ============================================================
 // Reminder — pengingat pribadi berbasis timer untuk userbot
@@ -11,12 +15,6 @@ import { Logger } from '../../../utils/logger.js';
 // ============================================================
 
 const MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
-const UNIT_MS: Record<string, number> = {
-  s: 1000,
-  m: 60 * 1000,
-  h: 60 * 60 * 1000,
-  d: 24 * 60 * 60 * 1000
-};
 
 interface ReminderEntry {
   chatId: number;   // chat tempat reminder dibuat & dikirim
@@ -36,20 +34,14 @@ const remindStore = new Map<number, ReminderEntry[]>();
  * Satuan: s (detik), m (menit), h (jam), d (hari).
  * Mengembalikan total milidetik, atau null bila format tidak valid.
  */
-function parseDurationMs(raw) {
-  const clean = String(raw || '').toLowerCase().replace(/\s+/g, '');
-  if (!clean) {return null;}
-  if (!/^(\d+[smhd])+$/.test(clean)) {return null;}
-  const re = /(\d+)([smhd])/g;
-  let totalMs = 0;
-  for (const m of clean.matchAll(re)) {
-    totalMs += parseInt(m[1], 10) * UNIT_MS[m[2]];
-  }
-  return totalMs > 0 ? totalMs : null;
+/** Durasi dibatasi MAX_DURATION_MS agar tidak melampaui batas aman setTimeout. */
+function parseDurationMs(raw: string): number | null {
+  const parsed = parseDurationMsArg(raw, { maxMs: MAX_DURATION_MS });
+  return parsed.ok ? (parsed.value as number) : null;
 }
 
 /** Format waktu target: locale id-ID, timezone Asia/Jakarta (WIB). */
-function formatTarget(epochMs) {
+function formatTarget(epochMs: number) {
   return new Date(epochMs).toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
     day: '2-digit',
@@ -63,7 +55,7 @@ function formatTarget(epochMs) {
 }
 
 /** Sisa waktu manusiawi, mis. "1 jam 29 menit 5 detik". */
-function formatRemaining(ms) {
+function formatRemaining(ms: number) {
   const sec = Math.max(0, Math.floor(ms / 1000));
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
@@ -81,7 +73,7 @@ function formatRemaining(ms) {
  * Pasang timer pengingat. Saat waktu tiba, entry dihapus dari store
  * dan pesan pengingat dikirim ke chat tempat reminder dibuat.
  */
-function startReminderTimer(client, idNum, entry, delayMs) {
+function startReminderTimer(client: CompatClient, idNum: number, entry: ReminderEntry, delayMs: number) {
   const timeoutId = setTimeout(() => {
     const list = remindStore.get(idNum);
     if (list) {
@@ -118,7 +110,7 @@ export default {
       'Waktu target ditampilkan dalam format id-ID dengan timezone Asia/Jakarta (WIB). ' +
       'Reminder disimpan in-memory per akun — hilang jika userbot direstart.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const text = message.message.trim();
@@ -172,7 +164,7 @@ export default {
 
       const targetAt = Date.now() + delayMs;
       const entry: ReminderEntry = {
-        chatId,
+        chatId: Number(toPeer(chatId)),
         message: reminderMessage,
         durationText,
         targetAt,

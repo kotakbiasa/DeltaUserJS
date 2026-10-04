@@ -1,4 +1,6 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ============================================================
 // RekapKB — Tools rekap transaksi game grup
@@ -136,7 +138,7 @@ export default {
     detail:
       '.rekap membaca pesan yang di-reply, mengambil semua baris berformat "Nama: angka" / "Nama - angka" (juga " — ", "=" dan "→"), menjumlahkan nama yang sama, lalu menampilkan total, rata-rata, dan pemain dengan nilai terbanyak. Baris ringkasan seperti Total/Rata-rata otomatis dilewati, jadi output .rekap/.win bisa langsung di-reply dengan perintah lagi. .win <fee%> memotong fee persen dari nilai tiap pemain (contoh .win 5 = nilai × 0,95) dan menampilkan kemenangan akhir per orang. Fee wajib lebih dari 0 dan kurang dari 100.'
   },
-  async execute(client, message, _settings, _telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, _telegramId: number) {
     if (!message.out || !message.message) {return;}
     const text = String(message.message);
 

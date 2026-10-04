@@ -1,4 +1,5 @@
 import { Bot, session, Context } from 'grammy';
+import type { BotContext } from './context.js';
 import { conversations, createConversation } from '@grammyjs/conversations';
 import { limit } from '@grammyjs/ratelimiter';
 import { GrammyError, HttpError } from 'grammy';
@@ -25,7 +26,7 @@ import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
 import { getUserbotSession, updateTelegramPremiumStatus } from '../infrastructure/database.js';
 
-const bot = new Bot(config.botToken);
+const bot = new Bot<BotContext>(config.botToken as string);
 
 // --- Manual sequentialize implementation (no extra deps) ---
 // Maps key -> Promise<void> that resolves when the current update finishes.
@@ -53,6 +54,15 @@ function sequentialize(keyFn: (ctx: Context) => string) {
     }
   };
 }
+
+// Buang update yang tidak berasal dari seorang user (channel post, poll
+// update, dsb.). Bot ini tidak punya handler untuk update seperti itu, dan
+// penjagaan di sini yang membuat `BotContext['from']` non-opsional menjadi
+// janji yang benar — bukan sekadar asumsi tipe.
+bot.use(async (ctx, next) => {
+  if (!ctx.from) {return;}
+  await next();
+});
 
 bot.use(sequentialize((ctx) => {
   const chatId = ctx.chat?.id;
@@ -129,7 +139,7 @@ bot.command(['app', 'webapp', 'dashboard'], async (ctx) => {
     '• 🛍️ Toko plugin digital dengan pesanan manual owner\n' +
     '• 🧮 Kalkulator, teks, dan password generator lokal\n' +
     '• 📢 Broadcast studio dengan chat selector\n' +
-    '• 💎 Cek masa aktif & klaim kode voucher promo\n' +
+    '• 💎 Cek masa aktif langganan\n' +
     '• 👑 Pusat kontrol armada (khusus owner)\n\n' +
     'Ketuk tombol di bawah untuk membuka:',
     {
@@ -154,7 +164,6 @@ export async function setupBotCommands() {
       { command: 'start', description: 'Buka dashboard utama' },
       { command: 'menu', description: 'Buka menu bot' },
       { command: 'app', description: 'Buka Web Dashboard Mini App' },
-      { command: 'claim', description: 'Tukar kode voucher promo (/claim <kode>)' },
       { command: 'daftar', description: 'Daftar userbot baru' },
       { command: 'cancel', description: 'Batalkan proses pendaftaran yang aktif' },
       { command: 'health', description: 'Cek status server (owner only)' },

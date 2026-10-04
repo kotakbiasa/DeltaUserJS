@@ -1,7 +1,17 @@
-function createTlProxy(prefix = ''): any {
+/**
+ * Konstruktor TL dinamis gaya GramJS (`Api.phone.JoinGroupCall`). mtcute tidak
+ * punya padanannya, jadi proxy ini merakit objek `{ _: 'nama.tl' }` sesuai
+ * jalur properti yang diakses. Tipenya rekursif: setiap properti adalah proxy
+ * lain yang juga bisa dipanggil dengan `new`.
+ */
+type TlProxy = (new (args?: Record<string, unknown>) => { _: string }) & {
+  [key: string]: TlProxy;
+};
+
+function createTlProxy(prefix = ''): TlProxy {
   const Cls = class {
     _: string;
-    constructor(args?: any) {
+    constructor(args?: Record<string, unknown>) {
       this._ = prefix;
       if (args) {
         Object.assign(this, args);
@@ -14,16 +24,34 @@ function createTlProxy(prefix = ''): any {
         return Reflect.get(target, prop);
       }
       if (prop in target) {
-        return (target as any)[prop];
+        return (target as unknown as Record<string, unknown>)[prop];
       }
       const next = prefix
         ? `${prefix}.${prop.charAt(0).toLowerCase() + prop.slice(1)}`
         : prop.charAt(0).toLowerCase() + prop.slice(1);
       return createTlProxy(next);
     },
-  });
+  }) as unknown as TlProxy;
 }
 const Api = createTlProxy();
+
+/**
+ * Unduh media pesan jadi Buffer.
+ *
+ * mtcute tidak punya `client.downloadMedia()` (itu nama GramJS); jalurnya
+ * adalah adapter pesan, dengan `downloadAsBuffer()` atas objek media sebagai
+ * cadangan.
+ */
+async function downloadMediaBuffer(client: CompatClient, currentMsg: UserbotMessageLike) {
+  let buf;
+  if (typeof currentMsg?.downloadMedia === 'function') {
+    buf = await currentMsg.downloadMedia();
+  }
+  if (!buf && currentMsg?.media && typeof client.downloadAsBuffer === 'function') {
+    buf = Buffer.from(await client.downloadAsBuffer(currentMsg.media as unknown as Parameters<CompatClient['downloadAsBuffer']>[0]));
+  }
+  return buf;
+}
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -31,6 +59,9 @@ import { execFile } from 'child_process';
 import { Jimp } from 'jimp';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // ============================================================
 // Sticker Tools: .kang (salin sticker/foto/video ke pack pribadi)
@@ -41,7 +72,7 @@ import { Logger } from '../../../utils/logger.js';
 const QUOTLY = '@QuotLyBot';
 const STICKER_MAX_EDGE = 512;
 const VIDEO_STICKER_MAX_SEC = 3;
-const PACK_LIMITS = { static: 120, anim: 50, video: 50 };
+const PACK_LIMITS: Record<string, number> = { static: 120, anim: 50, video: 50 };
 
 const EMOJIS = [
   '✨', '🤡', '🙂', '🤔', '😂', '💀', '🔥', '❤️', '💯', '👍',
@@ -49,18 +80,18 @@ const EMOJIS = [
   '👻', '🎭', '🎨', '⚡', '💎', '🌟', '🌈', '⭐', '🍕', '🐱'
 ];
 
-function errMsg(err) {
+function errMsg(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function editStatus(message, html) {
+async function editStatus(message: UserbotMessageLike, html: string) {
   await message.edit({
     text: `<blockquote>${html}</blockquote>`,
     parseMode: 'html'
   });
 }
 
-async function runFfmpeg(args) {
+async function runFfmpeg(args: string[]) {
   return new Promise((resolve, reject) => {
     execFile('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], {
       timeout: 60000,
@@ -75,7 +106,7 @@ async function runFfmpeg(args) {
   });
 }
 
-async function probeMedia(file) {
+async function probeMedia(file: string) {
   try {
     const out = await new Promise<string>((resolve, reject) => {
       execFile('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_streams', '-show_format', file], {
@@ -87,7 +118,7 @@ async function probeMedia(file) {
       });
     });
     const parsed = JSON.parse(out);
-    const vs = (parsed.streams || []).find(s => s.codec_type === 'video');
+    const vs = (parsed.streams || []).find((s: { codec_type?: string }) => s.codec_type === 'video');
     if (!vs) {return null;}
     return {
       w: Number(vs.width) || 0,
@@ -99,51 +130,68 @@ async function probeMedia(file) {
   }
 }
 
-function tmpFile(ext) {
+function tmpFile(ext: string) {
   return path.join(os.tmpdir(), `duserjs_sticker_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
 }
 
-function unlinkQuiet(p) {
+function unlinkQuiet(p: string) {
   try {
     if (p && fs.existsSync(p)) {fs.unlinkSync(p);}
   } catch (_e) { /* ignore */ }
 }
 
-function docFilename(doc) {
-  const attr = (doc && doc.attributes || []).find(a => a.className === 'DocumentAttributeFilename');
-  return attr && attr.fileName ? String(attr.fileName) : '';
+/**
+ * Objek media mtcute berbasis dokumen (sticker/video/audio/document). Semua
+ * atribut TL lama (DocumentAttributeFilename/Sticker) sudah dinormalkan
+ * menjadi getter, jadi pembacaan `doc.attributes` gaya GramJS tidak berlaku.
+ */
+type MtcuteDoc = {
+  type?: string;
+  mimeType?: string;
+  fileName?: string | null;
+  emoji?: string;
+  isAnimation?: boolean;
+  inputDocument?: unknown;
+  raw?: { id?: unknown; accessHash?: unknown; fileReference?: unknown };
+} & Record<string, unknown>;
+
+function docFilename(doc: MtcuteDoc | null | undefined): string {
+  return doc?.fileName ? String(doc.fileName) : '';
 }
 
-function stickerEmojiOf(doc) {
-  const attr = (doc && doc.attributes || []).find(a => a.className === 'DocumentAttributeSticker');
-  return attr && typeof attr.alt === 'string' ? attr.alt : '';
+function stickerEmojiOf(doc: MtcuteDoc | null | undefined): string {
+  return typeof doc?.emoji === 'string' ? doc.emoji : '';
 }
 
-function isPictographic(s) {
+function isPictographic(s: unknown) {
   return typeof s === 'string' && /\p{Extended_Pictographic}/u.test(s);
 }
 
-function inputDocFrom(doc) {
+function inputDocFrom(doc: MtcuteDoc | null | undefined) {
+  // mtcute sudah menyediakan InputDocument siap pakai.
+  if (doc?.inputDocument) {return doc.inputDocument;}
+  const raw = doc?.raw ?? (doc as MtcuteDoc | undefined);
   return new Api.InputDocument({
-    id: doc.id,
-    accessHash: doc.accessHash,
-    fileReference: doc.fileReference
+    id: raw?.id,
+    accessHash: raw?.accessHash,
+    fileReference: raw?.fileReference,
   });
 }
 
 // Klasifikasi media yang di-reply menjadi { kind, doc, isSticker }
-function classifyMedia(msg) {
-  const media = msg && msg.media;
+function classifyMedia(msg: UserbotMessageLike) {
+  // Di mtcute, `media` ADALAH objeknya sendiri dengan diskriminan `type`;
+  // tidak ada `media.photo` / `media.document` seperti di TL mentah, sehingga
+  // klasifikasi lama selalu mengembalikan null dan .kang menolak semua media.
+  const media = (msg && msg.media) as unknown as MtcuteDoc | null | undefined;
   if (!media) {return null;}
-  if (media.photo) {
+  if (media.type === 'photo') {
     return { kind: 'static', doc: null, isSticker: false };
   }
-  const doc = media.document;
-  if (!doc) {return null;}
+  const doc = media;
   const mime = String(doc.mimeType || '');
   const fname = docFilename(doc).toLowerCase();
-  const hasStickerAttr = (doc.attributes || []).some(a => a.className === 'DocumentAttributeSticker');
-  if (hasStickerAttr) {
+  if (doc.type === 'sticker') {
     if (mime.includes('tgsticker') || fname.endsWith('.tgs')) {
       return { kind: 'anim', doc, isSticker: true };
     }
@@ -155,26 +203,26 @@ function classifyMedia(msg) {
   if (mime.startsWith('image/')) {
     return { kind: 'static', doc, isSticker: false };
   }
-  if (mime.startsWith('video/') || media.animation) {
+  if (mime.startsWith('video/') || doc.isAnimation) {
     return { kind: 'video', doc, isSticker: false };
   }
   return null;
 }
 
-function packShortName(me, pack, kind) {
+function packShortName(me: { id?: string | number; username?: string; firstName?: string }, pack: number, kind: string) {
   const suffix = me.username ? `_by_${me.username}` : `_by_user_${me.id}`;
   const kindTag = kind === 'anim' ? '_anim' : kind === 'video' ? '_video' : '';
   return `kang_${me.id}_v${pack}${kindTag}${suffix}`.toLowerCase();
 }
 
-function packTitle(me, pack, kind) {
+function packTitle(me: { id?: string | number; username?: string; firstName?: string }, pack: number, kind: string) {
   const name = me.firstName || me.username || 'User';
   const tag = kind === 'anim' ? ' (Animated)' : kind === 'video' ? ' (Video)' : '';
   return `${name}'s Kang Pack Vol.${pack}${tag}`;
 }
 
 // Cari pack yang punya slot; buat volume baru kalau penuh.
-async function resolvePack(client, me, kind, startPack) {
+async function resolvePack(client: CompatClient, me: { id?: string | number; username?: string; firstName?: string }, kind: string, startPack: number) {
   let pack = Math.max(1, startPack);
   for (let attempt = 0; attempt < 10; attempt++) {
     const shortName = packShortName(me, pack, kind);
@@ -184,14 +232,14 @@ async function resolvePack(client, me, kind, startPack) {
         stickerset: new Api.InputStickerSetShortName({ shortName }),
         hash: 0
       }));
-      existing = res && res.set ? res.set : null;
+      existing = (res as { set?: unknown } | undefined)?.set ?? null;
     } catch (e) {
       if (!/STICKERSET_INVALID|SHORTNAME|SHORT_NAME/i.test(errMsg(e))) {throw e;}
     }
     if (!existing) {
       return { pack, shortName, title: packTitle(me, pack, kind), existing: null };
     }
-    if ((existing.count || 0) < (PACK_LIMITS[kind] || PACK_LIMITS.static)) {
+    if (((existing as { count?: number }).count || 0) < (PACK_LIMITS[kind] || PACK_LIMITS.static)) {
       return { pack, shortName, title: packTitle(me, pack, kind), existing };
     }
     pack += 1; // pack penuh -> volume berikutnya
@@ -199,7 +247,7 @@ async function resolvePack(client, me, kind, startPack) {
   throw new Error('Tidak ada slot pack yang tersedia');
 }
 
-async function invokeAddSticker(client, packInfo, stickerItem) {
+async function invokeAddSticker(client: CompatClient, packInfo: { pack: number; shortName: string; title: string; existing: { id?: unknown; accessHash?: unknown } | null }, stickerItem: unknown) {
   if (packInfo.existing) {
     await client.invoke(new Api.stickers.AddStickerToSet({
       stickerset: new Api.InputStickerSetID({
@@ -220,13 +268,14 @@ async function invokeAddSticker(client, packInfo, stickerItem) {
 
 // Upload file sementara ke Saved Messages untuk mendapat InputDocument,
 // lalu langsung dihapus lagi. (Pola yang sama dengan kang.ts)
-async function uploadTempAsDocument(client, filePath, attributes = null) {
+async function uploadTempAsDocument(client: CompatClient, filePath: string, attributes: unknown[] | null = null) {
   const sent = await client.sendFile('me', {
     file: filePath,
     forceDocument: true,
     attributes: attributes && attributes.length ? attributes : undefined
   });
-  const doc = sent && sent.media && sent.media.document;
+  // sendFile() mengembalikan Message; medianya langsung objek dokumen mtcute.
+  const doc = (sent && sent.media) as unknown as MtcuteDoc | undefined;
   if (!doc) {throw new Error('Upload ke Saved Messages gagal');}
   try { await client.deleteMessages('me', [sent.id], { revoke: true }); } catch (_e) { /* ignore */ }
   return inputDocFrom(doc);
@@ -234,9 +283,9 @@ async function uploadTempAsDocument(client, filePath, attributes = null) {
 
 // Fallback: re-upload ulang bytes dokumen sticker asli (kalau referensi
 // langsung ditolak Telegram karena file_reference/ownership).
-function makeStickerUploadFallback(client, currentMsg, kind, tmpFiles) {
+function makeStickerUploadFallback(client: CompatClient, currentMsg: UserbotMessageLike, kind: string, tmpFiles: string[]) {
   return async () => {
-    const buf = await client.downloadMedia(currentMsg, {});
+    const buf = await downloadMediaBuffer(client, currentMsg);
     if (!buf || !buf.length) {throw new Error('Gagal mengunduh media sticker');}
     const ext = kind === 'anim' ? '.tgs' : kind === 'video' ? '.webm' : '.webp';
     const p = tmpFile(ext);
@@ -263,8 +312,8 @@ function makeStickerUploadFallback(client, currentMsg, kind, tmpFiles) {
 }
 
 // Foto/gambar biasa -> resize 512 via Jimp (fallback ffmpeg) -> upload.
-async function buildStaticFromImage(client, currentMsg, tmpFiles, telegramId) {
-  const buf = await client.downloadMedia(currentMsg, {});
+async function buildStaticFromImage(client: CompatClient, currentMsg: UserbotMessageLike, tmpFiles: string[], telegramId: number) {
+  const buf = await downloadMediaBuffer(client, currentMsg);
   if (!buf || !buf.length) {throw new Error('Gagal mengunduh media');}
   const srcPath = tmpFile('.bin');
   tmpFiles.push(srcPath);
@@ -275,7 +324,8 @@ async function buildStaticFromImage(client, currentMsg, tmpFiles, telegramId) {
     const image = await Jimp.read(srcPath);
     image.scaleToFit({ w: STICKER_MAX_EDGE, h: STICKER_MAX_EDGE });
     outPath = tmpFile('.png');
-    await image.write(outPath);
+    // Jimp mensyaratkan path bertipe template `${string}.${string}`.
+    await image.write(outPath as `${string}.${string}`);
   } catch (e) {
     Logger.logUser(telegramId, `kang: Jimp gagal (${errMsg(e)}), mencoba ffmpeg`, 'WARN');
     outPath = tmpFile('.webp');
@@ -291,8 +341,8 @@ async function buildStaticFromImage(client, currentMsg, tmpFiles, telegramId) {
 }
 
 // Video biasa -> konversi webm 512px (VP9, maks 3 detik) -> upload.
-async function buildVideoFromMedia(client, currentMsg, tmpFiles) {
-  const buf = await client.downloadMedia(currentMsg, {});
+async function buildVideoFromMedia(client: CompatClient, currentMsg: UserbotMessageLike, tmpFiles: string[]) {
+  const buf = await downloadMediaBuffer(client, currentMsg);
   if (!buf || !buf.length) {throw new Error('Gagal mengunduh media');}
   const srcPath = tmpFile('.bin');
   tmpFiles.push(srcPath);
@@ -320,7 +370,7 @@ async function buildVideoFromMedia(client, currentMsg, tmpFiles) {
 
 // Tambahkan satu stiker ke pack; kalau referensi langsung ditolak,
 // coba sekali lagi lewat fallback re-upload.
-async function addStickerToPack(client, packInfo, candidate, emoji) {
+async function addStickerToPack(client: CompatClient, packInfo: { pack: number; shortName: string; title: string; existing: { id?: unknown; accessHash?: unknown } | null }, candidate: { ref: unknown; fallback?: (() => Promise<unknown>) | null }, emoji: string) {
   const stickerItem = new Api.InputStickerSetItem({ document: candidate.ref, emoji });
   try {
     await invokeAddSticker(client, packInfo, stickerItem);
@@ -342,7 +392,7 @@ export default {
     usage: '• Balas media lalu ketik `.kang [emoji] [nomor_pack]`\n• Balas pesan lalu ketik `.q` atau `.quote` [jumlah_pesan]',
     detail: '.kang menyalin media ke pack pribadi Anda secara instan: sticker webp/tgs/webm langsung disalin, foto & gambar di-resize 512px, video dikonversi webm maksimal 3 detik. `.q` atau `.quote` membuat quote stiker kutipan dari pesan yang di-reply via @QuotLyBot (bisa juga `.q N` untuk multi-quote N pesan berurutan, maks 10).'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     const text = message.message.trim();
 
@@ -369,17 +419,17 @@ export default {
       }
 
       // Kumpulkan item yang akan di-kang (dukung album foto/media group)
-      let mediaMessages = [replied];
+      let mediaMessages: UserbotMessageLike[] = [replied];
       if (replied.groupedId) {
         await editStatus(message, '⏳ <b>Menganalisis album media...</b>');
         try {
           const peer = message.peerId ?? message.chatId;
-          const history = await client.getMessages(peer, { limit: 20, offsetId: replied.id + 10 });
+          const history = await client.getMessages(toPeer(peer), { limit: 20, offsetId: (replied.id ?? 0) + 10 });
           const grouped = (history || []).filter(m =>
             m && m.groupedId && String(m.groupedId) === String(replied.groupedId) && m.media
           );
           if (grouped.length > 0) {
-            mediaMessages = grouped.sort((a, b) => a.id - b.id);
+            mediaMessages = grouped.sort((a, b) => Number(a?.id ?? 0) - Number(b?.id ?? 0)) as unknown as UserbotMessageLike[];
           }
         } catch (e) {
           Logger.logUser(telegramId, `kang: album scan gagal (${errMsg(e)}), pakai pesan tunggal`, 'WARN');
@@ -398,7 +448,7 @@ export default {
 
       const me = await client.getMe();
       const total = items.length;
-      const packCounters = { static: startPack, anim: startPack, video: startPack };
+      const packCounters: Record<string, number> = { static: startPack, anim: startPack, video: startPack };
       const resultLinks = [];
       let successCount = 0;
 
@@ -407,7 +457,7 @@ export default {
 
         for (let i = 0; i < total; i++) {
           const { msg: currentMsg, cls } = items[i];
-          const tmpFiles = [];
+          const tmpFiles: string[] = [];
           try {
             if (i > 0) {
               await editStatus(message, `📥 <b>Mencuri (kang) media...</b> [${escapeHtml(String(i + 1))}/${escapeHtml(String(total))}]`);
@@ -437,7 +487,7 @@ export default {
             }
 
             // Resolve pack (per jenis) lalu tambahkan stiker
-            const packInfo = await resolvePack(client, me, cls.kind, packCounters[cls.kind]);
+            const packInfo = await resolvePack(client, me as unknown as { id?: string | number; username?: string; firstName?: string }, cls.kind, packCounters[cls.kind] ?? 1);
             await addStickerToPack(client, packInfo, candidate, emoji);
             packCounters[cls.kind] = packInfo.pack;
             resultLinks.push({ kind: cls.kind, shortName: packInfo.shortName, pack: packInfo.pack });
@@ -492,26 +542,30 @@ export default {
 
         // Pastikan @QuotLyBot tidak diblokir (pola dari PyroUbot)
         try {
-          const quotlyPeer = await client.getInputEntity(QUOTLY);
+          // mtcute: resolvePeer(); getInputEntity() adalah nama GramJS.
+          const quotlyPeer = await client.resolvePeer(QUOTLY);
           await client.invoke(new Api.contacts.Unblock({ id: quotlyPeer }));
         } catch (_e) { /* ignore */ }
 
         // Kumpulkan pesan yang akan di-quote (multi-quote bila ada argumen angka)
         const n = qMatch[1] ? Math.min(10, Math.max(1, parseInt(qMatch[1], 10))) : 1;
-        let targets = [replied];
+        let targets: UserbotMessageLike[] = [replied];
         if (n > 1) {
           const peer = message.peerId ?? message.chatId;
-          const ids = Array.from({ length: n }, (_, i) => replied.id + i);
-          const fetched = await client.getMessages(peer, { ids });
-          targets = (fetched || []).filter(Boolean).sort((a, b) => a.id - b.id);
+          const ids = Array.from({ length: n }, (_, i) => (replied.id ?? 0) + i);
+          const fetched = await client.getMessages(toPeer(peer), { ids });
+          targets = ((fetched || []).filter(Boolean) as unknown as UserbotMessageLike[]).sort((a, b) => Number(a.id) - Number(b.id));
           if (targets.length === 0) {targets = [replied];}
         }
 
         // Forward ke @QuotLyBot satu per satu agar multi-quote terbentuk
         for (const t of targets) {
-          await client.forwardMessages(QUOTLY, {
-            messages: [t.id],
-            fromPeer: message.peerId
+          // mtcute: forwardMessagesById({ fromChatId, toChatId, messages }).
+          // Bentuk lama (peer posisional + fromPeer) tidak pernah valid.
+          await client.forwardMessagesById({
+            fromChatId: toPeer(message.peerId ?? message.chatId),
+            toChatId: QUOTLY,
+            messages: [Number(t.id ?? 0)],
           });
           await new Promise(r => setTimeout(r, 300));
         }
@@ -521,10 +575,12 @@ export default {
         for (let i = 0; i < 15; i++) {
           await new Promise(r => setTimeout(r, 1000));
           const history = await client.getMessages(QUOTLY, { limit: 1 });
-          if (history.length > 0 && history[0].media && history[0].media.document) {
-            const mime = String(history[0].media.document.mimeType || '');
-            if (mime.startsWith('image/') && history[0].date >= message.date - 2) {
-              quoteMsg = history[0];
+          const quoteCandidate = history[0] as unknown as { media?: MtcuteDoc; date?: Date | number; id: number } | undefined;
+          if (quoteCandidate?.media) {
+            const mime = String(quoteCandidate.media.mimeType || '');
+            const quoteTs = Math.floor(new Date(quoteCandidate.date ?? 0).getTime() / 1000);
+            if (mime.startsWith('image/') && quoteTs >= Number(message.date) - 2) {
+              quoteMsg = quoteCandidate;
               break;
             }
           }
@@ -536,7 +592,7 @@ export default {
         }
 
         // Kirim sticker quote ke chat asal
-        await client.sendMessage(message.peerId, {
+        await client.sendMessage(toPeer(message.peerId), {
           message: '',
           file: quoteMsg.media,
           replyTo: message.replyToMsgId
@@ -545,7 +601,8 @@ export default {
 
         // Bersihkan riwayat chat dengan @QuotLyBot (pola PyroUbot)
         try {
-          const quotlyPeer = await client.getInputEntity(QUOTLY);
+          // mtcute: resolvePeer(); getInputEntity() adalah nama GramJS.
+          const quotlyPeer = await client.resolvePeer(QUOTLY);
           await client.invoke(new Api.messages.DeleteHistory({
             peer: quotlyPeer,
             maxId: 0,

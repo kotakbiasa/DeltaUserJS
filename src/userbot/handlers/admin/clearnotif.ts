@@ -1,5 +1,17 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { sleep } from '../../../utils/async.js';
+import type { CompatClient, LegacyPeer } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+
+/** mtcute hanya menyediakan iterator dialog; getDialogs() milik GramJS. */
+async function collectDialogs(client: CompatClient) {
+  const out = [];
+  for await (const dialog of client.iterDialogs()) {
+    out.push(dialog);
+  }
+  return out;
+}
 
 export default {
   name: 'clearnotif',
@@ -11,7 +23,7 @@ export default {
     usage: '`.clear_@` - Bersihkan mention chat ini\n`.clear_all_@` - Bersihkan semua mention\n`.clear_reacts` - Bersihkan reaksi chat ini\n`.clear_all_reacts` - Bersihkan semua reaksi',
     detail: 'Berguna saat notifikasi angka tag/mention dan reaksi menumpuk terlalu banyak. Perintah ini akan menandai semuanya sudah dibaca.'
   },
-  async execute(client, message, _settings, _telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, _telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const cmd = message.message.split(' ')[0].toLowerCase();
@@ -20,9 +32,12 @@ export default {
     if (!validCommands.includes(cmd)) {return;}
 
     try {
-      const callApi = async (method: string, peer: any) => {
+      // Hanya dua method TL yang dipakai di sini; menyempitkan tipenya membuat
+      // skema argumennya ikut diperiksa compiler.
+      type ReadMethod = 'messages.readMentions' | 'messages.readReactions';
+      const callApi = async (method: ReadMethod, peer: LegacyPeer) => {
         if (typeof client.call === 'function') {
-          return await client.call({ _: method, peer: await client.resolvePeer?.(peer) || peer });
+          return await client.call({ _: method, peer: await client.resolvePeer(peer) });
         }
         if (typeof client.invoke === 'function') {
           return await client.invoke({ _: method, peer });
@@ -31,22 +46,22 @@ export default {
 
       if (cmd === '.clear_@') {
         await message.delete().catch(() => { /* ignore */ });
-        await callApi('messages.readMentions', message.chatId);
+        await callApi('messages.readMentions', toPeer(message.chatId));
       }
 
       else if (cmd === '.clear_reacts') {
         await message.delete().catch(() => { /* ignore */ });
-        await callApi('messages.readReactions', message.chatId);
+        await callApi('messages.readReactions', toPeer(message.chatId));
       }
 
       else if (cmd === '.clear_all_@') {
         let counter = 0;
         await message.edit({ text: '⏳ <b>Menyapu bersih semua mention (tag)...</b>', parseMode: 'html' });
 
-        const dialogs = typeof client.getDialogs === 'function' ? await client.getDialogs() : [];
+        const dialogs = await collectDialogs(client);
         for (const dialog of dialogs) {
           if (dialog.unreadMentionsCount > 0) {
-            await callApi('messages.readMentions', dialog.entity || dialog.id || dialog.chat?.id);
+            await callApi('messages.readMentions', toPeer(dialog.peer.id));
             counter++;
 
             if (counter % 5 === 0) {
@@ -62,11 +77,11 @@ export default {
         let counter = 0;
         await message.edit({ text: '⏳ <b>Menyapu bersih semua reaksi...</b>', parseMode: 'html' });
 
-        const dialogs = typeof client.getDialogs === 'function' ? await client.getDialogs() : [];
+        const dialogs = await collectDialogs(client);
         for (const dialog of dialogs) {
-          if (dialog.unreadMark || dialog.unreadCount > 0) {
+          if (dialog.isUnread || dialog.unreadCount > 0) {
             try {
-              await callApi('messages.readReactions', dialog.entity || dialog.id || dialog.chat?.id);
+              await callApi('messages.readReactions', toPeer(dialog.peer.id));
               counter++;
 
               if (counter % 5 === 0) {

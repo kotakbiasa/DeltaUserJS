@@ -26,13 +26,13 @@
 import { Logger } from '../../utils/logger.js';
 import { escapeHtml } from '../../utils/richMessage.js';
 import type { Plugin, PluginHelp } from './pluginRegistry.js';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { CompatClient } from './compatClient.js';
+import type { UserbotMessageLike, UserbotSettings } from '../types.js';
 
 export interface CommandContext {
-  client: any;
-  message: any;
-  settings: any;
+  client: CompatClient;
+  message: UserbotMessageLike;
+  settings: UserbotSettings;
   telegramId: number;
   /** Argumen setelah nama command, sudah di-trim. String kosong bila tidak ada. */
   arg: string;
@@ -144,7 +144,7 @@ export function defineCommand(spec: CommandSpec): CommandPlugin {
     help: spec.help,
     commands,
 
-    async execute(client: any, message: any, settings: any, telegramId: number) {
+    async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
       // Guard identik dengan yang dulu ditulis manual di 47 file.
       if (!message.out || !message.message) {return;}
 

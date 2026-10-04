@@ -1,10 +1,20 @@
 import type { VideoOptions } from 'tgcalls-js';
 import fs from 'node:fs';
 
-function createTlProxy(prefix = ''): any {
+/**
+ * Konstruktor TL dinamis gaya GramJS (`Api.phone.JoinGroupCall`). mtcute tidak
+ * punya padanannya, jadi proxy ini merakit objek `{ _: 'nama.tl' }` sesuai
+ * jalur properti yang diakses. Tipenya rekursif: setiap properti adalah proxy
+ * lain yang juga bisa dipanggil dengan `new`.
+ */
+type TlProxy = (new (args?: Record<string, unknown>) => { _: string }) & {
+  [key: string]: TlProxy;
+};
+
+function createTlProxy(prefix = ''): TlProxy {
   const Cls = class {
     _: string;
-    constructor(args?: any) {
+    constructor(args?: Record<string, unknown>) {
       this._ = prefix;
       if (args) {
         Object.assign(this, args);
@@ -17,14 +27,14 @@ function createTlProxy(prefix = ''): any {
         return Reflect.get(target, prop);
       }
       if (prop in target) {
-        return (target as any)[prop];
+        return (target as unknown as Record<string, unknown>)[prop];
       }
       const next = prefix
         ? `${prefix}.${prop.charAt(0).toLowerCase() + prop.slice(1)}`
         : prop.charAt(0).toLowerCase() + prop.slice(1);
       return createTlProxy(next);
     },
-  });
+  }) as unknown as TlProxy;
 }
 const Api = createTlProxy();
 
@@ -39,9 +49,21 @@ import path from 'node:path';
 import os from 'node:os';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ============================================================
 // VC — native Telegram Voice Chat (Obrolan Suara) via tgcalls-js (WebRTC).
+//
+// ⚠️ TODO (known issue — lihat docs/known_issues.md §1):
+//   Modul ini BELUM sepenuhnya ikut migrasi ke mtcute. tgcalls-js@0.2.0 masih
+//   berasumsi klien GramJS-family: ia menyaring update dengan `className`
+//   (mtcute memakai `_`), mengoper marked-id numerik ke channels.GetFullChannel
+//   (mtcute butuh InputChannel), dan memanggil client.addEventHandler (tidak ada
+//   di mtcute). Akibatnya join voice chat kemungkinan besar gagal saat runtime
+//   meski `tsc` bersih — semua titik sentuh bertipe unknown/never sehingga
+//   compiler tidak menangkapnya. Baris ~228 di file ini juga masih memakai
+//   `chat.className === 'Channel'`.
 //
 // Fitur:
 //   • Pure WebRTC Voice Chat (bukan RTMP livestream / siaran langsung)
@@ -205,7 +227,7 @@ export default {
   onLoad: () => {
     Logger.logSystem('🎵 Plugin VC v2.2 loaded (Pure WebRTC Voice Chat)', 'INFO');
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.(\w+)(?:\s+([\s\S]+))?$/i);
@@ -224,7 +246,7 @@ export default {
       }
       return;
     }
-    const rawId = BigInt(chat.id.toString());
+    const rawId = BigInt(String((chat as { id?: unknown }).id ?? 0));
     const chatId = chat.className === 'Channel'
       ? -(1_000_000_000_000n + rawId)
       : -rawId;

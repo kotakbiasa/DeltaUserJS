@@ -2,6 +2,10 @@ import { getChatSettings, updateChatSettings, addWarn, resetWarns } from '../../
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings, EntityLike } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import { parseIntArg, validationErrorText } from '../../engine/validate.js';
 
 // In-memory tracker for message timestamps
 // Key: telegramId_chatId_senderId -> Array of timestamps (numbers)
@@ -13,7 +17,7 @@ setInterval(() => {
   const oneHour = 60 * 60 * 1000;
   let cleaned = 0;
   for (const [key, timestamps] of floodTracker.entries()) {
-    const recent = timestamps.filter(t => now - t <= oneHour);
+    const recent = timestamps.filter((t: number) => now - t <= oneHour);
     if (recent.length === 0) {
       floodTracker.delete(key);
       cleaned++;
@@ -32,8 +36,11 @@ export default {
     usage: '• `.antiflood on/off` (Toggle fitur)\n• `.setfloodlimit <angka>` (Batas pesan)\n• `.setfloodwarn <angka>` (Batas peringatan)\n• `.setfloodtime <detik>` (Rentang waktu)\n• `.setfloodmode mute/kick` (Hukuman)',
     detail: 'Mencegah spam masal dengan sistem warning terintegrasi.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const chatId = message.chatId;
+    // Tanpa chat tidak ada yang bisa dimoderasi; dulu nilainya diam-diam
+    // menjadi string "undefined" dan dipakai sebagai kunci pengaturan.
+    if (chatId === undefined) {return;}
     const _chatKey = String(chatId);
 
     // --- 1. Handle Settings Commands ---
@@ -51,36 +58,38 @@ export default {
       }
 
       else if (cmd === '.setfloodlimit') {
-        if (args.length < 2) {return;}
-        const limit = parseInt(args[1]);
-        if (isNaN(limit) || limit <= 0) {
-          await message.edit({ text: `❌ <b>Gagal:</b> Batas limit tidak valid! Kembali ke default / Batal.`, parseMode: 'html' });
+        // Dulu memakai parseInt() tanpa batas atas, jadi "5abc" lolos sebagai 5
+        // dan .setfloodlimit 999999 mematikan anti-flood tanpa pemberitahuan.
+        const limitArg = parseIntArg(args[1], { min: 2, max: 100, label: 'Batas limit flood' });
+        if (!limitArg.ok) {
+          await message.edit({ text: validationErrorText(limitArg.error, '.setfloodlimit <2-100>'), parseMode: 'html' });
           return;
         }
+        const limit = limitArg.value as number;
         await updateChatSettings(telegramId, chatId, 'flood_limit', limit);
         await message.edit({ text: `✅ <b>Berhasil:</b> Batas limit flood diubah menjadi: <b>${escapeHtml(String(limit))} pesan</b>`, parseMode: 'html' });
         return;
       }
 
       else if (cmd === '.setfloodwarn') {
-        if (args.length < 2) {return;}
-        const warns = parseInt(args[1]);
-        if (isNaN(warns) || warns <= 0) {
-          await message.edit({ text: `❌ <b>Gagal:</b> Batas warning tidak valid!`, parseMode: 'html' });
+        const warnsArg = parseIntArg(args[1], { min: 1, max: 20, label: 'Batas warning flood' });
+        if (!warnsArg.ok) {
+          await message.edit({ text: validationErrorText(warnsArg.error, '.setfloodwarn <1-20>'), parseMode: 'html' });
           return;
         }
+        const warns = warnsArg.value as number;
         await updateChatSettings(telegramId, chatId, 'flood_warn_limit', warns);
         await message.edit({ text: `✅ <b>Berhasil:</b> Batas warning flood diubah menjadi: <b>${escapeHtml(String(warns))} kali</b>`, parseMode: 'html' });
         return;
       }
 
       else if (cmd === '.setfloodtime') {
-        if (args.length < 2) {return;}
-        const seconds = parseInt(args[1]);
-        if (isNaN(seconds) || seconds <= 0) {
-          await message.edit({ text: `❌ <b>Gagal:</b> Rentang waktu tidak valid!`, parseMode: 'html' });
+        const secondsArg = parseIntArg(args[1], { min: 1, max: 3600, label: 'Rentang waktu flood' });
+        if (!secondsArg.ok) {
+          await message.edit({ text: validationErrorText(secondsArg.error, '.setfloodtime <1-3600>'), parseMode: 'html' });
           return;
         }
+        const seconds = secondsArg.value as number;
         await updateChatSettings(telegramId, chatId, 'flood_time_window', seconds);
         await message.edit({ text: `✅ <b>Berhasil:</b> Rentang waktu flood diubah menjadi: <b>${escapeHtml(String(seconds))} detik</b>`, parseMode: 'html' });
         return;
@@ -108,9 +117,14 @@ export default {
     if (message.out || message.senderId === telegramId) {return;}
 
     // Ignore join/leave service messages
-    if (message.action?.className === 'MessageActionChatAddUser' ||
-        message.action?.className === 'MessageActionChatJoinedByLink' ||
-        message.action?.className === 'MessageActionChatDeleteUser') {
+    // mtcute memakai `type` (snake_case); className adalah penamaan GramJS
+    // yang tidak pernah cocok, jadi service message dulu ikut terhitung flood.
+    const actionType = message.action?.type ?? message.action?.className;
+    if (actionType && [
+      'users_added', 'user_joined_link', 'user_joined_approved', 'user_joined_community',
+      'user_left', 'user_removed',
+      'MessageActionChatAddUser', 'MessageActionChatJoinedByLink', 'MessageActionChatDeleteUser',
+    ].includes(actionType)) {
       return;
     }
 
@@ -118,7 +132,9 @@ export default {
     if (!senderId) {return;}
 
     // Admin & whitelisted immunity check
-    const isApproved = (settings?.approved_users || []).includes(senderId) || (chatSettings.admins || []).includes(senderId);
+    const approvedUsers = (settings?.approved_users ?? []) as Array<string | number>;
+    const chatAdmins = (chatSettings.admins ?? []) as Array<string | number>;
+    const isApproved = approvedUsers.includes(senderId as string | number) || chatAdmins.includes(senderId as string | number);
     if (isApproved) {return;}
 
     // Fetch config
@@ -133,7 +149,7 @@ export default {
     timestamps.push(now);
 
     // Cleanup: remove old timestamps outside the window
-    timestamps = timestamps.filter(t => now - t <= timeWindow);
+    timestamps = timestamps.filter((t: number) => now - t <= timeWindow);
     floodTracker.set(key, timestamps);
 
     // Clean up empty keys to prevent memory leaks
@@ -150,76 +166,26 @@ export default {
         floodTracker.delete(key);
 
         const isKick = mode === 'kick';
+        // mtcute memakai parameter objek. Versi lama memanggil posisional gaya
+        // GramJS di dalam cabang `typeof === 'function'` yang selalu benar,
+        // sehingga kick/mute antiflood selalu melempar (dan tertelan .catch).
+        const floodChat = toPeer(chatId as EntityLike);
+        const floodUser = toPeer(senderId as EntityLike);
         if (isKick) {
-          if (typeof client.kickChatMember === 'function') {
-            await client.kickChatMember(chatId, senderId).catch(() => {});
-          } else if (typeof client.call === 'function') {
-            await client.call({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
-            }).catch(() => {});
-            await client.call({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
-            }).catch(() => {});
-          } else if (typeof client.invoke === 'function') {
-            await client.invoke({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
-            }).catch(() => {});
-            await client.invoke({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
-            }).catch(() => {});
-          }
+          await client.kickChatMember({ chatId: floodChat, userId: floodUser }).catch(() => {});
         } else {
-          // Mute
-          if (typeof client.restrictChatMember === 'function') {
-            await client.restrictChatMember(chatId, senderId, {
-              sendMessages: false,
-              sendMedia: false,
-              embedLinks: false,
-            }).catch(() => {});
-          } else if (typeof client.call === 'function') {
-            await client.call({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: {
-                _: 'chatBannedRights',
-                untilDate: 0,
-                sendMessages: true,
-                sendMedia: true,
-                embedLinks: true,
-              },
-            }).catch(() => {});
-          } else if (typeof client.invoke === 'function') {
-            await client.invoke({
-              _: 'channels.editBanned',
-              channel: chatId,
-              participant: senderId,
-              bannedRights: {
-                _: 'chatBannedRights',
-                untilDate: 0,
-                sendMessages: true,
-                sendMedia: true,
-                embedLinks: true,
-              },
-            }).catch(() => {});
-          }
+          // Semantik TL: `true` = DILARANG. Dulu dikirim `false`, yang justru
+          // membuka pembatasan alih-alih membisukan.
+          await client.restrictChatMember({
+            chatId: floodChat,
+            userId: floodUser,
+            restrictions: { sendMessages: true, sendMedia: true, embedLinks: true },
+          }).catch(() => {});
         }
 
         let name = `User_${senderId}`;
         try {
-          const userEntity = await client.getEntity(senderId);
+          const userEntity = await client.getEntity(toPeer(senderId));
           name = userEntity.firstName || userEntity.username || `User_${senderId}`;
         } catch (_e) { /* ignore: use default name */ }
 
@@ -231,11 +197,11 @@ export default {
 
         let name = `User_${senderId}`;
         try {
-          const userEntity = await client.getEntity(senderId);
+          const userEntity = await client.getEntity(toPeer(senderId));
           name = userEntity.firstName || userEntity.username || `User_${senderId}`;
         } catch (_e) { /* ignore: use default name */ }
 
-        await client.sendMessage(chatId, {
+        await client.sendMessage(toPeer(chatId), {
           message: `⚠️ <b>warning</b>: Mohon jangan spam, ${escapeHtml(name)}! [Peringatan: ${escapeHtml(String(warnInfo.count))}/${escapeHtml(String(maxWarns))}]`
         });
       }

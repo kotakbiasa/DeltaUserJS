@@ -5,6 +5,8 @@ import path from 'path';
 import { formatUptimeStats } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 export default {
   name: 'stats',
@@ -12,9 +14,9 @@ export default {
     title: 'Statistics (.stats)',
     description: 'Menampilkan statistik dan informasi sistem ubot.',
     usage: 'Ketik `.stats`',
-    detail: 'Menampilkan detail versi NodeJS, grammY, Teleproto, serta penggunaan RAM dan Uptime.'
+    detail: 'Menampilkan detail versi NodeJS, grammY, mtcute, serta penggunaan RAM dan Uptime.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (message.out && message.message && message.message.toLowerCase() === '.stats') {
       try {
         const plugins = Object.keys(helpRegistry);

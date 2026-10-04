@@ -1,6 +1,9 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { updateUserbotFeature, UserbotModel, isMongo, readDbFromFile } from '../../../infrastructure/database.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // ============================================================
 // Keyword Filter — auto-reply berbasis kata kunci (grup & private)
@@ -48,7 +51,7 @@ const PREVIEW_MAX = 40;
 
 // ---- Helpers ----
 
-function escapeRegExp(str) {
+function escapeRegExp(str: string) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
@@ -57,7 +60,7 @@ function escapeRegExp(str) {
  * Lookaround dipakai agar tepi trigger yang bukan karakter kata
  * (mis. "!", emoji) tetap diperlakukan sebagai batas kata.
  */
-function buildTriggerRegex(trigger) {
+function buildTriggerRegex(trigger: string) {
   const escaped = escapeRegExp(trigger);
   return new RegExp(
     `(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`,
@@ -65,7 +68,7 @@ function buildTriggerRegex(trigger) {
   );
 }
 
-function getChatFilters(telegramId, chatKey) {
+function getChatFilters(telegramId: number, chatKey: string) {
   const filterStore = getFilterStore(telegramId);
   let chatMap = filterStore.get(chatKey);
   if (!chatMap) {
@@ -75,7 +78,7 @@ function getChatFilters(telegramId, chatKey) {
   return chatMap;
 }
 
-function previewText(text) {
+function previewText(text: string) {
   const oneLine = String(text || '').replace(/\s+/g, ' ').trim();
   if (oneLine.length <= PREVIEW_MAX) {return oneLine;}
   return `${oneLine.slice(0, PREVIEW_MAX - 1)}…`;
@@ -94,7 +97,7 @@ function previewText(text) {
 // field itu (undefined), coba baca sekali langsung dari Mongo
 // (fallback karena field belum masuk whitelist normalizeBot);
 // kalau tetap kosong, store mulai kosong.
-async function loadFiltersFromSettings(telegramId, settings) {
+async function loadFiltersFromSettings(telegramId: number, settings: UserbotSettings) {
   const idNum = Number(telegramId);
   if (loadedIds.has(idNum)) {return;}
   loadedIds.add(idNum);
@@ -115,12 +118,14 @@ async function loadFiltersFromSettings(telegramId, settings) {
     }
   }
   if (!data || typeof data !== 'object') {return;}
-  for (const chatKey of Object.keys(data)) {
-    const rawChat = data[chatKey];
+  const dataMap = data as Record<string, unknown>;
+  for (const chatKey of Object.keys(dataMap)) {
+    const rawChat = dataMap[chatKey];
     if (!rawChat || typeof rawChat !== 'object') {continue;}
     const chatMap = getChatFilters(telegramId, chatKey);
-    for (const key of Object.keys(rawChat)) {
-      const entry = rawChat[key];
+    const chatEntries = rawChat as Record<string, { trigger?: unknown; replyText?: unknown }>;
+    for (const key of Object.keys(chatEntries)) {
+      const entry = chatEntries[key];
       if (!entry || typeof entry !== 'object' || typeof entry.replyText !== 'string') {continue;}
       chatMap.set(String(key), { trigger: String(entry.trigger ?? key), replyText: entry.replyText });
     }
@@ -128,11 +133,11 @@ async function loadFiltersFromSettings(telegramId, settings) {
 }
 
 // Snapshot store ke plain object JSON-safe untuk dipersist.
-function serializeFilterStore(telegramId) {
+function serializeFilterStore(telegramId: number) {
   const filterStore = getFilterStore(telegramId);
-  const out = {};
+  const out: Record<string, Record<string, { trigger: string; replyText: string }>> = {};
   for (const [chatKey, chatMap] of filterStore) {
-    const chatData = {};
+    const chatData: Record<string, { trigger: string; replyText: string }> = {};
     for (const [key, entry] of chatMap) {
       chatData[key] = { trigger: entry.trigger, replyText: entry.replyText };
     }
@@ -142,7 +147,7 @@ function serializeFilterStore(telegramId) {
 }
 
 // Persist snapshot; kegagalan DB hanya dilog, plugin tetap jalan.
-async function persistFilters(telegramId) {
+async function persistFilters(telegramId: number) {
   try {
     await updateUserbotFeature(telegramId, 'keyword_filters', serializeFilterStore(telegramId));
   } catch (err) {
@@ -151,7 +156,7 @@ async function persistFilters(telegramId) {
 }
 
 // ---- Auto-reply pesan masuk (non-out) ----
-async function autoReplyIncoming(client, message, telegramId, chatKey, text) {
+async function autoReplyIncoming(client: CompatClient, message: UserbotMessageLike, telegramId: number, chatKey: string, text: string) {
   const chatMap = getFilterStore(telegramId).get(chatKey);
   if (!chatMap || chatMap.size === 0) {return;}
 
@@ -174,7 +179,7 @@ async function autoReplyIncoming(client, message, telegramId, chatKey, text) {
   if (!matched) {return;}
 
   try {
-    await client.sendMessage(message.chatId, {
+    await client.sendMessage(toPeer(message.chatId), {
       message: matched.replyText,
       linkPreview: false,
       replyTo: message.id
@@ -205,7 +210,7 @@ export default {
       'Trigger spesifik diprioritaskan di atas wildcard `*`. Balasan dikirim sebagai reply ke pesan pemicu dengan teks apa adanya. ' +
       'Filter dipersist ke database per userbot (field keyword_filters) dan di-load ulang otomatis saat userbot start.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     await loadFiltersFromSettings(telegramId, settings);
     const text = message.message;
     if (!text) {return;}

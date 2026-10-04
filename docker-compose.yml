@@ -41,12 +41,6 @@ services:
       # State approval/pending/terms — wajib di dalam volume /app/data,
       # kalau tidak akan terhapus setiap rebuild image.
       - STATE_DIR=/app/data
-      - MIDTRANS_SERVER_KEY=${MIDTRANS_SERVER_KEY:-}
-      - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-false}
-      - XENDIT_API_KEY=${XENDIT_API_KEY:-}
-      - XENDIT_CALLBACK_TOKEN=${XENDIT_CALLBACK_TOKEN:-}
-      - XENDIT_CALLBACK_VA_ID=${XENDIT_CALLBACK_VA_ID:-}
-      - XENDIT_IS_PRODUCTION=${XENDIT_IS_PRODUCTION:-false}
     ports:
       - "3000:3000"
     depends_on:

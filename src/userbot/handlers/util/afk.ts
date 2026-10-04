@@ -1,13 +1,15 @@
 import { getCustomEmoji, parseTgEmojiTemplate, escapeHtmlPreservingTgEmoji } from '../../../utils/customEmoji.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // State AFK per telegramId: { reason, since }
 const afkStore = new Map();
 
-export function isAfk(telegramId) {
+export function isAfk(telegramId: number) {
   return afkStore.has(Number(telegramId));
 }
 
-export function getAfkInfo(telegramId) {
+export function getAfkInfo(telegramId: number) {
   return afkStore.get(Number(telegramId)) || null;
 }
 
@@ -21,7 +23,7 @@ export default {
     usage: '• `.afk <alasan>` — aktifkan (bisa gunakan emoji premium / {emoji:id})\n• `.unafk` — matikan',
     detail: 'Saat AFK aktif dan seseorang me-reply pesanmu atau menyebut @username kamu, bot membalas dengan alasan AFK dan lama waktu.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const idNum = Number(telegramId);
     const afkEmoji = getCustomEmoji(settings, 'afk', '😴');
 
@@ -80,7 +82,7 @@ export default {
         const durasi = mins >= 60 ? `${Math.floor(mins / 60)} jam ${mins % 60} menit` : `${mins} menit`;
         const safeReason = escapeHtmlPreservingTgEmoji(info.reason);
         try {
-          await message.reply({
+          await message.reply?.({
             message: `<blockquote>${afkEmoji} <b>Owner sedang AFK</b>\n\nAlasan: <i>${safeReason}</i>\nSejak: <b>${durasi}</b> yang lalu.</blockquote>`,
             parseMode: 'html'
           });

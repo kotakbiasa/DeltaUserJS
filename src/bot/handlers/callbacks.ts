@@ -5,15 +5,17 @@ import { sendAccessDeniedRich, panelMain, keyboardMain } from '../ui/keyboards/d
 import { escapeHtml, replyRich, editRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { isApproved, approveUser, revokeUser } from '../state/approvedUsers.js';
+import type { BotContext } from '../context.js';
+import type { Bot } from 'grammy';
 
-async function sendMainRich(ctx, deleteOld = false) {
+async function sendMainRich(ctx: BotContext, deleteOld = false) {
   if (ctx.callbackQuery?.message?.message_id) {
     try {
       await ctx.api.editMessageText(
         ctx.callbackQuery.message.chat.id,
         ctx.callbackQuery.message.message_id,
         { html: panelMain(ctx) },
-        { reply_markup: keyboardMain(ctx) }
+        { reply_markup: keyboardMain(ctx) as unknown as NonNullable<Parameters<typeof ctx.api.editMessageText>[3]>['reply_markup'] }
       );
       return;
     } catch (_) { /* fallback below */ }
@@ -24,7 +26,7 @@ async function sendMainRich(ctx, deleteOld = false) {
   }
 }
 
-export function registerLegacyCallbacks(bot) {
+export function registerLegacyCallbacks(bot: Bot<BotContext>) {
   // Legacy callback aliases kept so old buttons/conversation prompts still work.
   bot.callbackQuery('back_to_main', async (ctx) => {
     await ctx.answerCallbackQuery();
@@ -68,7 +70,7 @@ export function registerLegacyCallbacks(bot) {
     const name = escapeHtml(ctx.from.first_name || 'User');
     const username = ctx.from.username ? `@${escapeHtml(ctx.from.username)}` : 'Tanpa Username';
     try {
-      const targetChat = config.logGroupId || config.ownerId;
+      const targetChat = (config.logGroupId || config.ownerId) as string | number;
       const extraParams: Record<string, unknown> = {
         parse_mode: 'HTML',
         reply_markup: new InlineKeyboard()

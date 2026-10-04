@@ -1,5 +1,11 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { LegacyEntity } from '../../engine/compatClient.js';
+import type { UserbotEntityLike, UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { EntityLike } from '../../types.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import type { tl } from '@mtcute/core';
 
 // Moderate: moderasi grup lengkap. Konsep diadaptasi dari getter admintools.py
 // (kastaid/getter) ke pola plugin DeltaUserJS — bukan salinan mentah.
@@ -40,7 +46,7 @@ interface Duration {
 interface Target {
   id: number;
   name: string;
-  entity?: any;
+  entity?: LegacyEntity | UserbotEntityLike | string;
 }
 
 interface ResolvedTarget {
@@ -103,16 +109,21 @@ function reasonSuffix(reason: string): string {
 
 // Target user: reply ke pesan user, atau token pertama args = @username /
 // username / link t.me / ID numerik. Token sisanya jadi alasan.
-async function resolveTarget(client, message, args): Promise<ResolvedTarget> {
+async function resolveTarget(client: CompatClient, message: UserbotMessageLike, args: string): Promise<ResolvedTarget> {
+  const replied = await message.getReplyMessage();
+
+  // Token pertama hanya dipakai sebagai target bila TIDAK sedang membalas
+  // pesan. Sebelumnya token itu selalu dipotong, sehingga `.ban spam parah`
+  // pada sebuah reply menyimpan alasan "parah" (kata pertama hilang) dan
+  // `.promote Moderator` kehilangan gelarnya — title jatuh ke "Admin".
   let token = '';
   let reason = args;
-  if (args !== '') {
+  if (args !== '' && !(replied && replied.senderId)) {
     const parts = args.split(/\s+/).filter(Boolean);
     token = parts[0] || '';
     reason = parts.slice(1).join(' ').trim();
   }
 
-  const replied = await message.getReplyMessage();
   if (replied && replied.senderId) {
     let name = `User ${replied.senderId}`;
     let entity;
@@ -146,7 +157,7 @@ async function resolveTarget(client, message, args): Promise<ResolvedTarget> {
   return { reason, error: 'Balas pesan user, atau tulis username/ID-nya' };
 }
 
-async function handleMember(client, message, chat, isChannel, cmd, args, telegramId) {
+async function handleMember(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, isChannel: boolean, cmd: string, args: string, telegramId: number) {
   let duration: Duration | null = null;
   let targetArgs = args;
   if (cmd === 'mute') {
@@ -180,15 +191,24 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
   }
   const participant = target.entity ?? target.id;
 
-  const chatId = chat.id || chat;
+  // Semua method anggota di mtcute memakai satu objek params (chatId/userId
+  // atau participantId). Versi lama memanggilnya secara posisional gaya
+  // GramJS, dan karena method-nya memang ADA, cabang fallback client.call()
+  // tidak pernah tercapai — jadi .kick/.ban/.unban/.mute selalu melempar.
+  const chatPeer = toPeer((chat.id ?? chat) as EntityLike);
+  const userPeer = toPeer(participant as EntityLike);
 
   // Grup biasa (basic group): hanya kick yang didukung API-nya.
   if (!isChannel) {
     if (cmd === 'kick') {
       if (typeof client.kickChatMember === 'function') {
-        await client.kickChatMember(chatId, participant);
+        await client.kickChatMember({ chatId: chatPeer, userId: userPeer });
       } else if (typeof client.call === 'function') {
-        await client.call({ _: 'messages.deleteChatUser', chatId: chat.id, userId: participant });
+        await client.call({
+          _: 'messages.deleteChatUser',
+          chatId: Number(chat.id),
+          userId: await client.resolveUser(userPeer),
+        });
       } else if (typeof client.invoke === 'function') {
         await client.invoke({ _: 'messages.deleteChatUser', chatId: chat.id, userId: participant });
       }
@@ -215,18 +235,18 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
   switch (cmd) {
     case 'kick': {
       if (typeof client.kickChatMember === 'function') {
-        await client.kickChatMember(chatId, participant);
+        await client.kickChatMember({ chatId: chatPeer, userId: userPeer });
       } else if (typeof client.call === 'function') {
         await client.call({
           _: 'channels.editBanned',
-          channel: chatId,
-          participant,
+          channel: await resolveChannelPeer(client, chatPeer),
+          participant: await client.resolvePeer(userPeer),
           bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
         }).catch(() => {});
         await client.call({
           _: 'channels.editBanned',
-          channel: chatId,
-          participant,
+          channel: await resolveChannelPeer(client, chatPeer),
+          participant: await client.resolvePeer(userPeer),
           bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
         });
       }
@@ -238,12 +258,12 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
     }
     case 'ban': {
       if (typeof client.banChatMember === 'function') {
-        await client.banChatMember(chatId, participant);
+        await client.banChatMember({ chatId: chatPeer, participantId: userPeer });
       } else if (typeof client.call === 'function') {
         await client.call({
           _: 'channels.editBanned',
-          channel: chatId,
-          participant,
+          channel: await resolveChannelPeer(client, chatPeer),
+          participant: await client.resolvePeer(userPeer),
           bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
         });
       }
@@ -255,12 +275,12 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
     }
     case 'unban': {
       if (typeof client.unbanChatMember === 'function') {
-        await client.unbanChatMember(chatId, participant);
+        await client.unbanChatMember({ chatId: chatPeer, participantId: userPeer });
       } else if (typeof client.call === 'function') {
         await client.call({
           _: 'channels.editBanned',
-          channel: chatId,
-          participant,
+          channel: await resolveChannelPeer(client, chatPeer),
+          participant: await client.resolvePeer(userPeer),
           bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: false, sendMessages: false },
         });
       }
@@ -273,15 +293,17 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
     case 'mute': {
       const untilDate = duration ? Math.floor((Date.now() + duration.ms) / 1000) : 0;
       if (typeof client.restrictChatMember === 'function') {
-        await client.restrictChatMember(chatId, participant, {
-          restrictions: { sendMessages: false },
-          untilDate,
+        await client.restrictChatMember({
+          chatId: chatPeer,
+          userId: userPeer,
+          restrictions: { sendMessages: true },
+          until: untilDate,
         });
       } else if (typeof client.call === 'function') {
         await client.call({
           _: 'channels.editBanned',
-          channel: chatId,
-          participant,
+          channel: await resolveChannelPeer(client, chatPeer),
+          participant: await client.resolvePeer(userPeer),
           bannedRights: { _: 'chatBannedRights', untilDate, sendMessages: true },
         });
       }
@@ -294,15 +316,20 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
     }
     default: {
       if (typeof client.restrictChatMember === 'function') {
-        await client.restrictChatMember(chatId, participant, {
-          restrictions: { sendMessages: true },
+        // Semantik TL: flag `true` berarti DILARANG. Unmute karena itu harus
+        // mengosongkan pembatasan, bukan menyalakan sendMessages.
+        await client.restrictChatMember({
+          chatId: chatPeer,
+          userId: userPeer,
+          restrictions: {},
         });
       } else if (typeof client.call === 'function') {
         await client.call({
           _: 'channels.editBanned',
-          channel: chatId,
-          participant,
-          bannedRights: { _: 'chatBannedRights', untilDate: 0, viewMessages: true },
+          channel: await resolveChannelPeer(client, chatPeer),
+          participant: await client.resolvePeer(userPeer),
+          // Dulu di sini viewMessages: true, yang justru MEM-BAN total.
+          bannedRights: { _: 'chatBannedRights', untilDate: 0 },
         });
       }
       await message.edit({
@@ -313,7 +340,7 @@ async function handleMember(client, message, chat, isChannel, cmd, args, telegra
   }
 }
 
-async function handleRole(client, message, chat, isChannel, cmd, args, telegramId) {
+async function handleRole(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, isChannel: boolean, cmd: string, args: string, telegramId: number) {
   const resolved = await resolveTarget(client, message, args);
   if (resolved.error || !resolved.target) {
     await message.edit({
@@ -336,8 +363,15 @@ async function handleRole(client, message, chat, isChannel, cmd, args, telegramI
   const isBroadcast = isChannel && !chat.megagroup;
   const title = isPromote ? (resolved.reason.slice(0, 16) || 'Admin') : '';
 
-  if (typeof client.setChatAdminRights === 'function') {
-    await client.setChatAdminRights(chat.id || chat, participant, {
+  const adminChatPeer = toPeer((chat.id ?? chat) as EntityLike);
+  const adminUserPeer = toPeer(participant as EntityLike);
+
+  if (typeof client.editAdminRights === 'function') {
+    // mtcute: editAdminRights({ chatId, userId, rights, rank }).
+    // setChatAdminRights() adalah nama GramJS dan tidak pernah ada di sini.
+    await client.editAdminRights({
+      chatId: adminChatPeer,
+      userId: adminUserPeer,
       rights: isPromote ? {
         changeInfo: false,
         postMessages: isBroadcast,
@@ -370,12 +404,29 @@ async function handleRole(client, message, chat, isChannel, cmd, args, telegramI
       : { _: 'chatAdminRights' };
 
     if (isChannel) {
-      await client.call({ _: 'channels.editAdmin', channel: chat, userId: participant, adminRights: rights, rank: title });
+      await client.call({
+        _: 'channels.editAdmin',
+        channel: await client.resolveChannel(adminChatPeer),
+        userId: await client.resolveUser(adminUserPeer),
+        adminRights: rights as tl.RawChatAdminRights,
+        rank: title,
+      });
     } else {
       try {
-        await client.call({ _: 'messages.editChatAdmin', chatId: chat.id, userId: participant, isAdmin: isPromote });
+        await client.call({
+          _: 'messages.editChatAdmin',
+          chatId: Number(chat.id),
+          userId: await client.resolveUser(adminUserPeer),
+          isAdmin: isPromote,
+        });
       } catch {
-        await client.call({ _: 'channels.editAdmin', channel: chat, userId: participant, adminRights: rights, rank: title });
+        await client.call({
+          _: 'channels.editAdmin',
+          channel: await client.resolveChannel(adminChatPeer),
+          userId: await client.resolveUser(adminUserPeer),
+          adminRights: rights as tl.RawChatAdminRights,
+          rank: title,
+        });
       }
     }
   }
@@ -393,7 +444,7 @@ async function handleRole(client, message, chat, isChannel, cmd, args, telegramI
   }
 }
 
-async function handleLock(client, message, chat, cmd, args) {
+async function handleLock(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, cmd: string, args: string) {
   const mode = args.trim().toLowerCase();
   if (mode !== 'all' && mode !== 'media' && mode !== 'links') {
     await message.edit({
@@ -407,25 +458,26 @@ async function handleLock(client, message, chat, cmd, args) {
 
   // EditChatDefaultBannedRights mengganti SELURUH objek hak, jadi hak default
   // yang lama diambil dulu lalu di-merge supaya lock media tidak membuka
-  let prev: any;
+  let prev: Record<string, boolean | undefined> | undefined;
   try {
     if (typeof client.call === 'function') {
-      if (chat.className === 'Channel') {
-        const full = await client.call({ _: 'channels.getFullChannel', channel: chat });
-        prev = full.fullChat?.defaultBannedRights;
-      } else {
-        const full = await client.call({ _: 'messages.getFullChat', chatId: chat.id });
-        prev = full.fullChat?.defaultBannedRights;
-      }
+      // getEntity() hanya pernah mengembalikan className 'User'/'Chat',
+      // jadi pembeda supergroup/channel diambil dari ID bertanda -100.
+      const lockPeer = toPeer((chat.id ?? chat) as EntityLike);
+      const isChannelLike = String(chat.id ?? '').startsWith('-100');
+      const full = isChannelLike
+        ? await client.call({ _: 'channels.getFullChannel', channel: await client.resolveChannel(lockPeer) })
+        : await client.call({ _: 'messages.getFullChat', chatId: Number(chat.id) });
+      prev = (full.fullChat as { defaultBannedRights?: Record<string, boolean | undefined> })?.defaultBannedRights;
     }
   } catch {
     prev = undefined;
   }
 
-  const merged: Record<string, any> = {
+  const merged = {
     _: 'chatBannedRights',
-    untilDate: 0
-  };
+    untilDate: 0,
+  } as tl.RawChatBannedRights & Record<string, unknown>;
   for (const flag of LOCK_TARGETS.all) {
     const wasLocked = prev ? prev[flag] === true : false;
     const isTarget = targets.includes(flag);
@@ -435,7 +487,8 @@ async function handleLock(client, message, chat, cmd, args) {
   if (typeof client.call === 'function') {
     await client.call({
       _: 'messages.editChatDefaultBannedRights',
-      peer: chat,
+      // Skema TL minta InputPeer, bukan objek entity hasil getEntity().
+      peer: await client.resolvePeer(toPeer((chat.id ?? chat) as EntityLike)),
       bannedRights: merged,
     });
   }
@@ -449,6 +502,11 @@ async function handleLock(client, message, chat, cmd, args) {
   await message.edit({ text, parseMode: 'html' });
 }
 
+/** channels.* butuh InputChannel, sedangkan resolvePeer() memberi InputPeer. */
+async function resolveChannelPeer(client: CompatClient, peer: Parameters<CompatClient['resolveChannel']>[0]) {
+  return await client.resolveChannel(peer);
+}
+
 export default {
   name: 'moderate',
   version: '1.0.0',
@@ -459,7 +517,7 @@ export default {
     usage: '• Reply user ATAU tulis username/ID:\n• `.kick`, `.ban`, `.unban`\n• `.mute [30m|1h|1d] [alasan]`, `.unmute`\n• `.promote [gelar]`, `.demote`\n• `.lock all|media|links`, `.unlock all|media|links`',
     detail: 'Durasi mute maksimal 7 hari (boleh digabung, mis. 1h30m). Hanya owner userbot (pesan keluar sendiri) yang bisa memakai command ini.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.([A-Za-z]+)(?:\s+([\s\S]*))?$/);

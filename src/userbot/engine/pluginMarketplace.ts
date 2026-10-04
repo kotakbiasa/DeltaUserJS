@@ -4,7 +4,18 @@ import path from 'path';
 import { Logger } from '../../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const marketplaceDir = path.join(__dirname, '../../plugins_marketplace');
+
+/**
+ * Direktori data marketplace, di root repo.
+ *
+ * Sebelumnya `'../../plugins_marketplace'` — dari `dist/userbot/engine` itu
+ * jatuh di `dist/plugins_marketplace`, sehingga registry dan seluruh plugin
+ * terpasang **ikut terhapus setiap kali `dist/` dibangun ulang** (dan tidak
+ * pernah cocok dengan entri `plugins_marketplace/` di .gitignore). Butuh tiga
+ * tingkat untuk keluar dari `dist/`.
+ */
+export const marketplaceDir = process.env.PLUGINS_MARKETPLACE_DIR
+  || path.resolve(__dirname, '../../../plugins_marketplace');
 const registryFile = path.join(marketplaceDir, 'registry.json');
 
 interface PluginManifest {

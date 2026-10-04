@@ -3,6 +3,10 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { Logger } from '../../../utils/logger.js';
+import type { CompatClient, LegacyEntity } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import { errorMessage } from '../../../utils/errors.js';
+import type { EntityLike, UserbotMessageLike, UserbotSettings } from '../../types.js';
 
 export default {
   name: 'info',
@@ -12,7 +16,7 @@ export default {
     usage: '• `.info` (Melihat info diri sendiri, atau grup jika di grup)\n• `.info <username>` (Melihat info username)\n• Balas pesan orang lalu ketik `.info` (Melihat info orang tersebut)',
     detail: 'Menampilkan foto profil utama, bio, status akun, dan data detail lainnya dengan tampilan elegan.'
   },
-  async execute(client: any, message: any, settings: any, telegramId: number) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
@@ -26,13 +30,13 @@ export default {
       parseMode: 'html' 
     });
 
-    let targetEntity: any;
+    let targetEntity: LegacyEntity;
     let _isGroup = false;
 
     try {
       const repliedMsg = await message.getReplyMessage();
       if (repliedMsg) {
-        targetEntity = await client.getEntity(repliedMsg.senderId);
+        targetEntity = await client.getEntity(toPeer(repliedMsg.senderId));
       } else if (args[1]) {
         if (args[1].toLowerCase() === 'me') {
           targetEntity = await client.getEntity('me');
@@ -43,22 +47,22 @@ export default {
         if (message.isPrivate) {
           targetEntity = await client.getEntity('me');
         } else {
-          targetEntity = await client.getEntity(message.chatId);
+          targetEntity = await client.getEntity(toPeer(message.chatId));
           _isGroup = true;
         }
       }
 
       // 1. Ambil Foto Profil Target
-      let profilePhotoBuffer: any = null;
+      let profilePhotoBuffer: Buffer | undefined;
       try {
-        profilePhotoBuffer = await client.downloadProfilePhoto(targetEntity.id || targetEntity);
-      } catch (e: any) {
-        Logger.logUser(telegramId, `Gagal download foto profil: ${e.message}`, 'WARN');
+        profilePhotoBuffer = await client.downloadProfilePhoto(toPeer((targetEntity.id || targetEntity) as EntityLike));
+      } catch (e: unknown) {
+        Logger.logUser(telegramId, `Gagal download foto profil: ${errorMessage(e)}`, 'WARN');
       }
 
       // 2. Ambil Full Info (Bio, dll)
       let captionText = ``;
-      const targetId = targetEntity.id ?? targetEntity;
+      const targetId = toPeer((targetEntity.id ?? targetEntity) as EntityLike);
       const isUser = targetEntity.className === 'User' || targetEntity.className === 'UserEmpty' || (!_isGroup && !targetEntity.title);
 
       if (isUser) {
@@ -70,7 +74,7 @@ export default {
         let photoCount = 0;
 
         try {
-          const u: any = await client.getFullUser(targetId);
+          const u = await client.getFullUser(targetId);
           pName = u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || pName;
           pUser = u.username ? `@${u.username}` : pUser;
           pId = String(u.id);
@@ -80,12 +84,12 @@ export default {
           if (u.isVerified) { tags.push('✅ Verified'); }
           if (u.isScam) { tags.push('⚠️ Scam'); }
           if (u.isFake) { tags.push('🎭 Fake'); }
-        } catch (e: any) {
-          Logger.logUser(telegramId, `Gagal getFullUser: ${e.message}`, 'WARN');
+        } catch (e: unknown) {
+          Logger.logUser(telegramId, `Gagal getFullUser: ${errorMessage(e)}`, 'WARN');
         }
 
         try {
-          const userPhotos: any = await client.getProfilePhotos(targetId, { limit: 1 });
+          const userPhotos = await client.getProfilePhotos(targetId, { limit: 1 });
           photoCount = userPhotos.total || userPhotos.length || 0;
         } catch (_e) { /* ignore */ }
 
@@ -101,11 +105,12 @@ export default {
       } else {
         // Group Info (Megagroup/Channel or Basic Chat)
         try {
-          const fullInfo: any = await client.getFullChat(targetId);
+          const fullInfo = await client.getFullChat(targetId);
           const cName = fullInfo.title || targetEntity.title || 'Group';
           const cUser = fullInfo.username ? `@${fullInfo.username}` : 'Private Group';
           const cId = String(fullInfo.id || targetEntity.id);
-          const cBio = fullInfo.description || 'Tidak ada deskripsi grup';
+          // FullChat mtcute: deskripsi ada di `bio`, bukan `description`.
+          const cBio = fullInfo.bio || 'Tidak ada deskripsi grup';
           const cMembers = fullInfo.membersCount || '?';
 
           captionText = `<blockquote>👥 <b>GROUP INFORMATION</b>\n` +
@@ -131,7 +136,7 @@ export default {
         const tmpPath = path.join(os.tmpdir(), `info_${Date.now()}.jpg`);
         fs.writeFileSync(tmpPath, profilePhotoBuffer);
         
-        await client.sendFile(message.peerId || message.chatId, {
+        await client.sendFile(toPeer(message.peerId || message.chatId), {
           caption: captionText,
           file: tmpPath,
           parseMode: 'html',

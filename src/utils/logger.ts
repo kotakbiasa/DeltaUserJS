@@ -1,9 +1,11 @@
 import { getSystemVar, getUserVar } from '../infrastructure/database.js';
 import config from '../config.js';
 
-let masterBot = null;
+type LoggerBot = { api: { sendMessage: (chatId: number | string, text: string, other?: Record<string, unknown>) => Promise<unknown> } };
 
-export function setLoggerBot(botInstance) {
+let masterBot: LoggerBot | null = null;
+
+export function setLoggerBot(botInstance: LoggerBot) {
   masterBot = botInstance;
 }
 

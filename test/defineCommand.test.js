@@ -9,7 +9,7 @@ import paste from '../dist/userbot/handlers/util/paste.js';
 
 /**
  * Pesan tiruan yang merekam setiap message.edit().
- * Bentuknya mengikuti objek message GramJS seperlunya saja.
+ * Bentuknya mengikuti objek message mtcute seperlunya saja.
  */
 function mockMessage(text, extra = {}) {
   return {

@@ -16,8 +16,9 @@ import {
   getCombinedAdminUsers,
   getSystemVarValue,
 } from '../shared.js';
+import type { BotContext } from '../../../../context.js';
 
-export function panelAdmin(_ctx) {
+export function panelAdmin(_ctx: BotContext) {
   const registeredUsers = getAllRegisteredUsers();
   const registeredIds = new Set(registeredUsers.map(u => Number(u.telegram_id)));
   const awaitingCount = getApprovedUsers().filter(id => !registeredIds.has(Number(id))).length;
@@ -50,7 +51,7 @@ export function panelAdmin(_ctx) {
     `<hr/>` +
     `<h3>💡 Status Lingkungan Runtime:</h3>` +
     `<ul>` +
-    `<li>Engine: <b>Teleproto Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)</li>` +
+    `<li>Engine: <b>mtcute Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)</li>` +
     `<li>Node.js: <code>${process.version}</code> · PID <code>${process.pid}</code></li>` +
     `<li>Alokasi RAM (Heap): ${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</li>` +
     `</ul>` +
@@ -272,7 +273,7 @@ export function panelAdminSettings() {
     `<footer>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</footer>`;
 }
 
-export function panelStats(ctx) {
+export function panelStats(ctx: BotContext) {
   const session = ctx?.from?.id ? getUserbotSession(ctx.from.id) : null;
   const running = ctx?.from?.id ? userbotManager.isRunning(ctx.from.id) : false;
   const premium = session?.is_telegram_premium === 1 || Boolean(ctx?.from?.is_premium);

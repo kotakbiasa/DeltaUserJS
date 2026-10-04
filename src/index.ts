@@ -180,7 +180,7 @@ async function main() {
     });
 
 // Graceful shutdown handlers
-async function shutdown(signal) {
+async function shutdown(signal: string) {
   console.log('');
   Logger.logSystem(`Received ${signal}. Shutting down gracefully...`, 'WARN');
 

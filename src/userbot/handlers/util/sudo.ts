@@ -2,6 +2,8 @@ import config from '../../../config.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { updateUserbotFeature, UserbotModel, dbCache, isMongo, readDbFromFile } from '../../../infrastructure/database.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ============================================================
 // SUDO MANAGER
@@ -132,13 +134,13 @@ export function getSudos(userbotId?: number): number[] {
   return Array.from(all);
 }
 
-function isOwnerBot(telegramId) {
+function isOwnerBot(telegramId: number) {
   return Boolean(config.ownerId) && Number(telegramId) === config.ownerId;
 }
 
 // Prioritas: argumen ID langsung (.addsudo 12345), lalu reply ke pesan user.
-async function resolveTargetId(message) {
-  const arg = message.message.trim().split(/\s+/)[1];
+async function resolveTargetId(message: UserbotMessageLike) {
+  const arg = (message.message ?? '').trim().split(/\s+/)[1];
   if (arg) {
     const id = Number(arg);
     if (Number.isInteger(id) && id > 0) {return id;}
@@ -169,7 +171,7 @@ export default {
       'Daftar sudo dipersist ke database per userbot (field sudo_list) dan di-load ulang otomatis saat userbot start. ' +
       'Plugin lain bisa memakai helper isSudo(userId, userbotId) dan getSudos(userbotId) untuk validasi akses sudo.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     await ensureHydrated(telegramId);
     const sudoUsers = getSudoState(telegramId).users;
 

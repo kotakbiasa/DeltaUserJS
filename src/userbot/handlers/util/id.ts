@@ -1,5 +1,7 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 export default {
   name: 'id',
@@ -9,7 +11,7 @@ export default {
     usage: '• Ketik `.id` biasa.\n• Balas (reply) chat orang lain dengan mengetik `.id`.',
     detail: '• Jika diketik biasa, menampilkan ID Chat saat ini dan ID Anda.\n• Jika digunakan sebagai balasan, menampilkan ID Chat, ID Telegram Target, dan Nama Target yang Anda balas.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (message.out && message.message && message.message.toLowerCase() === '.id') {
       try {
         const replied = await message.getReplyMessage();
@@ -24,7 +26,7 @@ export default {
         } else if (replyTo?.replyToMsgId && replyTo?.forumTopic) {
           // Reply ke pesan di topic — replyToMsgId adalah topic root ID
           topicId = replyTo.replyToMsgId;
-        } else if (message.peerId?.className === 'PeerChannel' && !replyTo) {
+        } else if ((message.peerId as { className?: string } | undefined)?.className === 'PeerChannel' && !replyTo) {
           // Pesan langsung di topic (bukan reply) — pakai message.id sebagai fallback
           // tapi cek dulu apakah ada cara lain untuk detect topic
           // Untuk sekarang, biarkan null karena tanpa reply kita tidak tahu topic ID

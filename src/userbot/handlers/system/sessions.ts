@@ -14,6 +14,9 @@ import { Logger } from '../../../utils/logger.js';
 // DeltaUserJS — bukan salinan.
 // ============================================================
 import config from '../../../config.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import { Long } from '@mtcute/core';
 
 const KILL_INTERVAL_MS = 60 * 1000;
 
@@ -34,7 +37,7 @@ function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-// Baris sesi untuk list/monitor: hash long dari GramJS dibaca via String().
+// Baris sesi untuk list/monitor: hash long dari mtcute dibaca via String().
 interface SessionRow {
   hash: string;
   current?: boolean;
@@ -50,7 +53,7 @@ interface SessionRow {
   country?: string;
 }
 
-async function fetchAuthorizations(client: any): Promise<SessionRow[]> {
+async function fetchAuthorizations(client: CompatClient): Promise<SessionRow[]> {
   const result = typeof client.call === 'function'
     ? await client.call({ _: 'account.getAuthorizations' })
     : await client.invoke({ _: 'account.getAuthorizations' });
@@ -60,7 +63,7 @@ async function fetchAuthorizations(client: any): Promise<SessionRow[]> {
   return list;
 }
 
-function fmtDate(unix: number): string {
+function fmtDate(unix: number | undefined): string {
   if (!unix) {return '-';}
   const d = new Date(unix * 1000);
   const pad = (n: number): string => String(n).padStart(2, '0');
@@ -98,7 +101,7 @@ function stopKiller(telegramId: number): boolean {
   return true;
 }
 
-async function monitorTick(client, telegramId: number, st: KillerState): Promise<void> {
+async function monitorTick(client: CompatClient, telegramId: number, st: KillerState): Promise<void> {
   try {
     const authorizations = await fetchAuthorizations(client);
     const current = new Set<string>(authorizations.map((auth) => String(auth.hash)));
@@ -118,7 +121,8 @@ async function monitorTick(client, telegramId: number, st: KillerState): Promise
     const details: string[] = [];
     for (const auth of newcomers) {
       try {
-        const hashVal = BigInt(String(auth.hash));
+        // Skema TL memakai Long, bukan bigint.
+        const hashVal = Long.fromString(String(auth.hash));
         if (typeof client.call === 'function') {
           await client.call({ _: 'account.resetAuthorization', hash: hashVal });
         } else {
@@ -133,14 +137,14 @@ async function monitorTick(client, telegramId: number, st: KillerState): Promise
     if (killed > 0) {st.lastKillAt = Date.now();}
 
     const text = `🚨 <b>SESSIONKILLER</b>\n<blockquote>${newcomers.length} sesi baru terdeteksi & langsung diputus (<b>${killed}</b> berhasil):\n\n${details.join('\n')}\n\nℹ️ Matikan dengan <code>.sessionkiller off</code></blockquote>`;
-    await client.sendMessage(config.ownerId, { message: text, parseMode: 'html', linkPreview: false });
+    await client.sendMessage(config.ownerId as string | number, { message: text, parseMode: 'html', linkPreview: false });
     Logger.logSystem(`🚨 SessionKiller: ${newcomers.length} sesi baru, ${killed} direset`, killed > 0 ? 'WARN' : 'INFO');
   } catch (err) {
     Logger.logSystem(`SessionKiller tick error: ${errText(err)}`, 'ERROR');
   }
 }
 
-function startKiller(client, telegramId: number): void {
+function startKiller(client: CompatClient, telegramId: number): void {
   stopKiller(telegramId);
   const st: KillerState = { knownHashes: new Set<string>() };
   st.startedAt = Date.now();
@@ -172,7 +176,7 @@ export default {
   onLoad: () => {
     Logger.logSystem(`🔐 Plugin Sessions loaded (${killerStore.size} sessionkiller aktif survive hot-reload)`, 'INFO');
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (Number(telegramId) !== Number(config.ownerId)) {return;}
 
@@ -222,7 +226,8 @@ export default {
           return;
         }
         try {
-          const hashVal = BigInt(String(hash));
+          // Skema TL memakai Long, bukan bigint.
+          const hashVal = Long.fromString(String(hash));
           if (typeof client.call === 'function') {
             await client.call({ _: 'account.resetAuthorization', hash: hashVal });
           } else {

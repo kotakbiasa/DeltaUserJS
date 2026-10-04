@@ -1,6 +1,11 @@
 import type { UserbotMessageLike } from '../../types.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { EntityLike } from '../../types.js';
+import type { UserbotEntityLike } from '../../types.js';
+import type { LegacyEntity } from '../../engine/compatClient.js';
 
 /**
  * Profiles — info pengguna & info grup/channel.
@@ -27,6 +32,26 @@ function statusTags(u: { premium?: boolean; bot?: boolean; verified?: boolean; s
   return tags.length > 0 ? tags.join(' · ') : 'Normal User';
 }
 
+/**
+ * Irisan field yang benar-benar dirender `.profiles`. Sumbernya bisa `FullUser`
+ * mtcute atau entity legacy dari `getEntity()`, jadi tipe ini sengaja hanya
+ * mendeskripsikan yang dipakai.
+ */
+type UserProfileView = {
+  id?: unknown;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  bio?: string;
+  /** Hanya ada pada entity legacy. */
+  about?: string;
+  premium?: boolean;
+  bot?: boolean;
+  verified?: boolean;
+  scam?: boolean;
+  fake?: boolean;
+};
+
 export default {
   name: 'profiles',
   help: {
@@ -38,7 +63,7 @@ export default {
             '• `.cinfo` menampilkan jumlah member lewat full-chat API (supergroup/channel) atau daftar participant (grup biasa).\n' +
             '• `.id` untuk ID chat/user cepat ada di plugin terpisah.'
   },
-  async execute(client: any, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (!message.peerId) {return;}
 
@@ -54,8 +79,11 @@ export default {
 
       try {
         // Anti-dobel: kalau pesan perintah sudah diedit/dihapus plugin lain (info.ts), skip.
-        const fresh = (await client.getMessages(message.peerId as any, { ids: [message.id] }))?.[0];
-        if (!fresh || fresh.message !== message.message) {return;}
+        const fresh = (await client.getMessages(toPeer(message.peerId), [message.id]))?.[0];
+        // Message mtcute mengekspos isi teks sebagai `.text`, bukan `.message`;
+        // perbandingan versi lama selalu gagal sehingga handler ini langsung
+        // berhenti dan perintahnya tidak pernah jalan.
+        if (!fresh || fresh.text !== message.message) {return;}
 
         await message.edit({
           text: '<blockquote>🔍 <b>Mengambil info pengguna...</b></blockquote>',
@@ -63,15 +91,15 @@ export default {
         });
 
         // getSender dulu, fallback getEntity/getChat
-        let target: any;
+        let target: UserbotEntityLike | LegacyEntity | undefined;
         try {
-          target = await replied.getSender();
+          target = (await replied.getSender()) ?? undefined;
         } catch (_e) { target = undefined; }
         if (!target && replied.senderId) {
-          try { target = await client.getEntity(replied.senderId as any); } catch (_e) { target = undefined; }
+          try { target = await client.getEntity(toPeer(replied.senderId)); } catch (_e) { target = undefined; }
         }
         if (!target) {
-          try { target = await message.getChat(); } catch (_e) { target = undefined; }
+          try { target = (await message.getChat()) ?? undefined; } catch (_e) { target = undefined; }
         }
         if (!target) {
           await message.edit({
@@ -83,11 +111,11 @@ export default {
 
         let caption: string;
         if (target.className === 'User' || target.className === 'UserEmpty' || !target.className) {
-          let u: any;
+          let u: UserProfileView | undefined;
           try {
-            u = await client.getFullUser(target.id || target);
+            u = await client.getFullUser(toPeer((target.id || target) as EntityLike)) as UserProfileView;
           } catch (_e) {
-            u = target;
+            u = target as UserProfileView;
           }
           if (!u) {throw new Error('Data user kosong dari server.');}
           const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Tanpa Nama';
@@ -107,19 +135,19 @@ export default {
             `📛 <b>Nama:</b> ${escapeHtml(name)}\n` +
             `🆔 <b>ID:</b> <code>${target.id}</code>\n` +
             `🔗 <b>Username:</b> ${escapeHtml(uname)}\n` +
-            `📌 <b>Tipe:</b> ${escapeHtml(target.className)}</blockquote>`;
+            `📌 <b>Tipe:</b> ${escapeHtml(String(target.className ?? 'Chat'))}</blockquote>`;
         }
 
         // Foto profil besar
         let photo: Buffer | string | undefined = undefined;
         try {
-          photo = await client.downloadProfilePhoto(target.id || target);
+          photo = await client.downloadProfilePhoto(toPeer((target.id || target) as EntityLike));
         } catch (e) {
           Logger.logUser(telegramId, `Profiles: gagal download foto profil: ${e instanceof Error ? e.message : String(e)}`, 'WARN');
         }
 
         if (photo && typeof photo !== 'string' && photo.length > 0) {
-          await client.sendMessage(message.peerId as any, {
+          await client.sendMessage(toPeer(message.peerId), {
             message: caption,
             file: photo,
             parseMode: 'html',
@@ -165,8 +193,9 @@ export default {
         let members: number | string | undefined;
 
         try {
-          const fullChat: any = await client.getFullChat(chat.id || chat);
-          about = fullChat?.description || '';
+          const fullChat = await client.getFullChat(toPeer((chat.id || chat) as EntityLike));
+          // FullChat mtcute menamai deskripsi sebagai `bio`, bukan `description`.
+          about = fullChat?.bio || '';
           members = fullChat?.membersCount;
         } catch (_e) {
           about = '';

@@ -8,11 +8,12 @@ import { escapeHtml, replyRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { cancelKeyboard } from './registration.js';
 import { fetchWithTimeout } from '../../utils/http.js';
+import type { BotContext, BotConversation } from '../context.js';
 
 /**
  * Helper: tunggu input teks atau tombol batal.
  */
-async function waitForInput(conversation, ctx) {
+async function waitForInput(conversation: BotConversation, ctx: BotContext) {
   const result = await conversation.waitFor(['message:text', 'callback_query:data']);
   const cbData = result.callbackQuery?.data;
 
@@ -24,8 +25,10 @@ async function waitForInput(conversation, ctx) {
       const notice = await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b></p>`);
       const noticeId = notice?.message_id;
       if (noticeId) {
+        const noticeChatId = ctx.chat?.id;
         const t = setTimeout(() => {
-          ctx.api.deleteMessage(ctx.chat?.id, noticeId).catch(() => { /* ignore */ });
+          if (noticeChatId === undefined) {return;}
+          ctx.api.deleteMessage(noticeChatId, noticeId).catch(() => { /* ignore */ });
         }, 30_000);
         if (typeof t.unref === 'function') {t.unref();}
       }
@@ -45,7 +48,7 @@ async function waitForInput(conversation, ctx) {
 /**
  * Conversation to set custom AFK reason
  */
-export async function afkReasonConversation(conversation, ctx) {
+export async function afkReasonConversation(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
 
   try {
@@ -90,10 +93,10 @@ const USER_VAR_TEMPLATE: { key: string; desc: string }[] = [
 /**
  * Conversation to manage generic user vars (Vars Config)
  */
-export async function manageVarsConv(conversation, ctx) {
+export async function manageVarsConv(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
 
-  const buildVarsKeyboard = (varsMap) => {
+  const buildVarsKeyboard = (varsMap: Record<string, unknown>) => {
     const kb = new InlineKeyboard();
 
     // Tombol untuk variabel umum
@@ -150,7 +153,7 @@ export async function manageVarsConv(conversation, ctx) {
       await result.answerCallbackQuery();
 
       // Hapus menu utama vars agar rapi sebelum masuk sub-prompt
-      try { await ctx.api.deleteMessage(ctx.chat.id, menuMsg.message_id); } catch (_) { /* empty */ }
+      if (ctx.chat) {try { await ctx.api.deleteMessage(ctx.chat.id, menuMsg.message_id); } catch (_) { /* empty */ }}
 
       if (data === 'var:cancel') {
         await replyRich(ctx, `<p><b>🚪 Selesai</b><br>Keluar dari pengaturan variabel. Gunakan /menu untuk membuka menu utama.</p>`);
@@ -331,7 +334,7 @@ export async function manageVarsConv(conversation, ctx) {
         const delData = delResult.callbackQuery.data;
         await delResult.answerCallbackQuery();
 
-        try { await ctx.api.deleteMessage(ctx.chat.id, delMenuMsg.message_id); } catch (_) { /* empty */ }
+        if (ctx.chat) {try { await ctx.api.deleteMessage(ctx.chat.id, delMenuMsg.message_id); } catch (_) { /* empty */ }}
 
         if (delData === 'var:del_cancel') {continue;}
 
@@ -412,7 +415,7 @@ function systemVarTableHtml(currentVars: Record<string, unknown>): string {
 /**
  * Conversation to manage system vars (Owner only)
  */
-export async function manageSystemVarsConv(conversation, ctx) {
+export async function manageSystemVarsConv(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
   if (Number(telegramId) !== Number(config.ownerId)) {return;}
 

@@ -157,23 +157,6 @@ export function openExternalLink(url: string): void {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-/** Open only HTTPS payment pages hosted by supported gateways. */
-export function openPaymentLink(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-    const trustedHost =
-      host === 'midtrans.com' || host.endsWith('.midtrans.com') ||
-      host === 'xendit.co' || host.endsWith('.xendit.co');
-    if (parsed.protocol !== 'https:' || !trustedHost || parsed.username || parsed.password) {
-      return false;
-    }
-    openExternalLink(parsed.toString());
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function openTelegramUser(userId: number | undefined): void {
   if (!userId) return;

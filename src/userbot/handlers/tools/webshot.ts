@@ -2,6 +2,8 @@ import { escapeHtml } from '../../../utils/richMessage.js';
 import type { UserbotMessageLike } from '../../types.js';
 import { Logger } from '../../../utils/logger.js';
 import { withTimeout } from '../../../utils/http.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const FETCH_TIMEOUT = 45_000;
@@ -183,7 +185,7 @@ export default {
     usage: '• `.webshot <url>` — screenshot URL yang diberikan.\n• `.webshot` (balas pesan berisi URL) — screenshot URL dari pesan yang dibalas.',
     detail: 'Screenshot diambil via thum.io; fallback otomatis ke WordPress mshots lalu microlink bila provider utama gagal. URL harus http(s).'
   },
-  async execute(client: any, message: UserbotMessageLike, _settings: unknown, telegramId: number): Promise<void> {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: unknown, telegramId: number): Promise<void> {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.webshot(?:\s+([\s\S]+))?$/i);
@@ -204,7 +206,7 @@ export default {
 
     try {
       const { buffer, provider } = await getShot(url);
-      await client.sendFile(message.chatId as any, {
+      await client.sendFile(toPeer(message.chatId), {
         file: buffer,
         forceDocument: false,
         caption: `📸 <code>${escapeHtml(url)}</code> <i>(${provider})</i>`,

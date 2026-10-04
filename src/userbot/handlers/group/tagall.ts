@@ -1,5 +1,8 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // Tagall: mention seluruh member grup per 5 mention per pesan, delay 2s anti-flood.
 // Port dari PyroUbot tagall.py (zip gilang), diadaptasi ke pola plugin DeltaUserJS.
@@ -32,7 +35,7 @@ export default {
     usage: '• `.tagall <teks>` — mulai tag semua member\n• `.batal` — hentikan proses tagall yang berjalan',
     detail: 'Mention dikirim 5 member per pesan dengan jeda 2 detik agar tidak kena flood limit Telegram. Bisa dibatalkan kapan saja dengan .batal.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const raw = message.message.trim();
@@ -57,7 +60,7 @@ export default {
     if (!/^\.tagall/i.test(raw)) {return;}
 
     const text = raw.replace(/^\.tagall/i, '').trim();
-    const chat = await client.getChat(message.chatId);
+    const chat = await client.getChat(toPeer(message.chatId));
     if (!chat) {return;}
 
     if (activeTagAll.has(chatKey)) {
@@ -75,11 +78,13 @@ export default {
     });
 
     try {
-      // GramJS: iterasi member grup
+      // mtcute: iterasi member grup
       const members: unknown[] = [];
-      for await (const member of client.iterParticipants(message.chatId, { limit: 500 })) {
-        const u = member as { id?: number | string; bot?: boolean; deleted?: boolean };
-        if (u.bot || u.deleted) {continue;}
+      // mtcute menamainya iterChatMembers(); iterParticipants() adalah nama
+      // GramJS dan selalu melempar TypeError, jadi .tagall tidak pernah jalan.
+      for await (const member of client.iterChatMembers(toPeer(message.chatId), { limit: 500 })) {
+        const u = member.user;
+        if (!u || u.isBot || u.isDeleted) {continue;}
         const uid = String(u.id).replace('-100', '');
         members.push(uid);
       }
@@ -90,7 +95,7 @@ export default {
         const chunk = members.slice(i, i + 5)
           .map(uid => `<a href="tg://user?id=${uid}">${randEmoji()}</a>`)
           .join(' ');
-        await client.sendMessage(message.chatId, {
+        await client.sendMessage(toPeer(message.chatId), {
           message: `${text ? escapeHtml(text) + '\n\n' : ''}${chunk}`,
           parseMode: 'html'
         });
@@ -98,7 +103,7 @@ export default {
       }
 
       const total = members.length;
-      await client.sendMessage(message.chatId, {
+      await client.sendMessage(toPeer(message.chatId), {
         message: `<blockquote>✅ <b>Selesai.</b> ${total} member ditandai.</blockquote>`,
         parseMode: 'html'
       });

@@ -1,11 +1,12 @@
 import { replyRich } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { cancelKeyboard, waitForInput } from './shared.js';
+import type { BotContext, BotConversation } from '../../context.js';
 
 /**
  * Conversation to set custom userbot name
  */
-export async function customNameConversation(conversation, ctx) {
+export async function customNameConversation(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
 
   try {

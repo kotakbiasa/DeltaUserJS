@@ -1,5 +1,9 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import { parseDurationMsArg } from '../../engine/validate.js';
 
 // ============================================================
 // Schedule Message — jadwalkan kirim ulang PESAN ASLI.
@@ -16,12 +20,6 @@ import { Logger } from '../../../utils/logger.js';
 // ============================================================
 
 const MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
-const UNIT_MS: Record<string, number> = {
-  s: 1000,
-  m: 60 * 1000,
-  h: 60 * 60 * 1000,
-  d: 24 * 60 * 60 * 1000
-};
 
 interface ScheduleEntry {
   chatId: number;       // chat tempat jadwal dibuat & pesan dikirim ulang
@@ -42,16 +40,10 @@ const scheduleStore = new Map<number, ScheduleEntry[]>();
  * Satuan: s (detik), m (menit), h (jam), d (hari).
  * Mengembalikan total milidetik, atau null bila format tidak valid.
  */
+/** Durasi dibatasi MAX_DURATION_MS agar tidak melampaui batas aman setTimeout. */
 function parseDurationMs(raw: string): number | null {
-  const clean = String(raw || '').toLowerCase().replace(/\s+/g, '');
-  if (!clean) {return null;}
-  if (!/^(\d+[smhd])+$/.test(clean)) {return null;}
-  const re = /(\d+)([smhd])/g;
-  let totalMs = 0;
-  for (const m of clean.matchAll(re)) {
-    totalMs += parseInt(m[1], 10) * UNIT_MS[m[2]];
-  }
-  return totalMs > 0 ? totalMs : null;
+  const parsed = parseDurationMsArg(raw, { maxMs: MAX_DURATION_MS });
+  return parsed.ok ? (parsed.value as number) : null;
 }
 
 /** Format waktu target: locale id-ID, timezone Asia/Jakarta (WIB). */
@@ -101,7 +93,7 @@ function contentKind(entry: { text: string; media: unknown }): string {
  * parseMode: false => teks dikirim apa adanya (tanpa parsing),
  * sehingga konten persis sama dengan pesan aslinya.
  */
-function startScheduleTimer(client, idNum: number, entry: ScheduleEntry, delayMs: number) {
+function startScheduleTimer(client: CompatClient, idNum: number, entry: ScheduleEntry, delayMs: number) {
   const timeoutId = setTimeout(() => {
     const list = scheduleStore.get(idNum);
     if (list) {
@@ -146,7 +138,7 @@ export default {
       'Waktu target ditampilkan dalam format id-ID dengan timezone Asia/Jakarta (WIB). ' +
       'Jadwal disimpan in-memory per akun — hilang jika userbot direstart.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const text = message.message.trim();
@@ -207,9 +199,10 @@ export default {
       }
 
       // Preview web bukan media sungguhan — kirim sebagai teks saja.
-      const isWebPage = (replied.media as any)?._ === 'messageMediaWebPage' ||
-        (replied.media as any)?.type === 'webpage' ||
-        (replied.media as any)?.className === 'MessageMediaWebPage';
+      const mediaTag = replied.media as { _?: string; type?: string; className?: string } | undefined;
+      const isWebPage = mediaTag?._ === 'messageMediaWebPage' ||
+        mediaTag?.type === 'webpage' ||
+        mediaTag?.className === 'MessageMediaWebPage';
       const media = isWebPage ? null : replied.media;
       const replyText = String(replied.message || '');
 
@@ -223,7 +216,7 @@ export default {
 
       const targetAt = Date.now() + delayMs;
       const entry: ScheduleEntry = {
-        chatId,
+        chatId: Number(toPeer(chatId)),
         text: replyText,
         media,
         durationText,

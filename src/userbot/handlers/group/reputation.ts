@@ -2,6 +2,10 @@ import { getChatSettings, updateChatSettings, getReputation, updateReputation } 
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { isTestEnv } from '../../../utils/env.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import { parseIntArg, parseTelegramIdArg, validationErrorText } from '../../engine/validate.js';
 
 // Key: telegramId_chatId_voterId_targetId -> last voted timestamp
 const cooldownMap = new Map();
@@ -28,8 +32,11 @@ export default {
     usage: '• Balas pesan target dengan: <code>+rep</code> atau <code>-rep</code>\n• `.reputation [userId]` (Lihat reputasi)\n• `.reps` (Lihat leaderboard)\n• `.setrepfloor <angka>` (Batas bawah reputasi)',
     detail: 'Mencegah pemungutan suara berulang (cooldown) dan pemungutan suara mandiri (self-vote).'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const chatId = message.chatId;
+    // Pesan tanpa chat tidak bisa diproses: dulu nilainya diam-diam menjadi
+    // string "undefined" dan dipakai sebagai kunci pengaturan chat.
+    if (chatId === undefined) {return;}
     const _chatKey = String(chatId);
 
     // --- 1. Handle Settings & Query Commands ---
@@ -39,9 +46,14 @@ export default {
       const cmd = args[0].toLowerCase();
 
       if (cmd === '.setrepfloor') {
-        if (args.length < 2) {return;}
-        const floor = parseInt(args[1]);
-        if (isNaN(floor)) {return;}
+        // Sebelumnya argumen tidak valid hanya `return` tanpa kabar apa pun ke
+        // pengguna, sehingga perintahnya tampak "tidak melakukan apa-apa".
+        const floorArg = parseIntArg(args[1], { min: -100000, max: 100000, label: 'Batas bawah reputasi' });
+        if (!floorArg.ok) {
+          await message.edit({ text: validationErrorText(floorArg.error, '.setrepfloor <angka>'), parseMode: 'html' });
+          return;
+        }
+        const floor = floorArg.value as number;
         await updateChatSettings(telegramId, chatId, 'rep_floor', floor);
         await message.edit({ text: `✅ <b>Berhasil:</b> Batas bawah reputasi diubah menjadi: <b>${escapeHtml(String(floor))}</b>`, parseMode: 'html' });
         return;
@@ -65,7 +77,14 @@ export default {
 
         let targetId = null;
         if (args.length >= 2) {
-          targetId = Number(args[1]);
+          // Number('abc') menghasilkan NaN dan Number('') menghasilkan 0;
+          // keduanya dulu lolos sampai ke query database.
+          const targetArg = parseTelegramIdArg(args[1], { label: 'User ID' });
+          if (!targetArg.ok) {
+            await message.edit({ text: validationErrorText(targetArg.error, '.rep <user_id>'), parseMode: 'html' });
+            return;
+          }
+          targetId = targetArg.value as number;
         } else {
           const replied = await message.getReplyMessage();
           if (replied) {
@@ -177,18 +196,18 @@ export default {
 
       let targetName = `User_${targetId}`;
       try {
-        const targetEntity = await client.getEntity(targetId);
+        const targetEntity = await client.getEntity(toPeer(targetId));
         targetName = targetEntity.firstName || targetEntity.username || `User_${targetId}`;
       } catch (_e) { /* ignore: use default name */ }
 
       let voterName = `User_${senderId}`;
       try {
-        const voterEntity = await client.getEntity(senderId);
+        const voterEntity = await client.getEntity(toPeer(senderId));
         voterName = voterEntity.firstName || voterEntity.username || `User_${senderId}`;
       } catch (_e) { /* ignore: use default name */ }
 
       // Reply confirmation in chat
-      await client.sendMessage(message.peerId, {
+      await client.sendMessage(toPeer(message.peerId), {
         message: `📢 <b>Reputasi Terupdate!</b>\n` +
                  `<blockquote>` +
                  `User <b>${targetName}</b> telah di-${isUpvote ? 'upvote' : 'downvote'} oleh <b>${voterName}</b>.\n` +

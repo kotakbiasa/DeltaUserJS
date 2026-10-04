@@ -5,6 +5,8 @@ import os from 'os';
 import path from 'path';
 import { Logger } from '../../../utils/logger.js';
 import type { UserbotMessageLike } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -91,7 +93,7 @@ async function getReplied(message: UserbotMessageLike): Promise<UserbotMessageLi
 }
 
 function replyToId(message: UserbotMessageLike): number {
-  return message.replyToMsgId || message.id;
+  return message.replyToMsgId || message.id || 0;
 }
 
 function humanSize(bytes: number): string {
@@ -102,15 +104,15 @@ function humanSize(bytes: number): string {
 }
 
 /** Download media replied ke file temp; lempar Error bila gagal/kosong. */
-async function downloadToTemp(client: any, replied: UserbotMessageLike, filename: string): Promise<string> {
+async function downloadToTemp(client: CompatClient, replied: UserbotMessageLike, filename: string): Promise<string> {
   let buffer: Buffer | string | undefined;
   if (typeof replied.downloadMedia === 'function') {
     buffer = await replied.downloadMedia();
   } else if (typeof client.downloadAsBuffer === 'function') {
-    const rawTarget = (replied as any)?.raw || replied;
-    buffer = await client.downloadAsBuffer(rawTarget);
-  } else if (typeof client.downloadMedia === 'function') {
-    buffer = await client.downloadMedia(replied as any, {});
+    // mtcute tidak punya downloadMedia(); downloadAsBuffer() adalah satu-satunya
+    // jalur unduh, dan ia butuh objek mentahnya.
+    const rawTarget = (replied as { raw?: unknown }).raw || replied;
+    buffer = Buffer.from(await client.downloadAsBuffer(rawTarget as Parameters<CompatClient['downloadAsBuffer']>[0]));
   }
   if (!buffer || (Buffer.isBuffer(buffer) && buffer.length === 0)) {
     throw new Error('gagal mengunduh media');
@@ -128,7 +130,7 @@ async function downloadToTemp(client: any, replied: UserbotMessageLike, filename
 // ============================================================
 // .zip — reply file/dokumen → zip jadi arsip → kirim
 // ============================================================
-async function handleZip(client: any, message: UserbotMessageLike, telegramId: number): Promise<void> {
+async function handleZip(client: CompatClient, message: UserbotMessageLike, telegramId: number): Promise<void> {
   const replied = await getReplied(message);
   if (!replied || !replied.media) {
     await editError(message, 'Balas sebuah file/dokumen untuk di-zip! (semua file mendukung)');
@@ -166,7 +168,7 @@ async function handleZip(client: any, message: UserbotMessageLike, telegramId: n
     }
 
     await editProcess(message, '<b>Mengunggah arsip...</b>');
-    await client.sendFile(message.chatId as any, {
+    await client.sendFile(toPeer(message.chatId), {
       file: outPath,
       forceDocument: true,
       caption: `<code>${safeBase}.zip</code>`,
@@ -187,7 +189,7 @@ async function handleZip(client: any, message: UserbotMessageLike, telegramId: n
 // ============================================================
 // .unzip — reply arsip zip → extract → kirim isi satu per satu
 // ============================================================
-async function handleUnzip(client: any, message: UserbotMessageLike, telegramId: number): Promise<void> {
+async function handleUnzip(client: CompatClient, message: UserbotMessageLike, telegramId: number): Promise<void> {
   const replied = await getReplied(message);
   if (!replied || !replied.media || !replied.document) {
     await editError(message, 'Balas sebuah arsip .zip untuk diekstrak!');
@@ -259,7 +261,7 @@ async function handleUnzip(client: any, message: UserbotMessageLike, telegramId:
         const st = fs.statSync(f);
         if (st.size > MAX_SIZE) {continue;}
         const rel = path.relative(extractDir, f);
-        await client.sendFile(message.chatId as any, {
+        await client.sendFile(toPeer(message.chatId), {
           file: f,
           forceDocument: true,
           caption: `<code>${rel.replace(/[<>&]/g, '')}</code>`,
@@ -291,7 +293,7 @@ async function handleUnzip(client: any, message: UserbotMessageLike, telegramId:
 // ============================================================
 // .dozip <nama> — reply file → zip dengan nama kustom → kirim
 // ============================================================
-async function handleDoZip(client: any, message: UserbotMessageLike, arg: string, telegramId: number): Promise<void> {
+async function handleDoZip(client: CompatClient, message: UserbotMessageLike, arg: string, telegramId: number): Promise<void> {
   const customName = arg.replace(/[\\/:*?"<>|]/g, '_').trim().slice(0, 80);
   if (!customName) {
     await editError(message, 'Sertakan nama arsip! Contoh: <code>.dozip backup</code>');
@@ -325,7 +327,7 @@ async function handleDoZip(client: any, message: UserbotMessageLike, arg: string
     }
 
     await editProcess(message, '<b>Mengunggah arsip...</b>');
-    await client.sendFile(message.chatId as any, {
+    await client.sendFile(toPeer(message.chatId), {
       file: outPath,
       forceDocument: true,
       caption: `<code>${customName}.zip</code>`,
@@ -356,7 +358,7 @@ export default {
     usage: '• `.zip` — balas file/dokumen → di-zip jadi arsip, dikirim sebagai dokumen.\n• `.unzip` — balas arsip .zip → diekstrak, isinya dikirim satu per satu.\n• `.dozip <nama>` — balas file lalu ketik command ini → di-zip dengan nama yang diberikan.',
     detail: 'Memakai binary zip/unzip di /usr/bin bila tersedia; fallback otomatis ke python3 -m zipfile (create/extract). Arsip temp dibersihkan otomatis.'
   },
-  async execute(client: any, message: UserbotMessageLike, _settings: unknown, telegramId: number): Promise<void> {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: unknown, telegramId: number): Promise<void> {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.dozip(?:\s+([\s\S]+))?$/i)

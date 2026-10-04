@@ -20,32 +20,19 @@ const keyLocks = new Map();
  * Usage:
  *   await withKeyLock(idNum, async () => { /* read-modify-write dbCache *\/ });
  */
-export function withKeyLock<T>(key, fn: () => Promise<T>): Promise<T> {
+export function withKeyLock<T>(key: string | number, fn: () => Promise<T>): Promise<T> {
   const prev = keyLocks.get(key) || Promise.resolve();
   const run = prev.then(fn, fn);
-  keyLocks.set(key, run.then(() => undefined, () => undefined));
+  keyLocks.set(key, run.then((): void => undefined, (): void => undefined));
   return run;
 }
 
-export async function updateCacheField(idNum, field, value) {
-  return withKeyLock(idNum, async () => {
-    const existing = dbCache.get(idNum) || {};
-    const updated = { ...existing, [field]: value };
-    dbCache.set(idNum, updated);
-    return persistDoc(idNum, updated);
-  });
-}
-
-export function getFromCache(idNum) {
-  return dbCache.get(idNum);
-}
-
-export const DEFAULT_AFK_REASON = 'AFK';
+const DEFAULT_AFK_REASON = 'AFK';
 const MONGO_URI = config.mongoUri || process.env.MONGO_URI;
 const DB_NAME = config.dbName || process.env.DB_NAME || 'DeltaUbotJS';
 
 // Constants
-export const DEFAULT_CUSTOM_NAME = 'Userbot';
+const DEFAULT_CUSTOM_NAME = 'Userbot';
 export const SUBSCRIPTION_DAYS = 7;
 
 // Mongoose Models (if using MongoDB)
@@ -91,36 +78,17 @@ const groupConfigSchema = new mongoose.Schema({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const GroupConfigModel: mongoose.Model<any> = (mongoose.models.GroupConfig || mongoose.model('GroupConfig', groupConfigSchema)) as mongoose.Model<any>;
 
-const voucherSchema = new mongoose.Schema({
-  code: { type: String, required: true, unique: true, uppercase: true, index: true },
-  days: { type: Number, required: true },
-  max_uses: { type: Number, default: 1 },
-  used_by: { type: [Number], default: [] },
-  created_at: { type: Date, default: Date.now },
-  expires_at: { type: Date, default: null },
-  created_by: { type: Number, default: 0 },
-}, { strict: false });
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const VoucherModel: mongoose.Model<any> = (mongoose.models.Voucher || mongoose.model('Voucher', voucherSchema)) as mongoose.Model<any>;
 
 export const dbCache = new Map();
 export let isMongo = false;
-export let systemConfigCache = { vars: {} };
-export const fedCache = new Map();
+export let systemConfigCache: { vars: Record<string, unknown> } = { vars: {} };
 export const groupConfigCache = new Map();
-
-export function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeBot(raw: any = {}, id?: any) {
   const idNum = Number(id ?? raw.telegram_id);
   const createdAt = raw.created_at || new Date().toISOString();
-  const pick = (key, fallback) => (raw[key] !== undefined && raw[key] !== null ? raw[key] : fallback);
+  const pick = (key: string, fallback: unknown) => (raw[key] !== undefined && raw[key] !== null ? raw[key] : fallback);
 
   // Decrypt session_string if it's encrypted
   let sessionString = raw.session_string || null;
@@ -130,7 +98,7 @@ export function normalizeBot(raw: any = {}, id?: any) {
     } catch (err) {
       // Jangan ditelan diam-diam. Kegagalan di sini hampir selalu berarti
       // ENCRYPTION_KEY berubah/hilang, dan nilai mentah yang diteruskan akan
-      // membuat GramJS gagal auth tanpa petunjuk apa pun.
+      // membuat mtcute gagal auth tanpa petunjuk apa pun.
       Logger.logSystem(
         `🔑 Gagal mendekripsi session untuk ${idNum} — kemungkinan ENCRYPTION_KEY berubah atau tidak diset. ` +
         `Userbot ini tidak akan bisa login sampai key yang benar dipulihkan. (${err instanceof Error ? err.message : String(err)})`,
@@ -140,7 +108,7 @@ export function normalizeBot(raw: any = {}, id?: any) {
   }
 
   // Userbots have permanent access once approved; no expiration is enforced.
-  const expiredAt = null;
+  const expiredAt: string | null = null;
 
   return {
     telegram_id: idNum,
@@ -195,7 +163,7 @@ export async function readDbFromFile() {
   }
 }
 
-export async function writeDbToFile(data) {
+export async function writeDbToFile(data: Record<string, unknown>) {
   try {
     await fsp.writeFile(dbPath, JSON.stringify(data, null, 2));
     return true;
@@ -212,11 +180,11 @@ let writeLock: Promise<unknown> = Promise.resolve();
 
 export function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = writeLock.then(fn, fn);
-  writeLock = run.then(() => undefined, () => undefined);
+  writeLock = run.then((): void => undefined, (): void => undefined);
   return run;
 }
 
-export async function persistField(idNum, field, value) {
+export async function persistField(idNum: number, field: string, value: unknown) {
   if (isMongo) {
     try {
       // Use $set to update only the specific field (not replace entire doc)
@@ -241,7 +209,7 @@ export async function persistField(idNum, field, value) {
   });
 }
 
-export async function persistDoc(idNum, doc) {
+export async function persistDoc(idNum: number, doc: Record<string, unknown>) {
   if (isMongo) {
     try {
       // Use $set so fields absent from `doc` are preserved instead of the
@@ -265,7 +233,7 @@ export async function persistDoc(idNum, doc) {
   });
 }
 
-export async function persistDelete(idNum) {
+export async function persistDelete(idNum: number) {
   if (isMongo) {
     try {
       await UserbotModel.deleteOne({ telegram_id: idNum });

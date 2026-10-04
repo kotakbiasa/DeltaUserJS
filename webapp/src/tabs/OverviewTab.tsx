@@ -184,7 +184,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ user, onRefreshUser, o
             icon={<Layers size={15} />}
             label="MTProto Layer"
             value="229"
-            foot="Teleproto engine"
+            foot="mtcute engine"
             accent="var(--gold)"
           />
         </div>

@@ -94,16 +94,6 @@ export interface SubscriptionPlan {
   trialDays: number;
 }
 
-export interface SubscriptionPayment {
-  id: string;
-  planId: string;
-  amount: number;
-  status: 'pending' | 'paid' | 'failed' | 'expired' | 'refunded' | 'cancelled';
-  paymentUrl: string | null;
-  createdAt: string;
-  paidAt: string | null;
-}
-
 export interface ChatItem {
   id: string;
   title: string;
@@ -209,29 +199,6 @@ export const api = {
       availableGateways: string[];
       ownerId?: number;
     }>('/api/subscription/plans'),
-  createSubscriptionCheckout: (planId: string) =>
-    fetchApi<{
-      success: boolean;
-      message: string;
-      gateway?: string;
-      paymentUrl?: string;
-      expiresAt?: string;
-      ownerId?: number;
-    }>('/api/subscription/checkout', {
-      method: 'POST',
-      body: JSON.stringify({ planId }),
-    }),
-  getSubscriptionPayments: () =>
-    fetchApi<{ success: boolean; payments: SubscriptionPayment[] }>('/api/subscription/payments'),
-  cancelSubscriptionAutoRenew: () =>
-    fetchApi<{ success: boolean; message: string }>('/api/subscription/cancel-auto-renew', {
-      method: 'POST',
-    }),
-  redeemVoucher: (code: string) =>
-    fetchApi<{ success: boolean; message: string }>('/api/subscription/redeem', {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    }),
   getChats: () => fetchApi<{ success: boolean; chats: ChatItem[] }>('/api/chats'),
   sendBroadcast: (chatIds: string[], message: string) =>
     fetchApi<{ success: boolean; message: string }>('/api/broadcast/send', {

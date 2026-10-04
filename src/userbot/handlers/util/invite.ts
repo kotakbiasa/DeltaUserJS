@@ -1,5 +1,10 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { LegacyEntity } from '../../engine/compatClient.js';
+import type { UserbotEntityLike, UserbotMessageLike, UserbotSettings } from '../../types.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { EntityLike } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ============================================================
 // INVITE — invite user ke grup via username atau reply.
@@ -20,7 +25,7 @@ const FWD_LIMIT = 100;
 interface ResolvedUser {
   id: number;
   name: string;
-  entity?: any;
+  entity?: LegacyEntity | UserbotEntityLike | string;
 }
 
 function errText(err: unknown): string {
@@ -63,13 +68,13 @@ function normalizeToken(raw: string): string {
 }
 
 // Reply ke pesan user > prioritas utama. Tanpa reply: semua token argumen.
-async function resolveTargets(client, message, args: string): Promise<{ targets: ResolvedUser[]; error?: string }> {
+async function resolveTargets(client: CompatClient, message: UserbotMessageLike, args: string): Promise<{ targets: ResolvedUser[]; error?: string }> {
   const targets: ResolvedUser[] = [];
 
   const replied = await message.getReplyMessage();
   if (replied && replied.senderId) {
     let name = `User ${replied.senderId}`;
-    let entity: any | undefined;
+    let entity: LegacyEntity | UserbotEntityLike | string | undefined;
     try {
       const sender = await replied.getSender();
       if (sender) {
@@ -92,7 +97,7 @@ async function resolveTargets(client, message, args: string): Promise<{ targets:
       targets.push({ id: 0, name: token });
       continue;
     }
-    let entity: any | undefined;
+    let entity: LegacyEntity | UserbotEntityLike | string | undefined;
     try {
       entity = await client.getEntity(/^\d+$/.test(lookup) ? Number(lookup) : lookup);
     } catch (_e) { entity = undefined; }
@@ -109,7 +114,7 @@ async function resolveTargets(client, message, args: string): Promise<{ targets:
   return { targets };
 }
 
-async function handleInvite(client, message, chat, isChannel: boolean, args: string): Promise<void> {
+async function handleInvite(client: CompatClient, message: UserbotMessageLike, chat: UserbotEntityLike, isChannel: boolean, args: string): Promise<void> {
   const resolved = await resolveTargets(client, message, args);
   if (resolved.error) {
     await message.edit({
@@ -134,18 +139,18 @@ async function handleInvite(client, message, chat, isChannel: boolean, args: str
     const participant = target.entity ?? target.id;
     try {
       if (typeof client.addChatMembers === 'function') {
-        await client.addChatMembers(message.chatId, [target.id], { forwardCount: FWD_LIMIT });
+        await client.addChatMembers(toPeer(message.chatId as EntityLike), [target.id], { forwardCount: FWD_LIMIT });
       } else if (isChannel) {
         await client.call({
           _: 'channels.inviteToChannel',
-          channel: await client.getInputPeer(message.chatId),
-          users: [await client.getInputPeer(participant)],
+          channel: await client.resolveChannel(toPeer(message.chatId as EntityLike)),
+          users: [await client.resolveUser(toPeer(participant as EntityLike))],
         });
       } else {
         await client.call({
           _: 'messages.addChatUser',
-          chatId: chat.id,
-          userId: await client.getInputPeer(participant),
+          chatId: Number(chat.id),
+          userId: await client.resolveUser(toPeer(participant as EntityLike)),
           fwdLimit: FWD_LIMIT,
         });
       }
@@ -188,7 +193,7 @@ export default {
   onLoad: () => {
     Logger.logSystem('👥 Plugin Invite loaded (.invite @user | reply .invite)', 'INFO');
   },
-  async execute(client, message, _settings, _telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, _telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const match = message.message.trim().match(/^\.invite(?:\s+([\s\S]+))?$/i);

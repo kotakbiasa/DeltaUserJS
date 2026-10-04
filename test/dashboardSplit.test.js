@@ -19,6 +19,7 @@ import * as dashboard from '../dist/bot/ui/keyboards/dashboard.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
 const dashDir = path.join(repoRoot, 'src/bot/ui/keyboards/dashboard');
+const routesDir = path.join(dashDir, 'routes');
 
 /** Persis nama yang diekspor dashboard.ts sebelum dipecah. */
 const EXPECTED_EXPORTS = [
@@ -73,12 +74,77 @@ test('dashboard.ts tinggal barrel tipis, bukan implementasi', () => {
 
 test('tiap modul dashboard tetap di bawah batas yang wajar', () => {
   const files = fs.readdirSync(dashDir).filter(f => f.endsWith('.ts'));
-  assert.deepEqual(files.sort(), ['handlers.ts', 'keyboards.ts', 'panels.ts', 'shared.ts']);
+  assert.deepEqual(files.sort(), [
+    'handlers.ts', 'keyboards.ts', 'panels.ts', 'richRuntime.ts', 'shared.ts',
+  ]);
 
-  for (const file of files) {
-    const count = fs.readFileSync(path.join(dashDir, file), 'utf8').split('\n').length;
-    assert.ok(count < 1300, `${file} ${count} baris — pecah lagi sebelum tumbuh seperti dulu`);
+  const routeFiles = fs.readdirSync(routesDir).filter(f => f.endsWith('.ts'));
+  assert.deepEqual(routeFiles.sort(), [
+    'account.ts', 'admin.ts', 'info.ts', 'misc.ts', 'navigation.ts',
+    'plugins.ts', 'settings.ts', 'types.ts',
+  ]);
+
+  for (const [dir, file] of [...files.map(f => [dashDir, f]), ...routeFiles.map(f => [routesDir, f])]) {
+    const count = fs.readFileSync(path.join(dir, file), 'utf8').split('\n').length;
+    assert.ok(count < 600, `${file} ${count} baris — pecah lagi sebelum tumbuh seperti dulu`);
   }
+});
+
+/**
+ * Penjaga pemecahan router `rich:` dari handlers.ts ke routes/*.ts.
+ *
+ * Router lama adalah satu rantai if sepanjang ~790 baris. Setelah dipecah,
+ * risikonya adalah sebuah action ikut terhapus atau ditangani dua modul
+ * sekaligus — keduanya tidak terdeteksi tsc karena action hanyalah string.
+ */
+test('semua action rich: tetap terdaftar tepat satu kali di routes/', () => {
+  const routeFiles = fs.readdirSync(routesDir).filter(f => f.endsWith('.ts') && f !== 'types.ts');
+
+  const seen = new Map();
+  for (const file of routeFiles) {
+    const src = fs.readFileSync(path.join(routesDir, file), 'utf8');
+    for (const m of src.matchAll(/action === '([^']+)'|action\.startsWith\('([^']+)'/g)) {
+      const action = m[1] ?? m[2];
+      assert.ok(!seen.has(action), `action "${action}" ditangani dua kali: ${seen.get(action)} dan ${file}`);
+      seen.set(action, file);
+    }
+  }
+
+  // Jumlah persis sebelum pemecahan. Naikkan dengan sadar saat menambah menu.
+  assert.equal(seen.size, 77, 'jumlah action berubah — pastikan tidak ada yang hilang saat refaktor');
+
+  // Sampel lintas-grup: hilangnya salah satu ini bikin menu mati total.
+  for (const action of ['main', 'ubot', 'settings', 'admin', 'otp', 'qr', 'toggle_power']) {
+    assert.ok(seen.has(action), `action inti "${action}" hilang dari routes/`);
+  }
+});
+
+test('handlers.ts hanya mendelegasikan, tidak lagi memuat isi router', () => {
+  const src = fs.readFileSync(path.join(dashDir, 'handlers.ts'), 'utf8');
+
+  for (const fn of [
+    'handleNavigationRoutes', 'handlePluginsRoutes', 'handleSettingsRoutes',
+    'handleAccountRoutes', 'handleInfoRoutes', 'handleAdminRoutes', 'handleMiscRoutes',
+  ]) {
+    assert.match(src, new RegExp(`${fn}\\(ctx\\)`), `router tidak memanggil ${fn}`);
+  }
+
+  assert.ok(!/if \(action === '/.test(src), 'cabang action harus tinggal di routes/, bukan di handlers.ts');
+});
+
+test('tidak ada modul dashboard yang tumbuh kembali jadi file raksasa', () => {
+  /** Seluruh pohon dashboard/, termasuk panelParts/ dan keyboardParts/. */
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {return walk(full);}
+    return entry.name.endsWith('.ts') ? [full] : [];
+  });
+
+  const offenders = walk(dashDir)
+    .map(file => [path.relative(dashDir, file), fs.readFileSync(file, 'utf8').split('\n').length])
+    .filter(([, count]) => count >= 600);
+
+  assert.deepEqual(offenders, [], 'pecah file ini sebelum tumbuh seperti dashboard.ts dulu');
 });
 
 test('panel dan keyboard menghasilkan output yang sama untuk ctx yang sama', () => {

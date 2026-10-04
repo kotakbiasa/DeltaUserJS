@@ -42,7 +42,7 @@ class UserbotManager {
     this.watchdogRunning = false;
   }
 
-  async startUserbot(telegramId, sessionString) {
+  async startUserbot(telegramId: number, sessionString: string) {
     const id = Number(telegramId);
     const release = await acquireLock(id);
     try {
@@ -117,7 +117,7 @@ class UserbotManager {
     return true;
   }
 
-  async stopUserbot(telegramId) {
+  async stopUserbot(telegramId: number) {
     const id = Number(telegramId);
     const release = await acquireLock(id);
     try {
@@ -127,7 +127,7 @@ class UserbotManager {
     }
   }
 
-  async restartUserbot(telegramId) {
+  async restartUserbot(telegramId: number) {
     const id = Number(telegramId);
     const session = getUserbotSession(telegramId);
     if (!session?.session_string) {throw new Error(`session tidak ditemukan untuk ${id}`);}
@@ -238,7 +238,7 @@ class UserbotManager {
     };
   }
 
-  isRunning(telegramId) {
+  isRunning(telegramId: number) {
     return Boolean(this.clients.get(Number(telegramId))?.isConnected());
   }
 

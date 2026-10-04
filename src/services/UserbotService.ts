@@ -4,7 +4,7 @@ import { deepClone } from '../utils/deepClone.js';
 import { Logger } from '../utils/logger.js';
 
 
-export async function saveUserbotSession(telegramId, phone, sessionString) {
+export async function saveUserbotSession(telegramId: number, phone: string, sessionString: string) {
   const idNum = Number(telegramId);
   const existing = dbCache.get(idNum) || {};
 
@@ -12,7 +12,7 @@ export async function saveUserbotSession(telegramId, phone, sessionString) {
   const encryptedSession = sessionString ? encrypt(sessionString) : sessionString;
 
   // Userbots have permanent access once approved; no expiration is enforced.
-  const expDate = null;
+  const expDate: string | null = null;
 
   const botData = normalizeBot({
     ...existing,
@@ -27,7 +27,7 @@ export async function saveUserbotSession(telegramId, phone, sessionString) {
   return persistDoc(idNum, botData);
 }
 
-export function getUserbotSession(telegramId) {
+export function getUserbotSession(telegramId: number) {
   return dbCache.get(Number(telegramId));
 }
 
@@ -39,7 +39,7 @@ export function getAllRegisteredUsers() {
   return Array.from(dbCache.values());
 }
 
-export async function updateUserbotStatus(telegramId, isActive) {
+export async function updateUserbotStatus(telegramId: number, isActive: boolean | number) {
   const idNum = Number(telegramId);
   const statusVal = isActive ? 1 : 0;
 
@@ -62,16 +62,7 @@ export async function updateTelegramPremiumStatus(telegramId: number | string, i
 }
 
 // Helper: safely update a complex object field in DB (deep clone before persist)
-export async function updateObjectField(telegramId, field, value) {
-  const idNum = Number(telegramId);
-  const cached = dbCache.get(idNum);
-  if (cached) {
-    cached[field] = deepClone(value);
-  }
-  return persistField(idNum, field, deepClone(value));
-}
-
-export async function updateUserbotFeature(telegramId, featureName, value) {
+export async function updateUserbotFeature(telegramId: number, featureName: string, value: unknown) {
   const idNum = Number(telegramId);
 
   const cached = dbCache.get(idNum);
@@ -87,7 +78,7 @@ export async function updateUserbotFeature(telegramId, featureName, value) {
   return persistField(idNum, featureName, value);
 }
 
-export async function deleteUserbot(telegramId) {
+export async function deleteUserbot(telegramId: number) {
   const idNum = Number(telegramId);
   dbCache.delete(idNum);
   return persistDelete(idNum);
@@ -95,7 +86,7 @@ export async function deleteUserbot(telegramId) {
 
 type UserbotListField = 'approved_users' | 'broadcast_blacklist' | 'disabled_plugins';
 
-async function addUserbotListItem(telegramId, field: UserbotListField, value) {
+async function addUserbotListItem(telegramId: number, field: UserbotListField, value: unknown) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -111,7 +102,7 @@ async function addUserbotListItem(telegramId, field: UserbotListField, value) {
   });
 }
 
-async function removeUserbotListItem(telegramId, field: UserbotListField, value) {
+async function removeUserbotListItem(telegramId: number, field: UserbotListField, value: unknown) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -128,52 +119,52 @@ async function removeUserbotListItem(telegramId, field: UserbotListField, value)
   });
 }
 
-export function addApprovedUser(telegramId, targetUserId) {
+export function addApprovedUser(telegramId: number, targetUserId: string | number | bigint) {
   return addUserbotListItem(telegramId, 'approved_users', targetUserId);
 }
 
-export function removeApprovedUser(telegramId, targetUserId) {
+export function removeApprovedUser(telegramId: number, targetUserId: string | number | bigint) {
   return removeUserbotListItem(telegramId, 'approved_users', targetUserId);
 }
 
-export function getApprovedUsers(telegramId) {
+export function getApprovedUsers(telegramId: number) {
   const session = dbCache.get(Number(telegramId));
   return session?.approved_users || [];
 }
 
-export function addBroadcastBlacklist(telegramId, chatId) {
+export function addBroadcastBlacklist(telegramId: number, chatId: string | number | bigint) {
   return addUserbotListItem(telegramId, 'broadcast_blacklist', String(chatId));
 }
 
-export function removeBroadcastBlacklist(telegramId, chatId) {
+export function removeBroadcastBlacklist(telegramId: number, chatId: string | number | bigint) {
   return removeUserbotListItem(telegramId, 'broadcast_blacklist', String(chatId));
 }
 
-export function getBroadcastBlacklist(telegramId) {
+export function getBroadcastBlacklist(telegramId: number) {
   const session = dbCache.get(Number(telegramId));
   return session?.broadcast_blacklist || [];
 }
 
-export function disablePlugin(telegramId, pluginName) {
+export function disablePlugin(telegramId: number, pluginName: string) {
   return addUserbotListItem(telegramId, 'disabled_plugins', String(pluginName || '').toLowerCase());
 }
 
-export function enablePlugin(telegramId, pluginName) {
+export function enablePlugin(telegramId: number, pluginName: string) {
   return removeUserbotListItem(telegramId, 'disabled_plugins', String(pluginName || '').toLowerCase());
 }
 
-export function getDisabledPlugins(telegramId) {
+export function getDisabledPlugins(telegramId: number) {
   const session = dbCache.get(Number(telegramId));
   return session?.disabled_plugins || [];
 }
 
-export function getChatSettings(telegramId, chatId) {
+export function getChatSettings(telegramId: number, chatId: string | number | bigint) {
   const session = dbCache.get(Number(telegramId));
   if (!session) {return {};}
   return (session.chat_settings || {})[String(chatId)] || {};
 }
 
-export async function updateChatSettings(telegramId, chatId, key, value) {
+export async function updateChatSettings(telegramId: number, chatId: string | number | bigint, key: string, value: unknown) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -190,31 +181,31 @@ export async function updateChatSettings(telegramId, chatId, key, value) {
   });
 }
 
-export function getSchedules(telegramId) {
+export function getSchedules(telegramId: number) {
   const session = dbCache.get(Number(telegramId));
   return session?.schedules || [];
 }
 
-export function getReputation(telegramId, targetUserId) {
+export function getReputation(telegramId: number, targetUserId: string | number | bigint) {
   const session = dbCache.get(Number(telegramId));
   if (!session) {return 0;}
   return (session.reputation_data || {})[String(targetUserId)] || 0;
 }
 
-export function getWarns(telegramId, chatId, targetUserId) {
+export function getWarns(telegramId: number, chatId: string | number | bigint, targetUserId: string | number | bigint) {
   const session = dbCache.get(Number(telegramId));
   if (!session) {return { count: 0 };}
   const chatWarns = (session.warn_data || {})[String(chatId)] || {};
   return chatWarns[String(targetUserId)] || { count: 0 };
 }
 
-export function getChatLocks(telegramId, chatId) {
+export function getChatLocks(telegramId: number, chatId: string | number | bigint) {
   const session = dbCache.get(Number(telegramId));
   if (!session) {return {};}
   return (session.lock_config || {})[String(chatId)] || {};
 }
 
-export async function saveSchedule(telegramId, chatId, type, value, message) {
+export async function saveSchedule(telegramId: number, chatId: string | number | bigint, type: string, value: unknown, message: string) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -222,7 +213,7 @@ export async function saveSchedule(telegramId, chatId, type, value, message) {
 
     session.schedules = session.schedules || [];
     const chatKey = String(chatId);
-    session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
+    session.schedules = session.schedules.filter((s: { chatKey?: string; type?: string }) => !(s.chatKey === chatKey && s.type === type));
 
     session.schedules.push({
       chatKey,
@@ -236,7 +227,7 @@ export async function saveSchedule(telegramId, chatId, type, value, message) {
   });
 }
 
-export async function deleteSchedule(telegramId, chatId, type) {
+export async function deleteSchedule(telegramId: number, chatId: string | number | bigint, type: string) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -244,14 +235,14 @@ export async function deleteSchedule(telegramId, chatId, type) {
 
     session.schedules = session.schedules || [];
     const chatKey = String(chatId);
-    session.schedules = session.schedules.filter(s => !(s.chatKey === chatKey && s.type === type));
+    session.schedules = session.schedules.filter((s: { chatKey?: string; type?: string }) => !(s.chatKey === chatKey && s.type === type));
 
     await persistField(idNum, 'schedules', session.schedules);
     return true;
   });
 }
 
-export async function updateReputation(telegramId, targetUserId, points) {
+export async function updateReputation(telegramId: number, targetUserId: string | number | bigint, points: number) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -265,7 +256,7 @@ export async function updateReputation(telegramId, targetUserId, points) {
   });
 }
 
-export async function addWarn(telegramId, chatId, targetUserId, reason = '') {
+export async function addWarn(telegramId: number, chatId: string | number | bigint, targetUserId: string | number | bigint, reason = '') {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -289,7 +280,7 @@ export async function addWarn(telegramId, chatId, targetUserId, reason = '') {
   });
 }
 
-export async function resetWarns(telegramId, chatId, targetUserId) {
+export async function resetWarns(telegramId: number, chatId: string | number | bigint, targetUserId: string | number | bigint) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -309,7 +300,7 @@ export async function resetWarns(telegramId, chatId, targetUserId) {
   });
 }
 
-export function getGroupConfig(chatId) {
+function getGroupConfig(chatId: string | number | bigint) {
   const chatKey = String(chatId);
   return groupConfigCache.get(chatKey) || {
     chat_id: chatKey,
@@ -327,7 +318,7 @@ export function getGroupConfig(chatId) {
   };
 }
 
-export async function updateGroupConfig(chatId, updates) {
+async function updateGroupConfig(chatId: string | number | bigint, updates: Record<string, unknown>) {
   const chatKey = String(chatId);
   // Serialize per-chat get-mutate-persist, and share the same file-write lock
   // as every other database.json writer to avoid interleaved file writes.
@@ -362,11 +353,7 @@ export async function updateGroupConfig(chatId, updates) {
   });
 }
 
-export function getAllGroupConfigs() {
-  return Object.fromEntries(groupConfigCache);
-}
-
-export async function saveGroupNote(chatId, noteName, text) {
+export async function saveGroupNote(chatId: string | number | bigint, noteName: string, text: string) {
   const config = getGroupConfig(chatId);
   const name = String(noteName).toLowerCase();
 
@@ -377,7 +364,7 @@ export async function saveGroupNote(chatId, noteName, text) {
   return true;
 }
 
-export async function deleteGroupNote(chatId, noteName) {
+export async function deleteGroupNote(chatId: string | number | bigint, noteName: string) {
   const config = getGroupConfig(chatId);
   const name = String(noteName).toLowerCase();
 
@@ -388,14 +375,14 @@ export async function deleteGroupNote(chatId, noteName) {
   return true;
 }
 
-export function getGroupNote(chatId, noteName) {
+export function getGroupNote(chatId: string | number | bigint, noteName: string) {
   const config = getGroupConfig(chatId);
   const name = String(noteName).toLowerCase();
   if (!config.notes) {return null;}
   return config.notes[name] || null;
 }
 
-export function getAllGroupNotes(chatId) {
+export function getAllGroupNotes(chatId: string | number | bigint) {
   const config = getGroupConfig(chatId);
   if (!config.notes) {return [];}
   return Object.keys(config.notes);

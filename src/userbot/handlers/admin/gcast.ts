@@ -1,6 +1,8 @@
 import { getBroadcastBlacklist } from '../../../infrastructure/database.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // Rate limiting: max 1 gcast per 60 seconds per user
 const LAST_GCAST = new Map();
@@ -30,7 +32,7 @@ export default {
     usage: '• `.gcast <teks>`\n• Atau balas (reply) sebuah pesan/foto lalu ketik `.gcast`',
     detail: 'Modul ini akan mengabaikan grup yang ada di daftar Blacklist Anda. Sistem dilengkapi dengan Anti-Spam Delay untuk melindungi akun.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();
@@ -68,10 +70,18 @@ export default {
 
     try {
       // Ambil daftar semua obrolan
-      const dialogs = await client.getDialogs();
-      
+      // mtcute tidak punya getDialogs(); dialog diambil lewat iterator.
+      const dialogs = [];
+      for await (const dialog of client.iterDialogs()) {
+        dialogs.push(dialog);
+      }
+
       // Filter hanya grup dan supergrup (abaikan private chat dan channel broadcast)
-      let targetGroups = dialogs.filter(d => d.isGroup);
+      let targetGroups = dialogs.filter((d) => {
+        const peer = d.peer;
+        return peer.type === 'chat'
+          && (peer.chatType === 'group' || peer.chatType === 'supergroup' || peer.chatType === 'gigagroup');
+      });
 
       const blacklist = getBroadcastBlacklist(telegramId);
       let successCount = 0;
@@ -90,7 +100,7 @@ export default {
 
       for (let i = 0; i < targetGroups.length; i++) {
         const group = targetGroups[i];
-        const chatIdStr = String(group.id);
+        const chatIdStr = String(group.peer.id);
         
         if (blacklist.includes(chatIdStr)) {
           skippedCount++;
@@ -102,18 +112,18 @@ export default {
             if (repliedMsg.media) {
               // Forward media with its caption (or the override text) so the
               // broadcast isn't an empty message. Passing the replied message
-              // as `file` lets GramJS resend the media payload correctly.
-              await client.sendFile(group.id, {
+              // as `file` lets mtcute resend the media payload correctly.
+              await client.sendFile(group.peer.id, {
                 file: repliedMsg.media,
                 caption: broadcastMsg || repliedMsg.message || '',
               });
             } else {
-              await client.sendMessage(group.id, {
+              await client.sendMessage(group.peer.id, {
                 message: broadcastMsg || repliedMsg.message,
               });
             }
           } else {
-            await client.sendMessage(group.id, { message: broadcastMsg });
+            await client.sendMessage(group.peer.id, { message: broadcastMsg });
           }
           successCount++;
           

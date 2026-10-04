@@ -5,6 +5,8 @@ import config from '../../../config.js';
 import { formatUptimeAlt, formatBytes } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 const execAsync = util.promisify(exec);
 
@@ -13,7 +15,7 @@ function getCpuUsage() {
   let totalIdle = 0, totalTick = 0;
   for (const cpu of cpus) {
     for (const type in cpu.times) {
-      totalTick += cpu.times[type];
+      totalTick += (cpu.times as unknown as Record<string, number>)[type];
     }
     totalIdle += cpu.times.idle;
   }
@@ -29,7 +31,7 @@ export default {
     usage: 'Ketik `.sysinfo`',
     detail: 'Menampilkan detail CPU, RAM, Disk, Network, OS kernel, hostname, dan load average dari server.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (message.message.toLowerCase() !== '.sysinfo') {return;}
 
@@ -79,7 +81,7 @@ export default {
       const nets = os.networkInterfaces();
       let ipAddr = 'N/A';
       for (const name of Object.keys(nets)) {
-        for (const net of nets[name]) {
+        for (const net of nets[name] ?? []) {
           if (net.family === 'IPv4' && !net.internal) {
             ipAddr = net.address;
             break;

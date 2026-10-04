@@ -14,6 +14,7 @@ import {
   getBackupStats,
 } from '../../services/BackupService.js';
 import { formatBytesFixed as formatBytes } from '../../utils/format.js';
+import type { BotContext } from '../context.js';
 
 interface BackupSummary {
   id: string;
@@ -113,7 +114,7 @@ export async function showBackupList(ctx: Context, skip = 0) {
 /**
  * Backup menu
  */
-export function registerBackupHandlers(bot: Bot) {
+export function registerBackupHandlers(bot: Bot<BotContext>) {
   // Initialize backup system
   initBackupSystem().catch(err => Logger.logSystem(`Backup init failed: ${err}`, 'WARN'));
   startAutoBackup();
