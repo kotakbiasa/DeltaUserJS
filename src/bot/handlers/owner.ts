@@ -4,10 +4,11 @@ import config from '../../config.js';
 import { UserbotModel } from '../../infrastructure/database.js';
 import { escapeHtml } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
+import type { BotContext } from '../context.js';
 
 export function registerOwnerHandlers(bot) {
   // --- Owner utility commands ---
-  bot.command('backup', async (ctx) => {
+  bot.command('backup', async (ctx: BotContext) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     await ctx.replyWithRichMessage({ html: `<p>⏳ Menyiapkan backup database...</p>` });
     try {
@@ -25,7 +26,7 @@ export function registerOwnerHandlers(bot) {
     }
   });
 
-  bot.command('stats_db', async (ctx) => {
+  bot.command('stats_db', async (ctx: BotContext) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     try {
       const totalUsers = await UserbotModel.countDocuments();
@@ -41,7 +42,7 @@ export function registerOwnerHandlers(bot) {
     }
   });
 
-  bot.command('restart', async (ctx) => {
+  bot.command('restart', async (ctx: BotContext) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     await ctx.replyWithRichMessage({ html: `<h1 align="center">🔄 Restarting Bot</h1><p>Sistem sedang dimuat ulang. Harap tunggu beberapa saat hingga bot menyala kembali.</p>` });
     await Logger.logSystem('🔄 Restart command received from owner. Exiting process...', 'INFO');
@@ -51,7 +52,7 @@ export function registerOwnerHandlers(bot) {
     }, 1000);
   });
 
-  bot.command('approve', async (ctx) => {
+  bot.command('approve', async (ctx: BotContext) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     const text = ctx.message?.text?.trim() || '';
     const parts = text.split(/\s+/);
@@ -83,7 +84,7 @@ export function registerOwnerHandlers(bot) {
     } catch (_) { /* ignore */ }
   });
 
-  bot.command(['reject', 'revoke'], async (ctx) => {
+  bot.command(['reject', 'revoke'], async (ctx: BotContext) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     const text = ctx.message?.text?.trim() || '';
     const parts = text.split(/\s+/);
@@ -118,7 +119,7 @@ export function registerOwnerHandlers(bot) {
     } catch (_) { /* ignore */ }
   });
 
-  bot.command('pending', async (ctx) => {
+  bot.command('pending', async (ctx: BotContext) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}
     const { getPendingApprovals } = await import('../state/approvedUsers.js');
     const pendingList = getPendingApprovals();

@@ -10,8 +10,9 @@ import { loadedPlugins } from '../../../../../../userbot/engine/pluginRegistry.j
 import { escapeHtml } from '../../../../../../utils/richMessage.js';
 import { isPendingApproval } from '../../../../../state/approvedUsers.js';
 import { badge, canRegister, formatTelegramPremiumBadge, isOwner, isTelegramPremium, normalizedDisabled, userInfo } from '../../shared.js';
+import type { BotContext } from '../../../../../context.js';
 
-export function panelMain(ctx) {
+export function panelMain(ctx: BotContext) {
   const { firstName, botName } = userInfo(ctx);
   const session = getUserbotSession(ctx.from.id);
   const isRegistered = !!session;
@@ -94,7 +95,7 @@ export function panelMain(ctx) {
     `<footer>Ketuk 🤖 Buka Dashboard Userbot di bawah untuk mengelola modul, kontrol daya, dan pengaturan akun Anda.</footer>`;
 }
 
-export function panelMenuList(ctx) {
+export function panelMenuList(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const hasBot = !!session;
   const running = hasBot && userbotManager.isRunning(ctx.from.id);
@@ -118,7 +119,7 @@ export function panelMenuList(ctx) {
     `<footer>Pilih salah satu menu di bawah untuk melanjutkan.</footer>`;
 }
 
-export function panelUserbot(ctx) {
+export function panelUserbot(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   if (!session) {
     const approved = canRegister(ctx);

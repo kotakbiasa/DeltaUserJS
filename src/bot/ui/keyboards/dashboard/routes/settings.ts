@@ -16,8 +16,9 @@ import { panelDangerDelete, panelInlineHelper, panelPrefixPicker, panelSettings,
 import { setUserVar } from '../../../../../services/SystemVarService.js';
 import { NOT_HANDLED } from './types.js';
 import { errorMessage } from '../../../../../utils/errors.js';
+import type { BotContext } from '../../../../context.js';
 
-export async function handleSettingsRoutes(ctx) {
+export async function handleSettingsRoutes(ctx: BotContext) {
   const action = ctx.match[1];
 
   if (action === 'settings') {return sendRich(ctx, panelSettings(ctx), keyboardSettings(ctx));}

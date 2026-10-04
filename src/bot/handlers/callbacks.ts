@@ -5,15 +5,16 @@ import { sendAccessDeniedRich, panelMain, keyboardMain } from '../ui/keyboards/d
 import { escapeHtml, replyRich, editRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { isApproved, approveUser, revokeUser } from '../state/approvedUsers.js';
+import type { BotContext } from '../context.js';
 
-async function sendMainRich(ctx, deleteOld = false) {
+async function sendMainRich(ctx: BotContext, deleteOld = false) {
   if (ctx.callbackQuery?.message?.message_id) {
     try {
       await ctx.api.editMessageText(
         ctx.callbackQuery.message.chat.id,
         ctx.callbackQuery.message.message_id,
         { html: panelMain(ctx) },
-        { reply_markup: keyboardMain(ctx) }
+        { reply_markup: keyboardMain(ctx) as unknown as Parameters<typeof ctx.api.editMessageText>[3]['reply_markup'] }
       );
       return;
     } catch (_) { /* fallback below */ }
@@ -26,12 +27,12 @@ async function sendMainRich(ctx, deleteOld = false) {
 
 export function registerLegacyCallbacks(bot) {
   // Legacy callback aliases kept so old buttons/conversation prompts still work.
-  bot.callbackQuery('back_to_main', async (ctx) => {
+  bot.callbackQuery('back_to_main', async (ctx: BotContext) => {
     await ctx.answerCallbackQuery();
     await sendMainRich(ctx, true);
   });
 
-  bot.callbackQuery('ubot_register_menu', async (ctx) => {
+  bot.callbackQuery('ubot_register_menu', async (ctx: BotContext) => {
     await ctx.answerCallbackQuery();
     const id = ctx.from.id;
     if (Number(id) !== Number(config.ownerId) && !isApproved(Number(id))) {
@@ -41,7 +42,7 @@ export function registerLegacyCallbacks(bot) {
     await ctx.conversation.enter('otp-reg');
   });
 
-  bot.callbackQuery('reg_otp', async (ctx) => {
+  bot.callbackQuery('reg_otp', async (ctx: BotContext) => {
     await ctx.answerCallbackQuery();
     // Same approval gate as ubot_register_menu — otherwise these aliases let
     // any user bypass the subscription/approval system and register a userbot.
@@ -53,7 +54,7 @@ export function registerLegacyCallbacks(bot) {
     await ctx.conversation.enter('otp-reg');
   });
 
-  bot.callbackQuery('reg_qr', async (ctx) => {
+  bot.callbackQuery('reg_qr', async (ctx: BotContext) => {
     await ctx.answerCallbackQuery();
     const id = ctx.from.id;
     if (Number(id) !== Number(config.ownerId) && !isApproved(Number(id))) {
@@ -63,7 +64,7 @@ export function registerLegacyCallbacks(bot) {
     await ctx.conversation.enter('qr-reg');
   });
 
-  bot.callbackQuery('request_approval', async (ctx) => {
+  bot.callbackQuery('request_approval', async (ctx: BotContext) => {
     const telegramId = ctx.from.id;
     const name = escapeHtml(ctx.from.first_name || 'User');
     const username = ctx.from.username ? `@${escapeHtml(ctx.from.username)}` : 'Tanpa Username';
@@ -90,7 +91,7 @@ export function registerLegacyCallbacks(bot) {
     }
   });
 
-  bot.callbackQuery(/^(?:approve_reg|approve_trial):(\d+)$/, async (ctx) => {
+  bot.callbackQuery(/^(?:approve_reg|approve_trial):(\d+)$/, async (ctx: BotContext) => {
     // Only the owner may approve registrations.
     if (Number(ctx.from.id) !== Number(config.ownerId)) {
       await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang boleh menyetujui.', show_alert: true });
@@ -120,7 +121,7 @@ export function registerLegacyCallbacks(bot) {
     } catch (_) { /* user may have blocked the bot */ }
   });
 
-  bot.callbackQuery(/^(?:reject_reg|reject_trial):(\d+)$/, async (ctx) => {
+  bot.callbackQuery(/^(?:reject_reg|reject_trial):(\d+)$/, async (ctx: BotContext) => {
     // Owner-only
     if (Number(ctx.from.id) !== Number(config.ownerId)) {
       await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang boleh menolak.', show_alert: true });
@@ -153,7 +154,7 @@ export function registerLegacyCallbacks(bot) {
     } catch (_) { /* user may have blocked the bot */ }
   });
 
-  bot.callbackQuery(/^(cancel|cancel_reg|cancel_qr)$/, async (ctx) => {
+  bot.callbackQuery(/^(cancel|cancel_reg|cancel_qr)$/, async (ctx: BotContext) => {
     const userId = ctx.from.id;
     try { await abortActiveQr(userId, ctx.api); } catch (_) { /* empty */ }
     const client = activeRegClients.get(userId);

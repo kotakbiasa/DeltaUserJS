@@ -4,15 +4,15 @@
  * Dipecah dari panelParts/core.ts (721 baris). Isi tiap fungsi dipindahkan
  * apa adanya; yang berubah hanya di file mana ia tinggal.
  */
-import type { Context } from 'grammy';
 import { getUserbotSession } from '../../../../../../infrastructure/database.js';
 import userbotManager from '../../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../../utils/richMessage.js';
 import { isPendingApproval } from '../../../../../state/approvedUsers.js';
 import { canRegister, formatTelegramPremiumBadge, isOwner, isTelegramPremium } from '../../shared.js';
+import type { BotContext } from '../../../../../context.js';
 
-export function panelTermsOfService(ctx) {
+export function panelTermsOfService(ctx: BotContext) {
   const firstName = escapeHtml(ctx.from?.first_name || 'User');
   return {
     blocks: [
@@ -62,7 +62,7 @@ export function panelTermsOfService(ctx) {
   };
 }
 
-export function panelTermsDeclined(ctx) {
+export function panelTermsDeclined(ctx: BotContext) {
   const firstName = escapeHtml(ctx.from?.first_name || 'User');
   return {
     blocks: [
@@ -95,7 +95,7 @@ export function panelTermsDeclined(ctx) {
   };
 }
 
-export function panelDangerDelete(ctx?: Context) {
+export function panelDangerDelete(ctx?: BotContext) {
   const firstName = escapeHtml(ctx?.from?.first_name || 'User');
   return {
     blocks: [
@@ -145,7 +145,7 @@ export function panelDangerDelete(ctx?: Context) {
   };
 }
 
-export function panelRegister(ctx) {
+export function panelRegister(ctx: BotContext) {
   return `<h1 align="center">🚀 Daftar Userbot Telegram <sup>ONBOARDING</sup></h1>` +
     `<p>Halo, <b>${escapeHtml(ctx.from.first_name || 'User')}</b>! Akses akun Anda telah disetujui. Pilih metode login untuk mengaktifkan userbot Anda.</p>` +
     `<table bordered striped>` +
@@ -163,7 +163,7 @@ export function panelRegister(ctx) {
     `<footer>Ketuk salah satu metode di bawah untuk mulai masuk.</footer>`;
 }
 
-export function panelSubscription(ctx?: Context) {
+export function panelSubscription(ctx?: BotContext) {
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;
@@ -211,11 +211,11 @@ export function panelSubscription(ctx?: Context) {
     `<footer>Gunakan menu navigasi di bawah untuk mengelola userbot Anda.</footer>`;
 }
 
-export function panelBuySubscription(ctx?: Context) {
+export function panelBuySubscription(ctx?: BotContext) {
   return panelSubscription(ctx);
 }
 
-export function panelAccessDenied(ctx) {
+export function panelAccessDenied(ctx: BotContext) {
   const pending = isPendingApproval(ctx.from.id);
   const statusText = pending ? '🕐 Menunggu Approval Owner' : '🔴 Belum Disetujui';
   return `<h1 align="center">🔒 Akses Belum Disetujui <sup>RESTRICTED</sup></h1>` +

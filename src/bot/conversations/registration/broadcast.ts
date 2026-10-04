@@ -2,11 +2,12 @@ import { escapeHtml, replyRich } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import config from '../../../config.js';
 import { cancelKeyboard, waitForInput } from './shared.js';
+import type { BotContext, BotConversation } from '../../context.js';
 
 /**
  * Conversation to broadcast message to all registered users (Owner Only)
  */
-export async function broadcastConversation(conversation, ctx) {
+export async function broadcastConversation(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
 
   // Double-check if the sender is the owner

@@ -4,13 +4,13 @@
  * Dipecah dari dashboard.ts (2.821 baris). Isi tiap fungsi dipindahkan apa
  * adanya; yang berubah hanya di file mana ia tinggal.
  */
-import type { Context } from 'grammy';
 import config from '../../../../config.js';
 import { getAllRegisteredUsers, getDisabledPlugins, updateTelegramPremiumStatus } from '../../../../infrastructure/database.js';
 import { systemConfigCache } from '../../../../infrastructure/dbCore.js';
 import { loadedPlugins } from '../../../../userbot/engine/pluginRegistry.js';
 import type { Plugin } from '../../../../userbot/engine/pluginRegistry.js';
 import { getApprovedUserMeta, getApprovedUsers, isApproved } from '../../../state/approvedUsers.js';
+import type { BotContext } from '../../../context.js';
 
 export const PROTECTED_PLUGINS = ['admin', 'pluginmanager'];
 
@@ -76,7 +76,7 @@ export function badge(condition, yes = '✅', no = '❌') {
 
 // --- Panel builders ---
 
-export function isOwner(ctx) {
+export function isOwner(ctx: BotContext) {
   return Number(ctx.from?.id) === Number(config.ownerId);
 }
 
@@ -84,18 +84,18 @@ export function isAutoApproveEnabled(): boolean {
   return getSystemVarValue('AUTO_APPROVE', '0') === '1';
 }
 
-export function canRegister(ctx: Context): boolean {
+export function canRegister(ctx: BotContext): boolean {
   const userId = ctx.from?.id;
   return Boolean(userId && (isOwner(ctx) || isApproved(userId) || isAutoApproveEnabled()));
 }
 
-export function userInfo(ctx) {
+export function userInfo(ctx: BotContext) {
   const firstName = ctx.from?.first_name || 'User';
   const botName = ctx.me?.first_name || 'Bot';
   return { firstName, botName };
 }
 
-export function isTelegramPremium(ctx?: Context, session?: { is_telegram_premium?: number }): boolean {
+export function isTelegramPremium(ctx?: BotContext, session?: { is_telegram_premium?: number }): boolean {
   if (ctx?.from?.is_premium !== undefined) {
     const isPrem = Boolean(ctx.from.is_premium);
     if (session && session.is_telegram_premium !== (isPrem ? 1 : 0) && ctx.from?.id) {

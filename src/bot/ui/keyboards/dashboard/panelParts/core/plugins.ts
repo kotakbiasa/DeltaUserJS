@@ -7,6 +7,7 @@
 import { loadedPlugins } from '../../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../../utils/richMessage.js';
 import { PLUGIN_CATEGORIES, PROTECTED_PLUGINS, formatModuleName, getPluginCategory, normalizedDisabled, pluginCategoryInfo, sortedPlugins } from '../../shared.js';
+import type { BotContext } from '../../../../../context.js';
 
 type DashboardButton = {
   text: string;
@@ -15,7 +16,7 @@ type DashboardButton = {
   style?: string;
 };
 
-export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
+export function panelPlugins(ctx: BotContext, page = 1, category = 'all', notice = '') {
   const disabled = normalizedDisabled(ctx.from.id);
   const disabledSet = new Set(disabled);
   const { plugins, page: currentPage, totalPages, total, category: activeCat } = pluginCategoryInfo(category, page);
@@ -92,7 +93,7 @@ export function panelPlugins(ctx, page = 1, category = 'all', notice = '') {
   };
 }
 
-export function panelPluginDetail(ctx, pluginName: string, page = 1, category = 'all') {
+export function panelPluginDetail(ctx: BotContext, pluginName: string, page = 1, category = 'all') {
   const target = decodeURIComponent(String(pluginName || '')).trim().toLowerCase();
   const plugin = loadedPlugins.find(p => String(p.name).toLowerCase() === target);
   if (!plugin) {

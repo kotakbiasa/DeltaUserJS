@@ -11,8 +11,9 @@ import { keyboardBack, keyboardHelpBack, keyboardHelpCenter } from '../keyboards
 import { panelDonate, panelHelpCommands, panelHelpFaq, panelHelpQuickstart, panelQuickHelp, panelStats } from '../panels.js';
 import { sendRich } from '../richRuntime.js';
 import { NOT_HANDLED } from './types.js';
+import type { BotContext } from '../../../../context.js';
 
-export async function handleInfoRoutes(ctx) {
+export async function handleInfoRoutes(ctx: BotContext) {
   const action = ctx.match[1];
 
   if (action === 'stats') {return sendRich(ctx, panelStats(ctx), keyboardBack('main'), { edit: true });}

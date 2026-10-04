@@ -13,6 +13,7 @@ import { Logger } from '../../../../utils/logger.js';
 import { sendWithNativeDraft } from '../../../../utils/streamRich.js';
 import { panelAccessDenied, panelMain, panelPlugins } from './panels.js';
 import { keyboardAccessDenied, keyboardMain } from './keyboards.js';
+import type { BotContext } from '../../../context.js';
 
 export async function mongoStatusLabel() {
   try {
@@ -25,7 +26,7 @@ export async function mongoStatusLabel() {
   }
 }
 
-export async function sendRich(ctx, rich, reply_markup, { deleteOld = false, edit = true } = {}) {
+export async function sendRich(ctx: BotContext, rich, reply_markup, { deleteOld = false, edit = true } = {}) {
   if (ctx.inlineMessageId) {
     if (ctx.answerCallbackQuery) {
       await ctx.answerCallbackQuery({ text: '⚠️ Akses menu ini melalui Private Chat (DM) bot.', show_alert: true }).catch(()=>{});
@@ -66,11 +67,11 @@ export async function sendRich(ctx, rich, reply_markup, { deleteOld = false, edi
   }
 }
 
-export async function openMain(ctx, options = {}) {
+export async function openMain(ctx: BotContext, options = {}) {
   await sendRich(ctx, panelMain(ctx), keyboardMain(ctx), options);
 }
 
-export async function toggleUserbotSetting(ctx, field, label, panel, keyboard) {
+export async function toggleUserbotSetting(ctx: BotContext, field, label, panel, keyboard) {
   const session = getUserbotSession(ctx.from.id);
   if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
 
@@ -89,12 +90,12 @@ export function pluginNotice(pluginName, enabled) {
   return `${enabled ? 'Plugin diaktifkan' : 'Plugin dinonaktifkan'}: ${pluginName}`;
 }
 
-export async function openPluginStudio(ctx, page = 1, category = 'all', notice = '', options = {}) {
+export async function openPluginStudio(ctx: BotContext, page = 1, category = 'all', notice = '', options = {}) {
   const result = panelPlugins(ctx, page, category, notice);
   // edit: true → kalau dipicu callback (tombol toggle/page), pesan diedit in-place, bukan hapus-kirim-ulang
   await sendRich(ctx, result.rich, result.keyboard, { edit: true, ...options });
 }
 
-export async function sendAccessDeniedRich(ctx) {
+export async function sendAccessDeniedRich(ctx: BotContext) {
   await sendRich(ctx, panelAccessDenied(ctx), keyboardAccessDenied(ctx), { edit: true });
 }

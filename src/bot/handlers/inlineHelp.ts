@@ -9,6 +9,7 @@ import { helpRegistry as userbotHelpRegistry } from '../../userbot/engine/plugin
 import { escapeHtml } from '../../utils/richMessage.js';
 import { editRich } from '../../utils/richMessage.js';
 import { replyRich } from '../../utils/richMessage.js';
+import type { BotContext } from '../context.js';
 
 // Registry modul Master Bot (kosong sejak fitur group management dihapus;
 // tetap disediakan agar mudah diperluas kembali di masa depan).
@@ -145,7 +146,7 @@ export function registerInlineHelpHandlers(bot) {
   // inline_query: dipicu saat userbot memanggil getInlineBotResults
   // untuk mendapatkan menu help + tombol, lalu userbot posting via
   // sendInlineBotResult ke chat manapun (termasuk Chat Pribadi/Saved).
-  bot.on('inline_query', async (ctx) => {
+  bot.on('inline_query', async (ctx: BotContext) => {
     console.log(`[INLINE-QUERY-DEBUG] Received inline query: "${ctx.inlineQuery.query}" from user ${ctx.from?.id}`);
     const query = (ctx.inlineQuery.query || '').trim().toLowerCase();
 
@@ -164,7 +165,9 @@ export function registerInlineHelpHandlers(bot) {
           input_message_content: { rich_message: { html } },
           reply_markup: moduleBackKeyboard('ubot'),
         };
-        return ctx.answerInlineQuery([result], { cache_time: 0 });
+        // `rich_message` adalah payload khusus Delta yang dirakit transformer
+        // richMessage, jadi bentuknya memang di luar tipe Bot API standar.
+        return ctx.answerInlineQuery([result as unknown as Parameters<typeof ctx.answerInlineQuery>[0][number]], { cache_time: 0 });
       }
     }
 
@@ -180,12 +183,14 @@ export function registerInlineHelpHandlers(bot) {
       input_message_content: { rich_message: { html } },
       reply_markup: helpKeyboard(1, 'ubot'),
     };
-    return ctx.answerInlineQuery([result], { cache_time: 0 });
+    // `rich_message` adalah payload khusus Delta yang dirakit transformer
+        // richMessage, jadi bentuknya memang di luar tipe Bot API standar.
+        return ctx.answerInlineQuery([result as unknown as Parameters<typeof ctx.answerInlineQuery>[0][number]], { cache_time: 0 });
   });
 
   // Pesan "help_ubot" / "help_ubot:<module>" dari userbot (dikirim via DM ke
   // Master Bot oleh plugin .help userbot — userbot tidak bisa render tombol).
-  bot.on('message:text', async (ctx) => {
+  bot.on('message:text', async (ctx: BotContext) => {
     const text = (ctx.message.text || '').trim();
     if (!text.startsWith('help_ubot')) {return;}
     console.log(`[HELP-DEBUG] Master Bot terima: "${text}" dari user ${ctx.from?.id}`);
@@ -201,7 +206,7 @@ export function registerInlineHelpHandlers(bot) {
     });
   });
 
-  bot.callbackQuery(/^help:page:(\d+)(?::(.+))?$/, async (ctx) => {
+  bot.callbackQuery(/^help:page:(\d+)(?::(.+))?$/, async (ctx: BotContext) => {
     const page = Number(ctx.match[1]);
     const target = ctx.match[2] || 'main';
     await ctx.answerCallbackQuery();
@@ -210,7 +215,7 @@ export function registerInlineHelpHandlers(bot) {
     });
   });
 
-  bot.callbackQuery(/^help:module:([^:]+)(?::(.+))?$/, async (ctx) => {
+  bot.callbackQuery(/^help:module:([^:]+)(?::(.+))?$/, async (ctx: BotContext) => {
     const moduleName = ctx.match[1];
     const target = ctx.match[2] || resolveModuleTarget(moduleName) || 'main';
     await ctx.answerCallbackQuery();
@@ -219,11 +224,11 @@ export function registerInlineHelpHandlers(bot) {
     });
   });
 
-  bot.callbackQuery('help:noop', async (ctx) => {
+  bot.callbackQuery('help:noop', async (ctx: BotContext) => {
     await ctx.answerCallbackQuery();
   });
 
-  bot.callbackQuery(/^(help:close|close)$/, async (ctx) => {
+  bot.callbackQuery(/^(help:close|close)$/, async (ctx: BotContext) => {
     try { await ctx.answerCallbackQuery('Menu ditutup'); } catch (_) { /* empty */ }
     // Coba delete message dulu (jika chat pribadi / pesan bot normal)
     try {

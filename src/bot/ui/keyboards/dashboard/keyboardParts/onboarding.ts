@@ -4,10 +4,10 @@
  * Dipecah dari dashboard/keyboards.ts (575 baris). Isi tiap fungsi
  * dipindahkan apa adanya; yang berubah hanya di file mana ia tinggal.
  */
-import type { Context } from 'grammy';
 import { getUserbotSession } from '../../../../../infrastructure/database.js';
 import { isApproved, isPendingApproval } from '../../../../state/approvedUsers.js';
 import { isAutoApproveEnabled, isOwner } from '.././shared.js';
+import type { BotContext } from '../../../../context.js';
 
 type DashboardButton = {
   text: string;
@@ -37,11 +37,11 @@ export function keyboardRegister() {
   ] };
 }
 
-export function keyboardBuySubscription(ctx?: Context) {
+export function keyboardBuySubscription(ctx?: BotContext) {
   return keyboardSubscription(ctx);
 }
 
-export function keyboardSubscription(ctx?: Context) {
+export function keyboardSubscription(ctx?: BotContext) {
   const userId = ctx?.from?.id;
   const owner = isOwner(ctx);
   const session = userId ? getUserbotSession(userId) : null;

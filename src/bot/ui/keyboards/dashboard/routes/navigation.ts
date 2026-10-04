@@ -14,8 +14,9 @@ import { keyboardPanelMenu, keyboardUserbot } from '../keyboards.js';
 import { openMain, sendRich } from '../richRuntime.js';
 import { panelMenuList, panelUserbot } from '../panels.js';
 import { NOT_HANDLED } from './types.js';
+import type { BotContext } from '../../../../context.js';
 
-export async function handleNavigationRoutes(ctx) {
+export async function handleNavigationRoutes(ctx: BotContext) {
   const action = ctx.match[1];
 
   if (action === 'main') {return openMain(ctx, { edit: true });}

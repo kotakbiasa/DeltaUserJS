@@ -9,8 +9,9 @@ import userbotManager from '../../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../../utils/richMessage.js';
 import { badge } from '../../shared.js';
+import type { BotContext } from '../../../../../context.js';
 
-export function panelSettings(ctx) {
+export function panelSettings(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const afkReason = session?.afk_reason || 'AFK (default)';
   const currentPrefix = session?.vars?.PREFIX || '.';
@@ -44,7 +45,7 @@ export function panelSettings(ctx) {
     `<footer>Ketuk tombol di tabel atau gunakan tombol di bawah untuk setelan lanjutan.</footer>`;
 }
 
-export function panelPrefixPicker(ctx) {
+export function panelPrefixPicker(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const currentPrefix = session?.vars?.PREFIX || '.';
   return `<h1 align="center">💬 Ganti Prefix Perintah <sup>CONFIG</sup></h1>` +
@@ -62,7 +63,7 @@ export function panelPrefixPicker(ctx) {
     `<footer>Ketuk tombol prefix di bawah untuk langsung mengganti.</footer>`;
 }
 
-export function panelInlineHelper(ctx) {
+export function panelInlineHelper(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const botUser = session?.inline_bot_username;
   return `<h1 align="center">🤖 Setup Inline Helper Bot <sup>BOTFATHER</sup></h1>` +
@@ -84,7 +85,7 @@ export function panelInlineHelper(ctx) {
     `<footer>Helper bot hanya digunakan untuk merender menu bantuan inline.</footer>`;
 }
 
-export async function panelUserbotDiag(ctx) {
+export async function panelUserbotDiag(ctx: BotContext) {
   const telegramId = ctx.from.id;
   const session = getUserbotSession(telegramId);
   const isRunning = userbotManager.isRunning(telegramId);

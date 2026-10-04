@@ -18,8 +18,9 @@ import { keyboardAdmin, keyboardAdminBackup, keyboardAdminBroadcast, keyboardAdm
 import { mongoStatusLabel, sendRich } from '../richRuntime.js';
 import { panelAdmin, panelAdminBackup, panelAdminBroadcast, panelAdminFleet, panelAdminPending, panelAdminSettings, panelAdminUserDetail, panelAdminUsers, panelHealth, panelSubscription } from '../panels.js';
 import { NOT_HANDLED } from './types.js';
+import type { BotContext } from '../../../../context.js';
 
-export async function handleAdminRoutes(ctx) {
+export async function handleAdminRoutes(ctx: BotContext) {
   const action = ctx.match[1];
 
   if (action === 'admin') {

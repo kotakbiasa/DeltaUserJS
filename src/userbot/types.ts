@@ -51,11 +51,12 @@ export interface UserbotMessageLike {
    */
   action?: ({ type?: string; className?: string } & Record<string, unknown>) | null;
   message?: string;
-  peerId?: EntityLike;
-  chatId?: EntityLike;
+  // Adapter mtcute selalu mengisinya dengan ID numerik, bukan objek peer.
+  peerId?: string | number | bigint;
+  chatId?: string | number | bigint;
   id?: number;
   replyToMsgId?: number;
-  senderId?: EntityLike;
+  senderId?: string | number | bigint;
   date?: number;
   isPrivate?: boolean;
   isGroup?: boolean;

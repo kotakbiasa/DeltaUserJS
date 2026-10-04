@@ -34,6 +34,7 @@ export {
   sendAccessDeniedRich,
   sendRich,
 } from './richRuntime.js';
+import type { BotContext } from '../../../context.js';
 
 export function registerRichHandlers(bot) {
   bot.api.config.use(async (prev, method, payload, signal) => {
@@ -45,7 +46,7 @@ export function registerRichHandlers(bot) {
     return prev(method, payload, signal);
   });
 
-  bot.command(['start', 'menu'], async (ctx) => {
+  bot.command(['start', 'menu'], async (ctx: BotContext) => {
     if (ctx.chat.type !== 'private') {
       await replyRich(ctx, `🤖 <b>${escapeHtml(ctx.me.first_name)} Aktif!</b>\n\n<p>Silakan kirim pesan secara privat (PM) untuk mengelola bot Anda.</p>`, {
         reply_markup: {
@@ -59,14 +60,14 @@ export function registerRichHandlers(bot) {
   });
 
 
-  bot.command(['paket', 'vip', 'langganan', 'subscribe', 'pricing'], async (ctx) => {
+  bot.command(['paket', 'vip', 'langganan', 'subscribe', 'pricing'], async (ctx: BotContext) => {
     if (ctx.chat.type !== 'private') {
       return replyRich(ctx, `<p>Silakan buka status akses di Private Chat bot.</p>`);
     }
     return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(ctx));
   });
 
-  bot.command(['daftar', 'login', 'register'], async (ctx) => {
+  bot.command(['daftar', 'login', 'register'], async (ctx: BotContext) => {
     if (ctx.chat.type !== 'private') {
       return replyRich(ctx, `<p>Silakan kirim pesan secara privat (PM) untuk mendaftar userbot.</p>`);
     }
@@ -87,12 +88,12 @@ export function registerRichHandlers(bot) {
     await sendRich(ctx, panelRegister(ctx), keyboardRegister());
   });
 
-  bot.command(['tos', 'rules', 'syarat', 'ketentuan'], async (ctx) => {
+  bot.command(['tos', 'rules', 'syarat', 'ketentuan'], async (ctx: BotContext) => {
     if (ctx.chat.type !== 'private') {return;}
     return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: false });
   });
 
-  bot.command('cancel', async (ctx) => {
+  bot.command('cancel', async (ctx: BotContext) => {
     const userId = ctx.from.id;
     try {
       const { abortActiveQr, activeRegClients } = await import('../../../conversations/registration.js');
@@ -107,12 +108,12 @@ export function registerRichHandlers(bot) {
     await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b><br>Ketik /menu untuk membuka Menu Utama.</p>`);
   });
 
-  bot.command('health', async (ctx) => {
+  bot.command('health', async (ctx: BotContext) => {
     if (!isOwner(ctx)) {return;}
     await sendRich(ctx, panelHealth(await mongoStatusLabel()), keyboardBack('admin'));
   });
 
-  bot.command('revoke', async (ctx) => {
+  bot.command('revoke', async (ctx: BotContext) => {
     const telegramId = ctx.from.id;
     const session = getUserbotSession(telegramId);
     if (!session) {
@@ -136,7 +137,7 @@ export function registerRichHandlers(bot) {
     await ctx.replyWithRichMessage({ html: `<p><b>✅ Berhasil</b><br>Sesi dihapus sepenuhnya. Ketik /menu untuk mendaftar ulang.</p>` });
   });
 
-  bot.callbackQuery(/^rich:(.+)$/, async (ctx) => {
+  bot.callbackQuery(/^rich:(.+)$/, async (ctx: BotContext) => {
     try { await ctx.answerCallbackQuery(); } catch (_) { /* empty */ }
     if ((await handleNavigationRoutes(ctx)) !== NOT_HANDLED) {return;}
     if ((await handlePluginsRoutes(ctx)) !== NOT_HANDLED) {return;}

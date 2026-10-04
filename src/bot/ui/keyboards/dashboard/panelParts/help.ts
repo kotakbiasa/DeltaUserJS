@@ -5,6 +5,7 @@ import userbotManager from '../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../userbot/engine/pluginRegistry.js';
 import { escapeHtml } from '../../../../../utils/richMessage.js';
 import { LOOPS_PER_PAGE, getSystemVarValue } from '../shared.js';
+import type { BotContext } from '../../../../context.js';
 
 export function panelUserLoops(ctx: Context, page = 1) {
   const telegramId = ctx.from.id;
@@ -56,7 +57,7 @@ export function panelUserLoops(ctx: Context, page = 1) {
       : `<footer>🟡 Userbot offline: Jadwal tersimpan dan akan langsung aktif saat userbot dinyalakan.</footer>`);
 }
 
-export function panelQuickHelp(_ctx) {
+export function panelQuickHelp(_ctx: BotContext) {
   return `<h1 align="center">📚 Pusat Bantuan &amp; Panduan <sup>GUIDE</sup></h1>` +
     `<p>Selamat datang di Pusat Bantuan <b>DeltaUserJS</b>.<br>` +
     `Temukan panduan lengkap, cheatsheet perintah, dan solusi kendala di bawah ini.</p>` +
@@ -145,7 +146,7 @@ export function panelHelpFaq() {
     `<footer>Pusat Layanan Bantuan DeltaUserJS.</footer>`;
 }
 
-export function panelDonate(_ctx) {
+export function panelDonate(_ctx: BotContext) {
   const ewallet = getSystemVarValue('DONATE_EWALLET', '');
   const bank = getSystemVarValue('DONATE_BANK', '');
   const ewalletName = getSystemVarValue('DONATE_EWALLET_NAME', 'e-Wallet');

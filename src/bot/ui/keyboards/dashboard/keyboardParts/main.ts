@@ -9,6 +9,7 @@ import userbotManager from '../../../../../userbot/engine/manager.js';
 import { loadedPlugins } from '../../../../../userbot/engine/pluginRegistry.js';
 import { isPendingApproval } from '../../../../state/approvedUsers.js';
 import { PROTECTED_PLUGINS, canRegister, isOwner, normalizedDisabled, pluginPageInfo } from '.././shared.js';
+import type { BotContext } from '../../../../context.js';
 
 type DashboardButton = {
   text: string;
@@ -18,7 +19,7 @@ type DashboardButton = {
 };
 type DashboardButtonRows = DashboardButton[][];
 
-export function keyboardAccessDenied(ctx) {
+export function keyboardAccessDenied(ctx: BotContext) {
   const pending = isPendingApproval(ctx.from.id);
   const rows = [];
   if (pending) {
@@ -30,7 +31,7 @@ export function keyboardAccessDenied(ctx) {
   return { inline_keyboard: rows };
 }
 
-export function keyboardMain(ctx) {
+export function keyboardMain(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const rows: DashboardButtonRows = [];
 
@@ -73,7 +74,7 @@ export function keyboardMain(ctx) {
   return { inline_keyboard: rows };
 }
 
-export function keyboardPanelMenu(ctx) {
+export function keyboardPanelMenu(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const rows: DashboardButtonRows = [];
 
@@ -108,7 +109,7 @@ export function keyboardPanelMenu(ctx) {
   return { inline_keyboard: rows };
 }
 
-export function keyboardUserbot(ctx) {
+export function keyboardUserbot(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   if (!session) {
     const approved = canRegister(ctx);
@@ -168,7 +169,7 @@ export function keyboardUserbot(ctx) {
   return { inline_keyboard: rows };
 }
 
-export function keyboardPluginStudio(ctx, page = 1) {
+export function keyboardPluginStudio(ctx: BotContext, page = 1) {
   const disabled = normalizedDisabled(ctx.from.id);
   const disabledSet = new Set(disabled);
   const { plugins, page: currentPage, totalPages } = pluginPageInfo(page);

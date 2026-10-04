@@ -14,8 +14,9 @@ import { panelTermsOfService, panelUserLoops } from '../panels.js';
 import { sendAccessDeniedRich, sendRich } from '../richRuntime.js';
 import { stopLoop } from '../../../../../userbot/handlers/util/loop.js';
 import { NOT_HANDLED } from './types.js';
+import type { BotContext } from '../../../../context.js';
 
-export async function handleMiscRoutes(ctx) {
+export async function handleMiscRoutes(ctx: BotContext) {
   const action = ctx.match[1];
 
 

@@ -12,8 +12,9 @@ import { disablePlugin, enablePlugin, getDisabledPlugins } from '../../../../../
 import { findPlugin, openPluginStudio, pluginNotice, sendRich } from '../richRuntime.js';
 import { panelPluginDetail } from '../panels.js';
 import { NOT_HANDLED } from './types.js';
+import type { BotContext } from '../../../../context.js';
 
-export async function handlePluginsRoutes(ctx) {
+export async function handlePluginsRoutes(ctx: BotContext) {
   const action = ctx.match[1];
 
   if (action.startsWith('plugin_page:')) {

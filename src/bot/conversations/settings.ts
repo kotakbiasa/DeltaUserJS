@@ -8,11 +8,12 @@ import { escapeHtml, replyRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { cancelKeyboard } from './registration.js';
 import { fetchWithTimeout } from '../../utils/http.js';
+import type { BotContext, BotConversation } from '../context.js';
 
 /**
  * Helper: tunggu input teks atau tombol batal.
  */
-async function waitForInput(conversation, ctx) {
+async function waitForInput(conversation: BotConversation, ctx: BotContext) {
   const result = await conversation.waitFor(['message:text', 'callback_query:data']);
   const cbData = result.callbackQuery?.data;
 
@@ -45,7 +46,7 @@ async function waitForInput(conversation, ctx) {
 /**
  * Conversation to set custom AFK reason
  */
-export async function afkReasonConversation(conversation, ctx) {
+export async function afkReasonConversation(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
 
   try {
@@ -90,7 +91,7 @@ const USER_VAR_TEMPLATE: { key: string; desc: string }[] = [
 /**
  * Conversation to manage generic user vars (Vars Config)
  */
-export async function manageVarsConv(conversation, ctx) {
+export async function manageVarsConv(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
 
   const buildVarsKeyboard = (varsMap) => {
@@ -412,7 +413,7 @@ function systemVarTableHtml(currentVars: Record<string, unknown>): string {
 /**
  * Conversation to manage system vars (Owner only)
  */
-export async function manageSystemVarsConv(conversation, ctx) {
+export async function manageSystemVarsConv(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
   if (Number(telegramId) !== Number(config.ownerId)) {return;}
 

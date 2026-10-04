@@ -7,8 +7,9 @@
 import config from '../../../../../config.js';
 import { getUserbotSession } from '../../../../../infrastructure/database.js';
 import userbotManager from '../../../../../userbot/engine/manager.js';
+import type { BotContext } from '../../../../context.js';
 
-export function keyboardSettings(ctx) {
+export function keyboardSettings(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const isAntiPm = session?.anti_pm === 1;
   const isAfk = session?.auto_reply === 1;
@@ -60,7 +61,7 @@ export function keyboardInlineHelper() {
   ] };
 }
 
-export function keyboardUserbotDiag(ctx) {
+export function keyboardUserbotDiag(ctx: BotContext) {
   const isRunning = userbotManager.isRunning(ctx.from.id);
   return { inline_keyboard: [
     [

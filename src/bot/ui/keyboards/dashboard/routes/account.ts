@@ -17,8 +17,9 @@ import { keyboardBuySubscription, keyboardRegister, keyboardSubscription, keyboa
 import { panelBuySubscription, panelRegister, panelSubscription, panelTermsDeclined, panelTermsOfService } from '../panels.js';
 import { sendAccessDeniedRich, sendRich } from '../richRuntime.js';
 import { NOT_HANDLED } from './types.js';
+import type { BotContext } from '../../../../context.js';
 
-export async function handleAccountRoutes(ctx) {
+export async function handleAccountRoutes(ctx: BotContext) {
   const action = ctx.match[1];
 
   if (action === 'subscription') {return sendRich(ctx, panelSubscription(ctx), keyboardSubscription(ctx), { edit: true });}

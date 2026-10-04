@@ -16,8 +16,9 @@ import {
   getCombinedAdminUsers,
   getSystemVarValue,
 } from '../shared.js';
+import type { BotContext } from '../../../../context.js';
 
-export function panelAdmin(_ctx) {
+export function panelAdmin(_ctx: BotContext) {
   const registeredUsers = getAllRegisteredUsers();
   const registeredIds = new Set(registeredUsers.map(u => Number(u.telegram_id)));
   const awaitingCount = getApprovedUsers().filter(id => !registeredIds.has(Number(id))).length;
@@ -272,7 +273,7 @@ export function panelAdminSettings() {
     `<footer>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</footer>`;
 }
 
-export function panelStats(ctx) {
+export function panelStats(ctx: BotContext) {
   const session = ctx?.from?.id ? getUserbotSession(ctx.from.id) : null;
   const running = ctx?.from?.id ? userbotManager.isRunning(ctx.from.id) : false;
   const premium = session?.is_telegram_premium === 1 || Boolean(ctx?.from?.is_premium);
