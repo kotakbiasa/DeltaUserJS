@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from '../../../utils/http.js';
 import { defineCommand } from '../../engine/defineCommand.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 export default defineCommand({
   name: 'brat',
@@ -28,7 +29,7 @@ export default defineCommand({
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.length < 1000) {throw new Error('gambar tidak valid');}
 
-    await client.sendMessage(message.chatId, {
+    await client.sendMessage(toPeer(message.chatId), {
       message: `🎨 Brat: ${text.slice(0, 100)}`,
       file: { source: buffer, filename: 'brat.png' },
       parseMode: 'html',

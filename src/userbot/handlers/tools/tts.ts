@@ -5,6 +5,7 @@ import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { fetchWithTimeout } from '../../../utils/http.js';
 import { defineCommand } from '../../engine/defineCommand.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // ============================================================
 // Text to Speech — .tts
@@ -119,7 +120,7 @@ export default defineCommand({
       tmpPath = path.join(TMP_DIR, `tts_${Date.now()}.mp3`);
       fs.writeFileSync(tmpPath, buf);
 
-      await client.sendFile(message.chatId, {
+      await client.sendFile(toPeer(message.chatId), {
         file: tmpPath,
         voiceNote: true,
         replyTo: message.replyToMsgId || message.id

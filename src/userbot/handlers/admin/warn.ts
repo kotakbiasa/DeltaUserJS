@@ -1,6 +1,9 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { updateUserbotFeature } from '../../../infrastructure/database.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { EntityLike } from '../../types.js';
 
 // ============================================================
 // Warning grup — .warn / .warns / .resetwarn
@@ -197,11 +200,12 @@ async function resolveTarget(client, message, args): Promise<ResolvedTarget> {
 }
 
 // Kick = kickChatMember atau ban sekejap lalu unban
-async function kickUser(client: any, chat: any, _isChannel: boolean, target: Target) {
+async function kickUser(client: CompatClient, chat: any, _isChannel: boolean, target: Target) {
   const chatId = chat.id || chat;
   const participant = target.entity ?? target.id;
   if (typeof client.kickChatMember === 'function') {
-    return await client.kickChatMember(chatId, participant);
+    // mtcute memakai satu objek params, bukan argumen posisional.
+    return await client.kickChatMember({ chatId: toPeer(chatId), userId: toPeer(participant as EntityLike) });
   }
   if (typeof client.call === 'function') {
     await client.call({

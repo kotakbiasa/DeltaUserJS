@@ -14,6 +14,7 @@
  */
 import type { TelegramClient } from '@mtcute/node';
 import type { InputPeerLike, Message } from '@mtcute/core';
+import type { EntityLike } from '../types.js';
 
 /** Peer gaya legacy: plugin lama kerap mengoper id mentah atau objek entity. */
 export type LegacyPeer = InputPeerLike | string | number;
@@ -23,7 +24,10 @@ export interface LegacySendMessageParams {
   message?: string;
   text?: string;
   replyTo?: number | unknown;
-  parseMode?: string;
+  /** `false` berarti kirim verbatim (gaya GramJS), bukan HTML. */
+  parseMode?: string | false;
+  /** Bila diisi, pesan dikirim sebagai media dengan `message` jadi caption. */
+  file?: unknown;
   [key: string]: unknown;
 }
 
@@ -40,8 +44,8 @@ export interface LegacySendFileOptions {
   file?: unknown;
   caption?: string;
   message?: string;
+  parseMode?: string | false;
   replyTo?: number | unknown;
-  parseMode?: string;
   forceDocument?: boolean;
   attributes?: Array<{ _?: string; className?: string; [key: string]: unknown }>;
   [key: string]: unknown;
@@ -57,16 +61,16 @@ type LegacyOverridden =
 
 export type CompatClient = Omit<TelegramClient, LegacyOverridden> & {
   // --- alias legacy (ditambahkan setupClientCompatibility) ---
-  sendMessage(peer: LegacyPeer, params: LegacySendMessageParams | string): Promise<unknown>;
+  sendMessage(peer: LegacyPeer, params: LegacySendMessageParams | string): Promise<Message>;
   getEntity(peer: LegacyPeer): Promise<LegacyEntity>;
   invoke(call: unknown): Promise<unknown>;
   getMessages(peer: LegacyPeer, params?: unknown): Promise<Array<Message | null>>;
-  sendFile(chat: LegacyPeer, options: LegacySendFileOptions | unknown): Promise<unknown>;
+  sendFile(chat: LegacyPeer, options: LegacySendFileOptions | unknown): Promise<Message>;
   deleteMessages(chatOrMsgs: unknown, idsOrParams?: unknown, maybeParams?: unknown): Promise<unknown>;
   downloadProfilePhoto(peer: LegacyPeer): Promise<Buffer | undefined>;
 
   // --- dibungkus interceptor emoji, signature longgar untuk pemanggil legacy ---
-  sendText(chat: LegacyPeer, text: unknown, params?: unknown): Promise<unknown>;
+  sendText(chat: LegacyPeer, text: string, params?: { replyTo?: unknown; parseMode?: string } & Record<string, unknown>): Promise<Message>;
   editMessage(params: unknown, maybeParams?: unknown): Promise<unknown>;
 
   /**
@@ -85,3 +89,22 @@ export type CompatClient = Omit<TelegramClient, LegacyOverridden> & {
   addEventHandler?(handler: (event: unknown) => unknown, builder?: unknown): void;
   removeEventHandler?(handler: (event: unknown) => unknown, builder?: unknown): void;
 };
+
+/**
+ * Menormalkan identitas peer gaya legacy (`message.chatId`/`peerId`, yang
+ * bisa berupa bigint atau objek entitas) menjadi bentuk yang diterima mtcute.
+ *
+ * ID Telegram selalu muat di `Number` (jauh di bawah 2^53), jadi konversi
+ * bigint di sini tidak kehilangan presisi.
+ */
+export function toPeer(entity: EntityLike | null | undefined): LegacyPeer {
+  if (typeof entity === 'bigint') {return Number(entity);}
+  if (typeof entity === 'string' || typeof entity === 'number') {return entity;}
+  if (entity && typeof entity === 'object') {
+    const id = (entity as { id?: unknown }).id;
+    if (typeof id === 'bigint') {return Number(id);}
+    if (typeof id === 'string' || typeof id === 'number') {return id;}
+    return entity as LegacyPeer;
+  }
+  throw new TypeError('Peer tidak valid: ' + String(entity));
+}

@@ -11,6 +11,7 @@ import { checkRateLimit, shouldCountForRateLimit } from './rateLimiter.js';
 import { isTestEnv } from '../../utils/env.js';
 import { animateEmojisWithRestrictedPack, stripTgEmojiTags } from '../../utils/customEmoji.js';
 import { createUserbotMessageAdapter } from './adapter.js';
+import type { Message } from '@mtcute/core';
 import type { CompatClient, LegacyPeer, LegacySendMessageParams, LegacySendFileOptions } from './compatClient.js';
 import type { InputPeerLike } from '@mtcute/core';
 
@@ -19,6 +20,16 @@ function disabledSet(settings: { disabled_plugins?: string[] } | null | undefine
 }
 
 let pluginLoadPromise: Promise<unknown> | null = null;
+
+/**
+ * `parseMode: false` gaya GramJS berarti "kirim verbatim". Di mtcute itu
+ * dinyatakan dengan `undefined` (tanpa parser), bukan string kosong.
+ * Default tetap 'html' seperti perilaku lama.
+ */
+function resolveParseMode(mode: string | false | undefined): string | undefined {
+  if (mode === false) {return undefined;}
+  return mode || 'html';
+}
 
 export class UserbotClient {
   public telegramId: number;
@@ -454,12 +465,17 @@ export class UserbotClient {
     if (!this.client) {return;}
 
     if (!this.client.sendMessage) {
-      this.client.sendMessage = async (peer: LegacyPeer, params: LegacySendMessageParams | string) => {
-        const opts = typeof params === 'string' ? {} : (params ?? {});
+      this.client.sendMessage = async (peer: LegacyPeer, params: LegacySendMessageParams | string): Promise<Message> => {
+        const opts: LegacySendMessageParams = typeof params === 'string' ? {} : (params ?? {});
         const text = typeof params === 'string' ? params : (opts.message ?? opts.text ?? '');
+        // Gaya GramJS: sendMessage({ file }) mengirim media dengan caption.
+        // Tanpa cabang ini, file-nya hilang diam-diam dan hanya teks terkirim.
+        if (opts.file) {
+          return await this.client.sendFile(peer, { ...opts, caption: text });
+        }
         return await this.client.sendText(peer, text, {
           replyTo: opts.replyTo,
-          parseMode: opts.parseMode || 'html',
+          parseMode: resolveParseMode(opts.parseMode),
         });
       };
     }
@@ -505,7 +521,7 @@ export class UserbotClient {
         const params: Record<string, unknown> = {
           caption,
           replyTo: options?.replyTo,
-          parseMode: options?.parseMode || 'html',
+          parseMode: resolveParseMode(options?.parseMode),
         };
         let mediaObj: unknown;
         if (options?.forceDocument) {

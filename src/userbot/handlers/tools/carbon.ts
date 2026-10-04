@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from '../../../utils/http.js';
 import { defineCommand } from '../../engine/defineCommand.js';
+import { toPeer } from '../../engine/compatClient.js';
 const THEMES = [
   "3024-night", "a11y-dark", "blackboard", "base16-dark", "base16-light",
   "cobalt", "dracula", "duotone-dark", "hopscotch", "lucario", "material",
@@ -118,7 +119,7 @@ export default defineCommand({
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      await client.sendMessage(message.chatId, {
+      await client.sendMessage(toPeer(message.chatId), {
         message: "Here's your carbon!",
         file: { source: buffer, filename: 'carbon.png' },
         replyTo: message.replyToMsgId

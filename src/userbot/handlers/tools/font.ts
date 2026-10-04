@@ -1,5 +1,6 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { defineCommand } from '../../engine/defineCommand.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // ============================================================
 // Font Generator — 12 gaya unicode font dari teks.
@@ -171,7 +172,7 @@ export default defineCommand({
     const converted = applyFont(inputText, FONT_STYLES[styleName]);
     // Hasil dikirim verbatim (parseMode false) agar unicode font tidak
     // terkena parsing HTML dan bisa langsung di-copy.
-    await client.sendMessage(message.chatId, {
+    await client.sendMessage(toPeer(message.chatId), {
       message: converted,
       parseMode: false,
       linkPreview: false,

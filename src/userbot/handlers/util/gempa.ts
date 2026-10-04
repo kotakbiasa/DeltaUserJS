@@ -1,6 +1,7 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { fetchWithTimeout } from '../../../utils/http.js';
 import { defineCommand } from '../../engine/defineCommand.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -53,7 +54,7 @@ export default defineCommand({
 
     // Ada shakemap → kirim sebagai gambar baru, pesan command dibiarkan.
     if (shakeMap) {
-      await client.sendMessage(message.chatId, {
+      await client.sendMessage(toPeer(message.chatId), {
         message: text,
         file: { source: shakeMap },
         parseMode: 'html',

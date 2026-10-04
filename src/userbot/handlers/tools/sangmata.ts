@@ -1,4 +1,5 @@
 import type { UserbotMessageLike } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 const BOT_PRIMARY = '@SangMata_BOT';
 const BOT_BETA = '@SangMata_beta_bot';
@@ -6,7 +7,7 @@ const BOT_BETA = '@SangMata_beta_bot';
 /**
  * Kirim target ID/username ke bot SangMata dan tunggu responsnya.
  */
-async function querySangMata(client: any, botUsername: string, target: string, timeoutSec = 7): Promise<UserbotMessageLike[]> {
+async function querySangMata(client: CompatClient, botUsername: string, target: string, timeoutSec = 7): Promise<UserbotMessageLike[]> {
   const startTime = Math.floor(Date.now() / 1000);
   try {
     await client.sendMessage(botUsername, { message: target });
@@ -48,7 +49,7 @@ export default {
     usage: '• Balas pesan pengguna dengan `.sgm` atau ketik `.sgm <username/ID>`\n• Balas pesan dengan `.sgmb` atau ketik `.sgm -b <username/ID>` untuk mencoba @SangMata_beta_bot lebih dulu',
     detail: 'Userbot akan memeriksa histori ke @SangMata_BOT terlebih dahulu. Jika bot utama tidak merespons (offline/sibuk), sistem otomatis mencoba cadangan @SangMata_beta_bot.'
   },
-  async execute(client: any, message: UserbotMessageLike, _settings: unknown, _telegramId: number) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: unknown, _telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const text = message.message.trim();

@@ -1,6 +1,9 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import type { UserbotEntityLike, UserbotMessageLike } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { EntityLike } from '../../types.js';
 
 /**
  * Profile Card ala Kitsune setinfo.
@@ -58,7 +61,7 @@ export default {
       'Kalau ada foto profil, kartu dikirim sebagai photo dengan caption; kalau tidak, dikirim sebagai text blockquote. ' +
       'Data kartu disimpan di memori (globalThis) per telegramId dan bertahan saat plugin hot-reload.'
   },
-  async execute(client: any, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
     if (!message.out || !message.message) {return;}
 
     const raw = message.message.trim();
@@ -158,7 +161,7 @@ export default {
         // Foto profil (besar bila ada)
         let photo: Buffer | string | undefined = undefined;
         try {
-          photo = await client.downloadProfilePhoto(entity.id || entity);
+          photo = await client.downloadProfilePhoto(toPeer((entity.id || entity) as EntityLike));
         } catch (_e) { photo = undefined; }
 
         if (photo && typeof photo !== 'string' && photo.length > 0) {

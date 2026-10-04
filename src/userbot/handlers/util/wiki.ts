@@ -1,6 +1,7 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { fetchWithTimeout } from '../../../utils/http.js';
 import { defineCommand } from '../../engine/defineCommand.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 export default defineCommand({
   name: 'wiki',
@@ -37,7 +38,7 @@ export default defineCommand({
 
     // Ada thumbnail → kirim sebagai foto baru dan hapus pesan command.
     if (data.thumbnail?.source) {
-      await client.sendMessage(message.chatId, {
+      await client.sendMessage(toPeer(message.chatId), {
         message: text,
         file: { source: data.thumbnail.source },
         parseMode: 'html',

@@ -3,6 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { Logger } from '../../../utils/logger.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 export default {
   name: 'info',
@@ -12,7 +13,7 @@ export default {
     usage: '• `.info` (Melihat info diri sendiri, atau grup jika di grup)\n• `.info <username>` (Melihat info username)\n• Balas pesan orang lalu ketik `.info` (Melihat info orang tersebut)',
     detail: 'Menampilkan foto profil utama, bio, status akun, dan data detail lainnya dengan tampilan elegan.'
   },
-  async execute(client: any, message: any, settings: any, telegramId: number) {
+  async execute(client: CompatClient, message: any, settings: any, telegramId: number) {
     if (!message.out || !message.message) {return;}
     
     const text = message.message.trim();

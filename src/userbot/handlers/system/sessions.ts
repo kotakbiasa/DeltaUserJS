@@ -14,6 +14,7 @@ import { Logger } from '../../../utils/logger.js';
 // DeltaUserJS — bukan salinan.
 // ============================================================
 import config from '../../../config.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 const KILL_INTERVAL_MS = 60 * 1000;
 
@@ -50,7 +51,7 @@ interface SessionRow {
   country?: string;
 }
 
-async function fetchAuthorizations(client: any): Promise<SessionRow[]> {
+async function fetchAuthorizations(client: CompatClient): Promise<SessionRow[]> {
   const result = typeof client.call === 'function'
     ? await client.call({ _: 'account.getAuthorizations' })
     : await client.invoke({ _: 'account.getAuthorizations' });

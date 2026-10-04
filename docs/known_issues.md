@@ -78,7 +78,7 @@ Solusi permanen (bila diinginkan nanti): re-resolve lockfile memakai
 
 ## 3. Hutang lint di `src/` 🟡
 
-**Progres:** 143 → **111 warning**. `src/userbot/engine/client.ts` (32 warning,
+**Progres:** 143 → **80 warning**. `src/userbot/engine/client.ts` (32 warning,
 penyumbang terbesar) sudah nol: `UserbotClient.client` kini bertipe
 `CompatClient` (`src/userbot/engine/compatClient.ts`) alih-alih `any`.
 
@@ -117,6 +117,14 @@ diam-diam, bukan crash.
 | `query.message` di `onAnyCallbackQuery` | hanya ada di *business* callback query | handler dipindah ke `onCallbackQuery` (callback pesan chat biasa) dan pesan selalu diambil lewat `getMessages`; inline/business callback memang tidak pernah didukung UI ini dan dulu pasti gagal di `query.chat.id` |
 | `client.getProfilePhoto(peer)` | butuh `(userId, photoId)` | `getProfilePhotos(peer, { limit: 1 })` — shim `downloadProfilePhoto()` selalu melempar, jadi `.info`, `.me`, dan `.profiles` **tidak pernah** menampilkan foto profil |
 | rantai `close()` / `disconnect()` di `stop()` | hanya `destroy()` yang nyata | dipersempit ke tipe probe eksplisit; dua cabang lain hanya untuk mock test |
+| `sendMessage(peer, { file })` | shim `sendMessage` hanya meneruskan teks ke `sendText()` | file **hilang diam-diam**: `.brat`, `.carbon`, `.qr`, `.tts` dkk hanya mengirim caption tanpa gambar. Shim kini mendelegasikan ke `sendFile()` bila ada `file` |
+| `parseMode: false` | shim menulis `opts.parseMode \|\| 'html'`, jadi `false` berubah jadi `'html'` | teks yang sengaja dikirim verbatim (`.font`, `.purge` quote, `.schedulemsg`) tetap diparse HTML. Ditangani `resolveParseMode()` |
+| `message.copy()` → `forwardMessages({ fromChat, toChat, messages: [id] })` | mtcute: `forwardMessagesById({ fromChatId, toChatId, messages })`; `forwardMessages()` mau objek `Message` | ketiga nama field salah → `.copy()` selalu melempar |
+| `kickChatMember(chatId, userId)` posisional (`.kick`) | mtcute memakai satu objek `{ chatId, userId }` | pemanggilan selalu gagal |
+| `confirm.delete()` di `.purge`/`.purgeme` | `Message` mtcute tidak punya `.delete()` | pesan konfirmasi "N pesan dihapus" **tidak pernah terhapus** dan menumpuk; kini lewat `client.deleteMessages()` |
+| `fresh.message` di `.profiles` | `Message` mtcute memakai `.text` | guard anti-dobel selalu benar → handler **selalu** berhenti di baris pertama |
+| `fullChat.description` | `FullChat` mtcute memakai `.bio` | deskripsi grup/channel selalu kosong |
+| `client.downloadMedia()` di `.zip` | tidak ada di mtcute | cabang mati, dihapus; `downloadAsBuffer()` tetap jalur utama |
 
 **Belum diperbaiki (sengaja — mengubahnya mengubah tampilan UI):**
 
@@ -126,6 +134,9 @@ diam-diam, bukan crash.
   dashboard permanen menampilkan status "tidak terhubung".
 - `client.session.dcId` di `panelParts/core/main.ts` juga tidak ada, sehingga
   DC yang ditampilkan **selalu jatuh ke hardcode `'4'`**.
+
+Helper `toPeer()` di `compatClient.ts` menormalkan identitas peer gaya legacy
+(bigint / objek entity) ke bentuk yang diterima mtcute.
 
 Keduanya kini dideklarasikan sebagai properti opsional ber-`@deprecated` di
 `CompatClient` supaya kebohongannya terlihat di tipe. `ITelegramClient` mtcute

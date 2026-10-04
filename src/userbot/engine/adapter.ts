@@ -1,10 +1,12 @@
-import type { MessageEditOptions, UserbotMessageLike, UserbotEntityLike } from '../types.js';
+import type { EntityLike, MessageEditOptions, UserbotMessageLike, UserbotEntityLike } from '../types.js';
+import type { CompatClient } from './compatClient.js';
+import { toPeer } from './compatClient.js';
 
 /**
  * Compatibility adapter wrapping an mtcute Message into DeltaUserJS UserbotMessageLike.
  * This ensures existing plugins run seamlessly on mtcute without requiring individual rewrites.
  */
-export function createUserbotMessageAdapter(rawMsg: any, client: any): UserbotMessageLike {
+export function createUserbotMessageAdapter(rawMsg: any, client: CompatClient): UserbotMessageLike {
   let messageText = rawMsg.text || '';
 
   const adapter: UserbotMessageLike = {
@@ -57,10 +59,13 @@ export function createUserbotMessageAdapter(rawMsg: any, client: any): UserbotMe
       return await client.deleteMessages(rawMsg.chat.id, [rawMsg.id]);
     },
 
-    async copy(entity: any) {
-      return await client.forwardMessages({
-        fromChat: rawMsg.chat.id,
-        toChat: entity,
+    async copy(entity: EntityLike) {
+      // mtcute: forwardMessages() menerima objek Message; untuk ID pakai
+      // forwardMessagesById(). Nama field lama (fromChat/toChat) tidak ada,
+      // jadi pemanggilan versi sebelumnya selalu gagal.
+      return await client.forwardMessagesById({
+        fromChatId: rawMsg.chat.id,
+        toChatId: toPeer(entity),
         messages: [rawMsg.id],
       });
     },
@@ -71,7 +76,7 @@ export function createUserbotMessageAdapter(rawMsg: any, client: any): UserbotMe
       }
       if (rawMsg.replyToMessageId) {
         try {
-          const found = await client.getMessage(rawMsg.chat.id, rawMsg.replyToMessageId);
+          const [found] = await client.getMessages(rawMsg.chat.id, [rawMsg.replyToMessageId]);
           return found ? createUserbotMessageAdapter(found, client) : null;
         } catch {
           return null;
@@ -109,7 +114,7 @@ export function createUserbotMessageAdapter(rawMsg: any, client: any): UserbotMe
     async downloadMedia(): Promise<Buffer | string | undefined> {
       try {
         if (typeof client.downloadAsBuffer === 'function') {
-          return await client.downloadAsBuffer(rawMsg);
+          return Buffer.from(await client.downloadAsBuffer(rawMsg));
         }
       } catch {
         return undefined;

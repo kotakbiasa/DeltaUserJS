@@ -1,6 +1,9 @@
 import type { UserbotMessageLike } from '../../types.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { EntityLike } from '../../types.js';
 
 /**
  * Profiles — info pengguna & info grup/channel.
@@ -38,7 +41,7 @@ export default {
             '• `.cinfo` menampilkan jumlah member lewat full-chat API (supergroup/channel) atau daftar participant (grup biasa).\n' +
             '• `.id` untuk ID chat/user cepat ada di plugin terpisah.'
   },
-  async execute(client: any, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: unknown, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (!message.peerId) {return;}
 
@@ -54,8 +57,11 @@ export default {
 
       try {
         // Anti-dobel: kalau pesan perintah sudah diedit/dihapus plugin lain (info.ts), skip.
-        const fresh = (await client.getMessages(message.peerId as any, { ids: [message.id] }))?.[0];
-        if (!fresh || fresh.message !== message.message) {return;}
+        const fresh = (await client.getMessages(toPeer(message.peerId), [message.id]))?.[0];
+        // Message mtcute mengekspos isi teks sebagai `.text`, bukan `.message`;
+        // perbandingan versi lama selalu gagal sehingga handler ini langsung
+        // berhenti dan perintahnya tidak pernah jalan.
+        if (!fresh || fresh.text !== message.message) {return;}
 
         await message.edit({
           text: '<blockquote>🔍 <b>Mengambil info pengguna...</b></blockquote>',
@@ -119,7 +125,7 @@ export default {
         }
 
         if (photo && typeof photo !== 'string' && photo.length > 0) {
-          await client.sendMessage(message.peerId as any, {
+          await client.sendMessage(toPeer(message.peerId), {
             message: caption,
             file: photo,
             parseMode: 'html',
@@ -165,8 +171,9 @@ export default {
         let members: number | string | undefined;
 
         try {
-          const fullChat: any = await client.getFullChat(chat.id || chat);
-          about = fullChat?.description || '';
+          const fullChat = await client.getFullChat(toPeer((chat.id || chat) as EntityLike));
+          // FullChat mtcute menamai deskripsi sebagai `bio`, bukan `description`.
+          about = fullChat?.bio || '';
           members = fullChat?.membersCount;
         } catch (_e) {
           about = '';

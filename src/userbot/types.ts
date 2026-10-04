@@ -1,3 +1,18 @@
+/**
+ * Pengaturan userbot seperti yang disimpan di database (lihat
+ * `src/services/UserbotService.ts`). Hanya field yang benar-benar dibaca kode
+ * TypeScript yang dideklarasikan; sisanya dibiarkan terbuka karena dokumen
+ * database memang bebas-bentuk.
+ */
+export interface UserbotSettings {
+  telegram_id?: number;
+  is_active?: number;
+  vars?: Record<string, string | undefined>;
+  chat_settings?: Record<string, { prefix?: string } & Record<string, unknown>>;
+  disabled_plugins?: string[];
+  [key: string]: unknown;
+}
+
 export type EntityLike = string | number | bigint | { id?: unknown; [key: string]: unknown };
 
 export type MessageEditOptions = {
@@ -70,5 +85,5 @@ export interface UserbotMessageLike {
   downloadMedia: () => Promise<Buffer | string | undefined>;
   edit: (options: MessageEditOptions) => Promise<unknown>;
   delete: (options?: Record<string, unknown>) => Promise<unknown>;
-  reply?: (options: any) => Promise<unknown>;
+  reply?: (options: { text?: string; message?: string; parseMode?: string } & Record<string, unknown>) => Promise<unknown>;
 }
