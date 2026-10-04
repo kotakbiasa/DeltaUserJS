@@ -93,7 +93,7 @@ async function getReplied(message: UserbotMessageLike): Promise<UserbotMessageLi
 }
 
 function replyToId(message: UserbotMessageLike): number {
-  return message.replyToMsgId || message.id;
+  return message.replyToMsgId || message.id || 0;
 }
 
 function humanSize(bytes: number): string {

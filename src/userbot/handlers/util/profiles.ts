@@ -93,13 +93,13 @@ export default {
         // getSender dulu, fallback getEntity/getChat
         let target: UserbotEntityLike | LegacyEntity | undefined;
         try {
-          target = await replied.getSender();
+          target = (await replied.getSender()) ?? undefined;
         } catch (_e) { target = undefined; }
         if (!target && replied.senderId) {
           try { target = await client.getEntity(toPeer(replied.senderId)); } catch (_e) { target = undefined; }
         }
         if (!target) {
-          try { target = await message.getChat(); } catch (_e) { target = undefined; }
+          try { target = (await message.getChat()) ?? undefined; } catch (_e) { target = undefined; }
         }
         if (!target) {
           await message.edit({

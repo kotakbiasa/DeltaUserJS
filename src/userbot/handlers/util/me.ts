@@ -125,7 +125,7 @@ export default {
         if (replied && replied.senderId) {
           // Reply ke user lain → ambil entity pengirim pesan itu
           try {
-            entity = await replied.getSender();
+            entity = (await replied.getSender()) ?? undefined;
           } catch (_e) { entity = undefined; }
           if (!entity) {
             try {

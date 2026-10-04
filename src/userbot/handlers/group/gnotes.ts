@@ -85,6 +85,7 @@ export default {
       // className gaya GramJS selalu gagal dan recall hashtag tidak pernah jalan.
       if (!isGroupChat(message)) {return;}
       const chatIdR = message.chatId ?? message.peerId;
+      if (chatIdR === undefined) {return;}
       const note = getGroupNote(chatIdR, noteName);
       if (note) {
         client.sendMessage(toPeer(message.chatId), {
@@ -110,6 +111,7 @@ export default {
     }
 
     const chatId = message.chatId ?? message.peerId;
+    if (chatId === undefined) {return;}
     const noteName = parts[1] ? parts[1].toLowerCase() : null;
 
     if (cmd === '.gsave') {

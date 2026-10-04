@@ -270,7 +270,7 @@ export default {
       if (moduleArg) {
         const targetModule = helpRegistry[moduleArg];
         if (targetModule) {
-          await message.edit({ text: buildModuleDetail(moduleArg), parseMode: 'html' });
+          await message.edit({ text: buildModuleDetail(moduleArg) ?? '', parseMode: 'html' });
         } else {
           const available = Object.keys(helpRegistry).join(', ');
           const safeName = escapeHtml(parts[1] ?? moduleArg);

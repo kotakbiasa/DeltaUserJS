@@ -166,9 +166,9 @@ export default {
       const loopMessage = text.substring(cmd.length + args[1].length + 2).trim();
       
       // Start loop in-memory
-      startLoop(client, telegramId, toPeer(chatId), minutes, loopMessage, false);
+      startLoop(client, telegramId, toPeer(chatId ?? 0), minutes, loopMessage, false);
       // Persist synchronously to DB
-      await saveSchedule(telegramId, chatId, 'loop', minutes, loopMessage);
+      await saveSchedule(telegramId, chatId ?? 0, 'loop', minutes, loopMessage);
 
       await message.edit({ 
         text: `<blockquote>🔁 <b>Loop Aktif!</b>\n\nBot akan otomatis mengirimkan pesan setiap <b>${escapeHtml(String(minutes))} menit</b> di obrolan ini.\n\nKetik <code>.rmloop</code> untuk menghentikan.</blockquote>`, 
@@ -177,8 +177,8 @@ export default {
     }
     
     else if (cmd === '.rmloop') {
-      const stopped = stopLoop(telegramId, toPeer(chatId), false);
-      await deleteSchedule(telegramId, chatId, 'loop');
+      const stopped = stopLoop(telegramId, toPeer(chatId ?? 0), false);
+      await deleteSchedule(telegramId, chatId ?? 0, 'loop');
       if (stopped) {
         await message.edit({ 
           text: `<blockquote>⏹️ <b>Loop Dihentikan!</b>\nPesan otomatis di obrolan ini telah dimatikan.</blockquote>`, 

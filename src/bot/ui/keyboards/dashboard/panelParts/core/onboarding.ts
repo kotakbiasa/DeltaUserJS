@@ -165,7 +165,7 @@ export function panelRegister(ctx: BotContext) {
 
 export function panelSubscription(ctx?: BotContext) {
   const userId = ctx?.from?.id;
-  const owner = isOwner(ctx);
+  const owner = ctx ? isOwner(ctx) : false;
   const session = userId ? getUserbotSession(userId) : null;
   const isTgPremium = isTelegramPremium(ctx, session);
   const approved = ctx && userId ? canRegister(ctx) : false;

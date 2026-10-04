@@ -152,7 +152,9 @@ export function parseTextArg(
 }
 
 /** Pesan error validasi dengan format seragam di seluruh perintah. */
-export function validationErrorText(error: string, usage?: string): string {
+// `error` boleh undefined karena ValidationResult memakai bentuk tunggal
+// ({ ok; value?; error? }) — strictNullChecks menolak jika dipaksa string.
+export function validationErrorText(error: string | undefined, usage?: string): string {
   const usageLine = usage ? `\n<b>Penggunaan:</b> <code>${usage}</code>` : '';
-  return `<blockquote>❌ <b>Input Tidak Valid:</b> ${error}${usageLine}</blockquote>`;
+  return `<blockquote>❌ <b>Input Tidak Valid:</b> ${error ?? 'Nilai tidak dikenali.'}${usageLine}</blockquote>`;
 }

@@ -148,7 +148,7 @@ export function registerInlineHelpHandlers(bot: Bot<BotContext>) {
   // inline_query: dipicu saat userbot memanggil getInlineBotResults
   // untuk mendapatkan menu help + tombol, lalu userbot posting via
   // sendInlineBotResult ke chat manapun (termasuk Chat Pribadi/Saved).
-  bot.on('inline_query', async (ctx: BotContext) => {
+  bot.on('inline_query', async (ctx) => {
     console.log(`[INLINE-QUERY-DEBUG] Received inline query: "${ctx.inlineQuery.query}" from user ${ctx.from?.id}`);
     const query = (ctx.inlineQuery.query || '').trim().toLowerCase();
 
@@ -192,7 +192,7 @@ export function registerInlineHelpHandlers(bot: Bot<BotContext>) {
 
   // Pesan "help_ubot" / "help_ubot:<module>" dari userbot (dikirim via DM ke
   // Master Bot oleh plugin .help userbot — userbot tidak bisa render tombol).
-  bot.on('message:text', async (ctx: BotContext) => {
+  bot.on('message:text', async (ctx) => {
     const text = (ctx.message.text || '').trim();
     if (!text.startsWith('help_ubot')) {return;}
     console.log(`[HELP-DEBUG] Master Bot terima: "${text}" dari user ${ctx.from?.id}`);
@@ -208,7 +208,7 @@ export function registerInlineHelpHandlers(bot: Bot<BotContext>) {
     });
   });
 
-  bot.callbackQuery(/^help:page:(\d+)(?::(.+))?$/, async (ctx: BotContext) => {
+  bot.callbackQuery(/^help:page:(\d+)(?::(.+))?$/, async (ctx) => {
     const page = Number(ctx.match[1]);
     const target = ctx.match[2] || 'main';
     await ctx.answerCallbackQuery();
@@ -217,7 +217,7 @@ export function registerInlineHelpHandlers(bot: Bot<BotContext>) {
     });
   });
 
-  bot.callbackQuery(/^help:module:([^:]+)(?::(.+))?$/, async (ctx: BotContext) => {
+  bot.callbackQuery(/^help:module:([^:]+)(?::(.+))?$/, async (ctx) => {
     const moduleName = ctx.match[1];
     const target = ctx.match[2] || resolveModuleTarget(moduleName) || 'main';
     await ctx.answerCallbackQuery();
@@ -226,11 +226,11 @@ export function registerInlineHelpHandlers(bot: Bot<BotContext>) {
     });
   });
 
-  bot.callbackQuery('help:noop', async (ctx: BotContext) => {
+  bot.callbackQuery('help:noop', async (ctx) => {
     await ctx.answerCallbackQuery();
   });
 
-  bot.callbackQuery(/^(help:close|close)$/, async (ctx: BotContext) => {
+  bot.callbackQuery(/^(help:close|close)$/, async (ctx) => {
     try { await ctx.answerCallbackQuery('Menu ditutup'); } catch (_) { /* empty */ }
     // Coba delete message dulu (jika chat pribadi / pesan bot normal)
     try {

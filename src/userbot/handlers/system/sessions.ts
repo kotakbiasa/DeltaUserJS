@@ -63,7 +63,7 @@ async function fetchAuthorizations(client: CompatClient): Promise<SessionRow[]> 
   return list;
 }
 
-function fmtDate(unix: number): string {
+function fmtDate(unix: number | undefined): string {
   if (!unix) {return '-';}
   const d = new Date(unix * 1000);
   const pad = (n: number): string => String(n).padStart(2, '0');
@@ -137,7 +137,7 @@ async function monitorTick(client: CompatClient, telegramId: number, st: KillerS
     if (killed > 0) {st.lastKillAt = Date.now();}
 
     const text = `🚨 <b>SESSIONKILLER</b>\n<blockquote>${newcomers.length} sesi baru terdeteksi & langsung diputus (<b>${killed}</b> berhasil):\n\n${details.join('\n')}\n\nℹ️ Matikan dengan <code>.sessionkiller off</code></blockquote>`;
-    await client.sendMessage(config.ownerId, { message: text, parseMode: 'html', linkPreview: false });
+    await client.sendMessage(config.ownerId as string | number, { message: text, parseMode: 'html', linkPreview: false });
     Logger.logSystem(`🚨 SessionKiller: ${newcomers.length} sesi baru, ${killed} direset`, killed > 0 ? 'WARN' : 'INFO');
   } catch (err) {
     Logger.logSystem(`SessionKiller tick error: ${errText(err)}`, 'ERROR');

@@ -34,7 +34,12 @@ export class UserbotClient {
   public telegramId: number;
   public sessionString: string;
   /** mtcute client + alias legacy; null sebelum start()/setelah stop(). */
-  public client: CompatClient;
+  /**
+   * Diisi di `start()`. Ditandai `!` karena seluruh method publik lain memang
+   * baru dipanggil setelah userbot berjalan, dan jalur yang bisa berjalan
+   * lebih awal sudah menjaga dengan `if (!this.client) return;`.
+   */
+  public client!: CompatClient;
   public dp: Dispatcher | null;
   public isActive: boolean;
   public floodWaitUntil: number | null;
@@ -52,7 +57,6 @@ export class UserbotClient {
   constructor(telegramId: number, sessionString: string) {
     this.telegramId = Number(telegramId);
     this.sessionString = sessionString;
-    this.client = null;
     this.dp = null;
     this.isActive = false;
     this.floodWaitUntil = null;
@@ -540,7 +544,7 @@ export class UserbotClient {
           return {
             id: chat.id,
             title: chat.title,
-            username: chat.username,
+            username: chat.username ?? undefined,
             // Chat mtcute hanya mengekspos nama ini untuk peer user.
             firstName: (chat as { firstName?: string }).firstName,
             lastName: (chat as { lastName?: string }).lastName,
@@ -607,15 +611,15 @@ export class UserbotClient {
     const origDeleteMessages = this.client.deleteMessages?.bind(this.client);
     this.client.deleteMessages = async (chatOrMsgs: unknown, idsOrParams?: unknown, maybeParams?: unknown) => {
       if (Array.isArray(idsOrParams) && typeof idsOrParams[0] === 'number') {
-        return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, idsOrParams, maybeParams);
+        return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, idsOrParams, maybeParams as Parameters<CompatClient['deleteMessagesById']>[2]);
       }
       if (Array.isArray(chatOrMsgs) && typeof chatOrMsgs[0] === 'object') {
         return await origDeleteMessages(chatOrMsgs, idsOrParams);
       }
       if (Array.isArray(idsOrParams)) {
-        return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, idsOrParams as number[], maybeParams);
+        return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, idsOrParams as number[], maybeParams as Parameters<CompatClient['deleteMessagesById']>[2]);
       }
-      return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, [idsOrParams as number], maybeParams);
+      return await this.client.deleteMessagesById(chatOrMsgs as InputPeerLike, [idsOrParams as number], maybeParams as Parameters<CompatClient['deleteMessagesById']>[2]);
     };
 
     if (!this.client.downloadProfilePhoto) {

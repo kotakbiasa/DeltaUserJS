@@ -25,8 +25,10 @@ async function waitForInput(conversation: BotConversation, ctx: BotContext) {
       const notice = await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b></p>`);
       const noticeId = notice?.message_id;
       if (noticeId) {
+        const noticeChatId = ctx.chat?.id;
         const t = setTimeout(() => {
-          ctx.api.deleteMessage(ctx.chat?.id, noticeId).catch(() => { /* ignore */ });
+          if (noticeChatId === undefined) {return;}
+          ctx.api.deleteMessage(noticeChatId, noticeId).catch(() => { /* ignore */ });
         }, 30_000);
         if (typeof t.unref === 'function') {t.unref();}
       }
@@ -151,7 +153,7 @@ export async function manageVarsConv(conversation: BotConversation, ctx: BotCont
       await result.answerCallbackQuery();
 
       // Hapus menu utama vars agar rapi sebelum masuk sub-prompt
-      try { await ctx.api.deleteMessage(ctx.chat.id, menuMsg.message_id); } catch (_) { /* empty */ }
+      if (ctx.chat) {try { await ctx.api.deleteMessage(ctx.chat.id, menuMsg.message_id); } catch (_) { /* empty */ }}
 
       if (data === 'var:cancel') {
         await replyRich(ctx, `<p><b>🚪 Selesai</b><br>Keluar dari pengaturan variabel. Gunakan /menu untuk membuka menu utama.</p>`);
@@ -332,7 +334,7 @@ export async function manageVarsConv(conversation: BotConversation, ctx: BotCont
         const delData = delResult.callbackQuery.data;
         await delResult.answerCallbackQuery();
 
-        try { await ctx.api.deleteMessage(ctx.chat.id, delMenuMsg.message_id); } catch (_) { /* empty */ }
+        if (ctx.chat) {try { await ctx.api.deleteMessage(ctx.chat.id, delMenuMsg.message_id); } catch (_) { /* empty */ }}
 
         if (delData === 'var:del_cancel') {continue;}
 

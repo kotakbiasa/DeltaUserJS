@@ -215,8 +215,8 @@ async function kickUser(client: CompatClient, chat: UserbotEntityLike, _isChanne
     // Pemanggilan TL mentah: resolvePeer() mengembalikan InputPeer, sedangkan
     // skema channels.editBanned minta InputChannel. Bentuknya dipakai apa
     // adanya seperti sebelumnya, cuma sekarang cast-nya tertulis eksplisit.
-    const channel = (await client.resolvePeer?.(toPeer(chatId as EntityLike)) || chatId) as tl.TypeInputChannel;
-    const bannedPeer = (await client.resolvePeer?.(toPeer(participant as EntityLike)) || participant) as tl.TypeInputPeer;
+    const channel = (await client.resolvePeer?.(toPeer(chatId as EntityLike)) || chatId) as unknown as tl.TypeInputChannel;
+    const bannedPeer = (await client.resolvePeer?.(toPeer(participant as EntityLike)) || participant) as unknown as tl.TypeInputPeer;
     await client.call({
       _: 'channels.editBanned',
       channel,

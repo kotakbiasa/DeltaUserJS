@@ -16,6 +16,9 @@ export default {
   },
   async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const chatId = message.chatId;
+    // Pesan tanpa chat tidak bisa diproses: dulu nilainya diam-diam menjadi
+    // string "undefined" dan dipakai sebagai kunci pengaturan chat.
+    if (chatId === undefined) {return;}
     const chatKey = String(chatId);
 
     // --- 1. Handle Event Join / Leave ---
@@ -47,6 +50,8 @@ export default {
             : [message.senderId as string | number | undefined];
 
         for (const uId of userIds) {
+          if (uId === undefined) {continue;}
+          if (uId === undefined) {return;}
           let name = `User_${uId}`;
           try {
             const userEntity = await client.getEntity(uId);
@@ -80,6 +85,7 @@ export default {
       if (isLeave) {
         // mtcute: user_removed membawa `user`; skema TL lama memakai `userId`.
         const uId = (message.action.user ?? message.action.userId ?? message.senderId) as string | number | undefined;
+        if (uId === undefined) {return;}
         let name = `User_${uId}`;
         try {
           const userEntity = await client.getEntity(uId);

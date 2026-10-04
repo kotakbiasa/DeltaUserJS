@@ -148,7 +148,7 @@ export function createUserbotMessageAdapter(rawMsg: Message, client: CompatClien
         id: s.id,
         firstName: asUser.firstName,
         lastName: asUser.lastName,
-        username: s.username,
+        username: s.username ?? undefined,
         title: asChat.title,
         premium: Boolean((s as { isPremium?: boolean }).isPremium),
         bot: Boolean((s as { isBot?: boolean }).isBot),
@@ -162,7 +162,7 @@ export function createUserbotMessageAdapter(rawMsg: Message, client: CompatClien
       return {
         id: c.id,
         title: (c as { title?: string }).title,
-        username: c.username,
+        username: c.username ?? undefined,
         // Peer mtcute: `type` cuma 'user'|'chat'; jenis grup ada di `chatType`.
         // Perbandingan lama ('channel'/'supergroup') tidak pernah benar.
         className: c.type === 'chat' && (c.chatType === 'channel' || c.chatType === 'supergroup') ? 'Channel' : 'Chat',

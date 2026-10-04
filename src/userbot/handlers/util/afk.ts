@@ -82,7 +82,7 @@ export default {
         const durasi = mins >= 60 ? `${Math.floor(mins / 60)} jam ${mins % 60} menit` : `${mins} menit`;
         const safeReason = escapeHtmlPreservingTgEmoji(info.reason);
         try {
-          await message.reply({
+          await message.reply?.({
             message: `<blockquote>${afkEmoji} <b>Owner sedang AFK</b>\n\nAlasan: <i>${safeReason}</i>\nSejak: <b>${durasi}</b> yang lalu.</blockquote>`,
             parseMode: 'html'
           });

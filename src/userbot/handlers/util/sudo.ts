@@ -140,7 +140,7 @@ function isOwnerBot(telegramId: number) {
 
 // Prioritas: argumen ID langsung (.addsudo 12345), lalu reply ke pesan user.
 async function resolveTargetId(message: UserbotMessageLike) {
-  const arg = message.message.trim().split(/\s+/)[1];
+  const arg = (message.message ?? '').trim().split(/\s+/)[1];
   if (arg) {
     const id = Number(arg);
     if (Number.isInteger(id) && id > 0) {return id;}

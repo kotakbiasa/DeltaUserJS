@@ -19,6 +19,9 @@ export default {
     const cmd = args[0].toLowerCase();
 
     const chatId = message.chatId;
+    // Pesan tanpa chat tidak bisa diproses: dulu nilainya diam-diam menjadi
+    // string "undefined" dan dipakai sebagai kunci pengaturan chat.
+    if (chatId === undefined) {return;}
     const chatSettings = getChatSettings(telegramId, chatId);
 
     if (cmd === '.setprefix') {

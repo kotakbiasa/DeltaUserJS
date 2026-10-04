@@ -277,7 +277,7 @@ export function extractEmojiFromContext(arg: string | undefined, message?: Emoji
       if (hasCustomAttr && document.id) {
         const docId = document.id.toString();
         // find alt char from DocumentAttributeSticker if available
-        const stickerAttr = document.attributes.find((a) => a.className === 'DocumentAttributeSticker');
+        const stickerAttr = (document.attributes ?? []).find((a) => a.className === 'DocumentAttributeSticker');
         const altChar = stickerAttr?.alt || '⭐';
         return {
           documentId: docId,

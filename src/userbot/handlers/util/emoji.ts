@@ -99,7 +99,7 @@ export default {
             if (ent.className === 'MessageEntityCustomEmoji' && ent.documentId) {
               const docId = ent.documentId.toString();
               const raw = String(replied.message || '');
-              const char = raw.slice(ent.offset, ent.offset + ent.length) || '⭐';
+              const char = raw.slice(ent.offset ?? 0, (ent.offset ?? 0) + (ent.length ?? 0)) || '⭐';
               if (!extractedList.some(e => e.id === docId)) {
                 extractedList.push({ id: docId, char });
               }
@@ -124,7 +124,7 @@ export default {
 
       // Periksa juga argumen perintah jika ada (misal .getemoji <id>)
       if (parts[1]) {
-        const argExtract = extractEmojiFromContext(parts.slice(1).join(' '), message, replied);
+        const argExtract = extractEmojiFromContext(parts.slice(1).join(' '), message, replied ?? undefined);
         if (argExtract?.documentId && !extractedList.some(e => e.id === argExtract.documentId)) {
           extractedList.push({ id: argExtract.documentId, char: argExtract.char || '⭐' });
         }
@@ -229,7 +229,7 @@ export default {
       const rawArg = parts.slice(2).join(' ');
 
       // Ekstrak emoji
-      const extracted = extractEmojiFromContext(rawArg, message, replied);
+      const extracted = extractEmojiFromContext(rawArg, message, replied ?? undefined);
 
       if (!extracted || (!extracted.tag && !extracted.char)) {
         await message.edit({

@@ -1,4 +1,5 @@
 import { InlineKeyboard } from 'grammy';
+import type { BotContext, BotConversation } from '../../context.js';
 import { escapeHtml, replyRich } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import config from '../../../config.js';
@@ -15,13 +16,11 @@ import {
   waitForInput,
 } from './shared.js';
 import { errorMessage, errorName, isRpcError, rpcErrorText } from '../../../utils/errors.js';
-import type { Conversation } from '@grammyjs/conversations';
-import type { Context } from 'grammy';
 
 /**
  * Conversation handler for OTP Registration via mtcute
  */
-export async function otpRegistrationConversation(conversation: Conversation<Context, Context>, ctx: Context) {
+export async function otpRegistrationConversation(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
 
   if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {
@@ -256,7 +255,7 @@ export async function otpRegistrationConversation(conversation: Conversation<Con
       });
 
       if (signInResult.status === 'success') {
-        sessionString = signInResult.sessionString;
+        sessionString = signInResult.sessionString ?? null;
         signInDone = true;
       } else if (signInResult.status === 'code_expired') {
         if (attemptCount < MAX_ATTEMPTS) {
@@ -330,7 +329,7 @@ export async function otpRegistrationConversation(conversation: Conversation<Con
           return;
         }
         if (pwdResult.status === 'success') {
-          sessionString = pwdResult.sessionString;
+          sessionString = pwdResult.sessionString ?? null;
           signInDone = true;
         } else {
           await replyRich(

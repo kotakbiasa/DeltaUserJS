@@ -26,7 +26,7 @@ import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
 import { getUserbotSession, updateTelegramPremiumStatus } from '../infrastructure/database.js';
 
-const bot = new Bot<BotContext>(config.botToken);
+const bot = new Bot<BotContext>(config.botToken as string);
 
 // --- Manual sequentialize implementation (no extra deps) ---
 // Maps key -> Promise<void> that resolves when the current update finishes.

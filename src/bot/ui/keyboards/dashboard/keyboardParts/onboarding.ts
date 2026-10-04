@@ -43,7 +43,7 @@ export function keyboardBuySubscription(ctx?: BotContext) {
 
 export function keyboardSubscription(ctx?: BotContext) {
   const userId = ctx?.from?.id;
-  const owner = isOwner(ctx);
+  const owner = ctx ? isOwner(ctx) : false;
   const session = userId ? getUserbotSession(userId) : null;
   const approved = userId ? (owner || isApproved(userId) || isAutoApproveEnabled()) : false;
   const pending = userId ? isPendingApproval(userId) : false;

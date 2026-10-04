@@ -34,6 +34,9 @@ export default {
   },
   async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     const chatId = message.chatId;
+    // Pesan tanpa chat tidak bisa diproses: dulu nilainya diam-diam menjadi
+    // string "undefined" dan dipakai sebagai kunci pengaturan chat.
+    if (chatId === undefined) {return;}
     const _chatKey = String(chatId);
 
     // --- 1. Handle Settings & Query Commands ---

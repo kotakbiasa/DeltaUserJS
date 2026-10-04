@@ -290,3 +290,33 @@ tak pernah diuji.
 |---|---|
 | `moderate.ts` `resolveTarget()` | Saat perintah berupa **reply**, token pertama argumen tetap dipotong sebagai "target". Akibatnya `.ban spam parah` menyimpan alasan `"parah"` (kata pertama hilang), dan `.promote Moderator` kehilangan gelarnya sehingga rank jatuh ke default `"Admin"`. Kini token hanya dipotong bila tidak sedang membalas pesan. |
 | `test/mockMtcute.js` | `until`/`untilDate` numerik diperlakukan sebagai milidetik, padahal mtcute memaknainya sebagai **unix detik**. Mute berdurasi apa pun tampak sudah kedaluwarsa — bug mock yang akan menyamarkan regresi `.mute` sungguhan. |
+
+---
+
+## 11. `strictNullChecks` kini aktif ✅
+
+`tsconfig.json` sekarang memakai `noImplicitAny: true` **dan**
+`strictNullChecks: true` (`strict` masih `false`). Saat dinyalakan, compiler
+melaporkan **236 error**; semuanya sudah dibereskan.
+
+**Dua pola sistemik — 123 dari 236 error:**
+
+| Pola | Jumlah | Penyelesaian |
+|---|---|---|
+| `ctx.from` mungkin undefined | 110 | `BotContext` mendeklarasikan `from` non-opsional, dijamin middleware pertama di `bot/index.ts` yang membuang update tanpa `from` (channel post, poll). Bot ini memang hanya melayani interaksi user. |
+| `ctx.match`/`ctx.chat`/`ctx.message` mungkin undefined di dalam handler ber-filter | 13 | Anotasi `ctx: BotContext` yang ditulis manual justru **mematikan penyempitan tipe** dari filter grammY. Anotasinya dihapus supaya `bot.on('inline_query')`, `bot.command()`, dan `bot.callbackQuery(/re/)` memberi context yang sudah menyempit. |
+
+**Temuan yang pantas dicatat:**
+
+- Beberapa variabel `let` yang hanya di-assign dari dalam callback (`twoFaReject`
+  di alur QR 2FA) disimpulkan compiler selalu `null`, sehingga pemanggilannya
+  ditandai "not callable". Diganti satu objek pemegang state (`twoFa.resolve` /
+  `twoFa.reject`) agar penyempitan bekerja benar.
+- `qrResult.sessionString` sudah dijaga `if (!...) throw`, tetapi penyempitan itu
+  hilang saat nilainya dibaca lagi di dalam closure `conversation.external()`.
+  Disalin ke `const` sebelum dipakai.
+- Beberapa handler memakai `message.chatId` langsung sebagai kunci pengaturan
+  chat. Bila undefined, kuncinya menjadi string `"undefined"` — pengaturan satu
+  chat hantu yang dipakai bersama. Kini keluar lebih awal.
+- Password 2FA kosong dulu diteruskan apa adanya; sekarang ditolak dengan pesan
+  jelas dan sesi registrasi dibersihkan.

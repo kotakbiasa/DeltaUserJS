@@ -246,7 +246,7 @@ export default {
       }
       return;
     }
-    const rawId = BigInt(chat.id.toString());
+    const rawId = BigInt(String((chat as { id?: unknown }).id ?? 0));
     const chatId = chat.className === 'Channel'
       ? -(1_000_000_000_000n + rawId)
       : -rawId;

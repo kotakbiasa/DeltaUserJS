@@ -268,7 +268,7 @@ async function invokeAddSticker(client: CompatClient, packInfo: { pack: number; 
 
 // Upload file sementara ke Saved Messages untuk mendapat InputDocument,
 // lalu langsung dihapus lagi. (Pola yang sama dengan kang.ts)
-async function uploadTempAsDocument(client: CompatClient, filePath: string, attributes: unknown[] = null) {
+async function uploadTempAsDocument(client: CompatClient, filePath: string, attributes: unknown[] | null = null) {
   const sent = await client.sendFile('me', {
     file: filePath,
     forceDocument: true,
@@ -370,7 +370,7 @@ async function buildVideoFromMedia(client: CompatClient, currentMsg: UserbotMess
 
 // Tambahkan satu stiker ke pack; kalau referensi langsung ditolak,
 // coba sekali lagi lewat fallback re-upload.
-async function addStickerToPack(client: CompatClient, packInfo: { pack: number; shortName: string; title: string; existing: { id?: unknown; accessHash?: unknown } | null }, candidate: { ref: unknown; fallback?: () => Promise<unknown> }, emoji: string) {
+async function addStickerToPack(client: CompatClient, packInfo: { pack: number; shortName: string; title: string; existing: { id?: unknown; accessHash?: unknown } | null }, candidate: { ref: unknown; fallback?: (() => Promise<unknown>) | null }, emoji: string) {
   const stickerItem = new Api.InputStickerSetItem({ document: candidate.ref, emoji });
   try {
     await invokeAddSticker(client, packInfo, stickerItem);
@@ -424,12 +424,12 @@ export default {
         await editStatus(message, '⏳ <b>Menganalisis album media...</b>');
         try {
           const peer = message.peerId ?? message.chatId;
-          const history = await client.getMessages(toPeer(peer), { limit: 20, offsetId: replied.id + 10 });
+          const history = await client.getMessages(toPeer(peer), { limit: 20, offsetId: (replied.id ?? 0) + 10 });
           const grouped = (history || []).filter(m =>
             m && m.groupedId && String(m.groupedId) === String(replied.groupedId) && m.media
           );
           if (grouped.length > 0) {
-            mediaMessages = grouped.sort((a, b) => a.id - b.id) as unknown as UserbotMessageLike[];
+            mediaMessages = grouped.sort((a, b) => Number(a?.id ?? 0) - Number(b?.id ?? 0)) as unknown as UserbotMessageLike[];
           }
         } catch (e) {
           Logger.logUser(telegramId, `kang: album scan gagal (${errMsg(e)}), pakai pesan tunggal`, 'WARN');
@@ -487,7 +487,7 @@ export default {
             }
 
             // Resolve pack (per jenis) lalu tambahkan stiker
-            const packInfo = await resolvePack(client, me, cls.kind, packCounters[cls.kind]);
+            const packInfo = await resolvePack(client, me as unknown as { id?: string | number; username?: string; firstName?: string }, cls.kind, packCounters[cls.kind] ?? 1);
             await addStickerToPack(client, packInfo, candidate, emoji);
             packCounters[cls.kind] = packInfo.pack;
             resultLinks.push({ kind: cls.kind, shortName: packInfo.shortName, pack: packInfo.pack });
@@ -552,7 +552,7 @@ export default {
         let targets: UserbotMessageLike[] = [replied];
         if (n > 1) {
           const peer = message.peerId ?? message.chatId;
-          const ids = Array.from({ length: n }, (_, i) => replied.id + i);
+          const ids = Array.from({ length: n }, (_, i) => (replied.id ?? 0) + i);
           const fetched = await client.getMessages(toPeer(peer), { ids });
           targets = ((fetched || []).filter(Boolean) as unknown as UserbotMessageLike[]).sort((a, b) => Number(a.id) - Number(b.id));
           if (targets.length === 0) {targets = [replied];}
@@ -565,7 +565,7 @@ export default {
           await client.forwardMessagesById({
             fromChatId: toPeer(message.peerId ?? message.chatId),
             toChatId: QUOTLY,
-            messages: [t.id],
+            messages: [Number(t.id ?? 0)],
           });
           await new Promise(r => setTimeout(r, 300));
         }

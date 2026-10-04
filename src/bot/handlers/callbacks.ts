@@ -15,7 +15,7 @@ async function sendMainRich(ctx: BotContext, deleteOld = false) {
         ctx.callbackQuery.message.chat.id,
         ctx.callbackQuery.message.message_id,
         { html: panelMain(ctx) },
-        { reply_markup: keyboardMain(ctx) as unknown as Parameters<typeof ctx.api.editMessageText>[3]['reply_markup'] }
+        { reply_markup: keyboardMain(ctx) as unknown as NonNullable<Parameters<typeof ctx.api.editMessageText>[3]>['reply_markup'] }
       );
       return;
     } catch (_) { /* fallback below */ }
@@ -28,12 +28,12 @@ async function sendMainRich(ctx: BotContext, deleteOld = false) {
 
 export function registerLegacyCallbacks(bot: Bot<BotContext>) {
   // Legacy callback aliases kept so old buttons/conversation prompts still work.
-  bot.callbackQuery('back_to_main', async (ctx: BotContext) => {
+  bot.callbackQuery('back_to_main', async (ctx) => {
     await ctx.answerCallbackQuery();
     await sendMainRich(ctx, true);
   });
 
-  bot.callbackQuery('ubot_register_menu', async (ctx: BotContext) => {
+  bot.callbackQuery('ubot_register_menu', async (ctx) => {
     await ctx.answerCallbackQuery();
     const id = ctx.from.id;
     if (Number(id) !== Number(config.ownerId) && !isApproved(Number(id))) {
@@ -43,7 +43,7 @@ export function registerLegacyCallbacks(bot: Bot<BotContext>) {
     await ctx.conversation.enter('otp-reg');
   });
 
-  bot.callbackQuery('reg_otp', async (ctx: BotContext) => {
+  bot.callbackQuery('reg_otp', async (ctx) => {
     await ctx.answerCallbackQuery();
     // Same approval gate as ubot_register_menu — otherwise these aliases let
     // any user bypass the subscription/approval system and register a userbot.
@@ -55,7 +55,7 @@ export function registerLegacyCallbacks(bot: Bot<BotContext>) {
     await ctx.conversation.enter('otp-reg');
   });
 
-  bot.callbackQuery('reg_qr', async (ctx: BotContext) => {
+  bot.callbackQuery('reg_qr', async (ctx) => {
     await ctx.answerCallbackQuery();
     const id = ctx.from.id;
     if (Number(id) !== Number(config.ownerId) && !isApproved(Number(id))) {
@@ -65,12 +65,12 @@ export function registerLegacyCallbacks(bot: Bot<BotContext>) {
     await ctx.conversation.enter('qr-reg');
   });
 
-  bot.callbackQuery('request_approval', async (ctx: BotContext) => {
+  bot.callbackQuery('request_approval', async (ctx) => {
     const telegramId = ctx.from.id;
     const name = escapeHtml(ctx.from.first_name || 'User');
     const username = ctx.from.username ? `@${escapeHtml(ctx.from.username)}` : 'Tanpa Username';
     try {
-      const targetChat = config.logGroupId || config.ownerId;
+      const targetChat = (config.logGroupId || config.ownerId) as string | number;
       const extraParams: Record<string, unknown> = {
         parse_mode: 'HTML',
         reply_markup: new InlineKeyboard()
@@ -92,7 +92,7 @@ export function registerLegacyCallbacks(bot: Bot<BotContext>) {
     }
   });
 
-  bot.callbackQuery(/^(?:approve_reg|approve_trial):(\d+)$/, async (ctx: BotContext) => {
+  bot.callbackQuery(/^(?:approve_reg|approve_trial):(\d+)$/, async (ctx) => {
     // Only the owner may approve registrations.
     if (Number(ctx.from.id) !== Number(config.ownerId)) {
       await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang boleh menyetujui.', show_alert: true });
@@ -122,7 +122,7 @@ export function registerLegacyCallbacks(bot: Bot<BotContext>) {
     } catch (_) { /* user may have blocked the bot */ }
   });
 
-  bot.callbackQuery(/^(?:reject_reg|reject_trial):(\d+)$/, async (ctx: BotContext) => {
+  bot.callbackQuery(/^(?:reject_reg|reject_trial):(\d+)$/, async (ctx) => {
     // Owner-only
     if (Number(ctx.from.id) !== Number(config.ownerId)) {
       await ctx.answerCallbackQuery({ text: '⛔ Hanya owner yang boleh menolak.', show_alert: true });
@@ -155,7 +155,7 @@ export function registerLegacyCallbacks(bot: Bot<BotContext>) {
     } catch (_) { /* user may have blocked the bot */ }
   });
 
-  bot.callbackQuery(/^(cancel|cancel_reg|cancel_qr)$/, async (ctx: BotContext) => {
+  bot.callbackQuery(/^(cancel|cancel_reg|cancel_qr)$/, async (ctx) => {
     const userId = ctx.from.id;
     try { await abortActiveQr(userId, ctx.api); } catch (_) { /* empty */ }
     const client = activeRegClients.get(userId);

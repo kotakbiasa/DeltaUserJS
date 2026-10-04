@@ -37,7 +37,7 @@ export async function notifyUser(userId: string | number, html: string) {
 /** Kirim notifikasi ke owner (config.ownerId). */
 export async function notifyOwner(html: string) {
   const { default: config } = await import('../config.js');
-  return notifyUser(config.ownerId, html);
+  return notifyUser(config.ownerId as string | number, html);
 }
 
 /**

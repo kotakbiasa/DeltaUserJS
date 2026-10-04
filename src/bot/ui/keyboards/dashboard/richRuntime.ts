@@ -56,10 +56,11 @@ export async function sendRich(ctx: BotContext, rich: RichPayload, reply_markup?
   }
   const rich_message = (typeof rich === 'string' ? { html: rich } : rich) as { html: string };
   // Edit in-place kalau berasal dari callback pada pesan bot (message_id ada) & opsi edit aktif
-  const cbMsgId = ctx.callbackQuery?.message?.message_id;
-  if (edit && cbMsgId) {
+  const cbMessage = ctx.callbackQuery?.message;
+  const cbMsgId = cbMessage?.message_id;
+  if (edit && cbMessage && cbMsgId) {
     try {
-      await ctx.api.editMessageText(ctx.callbackQuery.message.chat.id, cbMsgId, rich_message, { reply_markup: reply_markup as ApiReplyMarkup });
+      await ctx.api.editMessageText(cbMessage.chat.id, cbMsgId, rich_message, { reply_markup: reply_markup as ApiReplyMarkup });
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

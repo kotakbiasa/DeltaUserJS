@@ -1,6 +1,5 @@
 import { InlineKeyboard } from 'grammy';
-import type { Context } from 'grammy';
-import type { Conversation } from '@grammyjs/conversations';
+import type { BotContext, BotConversation } from '../context.js';
 import { replyRich, escapeHtml } from '../../utils/richMessage.js';
 import userbotManager from '../../userbot/engine/manager.js';
 import { getUserbotSession, saveSchedule } from '../../infrastructure/database.js';
@@ -8,7 +7,7 @@ import { startLoop } from '../../userbot/handlers/util/loop.js';
 
 const loopCancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel_loop');
 
-async function waitForInput(conversation: Conversation<Context, Context>, ctx: Context): Promise<string> {
+async function waitForInput(conversation: BotConversation, ctx: BotContext): Promise<string> {
   const result = await conversation.waitFor(['message:text', 'callback_query:data']);
   const cbData = result.callbackQuery?.data;
   const textMsg = result.message?.text?.trim().toLowerCase();
@@ -35,7 +34,7 @@ async function waitForInput(conversation: Conversation<Context, Context>, ctx: C
   return result.message.text.trim();
 }
 
-export async function userAddLoopConversation(conversation: Conversation<Context, Context>, ctx: Context) {
+export async function userAddLoopConversation(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
   const session = getUserbotSession(telegramId);
   if (!session) {

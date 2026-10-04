@@ -1,4 +1,5 @@
 import { InputFile } from 'grammy';
+import type { BotContext, BotConversation } from '../../context.js';
 import { escapeHtml, replyRich } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import qrcode from 'qrcode';
@@ -14,7 +15,6 @@ import {
   getOrCreateClient,
 } from './shared.js';
 import { errorMessage, errorName } from '../../../utils/errors.js';
-import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
 /**
@@ -29,9 +29,9 @@ type QrTaskResult = {
   error?: string;
 };
 
-export async function qrRegistrationConversation(conversation: Conversation<Context, Context>, ctx: Context) {
+export async function qrRegistrationConversation(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
-  const chatId = ctx.chat.id;
+  const chatId = ctx.chat?.id ?? telegramId;
 
   if (telegramId !== Number(config.ownerId) && !isApproved(telegramId)) {
     await replyRich(
@@ -69,8 +69,14 @@ export async function qrRegistrationConversation(conversation: Conversation<Cont
       { reply_markup: cancelKeyboard }
     );
 
-    let twoFaDeferredPassword: ((pwd: string) => void) | null = null;
-    let twoFaReject: ((err: unknown) => void) | null = null;
+    // Disimpan dalam satu objek, bukan dua `let`. Keduanya hanya di-assign dari
+    // dalam callback, dan dengan strictNullChecks TypeScript menyimpulkan
+    // variabel `let` semacam itu selalu null — sehingga pemanggilannya ditandai
+    // "not callable" meski sudah dijaga if.
+    const twoFa: {
+      resolve: ((pwd: string) => void) | null;
+      reject: ((err: unknown) => void) | null;
+    } = { resolve: null, reject: null };
 
     const qrResult = await conversation.external({
       task: async (outsideCtx: Context) => {
@@ -119,8 +125,8 @@ export async function qrRegistrationConversation(conversation: Conversation<Cont
             }
           },
           password: () => new Promise<string>((resolve, reject) => {
-              twoFaDeferredPassword = resolve;
-              twoFaReject = reject;
+              twoFa.resolve = resolve;
+              twoFa.reject = reject;
             }),
         });
 
@@ -138,7 +144,7 @@ export async function qrRegistrationConversation(conversation: Conversation<Cont
             timeoutPromise,
             new Promise((resolve) => {
               const check2Fa = setInterval(() => {
-                if (twoFaDeferredPassword) {
+                if (twoFa.resolve) {
                   clearInterval(check2Fa);
                   resolve('2fa_needed');
                 }
@@ -146,7 +152,7 @@ export async function qrRegistrationConversation(conversation: Conversation<Cont
             }),
           ]);
 
-          if (twoFaDeferredPassword) {
+          if (twoFa.resolve) {
             result = { status: '2fa_needed' };
           } else {
             const sessionString = await client.exportSession();
@@ -202,22 +208,28 @@ export async function qrRegistrationConversation(conversation: Conversation<Cont
       const pwdText = pwdResult.message?.text?.trim();
 
       if (pwdCb === 'cancel' || pwdCb === 'cancel_reg' || pwdCb === 'cancel_qr' || pwdText?.toLowerCase() === '/cancel') {
-        if (twoFaReject) {twoFaReject(new Error('USER_CANCELLED'));}
+        if (twoFa.reject) {twoFa.reject(new Error('USER_CANCELLED'));}
         await cleanupClient(telegramId);
         await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali.</p>`);
         return;
       }
 
       const password = pwdText;
+      if (!password) {
+        await replyRich(ctx, `<p><b>❌ Password 2FA kosong.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali.</p>`);
+        if (twoFa.reject) {twoFa.reject(new Error('EMPTY_PASSWORD'));}
+        await cleanupClient(telegramId);
+        return;
+      }
 
       const pwdAuthResult = await conversation.external(async () => {
         const activeClient = activeRegClients.get(telegramId);
-        if (!activeClient || !twoFaDeferredPassword) {
+        if (!activeClient || !twoFa.resolve) {
           return { status: 'error', error: 'Sesi client 2FA tidak ditemukan.' };
         }
 
         try {
-          twoFaDeferredPassword(password);
+          twoFa.resolve(password);
           const sessionString = await activeClient.exportSession();
           let phone: string | null = null;
           let customName: string | undefined;
@@ -264,15 +276,19 @@ export async function qrRegistrationConversation(conversation: Conversation<Cont
     if (!qrResult.sessionString) {
       throw new Error('Gagal mendapatkan sesi string dari QR login');
     }
+    // Salin ke const: penyempitan di atas hilang begitu nilainya dibaca lagi
+    // dari dalam closure conversation.external().
+    const finalSession = qrResult.sessionString;
+    const finalPhone = qrResult.phone || '00000';
 
     // Simpan session string ke MongoDB
     await conversation.external(async () => {
       await saveUserbotSession(
         telegramId,
-        qrResult.phone || '00000',
-        qrResult.sessionString
+        finalPhone,
+        finalSession
       );
-      await userbotManager.startUserbot(telegramId, qrResult.sessionString);
+      await userbotManager.startUserbot(telegramId, finalSession);
     });
 
     Logger.logUser(telegramId, 'Userbot berhasil terdaftar & aktif via QR Code (mtcute)', 'SUCCESS');

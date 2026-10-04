@@ -248,7 +248,7 @@ export default {
       }
 
       // ---- .monitor on|off|status ----
-      const arg = monitorMatch[1] ? monitorMatch[1].toLowerCase() : '';
+      const arg = monitorMatch?.[1] ? monitorMatch[1].toLowerCase() : '';
       const idNum = Number(telegramId);
 
       if (arg === 'on') {

@@ -4,7 +4,7 @@
  * Dipecah dari dashboard/keyboards.ts (575 baris). Isi tiap fungsi
  * dipindahkan apa adanya; yang berubah hanya di file mana ia tinggal.
  */
-import type { Context } from 'grammy';
+import type { BotContext } from '../../../../context.js';
 import { getSchedules } from '../../../../../infrastructure/database.js';
 import { LOOPS_PER_PAGE } from '.././shared.js';
 
@@ -16,7 +16,7 @@ type DashboardButton = {
 };
 type DashboardButtonRows = DashboardButton[][];
 
-export function keyboardUserLoops(ctx: Context, page = 1) {
+export function keyboardUserLoops(ctx: BotContext, page = 1) {
   const telegramId = ctx.from.id;
   const allSchedules = getSchedules(telegramId);
   const loops = allSchedules.filter((s: { type?: string }) => s.type === 'loop');

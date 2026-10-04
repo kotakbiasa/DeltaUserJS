@@ -299,7 +299,7 @@ export default {
         'Owner sedang away. Pesan kamu sudah diterima dan akan dibalas saat owner kembali aktif. 🙏\n\n' +
         '<i>(Pesan otomatis — PM Guard aktif)</i>'
       );
-      await message.reply({
+      await message.reply?.({
         message: textToSend,
         parseMode: 'html',
         linkPreview: false

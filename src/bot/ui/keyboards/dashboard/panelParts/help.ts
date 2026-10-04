@@ -7,7 +7,7 @@ import { escapeHtml } from '../../../../../utils/richMessage.js';
 import { LOOPS_PER_PAGE, getSystemVarValue } from '../shared.js';
 import type { BotContext } from '../../../../context.js';
 
-export function panelUserLoops(ctx: Context, page = 1) {
+export function panelUserLoops(ctx: BotContext, page = 1) {
   const telegramId = ctx.from.id;
   const allSchedules = getSchedules(telegramId);
   const loops = allSchedules.filter((s: { type?: string }) => s.type === 'loop');

@@ -81,7 +81,7 @@ export default {
       const nets = os.networkInterfaces();
       let ipAddr = 'N/A';
       for (const name of Object.keys(nets)) {
-        for (const net of nets[name]) {
+        for (const net of nets[name] ?? []) {
           if (net.family === 'IPv4' && !net.internal) {
             ipAddr = net.address;
             break;
