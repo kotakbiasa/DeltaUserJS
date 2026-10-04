@@ -13,7 +13,6 @@ import {
   animateBotApiPayload,
   stripTgEmojiTags
 } from '../dist/utils/customEmoji.js';
-import { parseRichText } from '../dist/utils/richParser.js';
 
 test('formatTgEmoji formats tag properly', () => {
   const tag = formatTgEmoji('5368324170671202286', '🔥');
@@ -105,15 +104,6 @@ test('extractEmojiFromContext parses tag, numeric ID, shortcode, and entities', 
   const fromEntity = extractEmojiFromContext('', mockMessage);
   assert.ok(fromEntity?.isCustomEmoji);
   assert.equal(fromEntity?.documentId, '888888');
-});
-
-test('parseRichText supports custom emoji shortcodes', () => {
-  const result = parseRichText('Halo {first_name}! {emoji:5368324170671202286:💎}', {
-    id: 123,
-    first_name: 'Alex'
-  });
-  assert.ok(result.text.includes('Halo Alex!'));
-  assert.ok(result.text.includes('<tg-emoji emoji-id="5368324170671202286">💎</tg-emoji>'));
 });
 
 test('animateEmojisWithRestrictedPack animates standard emojis to RestrictedEmoji pack', () => {

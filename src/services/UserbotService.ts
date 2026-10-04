@@ -62,15 +62,6 @@ export async function updateTelegramPremiumStatus(telegramId: number | string, i
 }
 
 // Helper: safely update a complex object field in DB (deep clone before persist)
-export async function updateObjectField(telegramId, field, value) {
-  const idNum = Number(telegramId);
-  const cached = dbCache.get(idNum);
-  if (cached) {
-    cached[field] = deepClone(value);
-  }
-  return persistField(idNum, field, deepClone(value));
-}
-
 export async function updateUserbotFeature(telegramId, featureName, value) {
   const idNum = Number(telegramId);
 
@@ -309,7 +300,7 @@ export async function resetWarns(telegramId, chatId, targetUserId) {
   });
 }
 
-export function getGroupConfig(chatId) {
+function getGroupConfig(chatId) {
   const chatKey = String(chatId);
   return groupConfigCache.get(chatKey) || {
     chat_id: chatKey,
@@ -327,7 +318,7 @@ export function getGroupConfig(chatId) {
   };
 }
 
-export async function updateGroupConfig(chatId, updates) {
+async function updateGroupConfig(chatId, updates) {
   const chatKey = String(chatId);
   // Serialize per-chat get-mutate-persist, and share the same file-write lock
   // as every other database.json writer to avoid interleaved file writes.
@@ -360,10 +351,6 @@ export async function updateGroupConfig(chatId, updates) {
 
     return newData;
   });
-}
-
-export function getAllGroupConfigs() {
-  return Object.fromEntries(groupConfigCache);
 }
 
 export async function saveGroupNote(chatId, noteName, text) {

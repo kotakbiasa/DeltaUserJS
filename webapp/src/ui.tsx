@@ -147,12 +147,6 @@ export const Skeleton: React.FC<{ height?: number; count?: number; gap?: number;
   </div>
 );
 
-export const Bar: React.FC<{ pct: number }> = ({ pct }) => (
-  <div className="bar">
-    <div className="bar-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
-  </div>
-);
-
 /* ------------------------------ formatters ------------------------------ */
 
 export function formatUptime(seconds: number): string {
@@ -165,12 +159,6 @@ export function formatUptime(seconds: number): string {
   if (h > 0) return `${h} jam ${m} mnt`;
   if (m > 0) return `${m} mnt ${s} dtk`;
   return `${s} dtk`;
-}
-
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function maskPhone(phone: string | null | undefined): string {

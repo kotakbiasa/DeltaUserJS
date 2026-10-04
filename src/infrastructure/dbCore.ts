@@ -27,25 +27,12 @@ export function withKeyLock<T>(key, fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-export async function updateCacheField(idNum, field, value) {
-  return withKeyLock(idNum, async () => {
-    const existing = dbCache.get(idNum) || {};
-    const updated = { ...existing, [field]: value };
-    dbCache.set(idNum, updated);
-    return persistDoc(idNum, updated);
-  });
-}
-
-export function getFromCache(idNum) {
-  return dbCache.get(idNum);
-}
-
-export const DEFAULT_AFK_REASON = 'AFK';
+const DEFAULT_AFK_REASON = 'AFK';
 const MONGO_URI = config.mongoUri || process.env.MONGO_URI;
 const DB_NAME = config.dbName || process.env.DB_NAME || 'DeltaUbotJS';
 
 // Constants
-export const DEFAULT_CUSTOM_NAME = 'Userbot';
+const DEFAULT_CUSTOM_NAME = 'Userbot';
 export const SUBSCRIPTION_DAYS = 7;
 
 // Mongoose Models (if using MongoDB)
@@ -95,14 +82,7 @@ export const GroupConfigModel: mongoose.Model<any> = (mongoose.models.GroupConfi
 export const dbCache = new Map();
 export let isMongo = false;
 export let systemConfigCache = { vars: {} };
-export const fedCache = new Map();
 export const groupConfigCache = new Map();
-
-export function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeBot(raw: any = {}, id?: any) {
