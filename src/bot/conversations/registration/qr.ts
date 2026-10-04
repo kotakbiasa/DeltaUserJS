@@ -13,6 +13,7 @@ import {
   cleanupClient,
   getOrCreateClient,
 } from './shared.js';
+import { errorMessage, errorName } from '../../../utils/errors.js';
 
 /**
  * Conversation handler for QR Code Registration via mtcute
@@ -100,9 +101,9 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
               if (sessionState) {
                 sessionState.qrMessageId = qrImageMessageId;
               }
-            } catch (qrErr: any) {
+            } catch (qrErr: unknown) {
               if (!signal.aborted) {
-                Logger.logUser(telegramId, `Error generating/sending QR: ${qrErr.message}`, 'ERROR');
+                Logger.logUser(telegramId, `Error generating/sending QR: ${errorMessage(qrErr)}`, 'ERROR');
               }
             }
           },
@@ -156,8 +157,8 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
             activeQrSessions.delete(telegramId);
             result = { status: 'success', sessionString, phone, customName };
           }
-        } catch (e: any) {
-          if (signal.aborted || e.name === 'AbortError' || e.message?.includes('aborted')) {
+        } catch (e: unknown) {
+          if (signal.aborted || errorName(e) === 'AbortError' || errorMessage(e).includes('aborted')) {
             throw new Error('USER_CANCELLED', { cause: e });
           }
           throw e;
@@ -225,9 +226,9 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
           activeRegClients.delete(telegramId);
           activeQrSessions.delete(telegramId);
           return { status: 'success', sessionString, phone, customName };
-        } catch (err: any) {
-          Logger.logUser(telegramId, `[2FA] Password salah: ${err.message}`, 'WARN');
-          return { status: 'wrong_password', error: err.message };
+        } catch (err: unknown) {
+          Logger.logUser(telegramId, `[2FA] Password salah: ${errorMessage(err)}`, 'WARN');
+          return { status: 'wrong_password', error: errorMessage(err) };
         }
       });
 
@@ -277,22 +278,22 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
         `<p>Coba kirimkan <code>.ping</code> di chat mana pun dari akun userbot Anda untuk menguji respon.</p>` +
         `<footer>Ketik /menu untuk membuka Menu Utama &amp; pengaturan userbot.</footer>`
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     await cleanupClient(telegramId);
-    if (error.message === 'USER_CANCELLED') {
+    if (errorMessage(error) === 'USER_CANCELLED') {
       return;
     }
-    if (error.message === 'TIMEOUT') {
+    if (errorMessage(error) === 'TIMEOUT') {
       await replyRich(
         ctx,
         `<h1 align="center">⏱️ Waktu Scan QR Habis</h1><p>Waktu 2 menit telah habis. Silakan ulangi dengan klik /daftar.</p>`
       );
       return;
     }
-    Logger.logUser(telegramId, `Error dalam QR Registration: ${error.message}`, 'ERROR');
+    Logger.logUser(telegramId, `Error dalam QR Registration: ${errorMessage(error)}`, 'ERROR');
     await replyRich(
       ctx,
-      `<h1 align="center">❌ Terjadi Kesalahan</h1><p>Gagal menghubungkan userbot: <code>${escapeHtml(error.message)}</code></p><p>Silakan coba lagi beberapa saat lagi dengan /daftar.</p>`
+      `<h1 align="center">❌ Terjadi Kesalahan</h1><p>Gagal menghubungkan userbot: <code>${escapeHtml(errorMessage(error))}</code></p><p>Silakan coba lagi beberapa saat lagi dengan /daftar.</p>`
     );
   }
 }

@@ -5,6 +5,7 @@ import { getUserbotSession } from '../../../services/UserbotService.js';
 import config from '../../../config.js';
 import { buildModuleHtml } from '../../../bot/handlers/inlineHelp.js';
 import { getMasterBotUsername } from '../../../bot/state/botUsername.js';
+import { errorMessage } from '../../../utils/errors.js';
 
 /**
  * Bangun InputReplyToMessage untuk forum topic — memastikan pesan bot
@@ -244,9 +245,9 @@ export default {
           await message.delete().catch(() => {});
           return;
         }
-      } catch (mtpErr: any) {
-        console.log(`[HELP-INLINE] Error: ${mtpErr.message}`);
-        Logger.logUser(telegramId, `[HELP] MTProto inline error: ${mtpErr.message} — fallback teks`, 'WARN');
+      } catch (mtpErr: unknown) {
+        console.log(`[HELP-INLINE] Error: ${errorMessage(mtpErr)}`);
+        Logger.logUser(telegramId, `[HELP] MTProto inline error: ${errorMessage(mtpErr)} — fallback teks`, 'WARN');
       }
 
       // Fallback: tanpa inline bot — tampilkan daftar lengkap di chat userbot

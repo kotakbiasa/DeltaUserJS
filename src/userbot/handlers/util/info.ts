@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import { Logger } from '../../../utils/logger.js';
 import type { CompatClient } from '../../engine/compatClient.js';
+import { errorMessage } from '../../../utils/errors.js';
 
 export default {
   name: 'info',
@@ -53,8 +54,8 @@ export default {
       let profilePhotoBuffer: any = null;
       try {
         profilePhotoBuffer = await client.downloadProfilePhoto(targetEntity.id || targetEntity);
-      } catch (e: any) {
-        Logger.logUser(telegramId, `Gagal download foto profil: ${e.message}`, 'WARN');
+      } catch (e: unknown) {
+        Logger.logUser(telegramId, `Gagal download foto profil: ${errorMessage(e)}`, 'WARN');
       }
 
       // 2. Ambil Full Info (Bio, dll)
@@ -81,8 +82,8 @@ export default {
           if (u.isVerified) { tags.push('✅ Verified'); }
           if (u.isScam) { tags.push('⚠️ Scam'); }
           if (u.isFake) { tags.push('🎭 Fake'); }
-        } catch (e: any) {
-          Logger.logUser(telegramId, `Gagal getFullUser: ${e.message}`, 'WARN');
+        } catch (e: unknown) {
+          Logger.logUser(telegramId, `Gagal getFullUser: ${errorMessage(e)}`, 'WARN');
         }
 
         try {

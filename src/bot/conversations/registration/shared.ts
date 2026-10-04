@@ -82,7 +82,7 @@ export function getOrCreateClient(telegramId: number, _phoneNumber?: string): Te
 export async function ensureConnected(client: TelegramClient) {
   try {
     await client.connect();
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (!String(err).includes('already connected')) {
       throw err;
     }

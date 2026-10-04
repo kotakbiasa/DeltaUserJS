@@ -15,6 +15,7 @@ import { openMain, sendRich, toggleUserbotSetting } from '../richRuntime.js';
 import { panelDangerDelete, panelInlineHelper, panelPrefixPicker, panelSettings, panelUserbot, panelUserbotDiag } from '../panels.js';
 import { setUserVar } from '../../../../../services/SystemVarService.js';
 import { NOT_HANDLED } from './types.js';
+import { errorMessage } from '../../../../../utils/errors.js';
 
 export async function handleSettingsRoutes(ctx) {
   const action = ctx.match[1];
@@ -93,8 +94,8 @@ export async function handleSettingsRoutes(ctx) {
           await ubot.client.call({ _: 'auth.logOut' });
         }
       }
-    } catch (e: any) {
-      Logger.logUser(telegramId, `Failed to logout: ${e.message}`, 'WARN');
+    } catch (e: unknown) {
+      Logger.logUser(telegramId, `Failed to logout: ${errorMessage(e)}`, 'WARN');
     }
 
     if (userbotManager.isRunning(telegramId)) {
