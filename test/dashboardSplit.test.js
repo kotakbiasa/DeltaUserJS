@@ -132,6 +132,21 @@ test('handlers.ts hanya mendelegasikan, tidak lagi memuat isi router', () => {
   assert.ok(!/if \(action === '/.test(src), 'cabang action harus tinggal di routes/, bukan di handlers.ts');
 });
 
+test('tidak ada modul dashboard yang tumbuh kembali jadi file raksasa', () => {
+  /** Seluruh pohon dashboard/, termasuk panelParts/ dan keyboardParts/. */
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {return walk(full);}
+    return entry.name.endsWith('.ts') ? [full] : [];
+  });
+
+  const offenders = walk(dashDir)
+    .map(file => [path.relative(dashDir, file), fs.readFileSync(file, 'utf8').split('\n').length])
+    .filter(([, count]) => count >= 600);
+
+  assert.deepEqual(offenders, [], 'pecah file ini sebelum tumbuh seperti dashboard.ts dulu');
+});
+
 test('panel dan keyboard menghasilkan output yang sama untuk ctx yang sama', () => {
   // Pemeriksaan nyata (bukan baca source): panggil beberapa builder dan
   // pastikan bentuk keluarannya tetap seperti yang diharapkan pemanggil.
