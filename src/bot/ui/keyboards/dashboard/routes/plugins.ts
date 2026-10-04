@@ -104,7 +104,7 @@ export async function handlePluginsRoutes(ctx: BotContext) {
     const pluginName = String(plugin.name);
     const lower = pluginName.toLowerCase();
     const protectedPlugins = ['admin', 'pluginmanager'];
-    const disabled = getDisabledPlugins(ctx.from.id).map(name => String(name).toLowerCase());
+    const disabled = getDisabledPlugins(ctx.from.id).map((name: string) => String(name).toLowerCase());
     const isDisabled = disabled.includes(lower);
 
     if (!isDisabled && protectedPlugins.includes(lower)) {

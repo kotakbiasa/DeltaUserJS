@@ -4,17 +4,17 @@ import { dbCache, persistField, systemConfigCache, isMongo, readDbFromFile, writ
 // write on the singleton systemConfigCache is serialized.
 const SYS_LOCK_KEY = '__system_vars__';
 
-export function getUserVar(telegramId, key) {
+export function getUserVar(telegramId: number, key: string) {
   const session = dbCache.get(Number(telegramId));
   return session?.vars ? session.vars[key] : undefined;
 }
 
-export function getAllUserVars(telegramId) {
+export function getAllUserVars(telegramId: number) {
   const session = dbCache.get(Number(telegramId));
   return session?.vars || {};
 }
 
-export async function setUserVar(telegramId, key, value) {
+export async function setUserVar(telegramId: number, key: string, value: unknown) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -27,7 +27,7 @@ export async function setUserVar(telegramId, key, value) {
   });
 }
 
-export async function deleteUserVar(telegramId, key) {
+export async function deleteUserVar(telegramId: number, key: string) {
   const idNum = Number(telegramId);
   return withKeyLock(idNum, async () => {
     const session = dbCache.get(idNum);
@@ -39,7 +39,7 @@ export async function deleteUserVar(telegramId, key) {
   });
 }
 
-export function getSystemVar(key) {
+export function getSystemVar(key: string) {
   return systemConfigCache.vars ? systemConfigCache.vars[key] : undefined;
 }
 
@@ -47,7 +47,7 @@ export function getAllSystemVars() {
   return systemConfigCache.vars || {};
 }
 
-export async function setSystemVar(key, value) {
+export async function setSystemVar(key: string, value: unknown) {
   return withKeyLock(SYS_LOCK_KEY, async () => {
     // Mutate cache inside the lock so concurrent writers don't clobber it.
     if (!systemConfigCache.vars) {systemConfigCache.vars = {};}
@@ -68,7 +68,7 @@ export async function setSystemVar(key, value) {
   });
 }
 
-export async function deleteSystemVar(key) {
+export async function deleteSystemVar(key: string) {
   return withKeyLock(SYS_LOCK_KEY, async () => {
     if (!systemConfigCache.vars) {return false;}
     delete systemConfigCache.vars[key];

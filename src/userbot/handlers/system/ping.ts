@@ -2,6 +2,8 @@ import { formatUptime } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { getCustomEmoji } from '../../../utils/customEmoji.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 export default {
   name: 'ping',
@@ -11,7 +13,7 @@ export default {
     usage: 'Ketik `.ping` di chat mana pun.',
     detail: 'Userbot akan mengedit pesan `.ping` Anda secara instan menjadi *Pong!* untuk mengonfirmasi bahwa ubot terhubung ke server dengan stabil.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (message.out && message.message && message.message.toLowerCase() === '.ping') {
       try {
         const pingEmoji = getCustomEmoji(settings, 'ping');

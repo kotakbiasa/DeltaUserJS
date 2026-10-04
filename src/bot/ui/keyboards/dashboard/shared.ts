@@ -40,8 +40,8 @@ export function formatModuleName(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-export function normalizedDisabled(telegramId) {
-  return getDisabledPlugins(telegramId).map(name => String(name).toLowerCase());
+export function normalizedDisabled(telegramId: number) {
+  return getDisabledPlugins(telegramId).map((name: string) => String(name).toLowerCase());
 }
 
 export function sortedPlugins() {
@@ -70,7 +70,7 @@ export function pluginPageInfo(page = 1) {
   return pluginCategoryInfo('all', page);
 }
 
-export function badge(condition, yes = '✅', no = '❌') {
+export function badge(condition: unknown, yes = '✅', no = '❌') {
   return condition ? yes : no;
 }
 

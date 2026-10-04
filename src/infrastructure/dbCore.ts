@@ -20,7 +20,7 @@ const keyLocks = new Map();
  * Usage:
  *   await withKeyLock(idNum, async () => { /* read-modify-write dbCache *\/ });
  */
-export function withKeyLock<T>(key, fn: () => Promise<T>): Promise<T> {
+export function withKeyLock<T>(key: string | number, fn: () => Promise<T>): Promise<T> {
   const prev = keyLocks.get(key) || Promise.resolve();
   const run = prev.then(fn, fn);
   keyLocks.set(key, run.then(() => undefined, () => undefined));
@@ -88,7 +88,7 @@ export const groupConfigCache = new Map();
 export function normalizeBot(raw: any = {}, id?: any) {
   const idNum = Number(id ?? raw.telegram_id);
   const createdAt = raw.created_at || new Date().toISOString();
-  const pick = (key, fallback) => (raw[key] !== undefined && raw[key] !== null ? raw[key] : fallback);
+  const pick = (key: string, fallback: unknown) => (raw[key] !== undefined && raw[key] !== null ? raw[key] : fallback);
 
   // Decrypt session_string if it's encrypted
   let sessionString = raw.session_string || null;
@@ -163,7 +163,7 @@ export async function readDbFromFile() {
   }
 }
 
-export async function writeDbToFile(data) {
+export async function writeDbToFile(data: Record<string, unknown>) {
   try {
     await fsp.writeFile(dbPath, JSON.stringify(data, null, 2));
     return true;
@@ -184,7 +184,7 @@ export function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-export async function persistField(idNum, field, value) {
+export async function persistField(idNum: number, field: string, value: unknown) {
   if (isMongo) {
     try {
       // Use $set to update only the specific field (not replace entire doc)
@@ -209,7 +209,7 @@ export async function persistField(idNum, field, value) {
   });
 }
 
-export async function persistDoc(idNum, doc) {
+export async function persistDoc(idNum: number, doc: Record<string, unknown>) {
   if (isMongo) {
     try {
       // Use $set so fields absent from `doc` are preserved instead of the
@@ -233,7 +233,7 @@ export async function persistDoc(idNum, doc) {
   });
 }
 
-export async function persistDelete(idNum) {
+export async function persistDelete(idNum: number) {
   if (isMongo) {
     try {
       await UserbotModel.deleteOne({ telegram_id: idNum });

@@ -35,13 +35,15 @@ export {
   sendRich,
 } from './richRuntime.js';
 import type { BotContext } from '../../../context.js';
+import type { Bot } from 'grammy';
 
-export function registerRichHandlers(bot) {
+export function registerRichHandlers(bot: Bot<BotContext>) {
   bot.api.config.use(async (prev, method, payload, signal) => {
-    applyButtonStylesToPayload(payload);
-    animateBotApiPayload(method, payload);
-    if (Array.isArray(payload?.results)) {
-      for (const result of payload.results) {applyButtonStylesToPayload(result);}
+    const raw = payload as Record<string, unknown>;
+    applyButtonStylesToPayload(raw);
+    animateBotApiPayload(method, raw);
+    if (Array.isArray(raw?.results)) {
+      for (const result of raw.results) {applyButtonStylesToPayload(result);}
     }
     return prev(method, payload, signal);
   });

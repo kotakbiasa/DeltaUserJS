@@ -4,6 +4,8 @@ import { formatUptimeStats, formatUptime } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import { helpRegistry } from '../../engine/pluginRegistry.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 // ============================================================
 // Health Monitor — monitoring kesehatan userbot (ala Kitsune).
@@ -131,7 +133,7 @@ function stopMonitor(telegramId: number): boolean {
   return true;
 }
 
-function startMonitor(client, telegramId: number): void {
+function startMonitor(client: CompatClient, telegramId: number): void {
   stopMonitor(telegramId);
   const st: MonitorState = {};
   st.startedAt = Date.now();
@@ -147,7 +149,7 @@ function startMonitor(client, telegramId: number): void {
   monitorStore.set(telegramId, st);
 }
 
-async function runMonitorCheck(client, telegramId: number): Promise<void> {
+async function runMonitorCheck(client: CompatClient, telegramId: number): Promise<void> {
   const st = monitorStore.get(telegramId);
   if (!st || !st.timer) {return;} // monitor sudah dimatikan
   if (!config.ownerId) {return;}
@@ -204,7 +206,7 @@ export default {
   onLoad: () => {
     Logger.logSystem(`💗 Plugin Health loaded (${monitorStore.size} monitor aktif survive hot-reload)`, 'INFO');
   },
-  execute: async (client, message, settings, telegramId) => {
+  execute: async (client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) => {
     if (!message.out || !message.message) {return;}
 
     // Proteksi: hanya owner

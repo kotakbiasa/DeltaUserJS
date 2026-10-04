@@ -148,7 +148,7 @@ export function panelUserbot(ctx: BotContext) {
   const isAfk = session?.auto_reply === 1;
   const flood = userbotManager.getFloodStatus(ctx.from.id);
   const mySchedules = getSchedules(ctx.from.id);
-  const loopCount = mySchedules.filter(s => s.type === 'loop').length;
+  const loopCount = mySchedules.filter((s: { type?: string }) => s.type === 'loop').length;
 
   const connStatus = running
     ? (isConnected ? '🟢 Online' : '🟡 Menghubungkan...')

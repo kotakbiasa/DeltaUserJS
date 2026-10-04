@@ -10,7 +10,7 @@ import type { BotContext } from '../../../../context.js';
 export function panelUserLoops(ctx: Context, page = 1) {
   const telegramId = ctx.from.id;
   const allSchedules = getSchedules(telegramId);
-  const loops = allSchedules.filter(s => s.type === 'loop');
+  const loops = allSchedules.filter((s: { type?: string }) => s.type === 'loop');
   const running = userbotManager.isRunning(telegramId);
 
   const totalPages = Math.max(1, Math.ceil(loops.length / LOOPS_PER_PAGE));
@@ -22,15 +22,16 @@ export function panelUserLoops(ctx: Context, page = 1) {
   if (pageItems.length === 0) {
     rows = `<tr><td colspan="4" align="center"><i>Belum ada jadwal loop/broadcast yang tersimpan.</i></td></tr>`;
   } else {
-    rows = pageItems.map((item, idx) => {
+    rows = pageItems.map((item: { chatKey?: string; message?: string; value?: string | number }, idx: number) => {
       const num = start + idx + 1;
       const targetStr = escapeHtml(String(item.chatKey));
-      const shortMsg = item.message.length > 20
-        ? escapeHtml(item.message.substring(0, 20)) + '...'
-        : escapeHtml(item.message);
+      const itemMessage = String(item.message ?? '');
+      const shortMsg = itemMessage.length > 20
+        ? escapeHtml(itemMessage.substring(0, 20)) + '...'
+        : escapeHtml(itemMessage);
       // base64url keeps callback_data below Telegram's 64-byte limit for
       // usernames and chat IDs while remaining reversible without state.
-      const encodedTarget = Buffer.from(item.chatKey, 'utf8').toString('base64url');
+      const encodedTarget = Buffer.from(String(item.chatKey ?? ''), 'utf8').toString('base64url');
       const delBtn = `<tg-button type="callback_data" data="rich:del_loop:${encodedTarget}">⏹️ Hapus</tg-button>`;
       return `<tr><td><b>${num}.</b> <code>${targetStr}</code></td><td align="center">${item.value}m</td><td><i>"${shortMsg}"</i></td><td align="center">${delBtn}</td></tr>`;
     }).join('');

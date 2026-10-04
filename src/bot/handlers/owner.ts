@@ -5,8 +5,9 @@ import { UserbotModel } from '../../infrastructure/database.js';
 import { escapeHtml } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import type { BotContext } from '../context.js';
+import type { Bot } from 'grammy';
 
-export function registerOwnerHandlers(bot) {
+export function registerOwnerHandlers(bot: Bot<BotContext>) {
   // --- Owner utility commands ---
   bot.command('backup', async (ctx: BotContext) => {
     if (Number(ctx.from.id) !== Number(config.ownerId)) {return;}

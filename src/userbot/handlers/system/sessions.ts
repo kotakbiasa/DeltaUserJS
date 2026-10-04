@@ -15,6 +15,8 @@ import { Logger } from '../../../utils/logger.js';
 // ============================================================
 import config from '../../../config.js';
 import type { CompatClient } from '../../engine/compatClient.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import { Long } from '@mtcute/core';
 
 const KILL_INTERVAL_MS = 60 * 1000;
 
@@ -99,7 +101,7 @@ function stopKiller(telegramId: number): boolean {
   return true;
 }
 
-async function monitorTick(client, telegramId: number, st: KillerState): Promise<void> {
+async function monitorTick(client: CompatClient, telegramId: number, st: KillerState): Promise<void> {
   try {
     const authorizations = await fetchAuthorizations(client);
     const current = new Set<string>(authorizations.map((auth) => String(auth.hash)));
@@ -119,7 +121,8 @@ async function monitorTick(client, telegramId: number, st: KillerState): Promise
     const details: string[] = [];
     for (const auth of newcomers) {
       try {
-        const hashVal = BigInt(String(auth.hash));
+        // Skema TL memakai Long, bukan bigint.
+        const hashVal = Long.fromString(String(auth.hash));
         if (typeof client.call === 'function') {
           await client.call({ _: 'account.resetAuthorization', hash: hashVal });
         } else {
@@ -141,7 +144,7 @@ async function monitorTick(client, telegramId: number, st: KillerState): Promise
   }
 }
 
-function startKiller(client, telegramId: number): void {
+function startKiller(client: CompatClient, telegramId: number): void {
   stopKiller(telegramId);
   const st: KillerState = { knownHashes: new Set<string>() };
   st.startedAt = Date.now();
@@ -173,7 +176,7 @@ export default {
   onLoad: () => {
     Logger.logSystem(`🔐 Plugin Sessions loaded (${killerStore.size} sessionkiller aktif survive hot-reload)`, 'INFO');
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (Number(telegramId) !== Number(config.ownerId)) {return;}
 
@@ -223,7 +226,8 @@ export default {
           return;
         }
         try {
-          const hashVal = BigInt(String(hash));
+          // Skema TL memakai Long, bukan bigint.
+          const hashVal = Long.fromString(String(hash));
           if (typeof client.call === 'function') {
             await client.call({ _: 'account.resetAuthorization', hash: hashVal });
           } else {

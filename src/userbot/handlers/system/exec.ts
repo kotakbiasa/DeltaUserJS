@@ -3,6 +3,8 @@ import { execFile } from 'child_process';
 import config from '../../../config.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 const execFileAsync = util.promisify(execFile);
 
@@ -53,7 +55,7 @@ export default {
       Logger.logSystem('🔌 Plugin Exec loaded (EXEC mode ENABLED — whitelist only)', 'INFO');
     }
   },
-  execute: async (client, message, settings, telegramId) => {
+  execute: async (client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) => {
     if (Number(telegramId) !== Number(config.ownerId)) {return;}
     // Jangan pernah bereaksi pada pesan orang lain. Sebelumnya tidak ada cek
     // ini; yang menyelamatkan hanyalah message.edit() yang kebetulan gagal.

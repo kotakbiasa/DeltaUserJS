@@ -6,6 +6,7 @@ import { escapeHtml, replyRich, editRich } from '../../utils/richMessage.js';
 import { Logger } from '../../utils/logger.js';
 import { isApproved, approveUser, revokeUser } from '../state/approvedUsers.js';
 import type { BotContext } from '../context.js';
+import type { Bot } from 'grammy';
 
 async function sendMainRich(ctx: BotContext, deleteOld = false) {
   if (ctx.callbackQuery?.message?.message_id) {
@@ -25,7 +26,7 @@ async function sendMainRich(ctx: BotContext, deleteOld = false) {
   }
 }
 
-export function registerLegacyCallbacks(bot) {
+export function registerLegacyCallbacks(bot: Bot<BotContext>) {
   // Legacy callback aliases kept so old buttons/conversation prompts still work.
   bot.callbackQuery('back_to_main', async (ctx: BotContext) => {
     await ctx.answerCallbackQuery();

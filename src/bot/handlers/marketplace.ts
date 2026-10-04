@@ -14,6 +14,7 @@ import {
   validatePermissions,
   PluginPermission,
 } from '../../userbot/engine/pluginMarketplace.js';
+import type { BotContext } from '../context.js';
 
 const OWNER_PERMISSIONS: PluginPermission[] = [
   'fs.read', 'fs.write', 'net.http', 'eval', 'shell',
@@ -223,7 +224,7 @@ export async function searchPlugins(ctx: Context, query: string) {
 /**
  * Register marketplace handlers
  */
-export function registerMarketplaceHandlers(bot: Bot) {
+export function registerMarketplaceHandlers(bot: Bot<BotContext>) {
   // Initialize marketplace on startup
   initPluginMarketplace().catch(err => Logger.logSystem(`Marketplace init failed: ${err}`, 'WARN'));
 

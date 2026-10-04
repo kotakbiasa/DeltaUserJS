@@ -94,7 +94,7 @@ const USER_VAR_TEMPLATE: { key: string; desc: string }[] = [
 export async function manageVarsConv(conversation: BotConversation, ctx: BotContext) {
   const telegramId = ctx.from.id;
 
-  const buildVarsKeyboard = (varsMap) => {
+  const buildVarsKeyboard = (varsMap: Record<string, unknown>) => {
     const kb = new InlineKeyboard();
 
     // Tombol untuk variabel umum

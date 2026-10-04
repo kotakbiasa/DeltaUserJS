@@ -26,19 +26,40 @@ export async function mongoStatusLabel() {
   }
 }
 
-export async function sendRich(ctx: BotContext, rich, reply_markup, { deleteOld = false, edit = true } = {}) {
+/**
+ * Payload rich message Delta: HTML mentah, objek { html }, atau struktur
+ * blocks yang dirakit panel builder.
+ */
+type RichPayload = string | { html: string } | { blocks: unknown[] };
+
+/**
+ * Keyboard dashboard memakai field tambahan `style` di luar Bot API standar
+ * (dirender transformer richMessage), jadi tipenya dideklarasikan sendiri.
+ */
+export type DashboardMarkup = {
+  inline_keyboard: Array<Array<{
+    text: string;
+    callback_data?: string;
+    url?: string;
+    style?: string;
+  }>>;
+};
+type ReplyMarkup = DashboardMarkup | undefined;
+type ApiReplyMarkup = NonNullable<Parameters<BotContext['api']['editMessageText']>[3]>['reply_markup'];
+
+export async function sendRich(ctx: BotContext, rich: RichPayload, reply_markup?: ReplyMarkup, { deleteOld = false, edit = true } = {}) {
   if (ctx.inlineMessageId) {
     if (ctx.answerCallbackQuery) {
       await ctx.answerCallbackQuery({ text: '⚠️ Akses menu ini melalui Private Chat (DM) bot.', show_alert: true }).catch(()=>{});
     }
     return;
   }
-  const rich_message = typeof rich === 'string' ? { html: rich } : rich;
+  const rich_message = (typeof rich === 'string' ? { html: rich } : rich) as { html: string };
   // Edit in-place kalau berasal dari callback pada pesan bot (message_id ada) & opsi edit aktif
   const cbMsgId = ctx.callbackQuery?.message?.message_id;
   if (edit && cbMsgId) {
     try {
-      await ctx.api.editMessageText(ctx.callbackQuery.message.chat.id, cbMsgId, rich_message, { reply_markup });
+      await ctx.api.editMessageText(ctx.callbackQuery.message.chat.id, cbMsgId, rich_message, { reply_markup: reply_markup as ApiReplyMarkup });
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -51,7 +72,7 @@ export async function sendRich(ctx: BotContext, rich, reply_markup, { deleteOld 
   }
   // Efek draft native hanya untuk pengiriman pesan BARU di chat privat. Edit in-place tidak perlu draft.
   const chatId = ctx.chat?.id;
-  const doSend = () => ctx.replyWithRichMessage(rich_message, { reply_markup });
+  const doSend = () => ctx.replyWithRichMessage(rich_message, { reply_markup: reply_markup as ApiReplyMarkup });
   try {
     if (chatId && typeof chatId === 'number' && chatId > 0) {
       await sendWithNativeDraft(doSend, ctx.api, chatId, 'Memuat dashboard…');
@@ -71,22 +92,28 @@ export async function openMain(ctx: BotContext, options = {}) {
   await sendRich(ctx, panelMain(ctx), keyboardMain(ctx), options);
 }
 
-export async function toggleUserbotSetting(ctx: BotContext, field, label, panel, keyboard) {
+export async function toggleUserbotSetting(
+  ctx: BotContext,
+  field: string,
+  label: string,
+  panel: (ctx: BotContext) => RichPayload | Promise<RichPayload>,
+  keyboard: (ctx: BotContext) => ReplyMarkup,
+) {
   const session = getUserbotSession(ctx.from.id);
   if (!session) {return ctx.answerCallbackQuery('Sesi tidak ditemukan.');}
 
   const newStatus = session[field] === 1 ? 0 : 1;
   await updateUserbotFeature(ctx.from.id, field, newStatus);
   await ctx.answerCallbackQuery(`${label}: ${newStatus === 1 ? 'ON' : 'OFF'}`);
-  return sendRich(ctx, panel(ctx), keyboard(ctx));
+  return sendRich(ctx, await panel(ctx), keyboard(ctx));
 }
 
-export function findPlugin(name) {
+export function findPlugin(name: string) {
   const target = decodeURIComponent(String(name || '')).trim().toLowerCase();
   return loadedPlugins.find(plugin => String(plugin.name).toLowerCase() === target);
 }
 
-export function pluginNotice(pluginName, enabled) {
+export function pluginNotice(pluginName: string, enabled: boolean) {
   return `${enabled ? 'Plugin diaktifkan' : 'Plugin dinonaktifkan'}: ${pluginName}`;
 }
 

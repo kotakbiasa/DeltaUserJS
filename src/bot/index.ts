@@ -1,4 +1,5 @@
 import { Bot, session, Context } from 'grammy';
+import type { BotContext } from './context.js';
 import { conversations, createConversation } from '@grammyjs/conversations';
 import { limit } from '@grammyjs/ratelimiter';
 import { GrammyError, HttpError } from 'grammy';
@@ -25,7 +26,7 @@ import { registerAllHandlers } from './handlers/index.js';
 import { Logger } from '../utils/logger.js';
 import { getUserbotSession, updateTelegramPremiumStatus } from '../infrastructure/database.js';
 
-const bot = new Bot(config.botToken);
+const bot = new Bot<BotContext>(config.botToken);
 
 // --- Manual sequentialize implementation (no extra deps) ---
 // Maps key -> Promise<void> that resolves when the current update finishes.

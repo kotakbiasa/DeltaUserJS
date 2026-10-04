@@ -19,7 +19,7 @@ type DashboardButtonRows = DashboardButton[][];
 export function keyboardUserLoops(ctx: Context, page = 1) {
   const telegramId = ctx.from.id;
   const allSchedules = getSchedules(telegramId);
-  const loops = allSchedules.filter(s => s.type === 'loop');
+  const loops = allSchedules.filter((s: { type?: string }) => s.type === 'loop');
   const totalPages = Math.max(1, Math.ceil(loops.length / LOOPS_PER_PAGE));
   const currentPage = Math.min(Math.max(Number(page) || 1, 1), totalPages);
 
@@ -52,8 +52,9 @@ export function keyboardBack(target = 'main') {
   return { inline_keyboard: [[{ text: '🔙 Kembali', callback_data: `rich:${target}` }]] };
 }
 
-export function applyButtonStylesToPayload(payload) {
-  const keyboard = payload?.reply_markup?.inline_keyboard;
+export function applyButtonStylesToPayload(payload: unknown) {
+  const keyboard = (payload as { reply_markup?: { inline_keyboard?: unknown } } | undefined)
+    ?.reply_markup?.inline_keyboard;
   if (!Array.isArray(keyboard)) {return;}
   for (const row of keyboard) {
     if (!Array.isArray(row)) {continue;}

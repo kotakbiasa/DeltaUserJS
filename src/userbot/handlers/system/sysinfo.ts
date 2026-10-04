@@ -5,6 +5,8 @@ import config from '../../../config.js';
 import { formatUptimeAlt, formatBytes } from '../../../utils/format.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 const execAsync = util.promisify(exec);
 
@@ -29,7 +31,7 @@ export default {
     usage: 'Ketik `.sysinfo`',
     detail: 'Menampilkan detail CPU, RAM, Disk, Network, OS kernel, hostname, dan load average dari server.'
   },
-  async execute(client, message, settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     if (message.message.toLowerCase() !== '.sysinfo') {return;}
 
