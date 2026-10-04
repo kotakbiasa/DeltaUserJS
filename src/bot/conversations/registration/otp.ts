@@ -56,7 +56,7 @@ export async function otpRegistrationConversation(conversation: any, ctx: any) {
     try {
       phoneNumber = await waitForInput(conversation, ctx);
     } catch (err: any) {
-      if (err.message === 'USER_CANCELLED') return;
+      if (err.message === 'USER_CANCELLED') {return;}
       throw err;
     }
 
@@ -194,7 +194,7 @@ export async function otpRegistrationConversation(conversation: any, ctx: any) {
           try {
             const resendResult = await conversation.external(async () => {
               const activeClient = activeRegClients.get(telegramId);
-              if (!activeClient) throw new Error('Client tidak ditemukan. Ulangi /daftar.');
+              if (!activeClient) {throw new Error('Client tidak ditemukan. Ulangi /daftar.');}
               await ensureConnected(activeClient);
               Logger.logUser(telegramId, `[OTP] Resend via SMS ke ${phoneNumber}...`, 'INFO');
               const r = await activeClient.resendCode({ phone: phoneNumber, phoneCodeHash });
@@ -226,7 +226,7 @@ export async function otpRegistrationConversation(conversation: any, ctx: any) {
 
       const signInResult = await conversation.external(async () => {
         const activeClient = activeRegClients.get(telegramId);
-        if (!activeClient) return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };
+        if (!activeClient) {return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };}
         await ensureConnected(activeClient);
         Logger.logUser(telegramId, `[OTP] Mencoba signIn... (percobaan ${attemptCount}/${MAX_ATTEMPTS})`, 'INFO');
         try {
@@ -264,11 +264,11 @@ export async function otpRegistrationConversation(conversation: any, ctx: any) {
           try {
             const resendResult = await conversation.external(async () => {
               const activeClient = activeRegClients.get(telegramId);
-              if (!activeClient) throw new Error('Client tidak ditemukan. Ulangi /daftar.');
+              if (!activeClient) {throw new Error('Client tidak ditemukan. Ulangi /daftar.');}
               await ensureConnected(activeClient);
               Logger.logUser(telegramId, '[OTP] Resend kode baru karena expired...', 'INFO');
               const r = await activeClient.sendCode({ phone: phoneNumber });
-              if (!('phoneCodeHash' in r)) throw new Error('Akun sudah dalam keadaan login.');
+              if (!('phoneCodeHash' in r)) {throw new Error('Akun sudah dalam keadaan login.');}
               const viaApp = r.type === 'app';
               pendingOtpState.set(telegramId, { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: viaApp });
               return { phoneCodeHash: r.phoneCodeHash, isCodeViaApp: viaApp };
@@ -301,12 +301,12 @@ export async function otpRegistrationConversation(conversation: any, ctx: any) {
         try {
           password = await waitForInput(conversation, ctx);
         } catch (pwdErr: any) {
-          if (pwdErr.message === 'USER_CANCELLED') return;
+          if (pwdErr.message === 'USER_CANCELLED') {return;}
           throw pwdErr;
         }
         const pwdResult = await conversation.external(async () => {
           const activeClient = activeRegClients.get(telegramId);
-          if (!activeClient) return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };
+          if (!activeClient) {return { status: 'error', error: 'Client tidak ditemukan. Ulangi /daftar.' };}
           await ensureConnected(activeClient);
           try {
             await activeClient.checkPassword(password);
@@ -414,7 +414,7 @@ export async function otpRegistrationConversation(conversation: any, ctx: any) {
     );
   } catch (error: any) {
     await cleanupClient(telegramId);
-    if (error.message === 'USER_CANCELLED') return;
+    if (error.message === 'USER_CANCELLED') {return;}
     Logger.logUser(telegramId, `Error dalam OTP Registration: ${error.message}`, 'ERROR');
     await replyRich(
       ctx,

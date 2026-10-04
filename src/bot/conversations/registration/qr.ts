@@ -66,14 +66,13 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
         activeRegClients.set(telegramId, client);
 
         let qrImageMessageId: number | null = null;
-        let isScanned = false;
 
         const sessionState = activeQrSessions.get(telegramId);
         const signal = sessionState?.abortController?.signal || abortController.signal;
 
         const loginPromise = client.start({
           qrCodeHandler: async (url: string) => {
-            if (signal.aborted) return;
+            if (signal.aborted) {return;}
             try {
               const qrBuffer = await qrcode.toBuffer(url, { scale: 8 });
 
@@ -85,7 +84,7 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
                 }
               }
 
-              if (signal.aborted) return;
+              if (signal.aborted) {return;}
 
               const qrMsg = await outsideCtx.api.sendPhoto(chatId, new InputFile(qrBuffer), {
                 caption:
@@ -107,13 +106,10 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
               }
             }
           },
-          password: () => {
-            isScanned = true;
-            return new Promise<string>((resolve, reject) => {
+          password: () => new Promise<string>((resolve, reject) => {
               twoFaDeferredPassword = resolve;
               twoFaReject = reject;
-            });
-          },
+            }),
         });
 
         const timeoutPromise = new Promise((_, reject) =>
@@ -139,10 +135,8 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
           ]);
 
           if (twoFaDeferredPassword) {
-            isScanned = true;
             result = { status: '2fa_needed' };
           } else {
-            isScanned = true;
             const sessionString = await client.exportSession();
             let phone: string | null = null;
             let customName: string | undefined;
@@ -196,7 +190,7 @@ export async function qrRegistrationConversation(conversation: any, ctx: any) {
       const pwdText = pwdResult.message?.text?.trim();
 
       if (pwdCb === 'cancel' || pwdCb === 'cancel_reg' || pwdCb === 'cancel_qr' || pwdText?.toLowerCase() === '/cancel') {
-        if (twoFaReject) twoFaReject(new Error('USER_CANCELLED'));
+        if (twoFaReject) {twoFaReject(new Error('USER_CANCELLED'));}
         await cleanupClient(telegramId);
         await replyRich(ctx, `<p><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali.</p>`);
         return;

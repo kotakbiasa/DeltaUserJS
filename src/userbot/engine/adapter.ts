@@ -82,7 +82,7 @@ export function createUserbotMessageAdapter(rawMsg: any, client: any): UserbotMe
 
     async getSender(): Promise<UserbotEntityLike | null> {
       const s = rawMsg.sender;
-      if (!s) return null;
+      if (!s) {return null;}
       return {
         id: s.id,
         firstName: s.firstName,
@@ -97,7 +97,7 @@ export function createUserbotMessageAdapter(rawMsg: any, client: any): UserbotMe
 
     async getChat(): Promise<UserbotEntityLike | null> {
       const c = rawMsg.chat;
-      if (!c) return null;
+      if (!c) {return null;}
       return {
         id: c.id,
         title: c.title,

@@ -57,7 +57,7 @@ export const pendingOtpState = new Map<
  */
 export function getOrCreateClient(telegramId: number, _phoneNumber?: string): TelegramClient {
   let client = activeRegClients.get(telegramId);
-  if (client) return client;
+  if (client) {return client;}
 
   const storage = new MemoryStorage();
   client = new TelegramClient({

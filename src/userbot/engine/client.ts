@@ -225,7 +225,7 @@ export class UserbotClient {
   }
 
   registerHandlers() {
-    if (!this.client) return;
+    if (!this.client) {return;}
 
     // In testing or mock mode, we might register mock event handlers directly
     if (typeof this.client.addEventHandler === 'function' && !this.dp) {
@@ -239,7 +239,7 @@ export class UserbotClient {
     // Handler 1: Pesan Masuk (NewMessage)
     // ==========================================
     this.dp.onNewMessage(async (rawMsg: any) => {
-      if (!rawMsg) return;
+      if (!rawMsg) {return;}
 
       if (this.isFloodWaiting()) {
         Logger.logUser(this.telegramId, `🛡️ FloodGuard Active (${this.getFloodWaitSecondsLeft()}s left) — suppressing command execution.`, 'WARN');
@@ -247,7 +247,7 @@ export class UserbotClient {
       }
 
       const settings = getUserbotSession(this.telegramId);
-      if (!settings) return;
+      if (!settings) {return;}
 
       const message = createUserbotMessageAdapter(rawMsg, this.client);
 
@@ -279,8 +279,8 @@ export class UserbotClient {
 
       const disabled = disabledSet(settings);
       for (const plugin of loadedPlugins) {
-        if (disabled.has(normalizePluginName(plugin.name))) continue;
-        if (plugin.commands && plugin.commands.length > 0 && plugin !== targetPlugin) continue;
+        if (disabled.has(normalizePluginName(plugin.name))) {continue;}
+        if (plugin.commands && plugin.commands.length > 0 && plugin !== targetPlugin) {continue;}
 
         try {
           await plugin.execute(this.client, message, settings, this.telegramId);
@@ -295,7 +295,7 @@ export class UserbotClient {
     // Handler 2: Callback Query (Inline Button Clicks)
     // ==========================================
     this.dp.onAnyCallbackQuery(async (query: any) => {
-      if (this.isFloodWaiting()) return;
+      if (this.isFloodWaiting()) {return;}
 
       const callbackEvent = {
         data: query.data,
@@ -346,12 +346,12 @@ export class UserbotClient {
       const disabled = disabledSet(settings);
 
       for (const plugin of loadedPlugins) {
-        if (disabled.has(normalizePluginName(plugin.name))) continue;
-        if (typeof plugin.onCallbackQuery !== 'function') continue;
+        if (disabled.has(normalizePluginName(plugin.name))) {continue;}
+        if (typeof plugin.onCallbackQuery !== 'function') {continue;}
 
         try {
           const handled = await plugin.onCallbackQuery(this.client, callbackEvent, settings, this.telegramId);
-          if (handled) break;
+          if (handled) {break;}
         } catch (err) {
           this.handlePossibleFloodError(err);
           Logger.logUser(this.telegramId, `Error in plugin ${plugin.name} callback: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
@@ -379,10 +379,10 @@ export class UserbotClient {
   private registerMockHandlers() {
     this.client.addEventHandler(async (event: any) => {
       const message = event.message;
-      if (!message) return;
+      if (!message) {return;}
 
       const settings = getUserbotSession(this.telegramId);
-      if (!settings) return;
+      if (!settings) {return;}
 
       const chatId = message.chatId;
       const chatKey = String(chatId);
@@ -406,8 +406,8 @@ export class UserbotClient {
 
       const disabled = disabledSet(settings);
       for (const plugin of loadedPlugins) {
-        if (disabled.has(normalizePluginName(plugin.name))) continue;
-        if (plugin.commands && plugin.commands.length > 0 && plugin !== targetPlugin) continue;
+        if (disabled.has(normalizePluginName(plugin.name))) {continue;}
+        if (plugin.commands && plugin.commands.length > 0 && plugin !== targetPlugin) {continue;}
 
         try {
           await plugin.execute(this.client, message, settings, this.telegramId);
@@ -423,7 +423,7 @@ export class UserbotClient {
    * Add compatibility aliases to mtcute client so plugins calling legacy GramJS methods continue working
    */
   private setupClientCompatibility(): void {
-    if (!this.client) return;
+    if (!this.client) {return;}
 
     if (!this.client.sendMessage) {
       this.client.sendMessage = async (peer: any, params: any) => {
@@ -513,7 +513,7 @@ export class UserbotClient {
       this.client.downloadProfilePhoto = async (peer: any) => {
         try {
           const photo = await this.client.getProfilePhoto(peer);
-          if (!photo) return undefined;
+          if (!photo) {return undefined;}
           return await this.client.downloadAsBuffer(photo);
         } catch {
           return undefined;
@@ -523,7 +523,7 @@ export class UserbotClient {
   }
 
   private setupEmojiInterceptor(): void {
-    if (!this.client) return;
+    if (!this.client) {return;}
 
     const accountIsPremium = () => {
       const premium = getUserbotSession(this.telegramId)?.is_telegram_premium;
