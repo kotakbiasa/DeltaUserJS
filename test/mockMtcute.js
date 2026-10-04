@@ -19,6 +19,13 @@ export class MockMtcuteClient {
     this.deletedMessages = [];
     this.invokedCalls = [];
     this.markedAsRead = [];
+    // Panggilan API mtcute level tinggi (bukan TL mentah) supaya test bisa
+    // memeriksa BENTUK argumennya, bukan cuma efek sampingnya.
+    this.adminEdits = [];
+    this.sentFiles = [];
+    this.resolvedPeers = [];
+    // Anggota yang dikembalikan iterChatMembers(); bisa ditimpa per test.
+    this.chatMembers = null;
   }
 
   addEventHandler(handler, eventType) {
@@ -165,7 +172,7 @@ export class MockMtcuteClient {
   async banChatMember({ chatId, participantId, untilDate }) {
     return await this._editBanned(chatId, participantId, {
       viewMessages: true,
-      untilDate: untilDate ? Math.floor(new Date(untilDate).getTime() / 1000) : 0,
+      untilDate: this._untilSeconds(untilDate),
     });
   }
 
@@ -173,10 +180,21 @@ export class MockMtcuteClient {
     return await this._editBanned(chatId, participantId, { viewMessages: false });
   }
 
+  // mtcute memaknai `until` numerik sebagai unix timestamp DETIK (Date untuk
+  // bentuk objek). Mock lama memperlakukannya sebagai milidetik, sehingga mute
+  // berdurasi apa pun tampak sudah kedaluwarsa.
+  _untilSeconds(until) {
+    if (!until) return 0;
+    if (until instanceof Date) return Math.floor(until.getTime() / 1000);
+    const n = Number(until);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return n > 1e11 ? Math.floor(n / 1000) : Math.floor(n);
+  }
+
   async restrictChatMember({ chatId, userId, restrictions = {}, until }) {
     return await this._editBanned(chatId, userId, {
       ...restrictions,
-      untilDate: until ? Math.floor(new Date(until).getTime() / 1000) : 0,
+      untilDate: this._untilSeconds(until),
     });
   }
 
@@ -234,6 +252,72 @@ export class MockMtcuteClient {
     return true;
   }
 
+  // --- Permukaan mtcute yang dulu TIDAK ADA di mock ---
+  // Ketiadaannya membuat handler diam-diam jatuh ke cabang fallback
+  // client.call(), sehingga jalur utama (yang dipakai di produksi) tidak
+  // pernah diuji sama sekali.
+
+  async resolvePeer(peer) {
+    const id = this._peerNum(peer);
+    this.resolvedPeers.push({ kind: 'peer', input: peer, id });
+    if (typeof id === 'number' && id < 0) {
+      return { _: 'inputPeerChannel', channelId: Math.abs(id), accessHash: 0 };
+    }
+    return { _: 'inputPeerUser', userId: id, accessHash: 0 };
+  }
+
+  async resolveUser(peer) {
+    const id = this._peerNum(peer);
+    this.resolvedPeers.push({ kind: 'user', input: peer, id });
+    return { _: 'inputUser', userId: id, accessHash: 0 };
+  }
+
+  async resolveChannel(peer) {
+    const id = this._peerNum(peer);
+    this.resolvedPeers.push({ kind: 'channel', input: peer, id });
+    return { _: 'inputChannel', channelId: Math.abs(Number(id)) || id, accessHash: 0 };
+  }
+
+  async editAdminRights({ chatId, userId, rights, rank }) {
+    this.adminEdits.push({
+      chatId: this._peerNum(chatId),
+      userId: this._peerNum(userId),
+      rights,
+      rank,
+    });
+    return true;
+  }
+
+  async getChat(peer) {
+    const id = this._peerNum(peer);
+    return {
+      id,
+      title: `Mock Chat ${id}`,
+      chatType: Number(id) < 0 ? 'supergroup' : 'group',
+      className: Number(id) < 0 ? 'Channel' : 'Chat',
+      megagroup: true,
+    };
+  }
+
+  async *iterChatMembers(peer, options = {}) {
+    const limit = options.limit ?? 200;
+    const members = this.chatMembers ?? [
+      { user: { id: 501, username: 'anggota_satu', isBot: false, firstName: 'Satu' } },
+      { user: { id: 502, username: 'anggota_dua', isBot: false, firstName: 'Dua' } },
+      { user: { id: 503, username: 'bot_palsu', isBot: true, firstName: 'Bot' } },
+    ];
+    let n = 0;
+    for (const m of members) {
+      if (n++ >= limit) return;
+      yield m;
+    }
+  }
+
+  async sendFile(peerId, options = {}) {
+    this.sentFiles.push({ peerId: this._peerNum(peerId), ...options });
+    return { id: nextMsgId(), peerId };
+  }
+
   async getMessages(peerId, options = {}) {
     const peerNum = typeof peerId === 'number' ? peerId : (peerId?.userId || peerId?.channelId || peerId?.chatId || 99999);
     let filtered = this.sentMessages.filter(m => m.chatId === peerNum);
@@ -248,7 +332,7 @@ export class MockMtcuteClient {
 
   // --- E2E Simulation Hooks ---
 
-  async simulateNewMessage({ senderId, chatId, text, replyToMsgId, out = false, action = null }) {
+  async simulateNewMessage({ senderId, chatId, text, replyToMsgId, out = false, action = null, chatClass = null, replySenderId = null, chatType = null }) {
     const msgId = nextMsgId();
     const peerId = { userId: senderId };
     
@@ -264,6 +348,10 @@ export class MockMtcuteClient {
       replyTo: replyToMsgId ? { replyToMsgId } : null,
     };
 
+    // Adapter mtcute meneruskan chatType ('group'/'supergroup'/'channel').
+    // Default null agar perilaku test lama tidak berubah.
+    if (chatType) { msg.chatType = chatType; }
+
     msg.edit = async (editOpts) => {
       msg.message = editOpts.text || editOpts.message || msg.message;
       this.editedMessages.push({
@@ -275,17 +363,45 @@ export class MockMtcuteClient {
       return msg;
     };
 
+    // Chat tempat pesan berada. Tanpa ini `message.getChat()` undefined dan
+    // seluruh handler moderasi berhenti di "hanya bisa dipakai di dalam grup",
+    // jadi logikanya tidak pernah teruji.
+    msg.getChat = async () => ({
+      id: chatId,
+      title: `Mock Chat ${chatId}`,
+      className: chatClass || (chatId < 0 ? 'Channel' : 'Chat'),
+      megagroup: true,
+      chatType: 'supergroup',
+    });
+
+    msg.getSender = async () => ({
+      id: senderId,
+      username: `user_${senderId}`,
+      firstName: `User${senderId}`,
+    });
+
     msg.getReplyMessage = async () => {
       if (!replyToMsgId) return null;
       // Also search in incoming simulated messages
       const found = this.sentMessages.find(m => m.id === replyToMsgId) || (this._simulatedMessages && this._simulatedMessages.find(m => m.id === replyToMsgId));
       if (found) return found;
+      const fallbackSender = replySenderId ?? 333001; // non-self ID: hindari self-vote loop
       return {
         id: replyToMsgId,
-        senderId: 333001, // fallback to a non-self ID instead of senderId to prevent self-vote loop
+        senderId: fallbackSender,
         chatId: chatId,
         message: 'replied message body',
-        out: false
+        out: false,
+        getSender: async () => ({
+          id: fallbackSender,
+          username: `user_${fallbackSender}`,
+          firstName: `User${fallbackSender}`,
+        }),
+        getChat: async () => ({
+          id: chatId,
+          className: chatClass || (chatId < 0 ? 'Channel' : 'Chat'),
+          megagroup: true,
+        }),
       };
     };
     

@@ -1112,3 +1112,323 @@ registerTest('RW-T4-05', 'Scenario', 'RW-T4-05: Reputation Economy & Leaderboard
     throw new Error('Leaderboard missing top users or prints incorrect user list');
   }
 });
+
+// ==========================================
+// TIER 5: HANDLER YANG SEBELUMNYA TANPA TEST SAMA SEKALI
+// ==========================================
+// moderate.ts / purge.ts / tagall.ts / gnotes.ts adalah berkas yang paling
+// banyak diubah saat migrasi GramJS → mtcute, tetapi tidak satu pun test
+// menyentuhnya. Test di bawah sengaja memeriksa BENTUK argumen yang dikirim ke
+// klien (objek params gaya mtcute), bukan hanya teks balasannya — di situlah
+// bug migrasi bersembunyi.
+
+/** Pesan perintah dari owner userbot di dalam supergroup. */
+async function ownerCommand(ubot, chatId, text, extra = {}) {
+  return await ubot.client.simulateNewMessage({
+    senderId: ubot.telegramId,
+    chatId,
+    text,
+    out: true,
+    chatClass: 'Channel',
+    ...extra,
+  });
+}
+
+function lastEditText(ubot, msg) {
+  // Gabungkan semua edit pada pesan ini: beberapa plugin bisa sama-sama
+  // bereaksi, jadi mengambil yang terakhir saja membuat test rapuh.
+  return ubot.client.editedMessages
+    .filter(m => m.messageId === msg.id)
+    .map(m => m.text)
+    .join('\n');
+}
+
+registerTest('MOD-T5-01', 'Moderation', 'Moderation - .mute via reply memakai restrictChatMember objek mtcute (sendMessages:true = DILARANG)', async (ubot) => {
+  const chatId = -1009991;
+  const victim = 777001;
+  const target = await ubot.client.simulateNewMessage({ senderId: victim, chatId, text: 'spam', chatClass: 'Channel' });
+  const msg = await ownerCommand(ubot, chatId, '.mute 1h', { replyToMsgId: target.id, replySenderId: victim });
+
+  const text = lastEditText(ubot, msg);
+  if (!text.includes('dimute')) {
+    throw new Error(`.mute harus mengonfirmasi mute, dapat: ${text}`);
+  }
+  const banned = ubot.client.invokedCalls.filter(c => c.className === 'EditBanned');
+  if (banned.length === 0) {
+    throw new Error('.mute tidak pernah memanggil channels.editBanned');
+  }
+  const rights = banned[banned.length - 1].bannedRights;
+  // Semantik Telegram: flag true = DILARANG. Mute = sendMessages:true.
+  if (rights.sendMessages !== true) {
+    throw new Error('Mute harus menyetel sendMessages=true (dilarang mengirim pesan)');
+  }
+  if (!rights.untilDate || rights.untilDate <= Math.floor(Date.now() / 1000)) {
+    throw new Error('.mute 1h harus memberi untilDate di masa depan, bukan 0 (permanen)');
+  }
+});
+
+registerTest('MOD-T5-02', 'Moderation', 'Moderation - .mute dengan durasi melebihi 7 hari ditolak', async (ubot) => {
+  const chatId = -1009992;
+  const victim = 777002;
+  const target = await ubot.client.simulateNewMessage({ senderId: victim, chatId, text: 'spam', chatClass: 'Channel' });
+  const before = ubot.client.invokedCalls.filter(c => c.className === 'EditBanned').length;
+  const msg = await ownerCommand(ubot, chatId, '.mute 30d', { replyToMsgId: target.id, replySenderId: victim });
+
+  const text = lastEditText(ubot, msg);
+  if (!text.includes('Durasi tidak valid')) {
+    throw new Error(`Durasi > 7 hari harus ditolak, dapat: ${text}`);
+  }
+  const after = ubot.client.invokedCalls.filter(c => c.className === 'EditBanned').length;
+  if (after !== before) {
+    throw new Error('Durasi tidak valid tidak boleh tetap mengirim perintah restrict');
+  }
+});
+
+registerTest('MOD-T5-03', 'Moderation', 'Moderation - .unmute mengosongkan pembatasan, bukan menyalakan sendMessages', async (ubot) => {
+  const chatId = -1009993;
+  const victim = 777003;
+  const target = await ubot.client.simulateNewMessage({ senderId: victim, chatId, text: 'hai', chatClass: 'Channel' });
+  const msg = await ownerCommand(ubot, chatId, '.unmute', { replyToMsgId: target.id, replySenderId: victim });
+
+  if (!lastEditText(ubot, msg).includes('unmute')) {
+    throw new Error('.unmute harus mengonfirmasi unmute');
+  }
+  const banned = ubot.client.invokedCalls.filter(c => c.className === 'EditBanned');
+  const rights = banned[banned.length - 1].bannedRights;
+  if (rights.sendMessages === true) {
+    throw new Error('Unmute justru melarang kirim pesan — flag true berarti DILARANG');
+  }
+});
+
+registerTest('MOD-T5-04', 'Moderation', 'Moderation - .ban memakai banChatMember dan memblokir viewMessages permanen', async (ubot) => {
+  const chatId = -1009994;
+  const victim = 777004;
+  const target = await ubot.client.simulateNewMessage({ senderId: victim, chatId, text: 'raid', chatClass: 'Channel' });
+  const msg = await ownerCommand(ubot, chatId, '.ban spam parah', { replyToMsgId: target.id, replySenderId: victim });
+
+  const text = lastEditText(ubot, msg);
+  if (!text.includes('diban')) {
+    throw new Error(`.ban harus mengonfirmasi ban, dapat: ${text}`);
+  }
+  if (!text.includes('spam parah')) {
+    throw new Error('Alasan ban harus ikut ditampilkan');
+  }
+  const banned = ubot.client.invokedCalls.filter(c => c.className === 'EditBanned');
+  if (banned[banned.length - 1].bannedRights.viewMessages !== true) {
+    throw new Error('Ban harus menyetel viewMessages=true');
+  }
+});
+
+registerTest('MOD-T5-05', 'Moderation', 'Moderation - .promote memakai editAdminRights({chatId,userId,rights,rank}) bukan setChatAdminRights posisional', async (ubot) => {
+  const chatId = -1009995;
+  const victim = 777005;
+  const target = await ubot.client.simulateNewMessage({ senderId: victim, chatId, text: 'halo', chatClass: 'Channel' });
+  ubot.client.adminEdits = [];
+  const msg = await ownerCommand(ubot, chatId, '.promote Moderator', { replyToMsgId: target.id, replySenderId: victim });
+
+  if (!lastEditText(ubot, msg).includes('⬆️')) {
+    throw new Error('.promote harus mengonfirmasi promosi');
+  }
+  if (ubot.client.adminEdits.length !== 1) {
+    throw new Error('.promote harus memanggil editAdminRights tepat sekali');
+  }
+  const edit = ubot.client.adminEdits[0];
+  if (edit.userId !== victim) {
+    throw new Error(`editAdminRights menargetkan user salah: ${edit.userId}`);
+  }
+  if (edit.rank !== 'Moderator') {
+    throw new Error(`Gelar admin harus diteruskan sebagai rank, dapat: ${edit.rank}`);
+  }
+  if (edit.rights.banUsers !== true || edit.rights.addAdmins !== false) {
+    throw new Error('Hak admin default promote tidak sesuai (banUsers true, addAdmins false)');
+  }
+});
+
+registerTest('MOD-T5-06', 'Moderation', 'Moderation - .demote mengirim rights kosong dan menghapus gelar', async (ubot) => {
+  const chatId = -1009996;
+  const victim = 777006;
+  const target = await ubot.client.simulateNewMessage({ senderId: victim, chatId, text: 'halo', chatClass: 'Channel' });
+  ubot.client.adminEdits = [];
+  const msg = await ownerCommand(ubot, chatId, '.demote', { replyToMsgId: target.id, replySenderId: victim });
+
+  if (!lastEditText(ubot, msg).includes('⬇️')) {
+    throw new Error('.demote harus mengonfirmasi demosi');
+  }
+  const edit = ubot.client.adminEdits[0];
+  if (!edit) { throw new Error('.demote tidak memanggil editAdminRights'); }
+  if (Object.keys(edit.rights).length !== 0) {
+    throw new Error('Demote harus mengirim rights kosong');
+  }
+  if (edit.rank !== '') {
+    throw new Error('Demote harus mengosongkan gelar');
+  }
+});
+
+registerTest('MOD-T5-07', 'Moderation', 'Moderation - userbot tidak bisa memoderasi dirinya sendiri', async (ubot) => {
+  const chatId = -1009997;
+  ubot.client.adminEdits = [];
+  const before = ubot.client.invokedCalls.filter(c => c.className === 'EditBanned').length;
+  const msg = await ownerCommand(ubot, chatId, `.ban ${ubot.telegramId}`);
+
+  const text = lastEditText(ubot, msg);
+  if (!text.includes('diri sendiri')) {
+    throw new Error(`Self-moderation harus ditolak, dapat: ${text}`);
+  }
+  const after = ubot.client.invokedCalls.filter(c => c.className === 'EditBanned').length;
+  if (after !== before || ubot.client.adminEdits.length !== 0) {
+    throw new Error('Self-moderation tidak boleh mengirim perintah apa pun ke server');
+  }
+});
+
+registerTest('MOD-T5-08', 'Moderation', 'Moderation - .ban tanpa reply/target memberi instruksi, bukan diam', async (ubot) => {
+  const chatId = -1009998;
+  const msg = await ownerCommand(ubot, chatId, '.ban');
+  const text = lastEditText(ubot, msg);
+  if (!text.includes('Balas pesan user')) {
+    throw new Error(`Target kosong harus memberi instruksi, dapat: ${text}`);
+  }
+});
+
+registerTest('MOD-T5-09', 'Moderation', 'Moderation - .ban di grup biasa (bukan supergroup) mengarahkan ke .kick', async (ubot) => {
+  const chatId = 999551; // className 'Chat' = grup biasa
+  const victim = 777009;
+  const target = await ubot.client.simulateNewMessage({ senderId: victim, chatId, text: 'hai', chatClass: 'Chat' });
+  const msg = await ubot.client.simulateNewMessage({
+    senderId: ubot.telegramId, chatId, text: '.ban', out: true,
+    chatClass: 'Chat', replyToMsgId: target.id, replySenderId: victim,
+  });
+  const text = lastEditText(ubot, msg);
+  if (!text.includes('supergroup')) {
+    throw new Error(`Grup biasa harus diarahkan ke .kick, dapat: ${text}`);
+  }
+});
+
+registerTest('MOD-T5-10', 'Moderation', 'Moderation - .lock media mengirim editChatDefaultBannedRights dengan InputPeer hasil resolvePeer', async (ubot) => {
+  const chatId = -1009999;
+  ubot.client.resolvedPeers = [];
+  const msg = await ownerCommand(ubot, chatId, '.lock media');
+
+  const text = lastEditText(ubot, msg);
+  if (!text.includes('🔒')) {
+    throw new Error(`.lock harus mengonfirmasi penguncian, dapat: ${text}`);
+  }
+  const call = ubot.client.invokedCalls.find(c => c._ === 'messages.editChatDefaultBannedRights');
+  if (!call) {
+    throw new Error('.lock tidak mengirim messages.editChatDefaultBannedRights');
+  }
+  // Skema TL menuntut InputPeer, bukan objek entity hasil getEntity().
+  if (!call.peer || !String(call.peer._ || '').startsWith('inputPeer')) {
+    throw new Error('peer harus berupa InputPeer hasil resolvePeer()');
+  }
+  if (call.bannedRights.sendMedia !== true) {
+    throw new Error('.lock media harus melarang sendMedia');
+  }
+});
+
+registerTest('PRG-T5-11', 'Purge', 'Purge - .purge tanpa reply meminta titik awal', async (ubot) => {
+  const chatId = -1009071;
+  const msg = await ownerCommand(ubot, chatId, '.purge');
+  if (!lastEditText(ubot, msg).includes('Balas')) {
+    throw new Error('.purge tanpa reply harus meminta reply');
+  }
+});
+
+registerTest('PRG-T5-12', 'Purge', 'Purge - .purge menolak rentang di atas batas 100 pesan', async (ubot) => {
+  const chatId = -1009072;
+  // ID pesan mock menaik monoton, jadi reply ke ID yang jauh lebih tua
+  // menghasilkan rentang > 100.
+  const msg = await ownerCommand(ubot, chatId, '.purge', { replyToMsgId: 1 });
+  const text = lastEditText(ubot, msg);
+  if (!text.includes('Terlalu banyak pesan')) {
+    throw new Error(`Rentang berlebih harus ditolak, dapat: ${text}`);
+  }
+  if (ubot.client.deletedMessages.length !== 0) {
+    throw new Error('Purge yang ditolak tidak boleh menghapus apa pun');
+  }
+});
+
+registerTest('PRG-T5-13', 'Purge', 'Purge - .purgeme menolak jumlah tidak valid tanpa menghapus pesan', async (ubot) => {
+  const chatId = -1009073;
+  const msg = await ownerCommand(ubot, chatId, '.purgeme -3');
+  const text = lastEditText(ubot, msg);
+  if (!/Format salah|Tidak Valid|tidak valid/i.test(text)) {
+    throw new Error(`.purgeme -3 harus ditolak, dapat: ${text}`);
+  }
+  if (ubot.client.deletedMessages.length !== 0) {
+    throw new Error('.purgeme tidak valid tidak boleh menghapus pesan');
+  }
+});
+
+registerTest('TAG-T5-14', 'TagAll', 'TagAll - .tagall memakai iterChatMembers dan melewati akun bot', async (ubot) => {
+  const chatId = -1009081;
+  ubot.client.chatMembers = [
+    { user: { id: 601, username: 'a', isBot: false } },
+    { user: { id: 602, username: 'b', isBot: false } },
+    { user: { id: 603, username: 'c', isBot: true } },
+  ];
+  await ownerCommand(ubot, chatId, '.tagall kumpul');
+
+  const mentions = ubot.client.sentMessages.filter(m => m.chatId === chatId && m.message.includes('tg://user?id='));
+  if (mentions.length === 0) {
+    throw new Error('.tagall tidak mengirim satu pun pesan mention (iterParticipants gaya GramJS akan melempar di sini)');
+  }
+  const all = mentions.map(m => m.message).join('\n');
+  if (!all.includes('601') || !all.includes('602')) {
+    throw new Error('Semua member manusia harus ditandai');
+  }
+  if (all.includes('603')) {
+    throw new Error('Akun bot tidak boleh ikut ditandai');
+  }
+  const done = ubot.client.sentMessages.find(m => m.chatId === chatId && m.message.includes('2 member ditandai'));
+  if (!done) {
+    throw new Error('Ringkasan akhir harus menyebut 2 member ditandai');
+  }
+  ubot.client.chatMembers = null;
+});
+
+registerTest('TAG-T5-15', 'TagAll', 'TagAll - .tagall tanpa teks tetap menandai member (teks opsional)', async (ubot) => {
+  const chatId = -1009082;
+  ubot.client.chatMembers = [{ user: { id: 611, username: 'solo', isBot: false } }];
+  await ownerCommand(ubot, chatId, '.tagall');
+
+  const mention = ubot.client.sentMessages.find(m => m.chatId === chatId && m.message.includes('tg://user?id=611'));
+  if (!mention) {
+    throw new Error('.tagall tanpa argumen harus tetap menandai member');
+  }
+  ubot.client.chatMembers = null;
+});
+
+registerTest('GNT-T5-16', 'GroupNotes', 'GroupNotes - .gsave menyimpan note dan #hashtag memanggilnya kembali', async (ubot) => {
+  const chatId = -1009091;
+  const saveMsg = await ubot.client.simulateNewMessage({
+    senderId: ubot.telegramId, chatId, text: '.gsave aturan Dilarang spam di sini',
+    out: true, chatType: 'supergroup',
+  });
+  const saved = lastEditText(ubot, saveMsg);
+  if (!saved.includes('aturan')) {
+    throw new Error(`.gsave harus mengonfirmasi penyimpanan, dapat: ${saved}`);
+  }
+
+  // Recall hashtag dari member lain. Dulu pemeriksaan className gaya GramJS
+  // selalu gagal sehingga recall tidak pernah jalan.
+  await ubot.client.simulateNewMessage({
+    senderId: 888001, chatId, text: '#aturan', out: false, chatType: 'supergroup',
+  });
+  const recalled = ubot.client.sentMessages.find(m => m.chatId === chatId && m.message.includes('Dilarang spam'));
+  if (!recalled) {
+    throw new Error('Recall #hashtag tidak mengirim isi note');
+  }
+});
+
+registerTest('GNT-T5-17', 'GroupNotes', 'GroupNotes - .gsave di luar grup ditolak', async (ubot) => {
+  // Catatan: jangan pakai 999601 — chat itu sudah dipakai CF-T3-03 untuk
+  // menyetel prefix '!', sehingga perintah berawalan '.' sengaja diabaikan.
+  const chatId = 999771;
+  const msg = await ubot.client.simulateNewMessage({
+    senderId: ubot.telegramId, chatId, text: '.gsave x halo', out: true, chatType: 'private',
+  });
+  const t = lastEditText(ubot, msg);
+  if (!t.includes('Grup')) {
+    throw new Error(`.gsave di private chat harus ditolak, dapat: ${t}`);
+  }
+});

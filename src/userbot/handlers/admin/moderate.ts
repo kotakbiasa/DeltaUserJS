@@ -110,15 +110,20 @@ function reasonSuffix(reason: string): string {
 // Target user: reply ke pesan user, atau token pertama args = @username /
 // username / link t.me / ID numerik. Token sisanya jadi alasan.
 async function resolveTarget(client: CompatClient, message: UserbotMessageLike, args: string): Promise<ResolvedTarget> {
+  const replied = await message.getReplyMessage();
+
+  // Token pertama hanya dipakai sebagai target bila TIDAK sedang membalas
+  // pesan. Sebelumnya token itu selalu dipotong, sehingga `.ban spam parah`
+  // pada sebuah reply menyimpan alasan "parah" (kata pertama hilang) dan
+  // `.promote Moderator` kehilangan gelarnya — title jatuh ke "Admin".
   let token = '';
   let reason = args;
-  if (args !== '') {
+  if (args !== '' && !(replied && replied.senderId)) {
     const parts = args.split(/\s+/).filter(Boolean);
     token = parts[0] || '';
     reason = parts.slice(1).join(' ').trim();
   }
 
-  const replied = await message.getReplyMessage();
   if (replied && replied.senderId) {
     let name = `User ${replied.senderId}`;
     let entity;

@@ -264,3 +264,29 @@ userbot di database yang **masih menyimpan string sesi format GramJS dari
 sebelum migrasi tidak akan bisa start lagi** — pemiliknya harus menghapus
 userbot itu dan login ulang. Pesan error sudah diubah agar menyebutkan hal itu
 secara eksplisit, bukan sekadar "sesi tidak valid".
+
+---
+
+## 10. Handler kritis tanpa test — dan dua bug yang langsung ketahuan ✅
+
+30 dari 59 handler userbot tidak tersentuh test sama sekali, termasuk
+`moderate.ts` (553 baris) dan `purge.ts` — justru berkas yang paling banyak
+diubah saat migrasi GramJS → mtcute. Ditambahkan **17 test E2E baru** (Tier 5)
+untuk `.mute/.unmute/.ban/.kick/.promote/.demote/.lock`, `.purge/.purgeme`,
+`.tagall`, dan `.gsave` + recall `#hashtag`.
+
+Test ini sengaja memeriksa **bentuk argumen** yang dikirim ke klien, bukan
+sekadar teks balasan — di situlah bug migrasi bersembunyi. Mock
+(`test/mockMtcute.js`) ikut diperluas dengan permukaan mtcute yang sebelumnya
+tidak ada (`resolvePeer`/`resolveUser`/`resolveChannel`, `editAdminRights`,
+`iterChatMembers`, `getChat`, `sendFile`, `message.getChat()`,
+`getSender()`), karena ketiadaannya membuat handler diam-diam jatuh ke cabang
+fallback `client.call()` sehingga jalur yang benar-benar dipakai di produksi
+tak pernah diuji.
+
+**Bug yang ditemukan dan diperbaiki:**
+
+| Lokasi | Gejala |
+|---|---|
+| `moderate.ts` `resolveTarget()` | Saat perintah berupa **reply**, token pertama argumen tetap dipotong sebagai "target". Akibatnya `.ban spam parah` menyimpan alasan `"parah"` (kata pertama hilang), dan `.promote Moderator` kehilangan gelarnya sehingga rank jatuh ke default `"Admin"`. Kini token hanya dipotong bila tidak sedang membalas pesan. |
+| `test/mockMtcute.js` | `until`/`untilDate` numerik diperlakukan sebagai milidetik, padahal mtcute memaknainya sebagai **unix detik**. Mute berdurasi apa pun tampak sudah kedaluwarsa — bug mock yang akan menyamarkan regresi `.mute` sungguhan. |
