@@ -508,14 +508,23 @@ export class UserbotClient {
       ;
     }
 
-    if (!this.client.getMessages) {
-      this.client.getMessages = async (peer: LegacyPeer, params?: { ids?: number[] } & Record<string, unknown>) => {
-        if (params?.ids) {
-          return await this.client.getMessages(peer, params.ids);
-        }
-        return await this.client.getHistory(peer, params as Parameters<CompatClient['getHistory']>[1]);
-      };
-    }
+    // CATATAN: wrapper ini dipasang TANPA guard `if (!client.getMessages)`.
+    // mtcute sudah punya getMessages(peer, ids), jadi guard seperti itu membuat
+    // wrapper tidak pernah terpasang — dan setiap pemanggil gaya legacy yang
+    // mengoper objek (`{ ids }` atau `{ limit }`) mengenai implementasi asli
+    // yang hanya menerima array ID, lalu gagal.
+    const nativeGetMessages = this.client.getMessages.bind(this.client);
+    this.client.getMessages = async (peer: LegacyPeer, params?: unknown) => {
+      if (Array.isArray(params) || typeof params === 'number') {
+        return await nativeGetMessages(peer, params);
+      }
+      const opts = (params ?? {}) as { ids?: number[] } & Record<string, unknown>;
+      if (opts.ids) {
+        return await nativeGetMessages(peer, opts.ids);
+      }
+      // Tanpa `ids` maksudnya mengambil riwayat, bukan pesan tertentu.
+      return await this.client.getHistory(peer, opts as Parameters<CompatClient['getHistory']>[1]);
+    };
 
     if (!this.client.sendFile) {
       this.client.sendFile = async (chat: LegacyPeer, options: LegacySendFileOptions) => {

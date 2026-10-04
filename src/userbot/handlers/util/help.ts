@@ -7,6 +7,7 @@ import { buildModuleHtml } from '../../../bot/handlers/inlineHelp.js';
 import { getMasterBotUsername } from '../../../bot/state/botUsername.js';
 import { errorMessage } from '../../../utils/errors.js';
 import type { UserbotMessageLike } from '../../types.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 /**
  * Bangun InputReplyToMessage untuk forum topic — memastikan pesan bot
@@ -236,7 +237,8 @@ export default {
         if (results.length > 0) {
           const queryId = botResults.queryId;
           const replyTo = buildReplyToTopic(message);
-          const targetPeer = await client.getInputPeer(message.peerId || message.chatId);
+          // mtcute: resolvePeer() menghasilkan InputPeer; getInputPeer() nama GramJS.
+          const targetPeer = await client.resolvePeer(toPeer(message.peerId || message.chatId));
           await client.call({
             _: 'messages.sendInlineBotResult',
             peer: targetPeer,

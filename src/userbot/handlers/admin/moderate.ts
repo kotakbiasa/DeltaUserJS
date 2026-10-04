@@ -2,6 +2,8 @@ import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import type { LegacyEntity } from '../../engine/compatClient.js';
 import type { UserbotEntityLike } from '../../types.js';
+import type { EntityLike } from '../../types.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // Moderate: moderasi grup lengkap. Konsep diadaptasi dari getter admintools.py
 // (kastaid/getter) ke pola plugin DeltaUserJS — bukan salinan mentah.
@@ -338,8 +340,12 @@ async function handleRole(client, message, chat, isChannel, cmd, args, telegramI
   const isBroadcast = isChannel && !chat.megagroup;
   const title = isPromote ? (resolved.reason.slice(0, 16) || 'Admin') : '';
 
-  if (typeof client.setChatAdminRights === 'function') {
-    await client.setChatAdminRights(chat.id || chat, participant, {
+  if (typeof client.editAdminRights === 'function') {
+    // mtcute: editAdminRights({ chatId, userId, rights, rank }).
+    // setChatAdminRights() adalah nama GramJS dan tidak pernah ada di sini.
+    await client.editAdminRights({
+      chatId: toPeer((chat.id ?? chat) as EntityLike),
+      userId: toPeer(participant as EntityLike),
       rights: isPromote ? {
         changeInfo: false,
         postMessages: isBroadcast,

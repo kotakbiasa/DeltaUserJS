@@ -1,6 +1,7 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { fetchWithTimeout } from '../../../utils/http.js';
+import type { CompatClient } from '../../engine/compatClient.js';
 
 const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -66,7 +67,15 @@ export default {
     });
 
     try {
-      const buffer = await client.downloadMedia(replied, {});
+      // mtcute tidak punya client.downloadMedia(); pakai adapter pesan, dengan
+      // downloadAsBuffer() atas objek media sebagai cadangan.
+      let buffer: Buffer | string | undefined;
+      if (typeof replied.downloadMedia === 'function') {
+        buffer = await replied.downloadMedia();
+      }
+      if (!buffer && replied.media && typeof client.downloadAsBuffer === 'function') {
+        buffer = Buffer.from(await client.downloadAsBuffer(replied.media as Parameters<CompatClient['downloadAsBuffer']>[0]));
+      }
       if (!buffer || buffer.length === 0) {
         throw new Error('Gagal mengunduh media');
       }

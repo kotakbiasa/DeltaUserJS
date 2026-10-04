@@ -5,6 +5,8 @@ import os from 'os';
 import path from 'path';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import type { UserbotMessageLike } from '../../types.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -92,12 +94,23 @@ async function getReplied(message) {
 }
 
 /** Download media sebagai Buffer (tolak jika kosong). */
-async function downloadBuffer(client, replied) {
-  const buffer = await client.downloadMedia(replied, {});
+async function downloadBuffer(client: CompatClient, replied: UserbotMessageLike): Promise<Buffer> {
+  // mtcute tidak punya client.downloadMedia(); jalur yang benar adalah
+  // adapter pesan, dengan downloadAsBuffer() atas objek media sebagai cadangan.
+  let buffer: Buffer | string | undefined;
+  if (typeof replied.downloadMedia === 'function') {
+    buffer = await replied.downloadMedia();
+  }
+  if (!buffer) {
+    const media = (replied as { media?: unknown }).media;
+    if (media && typeof client.downloadAsBuffer === 'function') {
+      buffer = Buffer.from(await client.downloadAsBuffer(media as Parameters<CompatClient['downloadAsBuffer']>[0]));
+    }
+  }
   if (!buffer || buffer.length === 0) {
     throw new Error('gagal mengunduh media');
   }
-  return buffer;
+  return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
 }
 
 /** Simpan Buffer ke file temp dengan ekstensi tertentu, kembalikan path. */

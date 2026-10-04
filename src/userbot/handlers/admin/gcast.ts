@@ -68,10 +68,18 @@ export default {
 
     try {
       // Ambil daftar semua obrolan
-      const dialogs = await client.getDialogs();
-      
+      // mtcute tidak punya getDialogs(); dialog diambil lewat iterator.
+      const dialogs = [];
+      for await (const dialog of client.iterDialogs()) {
+        dialogs.push(dialog);
+      }
+
       // Filter hanya grup dan supergrup (abaikan private chat dan channel broadcast)
-      let targetGroups = dialogs.filter(d => d.isGroup);
+      let targetGroups = dialogs.filter((d) => {
+        const peer = d.peer;
+        return peer.type === 'chat'
+          && (peer.chatType === 'group' || peer.chatType === 'supergroup' || peer.chatType === 'gigagroup');
+      });
 
       const blacklist = getBroadcastBlacklist(telegramId);
       let successCount = 0;

@@ -133,7 +133,13 @@ diam-diam, bukan crash.
 | `confirm.delete()` di `.purge`/`.purgeme` | `Message` mtcute tidak punya `.delete()` | pesan konfirmasi "N pesan dihapus" **tidak pernah terhapus** dan menumpuk; kini lewat `client.deleteMessages()` |
 | `fresh.message` di `.profiles` | `Message` mtcute memakai `.text` | guard anti-dobel selalu benar → handler **selalu** berhenti di baris pertama |
 | `fullChat.description` | `FullChat` mtcute memakai `.bio` | deskripsi grup/channel selalu kosong |
-| `client.downloadMedia()` di `.zip` | tidak ada di mtcute | cabang mati, dihapus; `downloadAsBuffer()` tetap jalur utama |
+| `client.downloadMedia()` (`.zip`, `.convert`, `.tourl`, `.kang`) | tidak ada di mtcute | **seluruh unduhan media gagal**; kini lewat adapter + `downloadAsBuffer()` |
+| `client.getDialogs()` (`.gcast`, `.clear_all_@`, `.clear_all_reacts`) | mtcute hanya punya `iterDialogs()` | `.gcast` melempar sebelum mengirim apa pun |
+| `client.iterParticipants()` (`.tagall`) | mtcute: `iterChatMembers()`, dan anggotanya di `member.user` | `.tagall` melempar seketika |
+| `client.setChatAdminRights(chat, user, {...})` (`.promote`/`.demote`) | mtcute: `editAdminRights({ chatId, userId, rights, rank })` | selalu gagal |
+| `client.getInputPeer()` / `getInputEntity()` (`.help` inline, `.invite`, quotly) | mtcute: `resolvePeer()` / `resolveUser()` / `resolveChannel()` | selalu gagal |
+| `forwardMessages(QUOTLY, { messages, fromPeer })` (quotly) | mtcute: `forwardMessagesById({ fromChatId, toChatId, messages })` | selalu gagal |
+| shim `getMessages` dipasang di balik `if (!client.getMessages)` | mtcute **sudah punya** nama itu, jadi shim tidak pernah terpasang | semua pemanggil gaya legacy (`{ ids }` / `{ limit }` di `.purge`, `.stalk`, `.kang`, `.sangmata`) mengenai implementasi asli yang hanya menerima array ID. Wrapper kini dipasang tanpa guard |
 | `message.downloadMedia()` mengoper objek `Message` ke `downloadAsBuffer()` | parameternya lokasi file (media), bukan pesan | unduhan media lewat adapter **tidak pernah berhasil**; kini memakai `rawMsg.media` |
 | `isPrivate`/`isGroup`/`isChannel` dibandingkan dengan `'private'`/`'group'`/`'channel'` | `Peer.type` hanya `'user'` \| `'chat'`; jenis grup ada di `chatType` | ketiga flag **selalu false** |
 | `rawMsg.replyToMessageId` | mtcute: `replyToMessage` (`RepliedMessageInfo`) | `replyToMsgId`/`replyTo` selalu `undefined`; `getReplyMessage()` bahkan mengadaptasi objek metadata seolah-olah `Message` |
@@ -151,6 +157,14 @@ diam-diam, bukan crash.
 
 Helper `toPeer()` di `compatClient.ts` menormalkan identitas peer gaya legacy
 (bigint / objek entity) ke bentuk yang diterima mtcute.
+
+**Catatan cakupan.** `tsconfig.json` memakai `strict: false`, jadi
+`noImplicitAny` mati: masih ada ~650 parameter tanpa anotasi (67 di antaranya
+parameter `client`), dan pemanggilan di dalamnya **tidak** diperiksa compiler.
+Temuan di tabel atas yang berada di file-file itu ditemukan lewat audit nama
+manual terhadap `keyof CompatClient`, bukan oleh `tsc`. Menyalakan
+`noImplicitAny` adalah langkah lanjutan yang masuk akal bila ingin jaminan
+menyeluruh.
 
 Keduanya kini dideklarasikan sebagai properti opsional ber-`@deprecated` di
 `CompatClient` supaya kebohongannya terlihat di tipe. `ITelegramClient` mtcute

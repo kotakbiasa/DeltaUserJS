@@ -2,6 +2,8 @@ import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
 import type { LegacyEntity } from '../../engine/compatClient.js';
 import type { UserbotEntityLike } from '../../types.js';
+import { toPeer } from '../../engine/compatClient.js';
+import type { EntityLike } from '../../types.js';
 
 // ============================================================
 // INVITE — invite user ke grup via username atau reply.
@@ -140,14 +142,14 @@ async function handleInvite(client, message, chat, isChannel: boolean, args: str
       } else if (isChannel) {
         await client.call({
           _: 'channels.inviteToChannel',
-          channel: await client.getInputPeer(message.chatId),
-          users: [await client.getInputPeer(participant)],
+          channel: await client.resolveChannel(toPeer(message.chatId)),
+          users: [await client.resolveUser(toPeer(participant as EntityLike))],
         });
       } else {
         await client.call({
           _: 'messages.addChatUser',
           chatId: chat.id,
-          userId: await client.getInputPeer(participant),
+          userId: await client.resolveUser(toPeer(participant as EntityLike)),
           fwdLimit: FWD_LIMIT,
         });
       }

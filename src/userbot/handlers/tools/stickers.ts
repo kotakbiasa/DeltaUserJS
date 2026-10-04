@@ -34,6 +34,24 @@ function createTlProxy(prefix = ''): TlProxy {
   }) as unknown as TlProxy;
 }
 const Api = createTlProxy();
+
+/**
+ * Unduh media pesan jadi Buffer.
+ *
+ * mtcute tidak punya `client.downloadMedia()` (itu nama GramJS); jalurnya
+ * adalah adapter pesan, dengan `downloadAsBuffer()` atas objek media sebagai
+ * cadangan.
+ */
+async function downloadMediaBuffer(client, currentMsg) {
+  let buf;
+  if (typeof currentMsg?.downloadMedia === 'function') {
+    buf = await currentMsg.downloadMedia();
+  }
+  if (!buf && currentMsg?.media && typeof client.downloadAsBuffer === 'function') {
+    buf = Buffer.from(await client.downloadAsBuffer(currentMsg.media));
+  }
+  return buf;
+}
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -246,7 +264,7 @@ async function uploadTempAsDocument(client, filePath, attributes = null) {
 // langsung ditolak Telegram karena file_reference/ownership).
 function makeStickerUploadFallback(client, currentMsg, kind, tmpFiles) {
   return async () => {
-    const buf = await client.downloadMedia(currentMsg, {});
+    const buf = await downloadMediaBuffer(client, currentMsg);
     if (!buf || !buf.length) {throw new Error('Gagal mengunduh media sticker');}
     const ext = kind === 'anim' ? '.tgs' : kind === 'video' ? '.webm' : '.webp';
     const p = tmpFile(ext);
@@ -274,7 +292,7 @@ function makeStickerUploadFallback(client, currentMsg, kind, tmpFiles) {
 
 // Foto/gambar biasa -> resize 512 via Jimp (fallback ffmpeg) -> upload.
 async function buildStaticFromImage(client, currentMsg, tmpFiles, telegramId) {
-  const buf = await client.downloadMedia(currentMsg, {});
+  const buf = await downloadMediaBuffer(client, currentMsg);
   if (!buf || !buf.length) {throw new Error('Gagal mengunduh media');}
   const srcPath = tmpFile('.bin');
   tmpFiles.push(srcPath);
@@ -302,7 +320,7 @@ async function buildStaticFromImage(client, currentMsg, tmpFiles, telegramId) {
 
 // Video biasa -> konversi webm 512px (VP9, maks 3 detik) -> upload.
 async function buildVideoFromMedia(client, currentMsg, tmpFiles) {
-  const buf = await client.downloadMedia(currentMsg, {});
+  const buf = await downloadMediaBuffer(client, currentMsg);
   if (!buf || !buf.length) {throw new Error('Gagal mengunduh media');}
   const srcPath = tmpFile('.bin');
   tmpFiles.push(srcPath);
@@ -502,7 +520,8 @@ export default {
 
         // Pastikan @QuotLyBot tidak diblokir (pola dari PyroUbot)
         try {
-          const quotlyPeer = await client.getInputEntity(QUOTLY);
+          // mtcute: resolvePeer(); getInputEntity() adalah nama GramJS.
+          const quotlyPeer = await client.resolvePeer(QUOTLY);
           await client.invoke(new Api.contacts.Unblock({ id: quotlyPeer }));
         } catch (_e) { /* ignore */ }
 
@@ -519,9 +538,12 @@ export default {
 
         // Forward ke @QuotLyBot satu per satu agar multi-quote terbentuk
         for (const t of targets) {
-          await client.forwardMessages(QUOTLY, {
+          // mtcute: forwardMessagesById({ fromChatId, toChatId, messages }).
+          // Bentuk lama (peer posisional + fromPeer) tidak pernah valid.
+          await client.forwardMessagesById({
+            fromChatId: message.peerId ?? message.chatId,
+            toChatId: QUOTLY,
             messages: [t.id],
-            fromPeer: message.peerId
           });
           await new Promise(r => setTimeout(r, 300));
         }
@@ -555,7 +577,8 @@ export default {
 
         // Bersihkan riwayat chat dengan @QuotLyBot (pola PyroUbot)
         try {
-          const quotlyPeer = await client.getInputEntity(QUOTLY);
+          // mtcute: resolvePeer(); getInputEntity() adalah nama GramJS.
+          const quotlyPeer = await client.resolvePeer(QUOTLY);
           await client.invoke(new Api.messages.DeleteHistory({
             peer: quotlyPeer,
             maxId: 0,

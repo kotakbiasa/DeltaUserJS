@@ -1,6 +1,16 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { sleep } from '../../../utils/async.js';
-import type { LegacyPeer } from '../../engine/compatClient.js';
+import type { CompatClient, LegacyPeer } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
+
+/** mtcute hanya menyediakan iterator dialog; getDialogs() milik GramJS. */
+async function collectDialogs(client: CompatClient) {
+  const out = [];
+  for await (const dialog of client.iterDialogs()) {
+    out.push(dialog);
+  }
+  return out;
+}
 
 export default {
   name: 'clearnotif',
@@ -44,10 +54,10 @@ export default {
         let counter = 0;
         await message.edit({ text: '⏳ <b>Menyapu bersih semua mention (tag)...</b>', parseMode: 'html' });
 
-        const dialogs = typeof client.getDialogs === 'function' ? await client.getDialogs() : [];
+        const dialogs = await collectDialogs(client);
         for (const dialog of dialogs) {
           if (dialog.unreadMentionsCount > 0) {
-            await callApi('messages.readMentions', dialog.entity || dialog.id || dialog.chat?.id);
+            await callApi('messages.readMentions', toPeer(dialog.peer.id));
             counter++;
 
             if (counter % 5 === 0) {
@@ -63,11 +73,11 @@ export default {
         let counter = 0;
         await message.edit({ text: '⏳ <b>Menyapu bersih semua reaksi...</b>', parseMode: 'html' });
 
-        const dialogs = typeof client.getDialogs === 'function' ? await client.getDialogs() : [];
+        const dialogs = await collectDialogs(client);
         for (const dialog of dialogs) {
-          if (dialog.unreadMark || dialog.unreadCount > 0) {
+          if (dialog.isUnread || dialog.unreadCount > 0) {
             try {
-              await callApi('messages.readReactions', dialog.entity || dialog.id || dialog.chat?.id);
+              await callApi('messages.readReactions', toPeer(dialog.peer.id));
               counter++;
 
               if (counter % 5 === 0) {

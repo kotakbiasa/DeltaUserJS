@@ -1,5 +1,6 @@
 import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // Tagall: mention seluruh member grup per 5 mention per pesan, delay 2s anti-flood.
 // Port dari PyroUbot tagall.py (zip gilang), diadaptasi ke pola plugin DeltaUserJS.
@@ -77,9 +78,11 @@ export default {
     try {
       // mtcute: iterasi member grup
       const members: unknown[] = [];
-      for await (const member of client.iterParticipants(message.chatId, { limit: 500 })) {
-        const u = member as { id?: number | string; bot?: boolean; deleted?: boolean };
-        if (u.bot || u.deleted) {continue;}
+      // mtcute menamainya iterChatMembers(); iterParticipants() adalah nama
+      // GramJS dan selalu melempar TypeError, jadi .tagall tidak pernah jalan.
+      for await (const member of client.iterChatMembers(toPeer(message.chatId), { limit: 500 })) {
+        const u = member.user;
+        if (!u || u.isBot || u.isDeleted) {continue;}
         const uid = String(u.id).replace('-100', '');
         members.push(uid);
       }
