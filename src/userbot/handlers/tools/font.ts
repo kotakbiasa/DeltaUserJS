@@ -1,6 +1,7 @@
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { defineCommand } from '../../engine/defineCommand.js';
 import { toPeer } from '../../engine/compatClient.js';
+import type { UserbotMessageLike } from '../../types.js';
 
 // ============================================================
 // Font Generator — 12 gaya unicode font dari teks.
@@ -183,7 +184,7 @@ export default defineCommand({
 });
 
 /** Tampilkan daftar 12 gaya + preview untuk teks tertentu. */
-async function showFontList(message, text: string) {
+async function showFontList(message: UserbotMessageLike, text: string) {
   let listText = `🔤 <b>Font Styles untuk:</b> <i>"${escapeHtml(text)}"</i>\n\n<blockquote>`;
   for (const name of STYLE_NAMES) {
     const preview = applyFont(text, FONT_STYLES[name]);

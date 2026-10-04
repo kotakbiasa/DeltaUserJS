@@ -7,6 +7,33 @@ import type { Message } from '@mtcute/core';
  * Compatibility adapter wrapping an mtcute Message into DeltaUserJS UserbotMessageLike.
  * This ensures existing plugins run seamlessly on mtcute without requiring individual rewrites.
  */
+type LegacyMediaSource = {
+  type?: string;
+  isAnimation?: boolean;
+  isRound?: boolean;
+  mimeType?: string;
+} & Record<string, unknown>;
+
+/** Memetakan `media.type` mtcute ke properti media gaya GramJS. */
+function deriveLegacyMedia(media: LegacyMediaSource | null | undefined): Partial<UserbotMessageLike> {
+  if (!media) {return {};}
+  const type = media.type;
+  const isVideo = type === 'video';
+  return {
+    sticker: type === 'sticker' ? media : undefined,
+    photo: type === 'photo' ? media : undefined,
+    // Di Telegram, GIF dan video note tetap berjenis video.
+    gif: isVideo && media.isAnimation ? media : undefined,
+    videoNote: isVideo && media.isRound ? media : undefined,
+    video: isVideo && !media.isAnimation && !media.isRound ? media : undefined,
+    voice: type === 'voice' ? media : undefined,
+    audio: type === 'audio' ? media : undefined,
+    document: (type === 'document' || type === 'sticker' || type === 'audio' || type === 'voice' || isVideo)
+      ? (media as UserbotMessageLike['document'])
+      : undefined,
+  };
+}
+
 export function createUserbotMessageAdapter(rawMsg: Message, client: CompatClient): UserbotMessageLike {
   let messageText = rawMsg.text || '';
 
@@ -54,6 +81,12 @@ export function createUserbotMessageAdapter(rawMsg: Message, client: CompatClien
     // hanya mengakses offset/length/className secara defensif.
     entities: [...(rawMsg.entities ?? [])] as UserbotMessageLike['entities'],
     media: rawMsg.media as unknown as UserbotMessageLike['media'],
+    // mtcute menyatukan semua media di `media` dengan diskriminan `type`.
+    // Plugin lama membaca properti gaya GramJS (msg.sticker, msg.gif, ...)
+    // yang di mtcute tidak ada — tanpa penurunan ini semua pemeriksaan media
+    // selalu undefined dan perintah konversi menolak bekerja.
+    ...deriveLegacyMedia(rawMsg.media as unknown as LegacyMediaSource | null | undefined),
+    groupedId: (rawMsg.groupedId ?? undefined) as unknown as UserbotMessageLike['groupedId'],
 
     async edit(options: MessageEditOptions) {
       const text = typeof options === 'string' ? options : String(options?.text ?? options?.message ?? '');

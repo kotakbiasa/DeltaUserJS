@@ -2,6 +2,7 @@ import { Logger } from '../../../utils/logger.js';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { fetchWithTimeout } from '../../../utils/http.js';
 import type { CompatClient } from '../../engine/compatClient.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
 
 const BROWER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -47,7 +48,7 @@ export default {
     usage: 'Balas media lalu ketik `.tourl`',
     detail: 'Upload ke tmpfiles.org (fallback uguu.se), mengembalikan link unduhan langsung.'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     const cmd = message.message.trim().toLowerCase();
     if (cmd !== '.tourl') {return;}
@@ -74,7 +75,7 @@ export default {
         buffer = await replied.downloadMedia();
       }
       if (!buffer && replied.media && typeof client.downloadAsBuffer === 'function') {
-        buffer = Buffer.from(await client.downloadAsBuffer(replied.media as Parameters<CompatClient['downloadAsBuffer']>[0]));
+        buffer = Buffer.from(await client.downloadAsBuffer(replied.media as unknown as Parameters<CompatClient['downloadAsBuffer']>[0]));
       }
       if (!buffer || buffer.length === 0) {
         throw new Error('Gagal mengunduh media');

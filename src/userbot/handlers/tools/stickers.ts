@@ -42,13 +42,13 @@ const Api = createTlProxy();
  * adalah adapter pesan, dengan `downloadAsBuffer()` atas objek media sebagai
  * cadangan.
  */
-async function downloadMediaBuffer(client, currentMsg) {
+async function downloadMediaBuffer(client: CompatClient, currentMsg: UserbotMessageLike) {
   let buf;
   if (typeof currentMsg?.downloadMedia === 'function') {
     buf = await currentMsg.downloadMedia();
   }
   if (!buf && currentMsg?.media && typeof client.downloadAsBuffer === 'function') {
-    buf = Buffer.from(await client.downloadAsBuffer(currentMsg.media));
+    buf = Buffer.from(await client.downloadAsBuffer(currentMsg.media as unknown as Parameters<CompatClient['downloadAsBuffer']>[0]));
   }
   return buf;
 }
@@ -59,6 +59,9 @@ import { execFile } from 'child_process';
 import { Jimp } from 'jimp';
 import { escapeHtml } from '../../../utils/richMessage.js';
 import { Logger } from '../../../utils/logger.js';
+import type { UserbotMessageLike, UserbotSettings } from '../../types.js';
+import type { CompatClient } from '../../engine/compatClient.js';
+import { toPeer } from '../../engine/compatClient.js';
 
 // ============================================================
 // Sticker Tools: .kang (salin sticker/foto/video ke pack pribadi)
@@ -81,7 +84,7 @@ function errMsg(err) {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function editStatus(message, html) {
+async function editStatus(message: UserbotMessageLike, html) {
   await message.edit({
     text: `<blockquote>${html}</blockquote>`,
     parseMode: 'html'
@@ -137,41 +140,58 @@ function unlinkQuiet(p) {
   } catch (_e) { /* ignore */ }
 }
 
-function docFilename(doc) {
-  const attr = (doc && doc.attributes || []).find(a => a.className === 'DocumentAttributeFilename');
-  return attr && attr.fileName ? String(attr.fileName) : '';
+/**
+ * Objek media mtcute berbasis dokumen (sticker/video/audio/document). Semua
+ * atribut TL lama (DocumentAttributeFilename/Sticker) sudah dinormalkan
+ * menjadi getter, jadi pembacaan `doc.attributes` gaya GramJS tidak berlaku.
+ */
+type MtcuteDoc = {
+  type?: string;
+  mimeType?: string;
+  fileName?: string | null;
+  emoji?: string;
+  isAnimation?: boolean;
+  inputDocument?: unknown;
+  raw?: { id?: unknown; accessHash?: unknown; fileReference?: unknown };
+} & Record<string, unknown>;
+
+function docFilename(doc: MtcuteDoc | null | undefined): string {
+  return doc?.fileName ? String(doc.fileName) : '';
 }
 
-function stickerEmojiOf(doc) {
-  const attr = (doc && doc.attributes || []).find(a => a.className === 'DocumentAttributeSticker');
-  return attr && typeof attr.alt === 'string' ? attr.alt : '';
+function stickerEmojiOf(doc: MtcuteDoc | null | undefined): string {
+  return typeof doc?.emoji === 'string' ? doc.emoji : '';
 }
 
-function isPictographic(s) {
+function isPictographic(s: unknown) {
   return typeof s === 'string' && /\p{Extended_Pictographic}/u.test(s);
 }
 
-function inputDocFrom(doc) {
+function inputDocFrom(doc: MtcuteDoc | null | undefined) {
+  // mtcute sudah menyediakan InputDocument siap pakai.
+  if (doc?.inputDocument) {return doc.inputDocument;}
+  const raw = doc?.raw ?? (doc as MtcuteDoc | undefined);
   return new Api.InputDocument({
-    id: doc.id,
-    accessHash: doc.accessHash,
-    fileReference: doc.fileReference
+    id: raw?.id,
+    accessHash: raw?.accessHash,
+    fileReference: raw?.fileReference,
   });
 }
 
 // Klasifikasi media yang di-reply menjadi { kind, doc, isSticker }
-function classifyMedia(msg) {
-  const media = msg && msg.media;
+function classifyMedia(msg: UserbotMessageLike) {
+  // Di mtcute, `media` ADALAH objeknya sendiri dengan diskriminan `type`;
+  // tidak ada `media.photo` / `media.document` seperti di TL mentah, sehingga
+  // klasifikasi lama selalu mengembalikan null dan .kang menolak semua media.
+  const media = (msg && msg.media) as unknown as MtcuteDoc | null | undefined;
   if (!media) {return null;}
-  if (media.photo) {
+  if (media.type === 'photo') {
     return { kind: 'static', doc: null, isSticker: false };
   }
-  const doc = media.document;
-  if (!doc) {return null;}
+  const doc = media;
   const mime = String(doc.mimeType || '');
   const fname = docFilename(doc).toLowerCase();
-  const hasStickerAttr = (doc.attributes || []).some(a => a.className === 'DocumentAttributeSticker');
-  if (hasStickerAttr) {
+  if (doc.type === 'sticker') {
     if (mime.includes('tgsticker') || fname.endsWith('.tgs')) {
       return { kind: 'anim', doc, isSticker: true };
     }
@@ -183,7 +203,7 @@ function classifyMedia(msg) {
   if (mime.startsWith('image/')) {
     return { kind: 'static', doc, isSticker: false };
   }
-  if (mime.startsWith('video/') || media.animation) {
+  if (mime.startsWith('video/') || doc.isAnimation) {
     return { kind: 'video', doc, isSticker: false };
   }
   return null;
@@ -202,7 +222,7 @@ function packTitle(me, pack, kind) {
 }
 
 // Cari pack yang punya slot; buat volume baru kalau penuh.
-async function resolvePack(client, me, kind, startPack) {
+async function resolvePack(client: CompatClient, me, kind, startPack) {
   let pack = Math.max(1, startPack);
   for (let attempt = 0; attempt < 10; attempt++) {
     const shortName = packShortName(me, pack, kind);
@@ -212,7 +232,7 @@ async function resolvePack(client, me, kind, startPack) {
         stickerset: new Api.InputStickerSetShortName({ shortName }),
         hash: 0
       }));
-      existing = res && res.set ? res.set : null;
+      existing = (res as { set?: unknown } | undefined)?.set ?? null;
     } catch (e) {
       if (!/STICKERSET_INVALID|SHORTNAME|SHORT_NAME/i.test(errMsg(e))) {throw e;}
     }
@@ -227,7 +247,7 @@ async function resolvePack(client, me, kind, startPack) {
   throw new Error('Tidak ada slot pack yang tersedia');
 }
 
-async function invokeAddSticker(client, packInfo, stickerItem) {
+async function invokeAddSticker(client: CompatClient, packInfo, stickerItem) {
   if (packInfo.existing) {
     await client.invoke(new Api.stickers.AddStickerToSet({
       stickerset: new Api.InputStickerSetID({
@@ -248,13 +268,14 @@ async function invokeAddSticker(client, packInfo, stickerItem) {
 
 // Upload file sementara ke Saved Messages untuk mendapat InputDocument,
 // lalu langsung dihapus lagi. (Pola yang sama dengan kang.ts)
-async function uploadTempAsDocument(client, filePath, attributes = null) {
+async function uploadTempAsDocument(client: CompatClient, filePath, attributes = null) {
   const sent = await client.sendFile('me', {
     file: filePath,
     forceDocument: true,
     attributes: attributes && attributes.length ? attributes : undefined
   });
-  const doc = sent && sent.media && sent.media.document;
+  // sendFile() mengembalikan Message; medianya langsung objek dokumen mtcute.
+  const doc = (sent && sent.media) as unknown as MtcuteDoc | undefined;
   if (!doc) {throw new Error('Upload ke Saved Messages gagal');}
   try { await client.deleteMessages('me', [sent.id], { revoke: true }); } catch (_e) { /* ignore */ }
   return inputDocFrom(doc);
@@ -262,7 +283,7 @@ async function uploadTempAsDocument(client, filePath, attributes = null) {
 
 // Fallback: re-upload ulang bytes dokumen sticker asli (kalau referensi
 // langsung ditolak Telegram karena file_reference/ownership).
-function makeStickerUploadFallback(client, currentMsg, kind, tmpFiles) {
+function makeStickerUploadFallback(client: CompatClient, currentMsg: UserbotMessageLike, kind, tmpFiles) {
   return async () => {
     const buf = await downloadMediaBuffer(client, currentMsg);
     if (!buf || !buf.length) {throw new Error('Gagal mengunduh media sticker');}
@@ -291,7 +312,7 @@ function makeStickerUploadFallback(client, currentMsg, kind, tmpFiles) {
 }
 
 // Foto/gambar biasa -> resize 512 via Jimp (fallback ffmpeg) -> upload.
-async function buildStaticFromImage(client, currentMsg, tmpFiles, telegramId) {
+async function buildStaticFromImage(client: CompatClient, currentMsg: UserbotMessageLike, tmpFiles, telegramId: number) {
   const buf = await downloadMediaBuffer(client, currentMsg);
   if (!buf || !buf.length) {throw new Error('Gagal mengunduh media');}
   const srcPath = tmpFile('.bin');
@@ -319,7 +340,7 @@ async function buildStaticFromImage(client, currentMsg, tmpFiles, telegramId) {
 }
 
 // Video biasa -> konversi webm 512px (VP9, maks 3 detik) -> upload.
-async function buildVideoFromMedia(client, currentMsg, tmpFiles) {
+async function buildVideoFromMedia(client: CompatClient, currentMsg: UserbotMessageLike, tmpFiles) {
   const buf = await downloadMediaBuffer(client, currentMsg);
   if (!buf || !buf.length) {throw new Error('Gagal mengunduh media');}
   const srcPath = tmpFile('.bin');
@@ -348,7 +369,7 @@ async function buildVideoFromMedia(client, currentMsg, tmpFiles) {
 
 // Tambahkan satu stiker ke pack; kalau referensi langsung ditolak,
 // coba sekali lagi lewat fallback re-upload.
-async function addStickerToPack(client, packInfo, candidate, emoji) {
+async function addStickerToPack(client: CompatClient, packInfo, candidate, emoji) {
   const stickerItem = new Api.InputStickerSetItem({ document: candidate.ref, emoji });
   try {
     await invokeAddSticker(client, packInfo, stickerItem);
@@ -370,7 +391,7 @@ export default {
     usage: '• Balas media lalu ketik `.kang [emoji] [nomor_pack]`\n• Balas pesan lalu ketik `.q` atau `.quote` [jumlah_pesan]',
     detail: '.kang menyalin media ke pack pribadi Anda secara instan: sticker webp/tgs/webm langsung disalin, foto & gambar di-resize 512px, video dikonversi webm maksimal 3 detik. `.q` atau `.quote` membuat quote stiker kutipan dari pesan yang di-reply via @QuotLyBot (bisa juga `.q N` untuk multi-quote N pesan berurutan, maks 10).'
   },
-  async execute(client, message, _settings, telegramId) {
+  async execute(client: CompatClient, message: UserbotMessageLike, _settings: UserbotSettings, telegramId: number) {
     if (!message.out || !message.message) {return;}
     const text = message.message.trim();
 
@@ -397,17 +418,17 @@ export default {
       }
 
       // Kumpulkan item yang akan di-kang (dukung album foto/media group)
-      let mediaMessages = [replied];
+      let mediaMessages: UserbotMessageLike[] = [replied];
       if (replied.groupedId) {
         await editStatus(message, '⏳ <b>Menganalisis album media...</b>');
         try {
           const peer = message.peerId ?? message.chatId;
-          const history = await client.getMessages(peer, { limit: 20, offsetId: replied.id + 10 });
+          const history = await client.getMessages(toPeer(peer), { limit: 20, offsetId: replied.id + 10 });
           const grouped = (history || []).filter(m =>
             m && m.groupedId && String(m.groupedId) === String(replied.groupedId) && m.media
           );
           if (grouped.length > 0) {
-            mediaMessages = grouped.sort((a, b) => a.id - b.id);
+            mediaMessages = grouped.sort((a, b) => a.id - b.id) as unknown as UserbotMessageLike[];
           }
         } catch (e) {
           Logger.logUser(telegramId, `kang: album scan gagal (${errMsg(e)}), pakai pesan tunggal`, 'WARN');
@@ -527,12 +548,12 @@ export default {
 
         // Kumpulkan pesan yang akan di-quote (multi-quote bila ada argumen angka)
         const n = qMatch[1] ? Math.min(10, Math.max(1, parseInt(qMatch[1], 10))) : 1;
-        let targets = [replied];
+        let targets: UserbotMessageLike[] = [replied];
         if (n > 1) {
           const peer = message.peerId ?? message.chatId;
           const ids = Array.from({ length: n }, (_, i) => replied.id + i);
-          const fetched = await client.getMessages(peer, { ids });
-          targets = (fetched || []).filter(Boolean).sort((a, b) => a.id - b.id);
+          const fetched = await client.getMessages(toPeer(peer), { ids });
+          targets = ((fetched || []).filter(Boolean) as unknown as UserbotMessageLike[]).sort((a, b) => Number(a.id) - Number(b.id));
           if (targets.length === 0) {targets = [replied];}
         }
 
@@ -541,7 +562,7 @@ export default {
           // mtcute: forwardMessagesById({ fromChatId, toChatId, messages }).
           // Bentuk lama (peer posisional + fromPeer) tidak pernah valid.
           await client.forwardMessagesById({
-            fromChatId: message.peerId ?? message.chatId,
+            fromChatId: toPeer(message.peerId ?? message.chatId),
             toChatId: QUOTLY,
             messages: [t.id],
           });
@@ -553,10 +574,12 @@ export default {
         for (let i = 0; i < 15; i++) {
           await new Promise(r => setTimeout(r, 1000));
           const history = await client.getMessages(QUOTLY, { limit: 1 });
-          if (history.length > 0 && history[0].media && history[0].media.document) {
-            const mime = String(history[0].media.document.mimeType || '');
-            if (mime.startsWith('image/') && history[0].date >= message.date - 2) {
-              quoteMsg = history[0];
+          const quoteCandidate = history[0] as unknown as { media?: MtcuteDoc; date?: Date | number; id: number } | undefined;
+          if (quoteCandidate?.media) {
+            const mime = String(quoteCandidate.media.mimeType || '');
+            const quoteTs = Math.floor(new Date(quoteCandidate.date ?? 0).getTime() / 1000);
+            if (mime.startsWith('image/') && quoteTs >= Number(message.date) - 2) {
+              quoteMsg = quoteCandidate;
               break;
             }
           }
@@ -568,7 +591,7 @@ export default {
         }
 
         // Kirim sticker quote ke chat asal
-        await client.sendMessage(message.peerId, {
+        await client.sendMessage(toPeer(message.peerId), {
           message: '',
           file: quoteMsg.media,
           replyTo: message.replyToMsgId

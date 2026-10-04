@@ -73,17 +73,32 @@ export interface UserbotMessageLike {
   }>;
   document?: {
     mimeType?: string;
+    [key: string]: unknown;
   };
+  /**
+   * Penanda jenis media gaya lama (GramJS). Di mtcute informasi ini ada pada
+   * `media.type`, jadi adapter yang menurunkannya agar plugin lama tetap jalan.
+   */
+  sticker?: unknown;
+  photo?: unknown;
+  video?: unknown;
+  videoNote?: unknown;
+  voice?: unknown;
+  audio?: unknown;
+  gif?: unknown;
+  groupedId?: string | number | bigint;
   file?: {
     name?: string;
   };
   media?: {
     document?: {
       id?: string | number | bigint;
+      mimeType?: string;
       attributes?: Array<{
         className?: string;
         alt?: string;
       }>;
+      [key: string]: unknown;
     };
     [key: string]: unknown;
   };
