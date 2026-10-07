@@ -26,6 +26,8 @@ export interface Plugin {
   commands?: string[];
   help?: PluginHelp;
   file?: string | null;
+  /** Plugin hanya untuk owner, disembunyikan dari menu .plugins untuk non-owner */
+  ownerOnly?: boolean;
   execute(client: unknown, message: unknown, settings: unknown, telegramId: number): Promise<unknown> | unknown;
   onCallbackQuery?(
     client: unknown,

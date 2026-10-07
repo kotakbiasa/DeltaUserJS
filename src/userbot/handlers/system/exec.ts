@@ -42,6 +42,7 @@ export default {
   name: 'exec',
   version: '2.0.0',
   description: 'Mengeksekusi perintah Shell/Terminal dari whitelist. Khusus Owner.',
+  ownerOnly: true,
   help: {
     title: 'Exec (.exec, .sh)',
     description: 'Menjalankan perintah shell dari daftar putih. Hanya bisa digunakan oleh Owner.',

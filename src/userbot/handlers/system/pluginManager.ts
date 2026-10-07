@@ -44,11 +44,13 @@ export default {
       try {
         const checkEmoji = getCustomEmoji(settings, 'check');
         const coreEmoji = getCustomEmoji(settings, 'status');
-        
+        const isOwner = Number(telegramId) === Number(config.ownerId);
+
         const coreList: string[] = [];
         const installedList: string[] = [];
 
         for (const p of loadedPlugins) {
+          if (p.ownerOnly && !isOwner) continue;
           const file = (p.file || '').replace(/\\/g, '/');
           if (file.startsWith('installed/')) {
             installedList.push(`<code>${escapeHtml(p.name)}</code>`);
@@ -63,7 +65,7 @@ export default {
           `${coreList.join(', ') || '<i>Tidak ada</i>'}\n\n` +
           `<b>${checkEmoji} Modul Terpasang (Installed):</b>\n` +
           `${installedList.join(', ') || '<i>Belum ada modul tambahan yang terpasang</i>'}\n\n` +
-          `<i>Total: ${loadedPlugins.length} modul aktif di userbot.</i>`;
+          `<i>Total: ${coreList.length + installedList.length} modul aktif di userbot.</i>`;
 
         await message.edit({ text: out, parseMode: 'html' });
       } catch (err) {
