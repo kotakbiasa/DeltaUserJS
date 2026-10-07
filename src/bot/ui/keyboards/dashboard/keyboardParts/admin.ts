@@ -14,27 +14,28 @@ type DashboardButton = {
   callback_data?: string;
   url?: string;
   style?: string;
+  icon_custom_emoji_id?: string;
 };
 type DashboardButtonRows = DashboardButton[][];
 
 export function keyboardAdmin(pendingCount = 0) {
-  const pendingLabel = pendingCount > 0 ? `⏳ Approval (${pendingCount})` : '⏳ Antrean Approval';
+  const pendingLabel = pendingCount > 0 ? `Approval (${pendingCount})` : 'Antrean Approval';
   return { inline_keyboard: [
     [
-      { text: pendingLabel, callback_data: 'rich:admin_pending' },
-      { text: '👥 Daftar Pengguna', callback_data: 'rich:admin_users:1' },
+      { text: pendingLabel, callback_data: 'rich:admin_pending', icon_custom_emoji_id: '5451732530048802485' },
+      { text: 'Daftar Pengguna', callback_data: 'rich:admin_users:1', icon_custom_emoji_id: '5371073319107827779' },
     ],
     [
-      { text: '⚡ Fleet & Userbot', callback_data: 'rich:admin_fleet' },
-      { text: '📢 Broadcast Masal', callback_data: 'rich:admin_broadcast' },
+      { text: 'Fleet & Userbot', callback_data: 'rich:admin_fleet', icon_custom_emoji_id: '5431449001532594346' },
+      { text: 'Broadcast Masal', callback_data: 'rich:admin_broadcast', icon_custom_emoji_id: '5789559036756104168' },
     ],
     [
-      { text: '⚙️ Pengaturan Cepat', callback_data: 'rich:admin_settings' },
-      { text: '💾 Backup & Audit', callback_data: 'rich:admin_backup' },
+      { text: 'Pengaturan Cepat', callback_data: 'rich:admin_settings', icon_custom_emoji_id: '5875033614705495771' },
+      { text: 'Backup & Audit', callback_data: 'rich:admin_backup', icon_custom_emoji_id: '5897942815643537848' },
     ],
     [
-      { text: '🩺 Server Health', callback_data: 'rich:health' },
-      { text: '🔙 Menu Utama', callback_data: 'rich:main' },
+      { text: 'Server Health', callback_data: 'rich:health', icon_custom_emoji_id: '5359299744302639114' },
+      { text: 'Menu Utama', callback_data: 'rich:main', icon_custom_emoji_id: '5983279327574233274' },
     ],
   ] };
 }

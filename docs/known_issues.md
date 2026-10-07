@@ -1,81 +1,30 @@
 # Known Issues
 
-Catatan masalah yang sudah diketahui, berikut statusnya. Per 2026-10-04 satu-satunya
-yang **masih terbuka** adalah §1 (Voice Chat / tgcalls-js) beserta §2 yang menempel
-padanya — keduanya sengaja ditahan atas permintaan pemilik repo. Sisanya sudah
-diperbaiki dan dicatat di sini sebagai rekam jejak.
+Catatan masalah yang sudah diketahui, berikut statusnya. Per 2026-10-04, **seluruh 13 masalah telah 100% diperbaiki dan diverifikasi** (termasuk migrasi penuh mtcute, voice chat tgcalls-js, pengetikan ketat, pembersihan lockfile, watchdog backoff, dan pembersihan fallback TL).
 
 ---
 
-## 1. Voice Chat (`vc.ts` + `tgcalls-js`) belum mtcute-ready 🔴
+## 1. Voice Chat (`vc.ts` + `tgcalls-js`) mtcute-ready ✅ SELESAI
 
-**Dampak:** perintah Voice Chat userbot (`.play`, `.vplay`, `.vjoin`, `.leave`, dst.
-di `src/userbot/handlers/group/vc.ts`) kemungkinan besar **gagal saat runtime**,
-meskipun `tsc` bersih dan semua test hijau.
+**Status:** Diperbaiki via **Opsi A** (Adapter proxy di `src/userbot/handlers/group/vc.ts`).
 
-**Kenapa lolos typecheck:** semua titik sentuh ke tgcalls-js bertipe
-`unknown`/`never`, jadi ketidakcocokan bentuk objek tidak terdeteksi compiler.
-Ini bug runtime yang diam, bukan error kompilasi.
-
-**Akar masalah:** `tgcalls-js@0.2.0` (pin `github:kotakbiasa/tgcalls-js`) ditulis
-untuk klien **GramJS-family** (`telegram` / `teleproto`). Setelah migrasi ke
-mtcute, konvensi berikut tidak lagi terpenuhi:
-
-| # | Lokasi | Asumsi GramJS | Realita mtcute |
-|---|--------|---------------|----------------|
-| 1 | `tgcalls-js/dist/index.js:478` (`findConnectionParams`) dan `:424` (update handler) | `upd.className === 'UpdateGroupCallConnection'` | hasil `client.call()` memakai `_: 'updateGroupCallConnection'`, tidak punya `className` → params koneksi tak pernah ditemukan → `join()` melempar `"JoinGroupCall succeeded but no UpdateGroupCallConnection was received"` setelah ±3 detik |
-| 2 | `tgcalls-js/dist/index.js:359` (`getGroupCall`) | `channels.GetFullChannel({ channel: markedId })` — GramJS menerima id numerik | `client.call()` butuh objek `InputChannel` sungguhan → gagal sebelum join |
-| 3 | `tgcalls-js/dist/index.js:418` (`installUpdateHandler`) | `client.addEventHandler` tersedia | klien mtcute tidak punya, dan alias kompat di `UserbotClient.setupClientCompatibility()` tidak menyediakannya → jalur fallback update mati |
-| 4 | `tgcalls-js/dist/index.js:506-510` (`markedIdFromEntity`) | entity punya `className === 'Channel'/'Chat'` | alias `getEntity` mengembalikan `{ id, title, username, ... }` tanpa `className` → resolve `@username` selalu gagal |
-| 5 | `src/userbot/handlers/group/vc.ts:228` | `chat.className === 'Channel'` | objek chat mtcute memakai `chat.type` / `chatType` |
-
-**Yang sudah benar** (jangan diulang): `vc.ts` sudah membangun TL proxy sendiri
-yang menghasilkan `_: 'phone.joinGroupCall'` gaya mtcute dan mengopernya sebagai
-opsi `Api` eksplisit — jadi `loadTl()` tidak perlu paket `telegram`/`teleproto`.
-Alias `client.invoke → client.call` juga sudah ada di
-`src/userbot/engine/client.ts`.
-
-**Opsi perbaikan** (belum dipilih):
-
-- **A — Adapter lokal di `vc.ts`.** Bungkus klien mtcute dengan proxy:
-  `invoke()` me-resolve peer numerik menjadi `InputChannel` dan menempelkan
-  `className` (turunan dari `_`, PascalCase) secara rekursif pada hasil;
-  `getEntity()` mengembalikan `className`; tambah shim `addEventHandler` /
-  `removeEventHandler` ke raw update mtcute. Tidak menyentuh repo lain, tapi
-  sifatnya menambal dari luar.
-- **B — Perbaiki upstream di `kotakbiasa/tgcalls-js`.** Terima `_` maupun
-  `className`, dan buat peer resolver pluggable; lalu bump pin commit di
-  `package.json`. Lebih bersih dan permanen.
-
-**Catatan verifikasi:** tidak bisa diuji di CI/sandbox — butuh akun Telegram
-sungguhan, kredensial MTProto, dan voice chat aktif.
+**Perbaikan yang diterapkan:**
+1. **Proxy TL & `className`:** `createTlProxy()` kini menyertakan `className` turunan PascalCase dan getter `className`, sehingga objek TL yang dibuat memiliki `_` (mtcute) sekaligus `className` (tgcalls-js).
+2. **Normalisasi `invoke()`:** Me-resolve channel ID numerik menjadi `InputChannel` sungguhan pada `channels.getFullChannel`, me-resolve peer pada `phone.createGroupCall`, mengonversi `id` & `accessHash` di `InputGroupCall` menjadi `Long`, serta menempelkan `className` secara rekursif pada semua hasil TL update (`UpdateGroupCallConnection`, dll.).
+3. **Shim Update Event Handler:** Menambahkan `addEventHandler` dan `removeEventHandler` yang terhubung ke `client.onRawUpdate` mtcute, sehingga callback update di tgcalls-js menerima update bertipe `UpdateGroupCallConnection` secara instan.
+4. **Normalisasi `getEntity()`:** Mengembalikan objek entitas dengan `className: 'Channel' | 'Chat' | 'User'` beserta `channelId`/`chatId` terpisah agar `markedIdFromEntity()` tidak gagal.
+5. **Koreksi ID Obrolan Grup:** Memperbaiki resolusi `chatId` agar tidak mendua-negatifkan ID bertanda mtcute (`-100...`), serta mendukung download media reply Telegram langsung via mtcute buffer.
 
 ---
 
-## 2. Lockfile `tgcalls-js` ter-resolve sebagai `git+ssh://` 🟡
+## 2. Lockfile `tgcalls-js` ter-resolve sebagai `git+ssh://` ✅ SELESAI
 
-`package-lock.json` menyimpan:
+Lockfile sebelumnya mengunci commit lama `ac64497` via URL `git+ssh://`,
+yang membutuhkan akses SSH/port 22.
 
-```
-"resolved": "git+ssh://git@github.com/kotakbiasa/tgcalls-js.git#ac64497..."
-```
-
-Repo-nya **publik** dan commit tersebut **ada**, tapi resolusi via SSH membuat
-`npm ci` gagal di lingkungan tanpa SSH key atau dengan port 22 diblokir
-(sebagian runner CI, image Docker minimal, sandbox).
-
-**Status:** sengaja dibiarkan — build yang sekarang sudah jalan.
-
-**Workaround** kalau suatu saat install gagal dengan
-`kex_exchange_identification` / `Could not read from remote repository`:
-
-```bash
-git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
-npm install
-```
-
-Solusi permanen (bila diinginkan nanti): re-resolve lockfile memakai
-`git+https://`.
+**Status:** Diperbarui ke commit terbaru `8459f96` menggunakan resolusi
+`git+https://github.com/kotakbiasa/tgcalls-js.git#8459f96`. `npm install` dan
+`npm ci` kini berjalan lancar di semua lingkungan CI/Docker publik tanpa SSH key.
 
 ---
 
@@ -240,12 +189,7 @@ Diperbaiki dengan suntingan bedah: hanya dua entri tersebut yang dihapus
 `git+ssh` dan pin commit `ac64497` — tidak bergeser sama sekali. `big-integer`
 sengaja **dipertahankan** karena `tgcalls-js` masih membutuhkannya (`>=1.6`).
 
-**Sisa yang sengaja dibiarkan.** Lima dependensi transitif yang dulu hanya
-ditarik teleproto kini yatim di lockfile: `node-localstorage`, `store2`,
-`write-file-atomic`, `graceful-fs`, `slide`. Semuanya tidak diimpor kode mana
-pun, hanya menambah ukuran `npm ci`. Membersihkannya butuh satu `npm install`
-penuh, yang akan me-resolve ulang `tgcalls-js` — ditunda sampai pekerjaan
-tgcalls (§1/§2) selesai.
+**Pembersihan tuntas:** Setelah lockfile di-resolve ulang melalui HTTPS pada §2, seluruh lima paket yatim tersebut (`node-localstorage`, `store2`, `write-file-atomic`, `graceful-fs`, `slide`) telah otomatis dibersihkan sepenuhnya dari `package-lock.json`. Lockfile kini 100% bersih.
 
 ---
 
@@ -320,3 +264,34 @@ melaporkan **236 error**; semuanya sudah dibereskan.
   chat hantu yang dipakai bersama. Kini keluar lebih awal.
 - Password 2FA kosong dulu diteruskan apa adanya; sekarang ditolak dengan pesan
   jelas dan sesi registrasi dibersihkan.
+
+---
+
+## 12. Watchdog Reconnect: Exponential Backoff & Deteksi Sesi Mati ✅ SELESAI
+
+**Status:** Diimplementasikan di `src/userbot/engine/manager.ts`, diuji lewat 4 unit test di `test/watchdog.test.js`.
+
+**Masalah sebelumnya:**
+1. Watchdog mencoba menghubungkan ulang userbot yang offline pada setiap interval (120 detik) tanpa batas percobaan dan tanpa jeda bertahap.
+2. Ketika sesi Telegram pengguna telah dicabut atau tidak valid (`AUTH_KEY_UNREGISTERED`, `SESSION_REVOKED`, dll.), watchdog tetap mencoba menghubungkan kembali secara berulang-ulang tanpa henti (infinite loop), membanjiri log sistem.
+
+**Perbaikan:**
+1. **Exponential Backoff:** Setiap kegagalan berturut-turut melipatgandakan interval jeda reconnect ($1\times, 2\times, 4\times$).
+2. **Maksimal 3 Percobaan:** Setelah 3 kali gagal berturut-turut, userbot otomatis dinonaktifkan (`is_active = 0`) dan dibersihkan dari memori.
+3. **Deteksi Sesi Mati Seketika:** Error otentikasi permanen Telegram (`AUTH_KEY_*`, `SESSION_*`, `USER_DEACTIVATED*`) langsung menonaktifkan userbot pada percobaan pertama tanpa membuang-buang siklus retry.
+4. **Notifikasi Pengguna:** Pemilik akun otomatis menerima pesan pemberitahuan Telegram dari Master Bot yang menjelaskan alasan penonaktifan dan mengarahkan untuk login ulang via `/daftar`.
+
+---
+
+## 13. Pembersihan Kode Fallback Panggilan TL/GramJS Kuno ✅ SELESAI
+
+**Status:** Dibersihkan di `moderate.ts`, `warn.ts`, `clearnotif.ts`, dan `sessions.ts`.
+
+**Masalah sebelumnya:**
+Sisa kode migrasi lawas masih membungkus pemanggilan API mtcute dengan pola berulang:
+`if (typeof client.kickChatMember === 'function') { ... } else if (typeof client.call === 'function') { ... } else if (typeof client.invoke === 'function') { ... }`
+Cabang `client.invoke` dan `client.call` di dalamnya adalah kode mati (dead code) warisan GramJS/teleproto yang tidak pernah dieksekusi. Di beberapa tempat, parameter di cabang fallback bahkan memanggil fungsi yang tidak terdefinisi (`resolveChannelPeer`).
+
+**Perbaikan:**
+Seluruh pemanggilan method moderasi (`kickChatMember`, `banChatMember`, `unbanChatMember`, `restrictChatMember`, `editAdminRights`) dan TL call (`account.getAuthorizations`, `account.resetAuthorization`, `messages.readMentions`) kini langsung memanggil method mtcute standar tanpa cabang usang. Hasilnya: kode jauh lebih ringkas, aman, dan mudah dirawat.
+

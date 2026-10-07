@@ -139,6 +139,22 @@ export class MockMtcuteClient {
     return sentMsg;
   }
 
+  async editMessage(params, maybeParams, maybeOpts) {
+    let chatId = params?.chatId || params?.chat || params;
+    let messageId = params?.message || params?.id || (typeof maybeParams === 'number' ? maybeParams : maybeParams?.message || maybeParams?.id);
+    let text = params?.text || maybeParams?.text || '';
+    if (typeof text === 'object' && text && text.text) text = text.text;
+    const edited = {
+      id: messageId,
+      chatId,
+      message: text,
+      text,
+      parseMode: params?.parseMode || maybeParams?.parseMode || maybeOpts?.parseMode
+    };
+    this.editedMessages.push(edited);
+    return edited;
+  }
+
   async deleteMessages(peerId, messageIds, options = {}) {
     this.deletedMessages.push({ peerId, messageIds, revoke: options.revoke });
     this.sentMessages = this.sentMessages.filter(m => !messageIds.includes(m.id));

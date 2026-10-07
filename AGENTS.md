@@ -44,7 +44,7 @@ npm run test             # node test/runner.js
 | `grammy` | Master bot framework |
 | `@mtcute/node` | MTProto client for userbots |
 | `@mtcute/dispatcher` | Update dispatching for userbot handlers |
-| `@mtcute/convert` | Legacy GramJS session → mtcute conversion |
+| `tgcalls-js` | Telegram voice chat (group call) streaming engine |
 | `@grammyjs/conversations` | Multi-step conversation flows |
 | `@grammyjs/ratelimiter` | Per-user rate limiting |
 | `mongoose` | MongoDB ODM |
@@ -63,13 +63,12 @@ Required env vars (see `.env.example`):
 | `LOG_GROUP_ID` | Channel/group for system logs |
 | `LOG_TOPIC_ID` | Topic ID in forum-style log group |
 | `MONGO_URI` | MongoDB connection string (atlas or self-hosted) |
-| `MUSLIM_SALAT_API_KEY` | API key for prayer times feature |
 | `ENCRYPTION_KEY` | 32-byte key for session encryption (auto-generated if omitted) |
 
 ## Architecture
 
 The canonical current structure, runtime flow, and plugin-loading rules are in
-[`docs/architecture.md`](docs/architecture.md). The short version is:
+[`docs/architecture.md`](docs/architecture.md) and [`docs/plugins_guide.md`](docs/plugins_guide.md). The short version is:
 
 ```
 src/

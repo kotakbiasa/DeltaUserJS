@@ -1,5 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { TelegramClient, InputMedia } from '@mtcute/node';
-import { MemoryStorage } from '@mtcute/core';
+import { MemoryStorage, Long } from '@mtcute/core';
 import { Dispatcher } from '@mtcute/dispatcher';
 import config from '../../config.js';
 import { getUserbotSession, updateTelegramPremiumStatus } from '../../infrastructure/database.js';
@@ -10,9 +12,105 @@ import { checkRateLimit, shouldCountForRateLimit } from './rateLimiter.js';
 import { isTestEnv } from '../../utils/env.js';
 import { animateEmojisWithRestrictedPack, stripTgEmojiTags } from '../../utils/customEmoji.js';
 import { createUserbotMessageAdapter } from './adapter.js';
-import type { Message } from '@mtcute/core';
+import { thtml } from '@mtcute/html-parser';
+import { md } from '@mtcute/markdown-parser';
+import { toPeer } from './compatClient.js';
+import type { EntityLike } from '../types.js';
+import type { Message, InputPeerLike, InputText } from '@mtcute/core';
 import type { CompatClient, LegacyPeer, LegacySendMessageParams, LegacySendFileOptions } from './compatClient.js';
-import type { InputPeerLike } from '@mtcute/core';
+
+function toTlParams(val: unknown): unknown {
+  if (val === null || val === undefined) {return val;}
+  if (typeof val === 'bigint') {
+    return Long.fromValue(val);
+  }
+  if (Array.isArray(val)) {
+    return val.map(toTlParams);
+  }
+  if (typeof val === 'object') {
+    const res: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(val)) {
+      res[k] = toTlParams(v);
+    }
+    return res;
+  }
+  return val;
+}
+
+function toLegacyResult(val: unknown): unknown {
+  if (val === null || val === undefined) {return val;}
+  if (Long.isLong(val)) {
+    return BigInt(val.toString());
+  }
+  if (Array.isArray(val)) {
+    return val.map(toLegacyResult);
+  }
+  if (typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    const res: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      res[k] = toLegacyResult(v);
+    }
+    if (!res.className && typeof res._ === 'string') {
+      const parts = (res._ as string).split('.');
+      const last = parts[parts.length - 1];
+      res.className = last ? last.charAt(0).toUpperCase() + last.slice(1) : res._;
+    }
+    return res;
+  }
+  return val;
+}
+
+function isLikelyImage(rawFile: unknown, fileName?: string): boolean {
+  if (fileName && /\.(jpe?g|png|webp|bmp|gif)$/i.test(fileName)) {
+    return true;
+  }
+  if (typeof rawFile === 'string') {
+    const clean = rawFile.replace(/^file:/, '').split('?')[0];
+    if (/\.(jpe?g|png|webp|bmp|gif)$/i.test(clean)) {
+      return true;
+    }
+  }
+  if (Buffer.isBuffer(rawFile) || rawFile instanceof Uint8Array) {
+    const buf = rawFile as Uint8Array;
+    if (buf.length >= 4) {
+      // PNG: 89 50 4E 47
+      if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {return true;}
+      // JPEG: FF D8 FF
+      if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {return true;}
+      // GIF: GIF8
+      if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) {return true;}
+      // WEBP: RIFF....WEBP
+      if (
+        buf.length >= 12 &&
+        buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+        buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function detectImageExtension(rawFile: unknown): string {
+  if (Buffer.isBuffer(rawFile) || rawFile instanceof Uint8Array) {
+    const buf = rawFile as Uint8Array;
+    if (buf.length >= 4) {
+      if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {return 'image.png';}
+      if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {return 'image.jpg';}
+      if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) {return 'image.gif';}
+      if (
+        buf.length >= 12 &&
+        buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+        buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50
+      ) {
+        return 'image.webp';
+      }
+    }
+  }
+  return 'image.png';
+}
 
 function disabledSet(settings: { disabled_plugins?: string[] } | null | undefined) {
   return new Set((settings?.disabled_plugins || []).map(normalizePluginName));
@@ -184,7 +282,7 @@ export class UserbotClient {
   async restartSchedules() {
     try {
       const { getSchedules } = await import('../../infrastructure/database.js');
-      const { startLoop } = await import('../handlers/util/loop.js');
+      const { startLoop } = await import('../../services/loopService.js');
 
       const schedules = getSchedules(this.telegramId);
       for (const s of schedules) {
@@ -257,7 +355,7 @@ export class UserbotClient {
     this._stopping = true;
 
     try {
-      const { loopStore } = await import('../handlers/util/loop.js');
+      const { loopStore } = await import('../../services/loopService.js');
       const loops = loopStore.get(Number(this.telegramId));
       if (loops) {
         const loopCount = loops.size;
@@ -307,7 +405,7 @@ export class UserbotClient {
     if (!this.client) {return;}
 
     // In testing or mock mode, we might register mock event handlers directly
-    if (typeof this.client.addEventHandler === 'function' && !this.dp) {
+    if (isTestEnv && typeof this.client.addEventHandler === 'function' && !this.dp) {
       this.registerMockHandlers();
       return;
     }
@@ -559,10 +657,12 @@ export class UserbotClient {
     }
 
     if (!this.client.invoke) {
-      this.client.invoke = async (call: unknown) => 
+      this.client.invoke = async (call: unknown) => {
         // Objek TL mentah (punya `_`); mtcute mengeksposnya lewat call().
-         await this.client.call(call as Parameters<CompatClient['call']>[0])
-      ;
+        const tlQuery = toTlParams(call);
+        const result = await this.client.call(tlQuery as Parameters<CompatClient['call']>[0]);
+        return toLegacyResult(result);
+      };
     }
 
     // CATATAN: wrapper ini dipasang TANPA guard `if (!client.getMessages)`.
@@ -584,26 +684,126 @@ export class UserbotClient {
     };
 
     if (!this.client.sendFile) {
-      this.client.sendFile = async (chat: LegacyPeer, options: LegacySendFileOptions) => {
-        const file = options?.file ?? options;
-        const caption = options?.caption ?? options?.message ?? '';
-        const params: Record<string, unknown> = {
-          caption,
-          replyTo: options?.replyTo,
-          parseMode: resolveParseMode(options?.parseMode),
-        };
-        let mediaObj: unknown;
-        if (options?.forceDocument) {
-          mediaObj = InputMedia.document(file as Parameters<typeof InputMedia.document>[0]);
+      this.client.sendFile = async (chat: LegacyPeer, fileOrOptions: unknown, maybeOptions?: unknown) => {
+        let options: LegacySendFileOptions;
+        let rawFile: unknown;
+
+        if (maybeOptions && typeof maybeOptions === 'object') {
+          options = { ...(maybeOptions as LegacySendFileOptions) };
+          rawFile = fileOrOptions;
         } else if (
-          options?.attributes?.some(
+          fileOrOptions &&
+          typeof fileOrOptions === 'object' &&
+          ('file' in (fileOrOptions as object) ||
+            'caption' in (fileOrOptions as object) ||
+            'message' in (fileOrOptions as object) ||
+            'forceDocument' in (fileOrOptions as object))
+        ) {
+          options = fileOrOptions as LegacySendFileOptions;
+          rawFile = options.file ?? options;
+        } else {
+          options = {};
+          rawFile = fileOrOptions;
+        }
+
+        let fileName: string | undefined = (options.fileName || options.filename || options.name) as string | undefined;
+
+        // Buka pembungkus objek file legacy (gaya GramJS: { source, filename }, { buffer }, atau Telegram MessageMedia)
+        if (rawFile && typeof rawFile === 'object') {
+          if ('inputMedia' in rawFile && (rawFile as { inputMedia?: unknown }).inputMedia) {
+            rawFile = (rawFile as { inputMedia: unknown }).inputMedia;
+          } else if (!(rawFile instanceof Uint8Array) && !(typeof Blob !== 'undefined' && rawFile instanceof Blob)) {
+            const fileObj = rawFile as {
+              source?: unknown;
+              buffer?: unknown;
+              path?: string;
+              filename?: string;
+              name?: string;
+              fileName?: string;
+            };
+            fileName = fileObj.filename || fileObj.name || fileObj.fileName || fileName;
+            if (fileObj.source !== undefined) {
+              rawFile = fileObj.source;
+            } else if (fileObj.buffer !== undefined) {
+              rawFile = fileObj.buffer;
+            } else if (typeof fileObj.path === 'string') {
+              rawFile = fileObj.path;
+            }
+          }
+        }
+
+        // Format path file lokal: mtcute memerlukan prefix 'file:' agar tidak disalahartikan sebagai File ID Telegram
+        if (typeof rawFile === 'string' && !rawFile.startsWith('file:') && !/^https?:\/\//i.test(rawFile)) {
+          if (path.isAbsolute(rawFile) || fs.existsSync(rawFile)) {
+            if (!fileName) {
+              fileName = path.basename(rawFile);
+            }
+            rawFile = `file:${rawFile}`;
+          }
+        }
+
+        const caption = options.caption ?? options.message ?? '';
+        const parseMode = resolveParseMode(options.parseMode);
+        let finalCaption: InputText | string = caption;
+        if (caption) {
+          const accountIsPremium = () => {
+            const premium = getUserbotSession(this.telegramId)?.is_telegram_premium;
+            return premium === true || Number(premium) === 1;
+          };
+          const rendered = accountIsPremium() ? animateEmojisWithRestrictedPack(caption) : stripTgEmojiTags(caption);
+          if (parseMode === 'html') {
+            try {
+              finalCaption = thtml(rendered);
+            } catch {
+              finalCaption = rendered;
+            }
+          } else if (parseMode === 'markdown' || parseMode === 'md') {
+            try {
+              finalCaption = md(rendered);
+            } catch {
+              finalCaption = rendered;
+            }
+          } else {
+            finalCaption = rendered;
+          }
+        }
+
+        const params: Record<string, unknown> = {
+          caption: finalCaption,
+          replyTo: options.replyTo,
+        };
+
+        const mediaParams: Record<string, unknown> = {};
+        if (fileName) {
+          mediaParams.fileName = fileName;
+        }
+        if (options.mimeType || options.fileMime) {
+          mediaParams.fileMime = options.mimeType || options.fileMime;
+        }
+        if (typeof options.fileSize === 'number') {
+          mediaParams.fileSize = options.fileSize;
+        }
+
+        let mediaObj: unknown;
+        if (options.forceDocument) {
+          mediaObj = InputMedia.document(rawFile as Parameters<typeof InputMedia.document>[0], mediaParams);
+        } else if (options.voiceNote) {
+          mediaObj = InputMedia.voice(rawFile as Parameters<typeof InputMedia.voice>[0], mediaParams);
+        } else if (
+          options.attributes?.some(
             (a) => a?._ === 'documentAttributeAnimated' || a?.className === 'DocumentAttributeAnimated'
           )
         ) {
-          mediaObj = InputMedia.animation(file as Parameters<typeof InputMedia.animation>[0]);
+          mediaObj = InputMedia.animation(rawFile as Parameters<typeof InputMedia.animation>[0], mediaParams);
+        } else if (isLikelyImage(rawFile, fileName)) {
+          if (!mediaParams.fileName) {
+            mediaParams.fileName = detectImageExtension(rawFile) || 'image.png';
+          }
+          mediaObj = InputMedia.photo(rawFile as Parameters<typeof InputMedia.photo>[0], mediaParams);
         } else {
-          mediaObj = InputMedia.auto(file as Parameters<typeof InputMedia.auto>[0]);
+          mediaObj = InputMedia.auto(rawFile as Parameters<typeof InputMedia.auto>[0], mediaParams);
         }
+
         return await this.client.sendMedia(chat, mediaObj as Parameters<CompatClient['sendMedia']>[1], params);
       };
     }
@@ -634,6 +834,69 @@ export class UserbotClient {
         }
       };
     }
+
+    if (!this.client.getInputEntity) {
+      this.client.getInputEntity = async (peer: unknown) => {
+        try {
+          const resolved = await this.client.resolvePeer(toPeer(peer) as InputPeerLike);
+          if (resolved._ === 'inputPeerChannel') {
+            return {
+              className: 'InputPeerChannel',
+              channelId: resolved.channelId,
+              accessHash: resolved.accessHash,
+            };
+          }
+          if (resolved._ === 'inputPeerChat') {
+            return {
+              className: 'InputPeerChat',
+              chatId: resolved.chatId,
+            };
+          }
+          if (resolved._ === 'inputPeerUser') {
+            return {
+              className: 'InputPeerUser',
+              userId: resolved.userId,
+              accessHash: resolved.accessHash,
+            };
+          }
+          return resolved;
+        } catch {
+          return peer;
+        }
+      };
+    }
+
+    if (!this.client.addEventHandler) {
+      const eventHandlersMap = new Map<(event: unknown) => unknown, (updateInfo: { update: unknown }) => void>();
+      this.client.addEventHandler = (handler: (event: unknown) => unknown) => {
+        const rawListener = (updateInfo: { update: unknown }) => {
+          const u = updateInfo.update as Record<string, unknown> | null | undefined;
+          if (u && typeof u === 'object') {
+            if (!u.className && typeof u._ === 'string') {
+              // Convert mtcute camelCase TL name (e.g. updateGroupCallConnection) to PascalCase (UpdateGroupCallConnection)
+              const parts = u._.split('.');
+              const last = parts[parts.length - 1];
+              u.className = last ? last.charAt(0).toUpperCase() + last.slice(1) : u._;
+            }
+            try {
+              handler(u);
+            } catch (err) {
+              Logger.logSystem(`[EventHandler Error] ${err instanceof Error ? err.message : String(err)}`, 'WARN');
+            }
+          }
+        };
+        eventHandlersMap.set(handler, rawListener);
+        this.client.onRawUpdate.add(rawListener);
+      };
+
+      this.client.removeEventHandler = (handler: (event: unknown) => unknown) => {
+        const rawListener = eventHandlersMap.get(handler);
+        if (rawListener) {
+          this.client.onRawUpdate.remove(rawListener);
+          eventHandlersMap.delete(handler);
+        }
+      };
+    }
   }
 
   private setupEmojiInterceptor(): void {
@@ -647,33 +910,100 @@ export class UserbotClient {
     const renderEmojiText = (text: string) =>
       accountIsPremium() ? animateEmojisWithRestrictedPack(text) : stripTgEmojiTags(text);
 
+    const formatPayloadText = (text: unknown, parseMode?: string | false) => {
+      if (typeof text !== 'string') {
+        return text;
+      }
+      const rendered = renderEmojiText(text);
+      if (parseMode === false || parseMode === 'plain' || parseMode === 'raw') {
+        return rendered;
+      }
+      const mode = (parseMode || 'html').toLowerCase();
+      if (mode === 'html') {
+        try {
+          return thtml(rendered);
+        } catch {
+          return rendered;
+        }
+      }
+      if (mode === 'markdown' || mode === 'md') {
+        try {
+          return md(rendered);
+        } catch {
+          return rendered;
+        }
+      }
+      return rendered;
+    };
+
     // Intercept sendText
     const origSendText = this.client.sendText?.bind(this.client);
     if (origSendText) {
-      this.client.sendText = (chat: LegacyPeer, text: unknown, params?: unknown) => {
-        if (typeof text === 'string') {
-          text = renderEmojiText(text);
-        }
-        return origSendText(chat, text, params);
+      this.client.sendText = (chat: LegacyPeer, text: unknown, params?: { parseMode?: string | false; replyTo?: unknown } & Record<string, unknown>) => {
+        const formatted = params && 'parseMode' in params
+          ? formatPayloadText(text, params.parseMode)
+          : (typeof text === 'string' ? renderEmojiText(text) : text);
+        return origSendText(chat, formatted as InputText, params);
       };
     }
 
     // Intercept editMessage
     const origEditMessage = this.client.editMessage?.bind(this.client);
     if (origEditMessage) {
-      type EditPayload = { text?: string } & Record<string, unknown>;
-      this.client.editMessage = (params: EditPayload, maybeParams?: EditPayload) => {
-        if (maybeParams !== undefined) {
-          // Legacy call (peer, { message, text })
-          if (typeof maybeParams.text === 'string') {
-            maybeParams.text = renderEmojiText(maybeParams.text);
+      this.client.editMessage = async (arg1: unknown, arg2?: unknown, arg3?: unknown) => {
+        let chatId: unknown;
+        let messageId: unknown;
+        let opts: Record<string, unknown> = {};
+
+        if (arg2 !== undefined) {
+          if (typeof arg2 === 'number') {
+            // Positional call: (chat, messageId, options)
+            chatId = arg1;
+            messageId = arg2;
+            opts = (arg3 ?? {}) as Record<string, unknown>;
+          } else if (typeof arg2 === 'object' && arg2 !== null) {
+            // Positional call: (chat, options)
+            chatId = arg1;
+            opts = arg2 as Record<string, unknown>;
+            messageId = opts.message ?? opts.id ?? opts.messageId;
           }
-          return origEditMessage(params, maybeParams);
+        } else if (typeof arg1 === 'object' && arg1 !== null) {
+          opts = arg1 as Record<string, unknown>;
+          if (opts.message && typeof opts.message === 'object') {
+            // Native mtcute: { message: Message, ... }
+            const rawText = opts.text ?? opts.messageText;
+            const parseMode = (opts.parseMode !== undefined ? opts.parseMode : 'html') as string | false;
+            const text = formatPayloadText(rawText, parseMode);
+            const disableWebPreview = opts.disableWebPreview !== undefined
+              ? Boolean(opts.disableWebPreview)
+              : (opts.linkPreview !== undefined ? !opts.linkPreview : undefined);
+            return origEditMessage({
+              ...opts,
+              text: text as InputText,
+              ...(disableWebPreview !== undefined ? { disableWebPreview } : {}),
+            });
+          }
+          chatId = opts.chatId ?? opts.chat ?? opts.peer ?? opts.peerId;
+          messageId = opts.message ?? opts.id ?? opts.messageId;
         }
-        if (params && typeof params.text === 'string') {
-          params.text = renderEmojiText(params.text);
-        }
-        return origEditMessage(params);
+
+        const rawText = opts.text ?? opts.message;
+        const parseMode = (opts.parseMode !== undefined ? opts.parseMode : 'html') as string | false;
+        const text = formatPayloadText(rawText, parseMode);
+        const disableWebPreview = opts.disableWebPreview !== undefined
+          ? Boolean(opts.disableWebPreview)
+          : (opts.linkPreview !== undefined ? !opts.linkPreview : undefined);
+
+        const targetChat = chatId ? toPeer(chatId as EntityLike) : undefined;
+        const targetMessageId = Number(messageId);
+
+        return origEditMessage({
+          ...opts,
+          ...(targetChat !== undefined ? { chatId: targetChat } : {}),
+          message: targetMessageId,
+          text: text as InputText,
+          ...(disableWebPreview !== undefined ? { disableWebPreview } : {}),
+        });
       };
     }
   }

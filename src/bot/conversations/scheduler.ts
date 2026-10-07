@@ -3,7 +3,7 @@ import type { BotContext, BotConversation } from '../context.js';
 import { replyRich, escapeHtml } from '../../utils/richMessage.js';
 import userbotManager from '../../userbot/engine/manager.js';
 import { getUserbotSession, saveSchedule } from '../../infrastructure/database.js';
-import { startLoop } from '../../userbot/handlers/util/loop.js';
+import { startLoop } from '../../services/loopService.js';
 
 const loopCancelKeyboard = new InlineKeyboard().text('❌ Batal', 'cancel_loop');
 

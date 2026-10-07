@@ -14,85 +14,29 @@ import type { BotContext } from '../../../../../context.js';
 
 export function panelTermsOfService(ctx: BotContext) {
   const firstName = escapeHtml(ctx.from?.first_name || 'User');
-  return {
-    blocks: [
-      {
-        type: 'paragraph',
-        text: `📜 Syarat & Ketentuan Layanan\n\nHalo, ${firstName}!\nSebelum menghubungkan akun Telegram Anda ke platform DeltaUserJS, mohon baca dan pahami ketentuan berikut:`
-      },
-      {
-        type: 'details',
-        summary: '📋 Rincian 4 Poin Ketentuan Layanan',
-        blocks: [
-          {
-            type: 'table',
-            is_compact: true,
-            cells: [
-              [{ text: 'Poin Ketentuan' }, { text: 'Penjelasan' }],
-              [{ text: '🔐 Keamanan Sesi' }, { text: 'Sesi login Anda dienkripsi aman. Jangan pernah membagikan OTP / Session kepada pihak mana pun.' }],
-              [{ text: '⚖️ Tanggung Jawab' }, { text: 'Penggunaan userbot sepenuhnya tanggung jawab pemilik akun. Hindari spamming liar atau pelanggaran ToS Telegram.' }],
-              [{ text: '🛡️ Batasan Server' }, { text: 'Pengembang tidak bertanggung jawab atas pembatasan (limit/flood) nomor akibat spam pengguna.' }],
-              [{ text: '🗑️ Hak Akses & Sesi' }, { text: 'Anda berhak menghentikan userbot atau menghapus sesi login kapan saja melalui dashboard.' }]
-            ]
-          }
-        ]
-      },
-      { type: 'divider' },
-      {
-        type: 'paragraph',
-        text: '⚠️ Pernyataan Persetujuan:\nDengan menekan tombol persetujuan di bawah, Anda menyatakan telah membaca, memahami, dan mematuhi seluruh syarat dan ketentuan layanan di atas.'
-      },
-      {
-        type: 'buttons',
-        buttons: [
-          { text: '✅ Saya Setuju & Lanjutkan', style: 'success', callback_data: 'rich:tos_agree' }
-        ]
-      },
-      {
-        type: 'buttons',
-        buttons: [
-          { text: '❌ Tolak & Batal', style: 'danger', callback_data: 'rich:tos_decline' }
-        ]
-      },
-      {
-        type: 'footer',
-        text: 'Silakan tentukan persetujuan Anda di atas untuk melanjutkan pendaftaran.'
-      }
-    ]
-  };
+  return `<h1 align="center">📜 Syarat &amp; Ketentuan Layanan</h1>` +
+    `<blockquote>Halo, <b>${firstName}</b>!<br>` +
+    `Sebelum menghubungkan akun Telegram Anda ke platform DeltaUserJS, mohon baca dan pahami ketentuan berikut:</blockquote>` +
+    `<table bordered striped>` +
+    `<tr><th>Poin Ketentuan</th><th align="center">Penjelasan</th></tr>` +
+    `<tr><td>⏳ Umur Akun</td><td>Disarankan akun Telegram berusia minimal 6 bulan – 1 tahun (bukan akun fresh/baru) untuk menghindari limit atau ban otomatis dari Telegram.</td></tr>` +
+    `<tr><td>🔐 Keamanan Sesi</td><td>Sesi login dienkripsi AES-256. Jangan pernah bagikan OTP / Session ke siapa pun.</td></tr>` +
+    `<tr><td>⚖️ Tanggung Jawab</td><td>Penggunaan userbot sepenuhnya tanggung jawab pemilik akun. Hindari spamming liar.</td></tr>` +
+    `<tr><td>🛡️ Batasan Server</td><td>Pengembang tidak bertanggung jawab atas limit/flood akun akibat spam pengguna.</td></tr>` +
+    `<tr><td>🗑️ Hak Akses Sesi</td><td>Anda berhak menghentikan atau menghapus sesi login kapan saja via dashboard.</td></tr>` +
+    `</table>` +
+    `<blockquote>⚠️ <b>Pernyataan Persetujuan:</b><br>` +
+    `Dengan menekan tombol <b>✅ Saya Setuju &amp; Lanjutkan</b> di bawah, Anda menyatakan telah membaca, memahami, dan mematuhi seluruh syarat dan ketentuan layanan.</blockquote>`;
 }
 
 export function panelTermsDeclined(ctx: BotContext) {
   const firstName = escapeHtml(ctx.from?.first_name || 'User');
-  return {
-    blocks: [
-      {
-        type: 'paragraph',
-        text: `❌ Pendaftaran Dibatalkan\n\nHalo, ${firstName}.\nAnda telah menolak Syarat & Ketentuan Layanan. Akun Telegram Anda tidak akan dihubungkan ke server.`
-      },
-      { type: 'divider' },
-      {
-        type: 'paragraph',
-        text: 'ℹ️ Informasi Penting:\nPersetujuan syarat & ketentuan diperlukan demi keamanan bersama dan mencegah penyalahgunaan platform. Anda tetap dapat menjelajahi menu publik bot.'
-      },
-      {
-        type: 'buttons',
-        buttons: [
-          { text: '🔄 Baca Ulang Ketentuan', style: 'primary', callback_data: 'rich:tos_view' }
-        ]
-      },
-      {
-        type: 'buttons',
-        buttons: [
-          { text: '🔙 Menu Utama', callback_data: 'rich:main' }
-        ]
-      },
-      {
-        type: 'footer',
-        text: 'Jika berubah pikiran, Anda dapat membaca ulang ketentuan kapan saja untuk melanjutkan pendaftaran.'
-      }
-    ]
-  };
+  return `<h1 align="center">❌ Pendaftaran Dibatalkan</h1>` +
+    `<blockquote>Halo, <b>${firstName}</b>.<br>` +
+    `Anda telah menolak Syarat &amp; Ketentuan Layanan. Akun Telegram Anda tidak akan dihubungkan ke server.</blockquote>` +
+    `<blockquote>ℹ️ <b>Informasi Penting:</b><br>` +
+    `Persetujuan syarat &amp; ketentuan diperlukan demi keamanan bersama. Anda tetap dapat menjelajahi menu publik bot.</blockquote>` +
+    `<blockquote>Jika Anda berubah pikiran, silakan ketuk <b>🔄 Baca Ulang Ketentuan</b> untuk melanjutkan pendaftaran.</blockquote>`;
 }
 
 export function panelDangerDelete(ctx?: BotContext) {
@@ -146,21 +90,20 @@ export function panelDangerDelete(ctx?: BotContext) {
 }
 
 export function panelRegister(ctx: BotContext) {
+  const firstName = escapeHtml(ctx.from.first_name || 'User');
   return `<h1 align="center">🚀 Daftar Userbot Telegram <sup>ONBOARDING</sup></h1>` +
-    `<p>Halo, <b>${escapeHtml(ctx.from.first_name || 'User')}</b>! Akses akun Anda telah disetujui. Pilih metode login untuk mengaktifkan userbot Anda.</p>` +
+    `<blockquote>Halo, <b>${firstName}</b>! Akses akun Anda telah disetujui.<br>` +
+    `Silakan pilih metode login untuk mengaktifkan userbot Anda:</blockquote>` +
     `<table bordered striped>` +
-    `<tr><th>Metode Login</th><th>Keterangan</th><th>Akses</th></tr>` +
-    `<tr><td>📱 OTP Telegram</td><td>Kode verifikasi via SMS / App</td><td align="center">🟢 Permanen</td></tr>` +
-    `<tr><td>🔍 Scan QR Code</td><td>Pindai via Settings &gt; Devices</td><td align="center">🟢 Permanen</td></tr>` +
+    `<tr><th>Metode Login</th><th align="center">Keterangan</th></tr>` +
+    `<tr><td>🔍 Scan QR Code</td><td align="center">⭐ <b>Rekomendasi</b> (Pindai via Settings &gt; Devices)</td></tr>` +
+    `<tr><td>📱 OTP Telegram</td><td align="center">Kode verifikasi via SMS / App Telegram</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>🛡️ Jaminan Keamanan:</h3>` +
-    `<ul>` +
-    `<li>Sesi dienkripsi AES-256 aman di database cluster.</li>` +
-    `<li>Anda dapat membatalkan pendaftaran kapan pun dengan tombol Batal atau ketik /cancel.</li>` +
-    `<li>Anda dapat menghapus sesi kapan saja melalui menu Pengaturan.</li>` +
-    `</ul>` +
-    `<footer>Ketuk salah satu metode di bawah untuk mulai masuk.</footer>`;
+    `<blockquote>🛡️ <b>Jaminan Keamanan &amp; Syarat Akun:</b><br>` +
+    `• <b>Umur Akun:</b> Disarankan akun Telegram berusia minimal 6 bulan – 1 tahun demi keamanan dari auto-ban.<br>` +
+    `• <b>Enkripsi Sesi:</b> Sesi dienkripsi AES-256-GCM aman di database.<br>` +
+    `• <b>Batal Kapan Saja:</b> Batalkan proses pendaftaran kapan pun dengan tombol Batal atau ketik <code>/cancel</code>.<br>` +
+    `• <b>Kontrol Penuh:</b> Anda dapat menghapus sesi kapan saja melalui Dashboard &gt; Pengaturan.</blockquote>`;
 }
 
 export function panelSubscription(ctx?: BotContext) {

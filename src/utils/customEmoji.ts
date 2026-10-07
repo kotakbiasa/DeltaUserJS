@@ -400,7 +400,15 @@ const ALIASES: Record<string, string> = {
   '📦': '🎁',
   '🏷️': '🎫',
   '🏷': '🎫',
-  '🔖': '🎫'
+  '🔖': '🎫',
+
+  // UI & Panels
+  '🎛️': '🎛',
+  '⚖️': '⚖',
+  '♾️': '♾',
+  '⬅️': '⬅',
+  '➡️': '➡',
+  '◀️': '◀'
 };
 
 const allKeys = new Set<string>();

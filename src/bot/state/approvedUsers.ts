@@ -7,7 +7,6 @@
  */
 import fs from 'fs';
 import path from 'path';
-import config from '../../config.js';
 
 /**
  * Keempat file state ini dulu ditulis langsung ke `process.cwd()`. Di Docker
@@ -206,7 +205,6 @@ export function getPendingApprovals(): PendingRequest[] {
 }
 
 export function hasAcceptedTerms(userId: number): boolean {
-  if (Number(userId) === Number(config.ownerId)) {return true;}
   return acceptedTermsUsers.has(Number(userId));
 }
 

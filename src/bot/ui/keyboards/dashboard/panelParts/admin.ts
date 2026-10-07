@@ -28,34 +28,28 @@ export function panelAdmin(_ctx: BotContext) {
   const mem = process.memoryUsage();
   const uptimeMin = Math.round(process.uptime() / 60);
 
-  const pendingBtn = `<tg-button type="callback_data" data="rich:admin_pending">${pending.length > 0 ? `⏳ Review (${pending.length})` : '🔍 Cek'}</tg-button>`;
-  const usersBtn = `<tg-button type="callback_data" data="rich:admin_users:1">👥 Kelola</tg-button>`;
-  const fleetBtn = `<tg-button type="callback_data" data="rich:admin_fleet">⚡ Kontrol</tg-button>`;
-  const healthBtn = `<tg-button type="callback_data" data="rich:health">🩺 Health</tg-button>`;
-  const backupBtn = `<tg-button type="callback_data" data="rich:admin_backup">💾 Backup</tg-button>`;
-
   const userMetricsStr = awaitingCount > 0
     ? `<b>${totalUsers}</b> Akun (${registeredUsers.length} Sesi, ${awaitingCount} Siap Login)`
     : `<b>${registeredUsers.length}</b> Sesi`;
 
-  return `<h1 align="center">👑 Admin Command Center <sup>ROOT</sup></h1>` +
-    `<p>Pusat kendali operasional, manajemen armada userbot, dan pemeliharaan platform.</p>` +
-    `<table bordered striped><caption>📊 Metrik Real-Time &amp; Aksi Cepat</caption>` +
-    `<tr><th>Komponen Sistem</th><th>Metrik / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>👥 Total Pengguna</td><td align="center">${userMetricsStr}</td><td align="center">${usersBtn}</td></tr>` +
-    `<tr><td>⚡ Userbot Aktif</td><td align="center"><b>${running}</b> Client Running</td><td align="center">${fleetBtn}</td></tr>` +
-    `<tr><td>⏳ Antrean Approval</td><td align="center"><b>${pending.length}</b> Menunggu</td><td align="center">${pendingBtn}</td></tr>` +
-    `<tr><td>💾 Backup &amp; Data</td><td align="center">Storage Server</td><td align="center">${backupBtn}</td></tr>` +
-    `<tr><td>🩺 Kesehatan Server</td><td align="center">${uptimeMin}m · ${formatBytesRef(mem.rss)}</td><td align="center">${healthBtn}</td></tr>` +
+  return `<h1>👑 Admin Command Center</h1>` +
+    `<blockquote><b>Pusat Kendali Operasional Server</b><br/>Kelola armada userbot, antrean persetujuan, dan pemeliharaan platform.</blockquote>` +
+    `<table bordered striped>` +
+    `<tr><th>Komponen Sistem</th><th align="center">Metrik / Status</th></tr>` +
+    `<tr><td>👥 Total Pengguna</td><td align="center">${userMetricsStr}</td></tr>` +
+    `<tr><td>⚡ Userbot Aktif</td><td align="center"><b>${running}</b> Client Running</td></tr>` +
+    `<tr><td>⏳ Antrean Approval</td><td align="center"><b>${pending.length}</b> Menunggu</td></tr>` +
+    `<tr><td>💾 Backup &amp; Basis Data</td><td align="center">MongoDB Cluster</td></tr>` +
+    `<tr><td>🩺 Kesehatan Server</td><td align="center">${uptimeMin}m · ${formatBytesRef(mem.rss)}</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>💡 Status Lingkungan Runtime:</h3>` +
+    `<details><summary><b>💡 Status Lingkungan Runtime</b></summary>` +
     `<ul>` +
     `<li>Engine: <b>mtcute Layer 229</b> (${loadedPlugins.length} Plugin Dimuat)</li>` +
     `<li>Node.js: <code>${process.version}</code> · PID <code>${process.pid}</code></li>` +
     `<li>Alokasi RAM (Heap): ${formatBytesRef(mem.heapUsed)} / ${formatBytesRef(mem.heapTotal)}</li>` +
     `</ul>` +
-    `<footer>Ketuk tombol aksi di tabel atau pilih menu di bawah:</footer>`;
+    `</details>` +
+    `<footer>Gunakan menu navigasi di bawah untuk mengontrol sistem:</footer>`;
 }
 
 export function panelAdminPending() {
@@ -214,63 +208,53 @@ export function panelAdminFleet() {
   const running = userbotManager.clients.size;
   const mem = process.memoryUsage();
 
-  const restartAllBtn = `<tg-button type="callback_data" data="rich:admin_fleet_restart">🔄 Restart Fleet</tg-button>`;
-  const stopAllBtn = `<tg-button type="callback_data" data="rich:admin_fleet_stop_confirm">🛑 Stop Fleet</tg-button>`;
-  const startAllBtn = `<tg-button type="callback_data" data="rich:admin_fleet_start">🚀 Start Fleet</tg-button>`;
-  const restartBotBtn = `<tg-button type="callback_data" data="rich:admin_restart_bot_confirm">🔄 Restart Master</tg-button>`;
-
-  return `<h1 align="center">⚡ Fleet &amp; Userbot Control <sup>FLEET</sup></h1>` +
-    `<p>Operasi massal dan kontrol darurat untuk seluruh client userbot di server.</p>` +
-    `<table bordered striped><caption>🚀 Operasi Armada Server</caption>` +
-    `<tr><th>Operasi Armada</th><th>Status / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>⚡ Userbot Berjalan</td><td align="center"><b>${running}</b> / ${users.length} Client</td><td align="center">${startAllBtn}</td></tr>` +
-    `<tr><td>🔄 Restart Massal</td><td align="center">Seluruh Userbot Aktif</td><td align="center">${restartAllBtn}</td></tr>` +
-    `<tr><td>🛑 Emergency Stop</td><td align="center">Matikan Semua Sesi</td><td align="center">${stopAllBtn}</td></tr>` +
-    `<tr><td>🤖 Master Bot PM2</td><td align="center">PID ${process.pid}</td><td align="center">${restartBotBtn}</td></tr>` +
-    `<tr><td>🧠 Memori RAM</td><td align="center">${formatBytesRef(mem.rss)}</td><td align="center">Server RAM</td></tr>` +
-    `<tr><td>⏱️ Uptime Node.js</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td align="center">Uptime</td></tr>` +
+  return `<h1>⚡ Fleet &amp; Userbot Control</h1>` +
+    `<blockquote><b>Kontrol Armada Server</b><br/>Operasi massal dan kontrol darurat untuk seluruh client userbot di server.</blockquote>` +
+    `<table bordered striped>` +
+    `<tr><th>Operasi / Metrik</th><th align="center">Nilai / Status</th></tr>` +
+    `<tr><td>⚡ Userbot Berjalan</td><td align="center"><b>${running}</b> / ${users.length} Client</td></tr>` +
+    `<tr><td>🤖 Master Bot PM2</td><td align="center">PID ${process.pid}</td></tr>` +
+    `<tr><td>🧠 Memori RAM</td><td align="center">${formatBytesRef(mem.rss)}</td></tr>` +
+    `<tr><td>⏱️ Uptime Node.js</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>⚠️ Peringatan Emergency Stop:</h3>` +
-    `<p>Menghentikan armada akan memutuskan koneksi seluruh userbot yang sedang berjalan. Anda dapat menyalakannya kembali menggunakan tombol <b>🚀 Start Fleet</b>.</p>` +
-    `<footer>Ketuk tombol aksi langsung di tabel atau gunakan tombol di bawah:</footer>`;
+    `<details><summary><b>⚠️ Peringatan Emergency Stop</b></summary>` +
+    `<p>Menghentikan armada akan memutuskan koneksi seluruh userbot yang sedang berjalan. Anda dapat menyalakannya kembali menggunakan tombol <b>🚀 Jalankan Semua Userbot</b> di bawah.</p>` +
+    `</details>` +
+    `<footer>Gunakan tombol aksi di bawah untuk mengeksekusi perintah armada:</footer>`;
 }
 
 export function panelAdminBackup() {
   const users = getAllRegisteredUsers();
 
-  const downloadBtn = `<tg-button type="callback_data" data="rich:admin_download_backup">📥 Unduh JSON</tg-button>`;
-
-  return `<h1 align="center">💾 Backup Database <sup>BACKUP</sup></h1>` +
-    `<p>Pencadangan database MongoDB platform DeltaUserJS.</p>` +
-    `<table bordered striped><caption>📦 Manajemen Data</caption>` +
-    `<tr><th>Layanan Database</th><th>Status / Nilai</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>📦 Backup MongoDB</td><td align="center">${users.length} Akun Terdaftar</td><td align="center">${downloadBtn}</td></tr>` +
+  return `<h1>💾 Backup Database</h1>` +
+    `<blockquote><b>Pencadangan Basis Data Server</b><br/>Pencadangan database MongoDB platform DeltaUserJS dalam format JSON aman.</blockquote>` +
+    `<table bordered striped>` +
+    `<tr><th>Komponen</th><th align="center">Total / Status</th></tr>` +
+    `<tr><td>📦 Sesi Pengguna</td><td align="center"><b>${users.length}</b> Akun Terdaftar</td></tr>` +
+    `<tr><td>🔒 Enkripsi</td><td align="center">AES-256 Sesi</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>ℹ️ Format Backup:</h3>` +
+    `<details><summary><b>ℹ️ Panduan Format Cadangan Data</b></summary>` +
     `<p>File backup dikirimkan dalam format JSON terstruktur lengkap dengan session string dan custom variables masing-masing userbot. Simpan file ini di tempat aman.</p>` +
-    `<footer>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</footer>`;
+    `</details>` +
+    `<footer>Ketuk tombol di bawah untuk mengunduh arsip cadangan JSON:</footer>`;
 }
 
 export function panelAdminSettings() {
   const autoApprove = getSystemVarValue('AUTO_APPROVE', '0') === '1';
 
-  const toggleApproveBtn = `<tg-button type="callback_data" data="rich:admin_toggle_auto_approve">${autoApprove ? '🔒 Ubah ke Manual' : '🌐 Ubah ke Bebas'}</tg-button>`;
-
-  return `<h1 align="center">⚙️ Pengaturan Cepat Sistem <sup>CONFIG</sup></h1>` +
-    `<p>Konfigurasi parameter global platform tanpa restart server atau edit file .env.</p>` +
-    `<table bordered striped><caption>🛠️ Parameter Global Platform</caption>` +
-    `<tr><th>Parameter Sistem</th><th>Setelan Saat Ini</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>🛡️ Mode Registrasi</td><td align="center"><b>${autoApprove ? '🌐 Buka Bebas (Auto-Approve)' : '🔒 Butuh Approval Manual'}</b></td><td align="center">${toggleApproveBtn}</td></tr>` +
+  return `<h1>⚙️ Pengaturan Cepat Sistem</h1>` +
+    `<blockquote><b>Konfigurasi Global Platform</b><br/>Atur parameter registrasi dan variabel sistem tanpa perlu restart server.</blockquote>` +
+    `<table bordered striped>` +
+    `<tr><th>Pengaturan</th><th align="center">Status Saat Ini</th></tr>` +
+    `<tr><td>🛡️ Mode Registrasi</td><td align="center"><b>${autoApprove ? '🌐 Buka Bebas (Auto)' : '🔒 Butuh Approval Manual'}</b></td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>💡 Penjelasan Mode Registrasi:</h3>` +
+    `<details><summary><b>💡 Penjelasan Mode Registrasi</b></summary>` +
     `<ul>` +
     `<li><b>🔒 Butuh Approval Manual</b>: Setiap pendaftar baru wajib disetujui owner secara manual sebelum bisa scan QR / OTP.</li>` +
     `<li><b>🌐 Buka Bebas (Auto-Approve)</b>: Pengguna baru langsung dapat mendaftar tanpa menunggu konfirmasi owner.</li>` +
     `</ul>` +
-    `<footer>Ketuk tombol aksi di tabel atau gunakan tombol di bawah:</footer>`;
+    `</details>` +
+    `<footer>Gunakan tombol di bawah untuk beralih mode atau mengubah variabel:</footer>`;
 }
 
 export function panelStats(ctx: BotContext) {
@@ -279,16 +263,18 @@ export function panelStats(ctx: BotContext) {
   const premium = session?.is_telegram_premium === 1 || Boolean(ctx?.from?.is_premium);
   const status = session ? (running ? '🟢 Online' : '🔴 Offline') : '⚪ Belum ditautkan';
 
-  return `<h1 align="center">📊 Status Layanan <sup>OVERVIEW</sup></h1>` +
-    `<p>Ringkasan status layanan yang aman untuk dilihat dari menu utama.</p>` +
+  return `<h1>📊 Status Layanan</h1>` +
+    `<blockquote>Ringkasan status layanan dan metrik akun Anda di DeltaUserJS.</blockquote>` +
     `<table bordered striped>` +
-    `<tr><th>Komponen</th><th>Status</th><th>Keterangan</th></tr>` +
-    `<tr><td>🤖 Userbot Anda</td><td align="center">${status}</td><td>${session ? 'Sesi tersimpan' : 'Hubungkan akun untuk mulai'}</td></tr>` +
-    `<tr><td>⭐ Telegram Premium</td><td align="center">${formatTelegramPremiumBadge(premium)}</td><td>Status akun Telegram</td></tr>` +
-    `<tr><td>🧩 Plugin</td><td align="center">${loadedPlugins.length} Modul</td><td>Registry userbot tersedia</td></tr>` +
-    `<tr><td>🛡️ FloodGuard</td><td align="center">🟢 Aktif</td><td>Perlindungan cooldown Telegram</td></tr>` +
+    `<tr><th>Komponen</th><th align="center">Status</th></tr>` +
+    `<tr><td>🤖 Userbot Anda</td><td align="center">${status}</td></tr>` +
+    `<tr><td>⭐ Telegram Premium</td><td align="center">${formatTelegramPremiumBadge(premium)}</td></tr>` +
+    `<tr><td>🧰 Modul Tersedia</td><td align="center">${loadedPlugins.length} Plugin</td></tr>` +
+    `<tr><td>🛡️ FloodGuard</td><td align="center">🟢 Aktif</td></tr>` +
     `</table>` +
-    `<p>Gunakan <b>🩺 Diagnostik &amp; Ping</b> di Dashboard Userbot untuk memeriksa koneksi MTProto secara langsung.</p>` +
-    `<footer>Data operasional detail hanya tersedia di Panel Admin Owner.</footer>`;
+    `<details><summary><b>💡 Informasi Diagnostik Lanjutan</b></summary>` +
+    `<p>Gunakan menu <b>🩺 Diagnostik &amp; Ping</b> di Dashboard Userbot untuk menguji latensi dan status koneksi soket MTProto langsung.</p>` +
+    `</details>` +
+    `<footer>Pusat informasi layanan DeltaUserJS.</footer>`;
 }
 

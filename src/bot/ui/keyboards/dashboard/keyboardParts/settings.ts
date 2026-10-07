@@ -16,24 +16,24 @@ export function keyboardSettings(ctx: BotContext) {
 
   return { inline_keyboard: [
     [
-      { text: isAntiPm ? '🚫 Anti-PM: 🟢 ON' : '🚫 Anti-PM: 🔴 OFF', callback_data: 'rich:toggle_anti_pm' },
-      { text: isAfk ? '🤖 AFK: 🟢 ON' : '🤖 AFK: 🔴 OFF', callback_data: 'rich:toggle_afk' },
+      { text: isAntiPm ? 'Anti-PM: 🟢 ON' : 'Anti-PM: 🔴 OFF', callback_data: 'rich:toggle_anti_pm', icon_custom_emoji_id: '5465665476971471368' },
+      { text: isAfk ? 'AFK: 🟢 ON' : 'AFK: 🔴 OFF', callback_data: 'rich:toggle_afk', icon_custom_emoji_id: '5372981976804366741' },
     ],
     [
-      { text: '🏷️ Ganti Nama Bot', callback_data: 'rich:edit_name' },
-      { text: '💬 Ganti Prefix Cepat', callback_data: 'rich:pick_prefix' },
+      { text: 'Ganti Nama Bot', callback_data: 'rich:edit_name', icon_custom_emoji_id: '5895542564580234154' },
+      { text: 'Ganti Prefix Cepat', callback_data: 'rich:pick_prefix', icon_custom_emoji_id: '5465300082628763143' },
     ],
     [
-      { text: '📝 Ubah Pesan AFK', callback_data: 'rich:edit_afk' },
-      { text: '🤖 Setup Inline Helper', callback_data: 'rich:setup_helper' },
+      { text: 'Ubah Pesan AFK', callback_data: 'rich:edit_afk', icon_custom_emoji_id: '5334882760735598374' },
+      { text: 'Setup Inline Helper', callback_data: 'rich:setup_helper', icon_custom_emoji_id: '5372981976804366741' },
     ],
     [
-      { text: '⚙️ Custom Vars', callback_data: 'rich:edit_vars' },
-      { text: '🗑️ Hapus Sesi Akun', callback_data: 'rich:danger_delete_session' },
+      { text: 'Custom Vars', callback_data: 'rich:edit_vars', icon_custom_emoji_id: '5875033614705495771' },
+      { text: 'Hapus Sesi Akun', callback_data: 'rich:danger_delete_session', style: 'danger', icon_custom_emoji_id: '5465665476971471368' },
     ],
     [
-      { text: '🔙 Dashboard Userbot', callback_data: 'rich:ubot' },
-      { text: '🏠 Menu Utama', callback_data: 'rich:main' },
+      { text: 'Dashboard Userbot', callback_data: 'rich:ubot', icon_custom_emoji_id: '5372981976804366741' },
+      { text: 'Menu Utama', callback_data: 'rich:main', icon_custom_emoji_id: '5465226866321268133' },
     ],
   ] };
 }

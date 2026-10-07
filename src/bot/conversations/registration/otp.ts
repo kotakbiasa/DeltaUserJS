@@ -49,6 +49,7 @@ export async function otpRegistrationConversation(conversation: BotConversation,
         `<tr><td align="center">2</td><td>Masukkan kode OTP yang diterima</td></tr>` +
         `<tr><td align="center">3</td><td>Selesai — userbot aktif 🎉</td></tr>` +
         `</table>` +
+        `<blockquote>💡 <b>Catatan Keamanan:</b> Disarankan akun Telegram berusia minimal 6 bulan – 1 tahun demi menghindari limit/ban otomatis.</blockquote>` +
         `<p>Silakan kirimkan nomor HP Anda, contoh: <code>+628123456789</code> atau <code>08123456789</code></p>`,
       { reply_markup: cancelKeyboard }
     );

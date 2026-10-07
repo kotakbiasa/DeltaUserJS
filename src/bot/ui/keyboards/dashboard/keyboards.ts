@@ -42,4 +42,7 @@ export {
   keyboardUserLoops,
   keyboardBack,
   applyButtonStylesToPayload,
+  stripButtonCustomEmoji,
+  BUTTON_CUSTOM_EMOJI_MAP,
 } from './keyboardParts/misc.js';
+

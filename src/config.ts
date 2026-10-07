@@ -17,7 +17,6 @@ const config = {
   logTopicId: process.env.LOG_TOPIC_ID ? parseInt(process.env.LOG_TOPIC_ID, 10) : 0,
   mongoUri: process.env.MONGO_URI || process.env.MONGO_URL || process.env.MONGODB_URI,
   dbName: 'DeltaUbotJS',
-  muslimSalatApiKey: process.env.MUSLIM_SALAT_API_KEY || undefined,
 
   appUrl: process.env.APP_URL || 'http://localhost:3000',
 };

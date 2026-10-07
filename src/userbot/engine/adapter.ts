@@ -91,33 +91,49 @@ export function createUserbotMessageAdapter(rawMsg: Message, client: CompatClien
     async edit(options: MessageEditOptions) {
       const text = typeof options === 'string' ? options : String(options?.text ?? options?.message ?? '');
       messageText = text;
+      const parseMode = typeof options === 'object' && options?.parseMode !== undefined ? options.parseMode : 'html';
+      const disableWebPreview = typeof options === 'object' && options?.linkPreview !== undefined ? !options.linkPreview : undefined;
       return await client.editMessage({
-        chat: rawMsg.chat.id,
+        chatId: rawMsg.chat?.id,
+        chat: rawMsg.chat?.id,
+        message: rawMsg.id,
         id: rawMsg.id,
         text,
-        parseMode: options?.parseMode || 'html',
-        linkPreview: options?.linkPreview,
+        parseMode,
+        ...(disableWebPreview !== undefined ? { disableWebPreview } : {}),
       });
     },
 
     async reply(options: { message?: string; text?: string; parseMode?: string } & Record<string, unknown>) {
       const text = typeof options === 'string' ? options : (options?.message ?? options?.text ?? '');
-      return await client.sendText(rawMsg.chat.id, text, {
+      const chatId = rawMsg.chat?.id;
+      if (!chatId) {
+        throw new Error('Chat tidak valid untuk reply');
+      }
+      return await client.sendText(chatId, text, {
         replyTo: rawMsg.id,
         parseMode: options?.parseMode || 'html',
       });
     },
 
     async delete() {
-      return await client.deleteMessages(rawMsg.chat.id, [rawMsg.id]);
+      const chatId = rawMsg.chat?.id;
+      if (!chatId) {
+        return false;
+      }
+      return await client.deleteMessages(chatId, [rawMsg.id]);
     },
 
     async copy(entity: EntityLike) {
       // mtcute: forwardMessages() menerima objek Message; untuk ID pakai
       // forwardMessagesById(). Nama field lama (fromChat/toChat) tidak ada,
       // jadi pemanggilan versi sebelumnya selalu gagal.
+      const chatId = rawMsg.chat?.id;
+      if (!chatId) {
+        throw new Error('Chat tidak valid untuk copy');
+      }
       return await client.forwardMessagesById({
-        fromChatId: rawMsg.chat.id,
+        fromChatId: chatId,
         toChatId: toPeer(entity),
         messages: [rawMsg.id],
       });

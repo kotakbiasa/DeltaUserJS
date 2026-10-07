@@ -6,6 +6,8 @@ import wiki from '../dist/userbot/handlers/util/wiki.js';
 import weather from '../dist/userbot/handlers/util/weather.js';
 import shortlink from '../dist/userbot/handlers/util/shortlink.js';
 import paste from '../dist/userbot/handlers/util/paste.js';
+import brat from '../dist/userbot/handlers/tools/brat.js';
+import { UserbotClient } from '../dist/userbot/engine/client.js';
 
 /**
  * Pesan tiruan yang merekam setiap message.edit().
@@ -372,4 +374,78 @@ test('wiki: a thumbnail sends a new photo and deletes the command message', asyn
   assert.equal(msg.deleted, true);
   // Hanya pesan loading yang di-edit; hasil akhir dikirim sebagai pesan baru.
   assert.equal(msg.edits.length, 1);
+});
+
+// ===========================================================================
+// brat — pembuatan gambar dan unwrapping media
+// ===========================================================================
+
+test('brat: generates brat image and sends photo message with deletion of command', async () => {
+  const msg = mockMessage('.brat halo kawan');
+  let sent = null;
+  const client = { sendMessage: async (chatId, opts) => { sent = { chatId, opts }; } };
+
+  const fakePng = Buffer.alloc(2000);
+  fakePng[0] = 0x89; fakePng[1] = 0x50; fakePng[2] = 0x4e; fakePng[3] = 0x47;
+
+  await withFetch(
+    async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => fakePng.buffer,
+    }),
+    () => brat.execute(client, msg, {}, 1)
+  );
+
+  assert.equal(sent.chatId, 123);
+  assert.equal(sent.opts.message, '🎨 Brat: halo kawan');
+  assert.equal(Buffer.isBuffer(sent.opts.file.source), true);
+  assert.equal(sent.opts.file.filename, 'brat.png');
+  assert.equal(msg.deleted, true);
+});
+
+test('brat: shows error when API returns failure', async () => {
+  const msg = mockMessage('.brat halo');
+  const client = { sendMessage: async () => {} };
+
+  await withFetch(
+    async () => ({
+      ok: false,
+      status: 500,
+    }),
+    () => brat.execute(client, msg, {}, 1)
+  );
+
+  const final = msg.edits.at(-1);
+  assert.match(final.text, /Gagal membuat brat/);
+  assert.match(final.text, /500/);
+});
+
+test('UserbotClient sendFile compatibility: unwraps { source: buffer, filename } into InputMedia.photo', async () => {
+  const ub = new UserbotClient(12345, 'session');
+  let calledMedia = null;
+  let calledParams = null;
+  ub.client = {
+    getMessages: () => {},
+    sendMedia: async (chat, media, params) => {
+      calledMedia = media;
+      calledParams = params;
+      return { id: 999 };
+    },
+  };
+  ub.setupClientCompatibility();
+
+  const fakePng = Buffer.alloc(2000);
+  fakePng[0] = 0x89; fakePng[1] = 0x50; fakePng[2] = 0x4e; fakePng[3] = 0x47;
+
+  await ub.client.sendMessage(123, {
+    message: '🎨 Brat: halo semua',
+    file: { source: fakePng, filename: 'brat.png' },
+    parseMode: 'html',
+  });
+
+  assert.equal(calledMedia.type, 'photo');
+  assert.equal(calledMedia.fileName, 'brat.png');
+  assert.equal(Buffer.isBuffer(calledMedia.file), true);
+  assert.equal(calledParams.caption?.text || calledParams.caption, '🎨 Brat: halo semua');
 });

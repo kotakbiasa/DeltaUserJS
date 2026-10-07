@@ -55,15 +55,11 @@ import type { CompatClient } from '../../engine/compatClient.js';
 // ============================================================
 // VC — native Telegram Voice Chat (Obrolan Suara) via tgcalls-js (WebRTC).
 //
-// ⚠️ TODO (known issue — lihat docs/known_issues.md §1):
-//   Modul ini BELUM sepenuhnya ikut migrasi ke mtcute. tgcalls-js@0.2.0 masih
-//   berasumsi klien GramJS-family: ia menyaring update dengan `className`
-//   (mtcute memakai `_`), mengoper marked-id numerik ke channels.GetFullChannel
-//   (mtcute butuh InputChannel), dan memanggil client.addEventHandler (tidak ada
-//   di mtcute). Akibatnya join voice chat kemungkinan besar gagal saat runtime
-//   meski `tsc` bersih — semua titik sentuh bertipe unknown/never sehingga
-//   compiler tidak menangkapnya. Baris ~228 di file ini juga masih memakai
-//   `chat.className === 'Channel'`.
+// Didukung penuh untuk mtcute via layer kompatibilitas di UserbotClient:
+//   • client.getInputEntity() untuk resolve InputPeerChannel / InputPeerChat
+//   • client.addEventHandler() / removeEventHandler() tersambung ke onRawUpdate
+//   • client.invoke() otomatis menangani konversi Long / BigInt & className
+//   • chat.id marked-id mtcute ditangani dengan tepat (-100... / -...)
 //
 // Fitur:
 //   • Pure WebRTC Voice Chat (bukan RTMP livestream / siaran langsung)
@@ -247,9 +243,12 @@ export default {
       return;
     }
     const rawId = BigInt(String((chat as { id?: unknown }).id ?? 0));
-    const chatId = chat.className === 'Channel'
-      ? -(1_000_000_000_000n + rawId)
-      : -rawId;
+    // Jika rawId sudah berupa marked-id negatif mtcute (-100... untuk channel/supergroup atau -... untuk basic chat)
+    const chatId = rawId < 0n
+      ? rawId
+      : (chat.className === 'Channel'
+        ? -(1_000_000_000_000n + rawId)
+        : -rawId);
 
     const tg = await getClient(client, telegramId);
     const busy = (action: string) =>

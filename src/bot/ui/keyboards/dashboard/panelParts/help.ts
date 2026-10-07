@@ -29,69 +29,65 @@ export function panelUserLoops(ctx: BotContext, page = 1) {
       const shortMsg = itemMessage.length > 20
         ? escapeHtml(itemMessage.substring(0, 20)) + '...'
         : escapeHtml(itemMessage);
-      // base64url keeps callback_data below Telegram's 64-byte limit for
-      // usernames and chat IDs while remaining reversible without state.
       const encodedTarget = Buffer.from(String(item.chatKey ?? ''), 'utf8').toString('base64url');
       const delBtn = `<tg-button type="callback_data" data="rich:del_loop:${encodedTarget}">⏹️ Hapus</tg-button>`;
       return `<tr><td><b>${num}.</b> <code>${targetStr}</code></td><td align="center">${item.value}m</td><td><i>"${shortMsg}"</i></td><td align="center">${delBtn}</td></tr>`;
     }).join('');
   }
 
-  const addBtn = `<tg-button type="callback_data" data="rich:add_loop">➕ Tambah Jadwal Baru</tg-button>`;
-
-  return `<h1 align="center">⏰ Visual Broadcast Scheduler <sup>LOOP</sup></h1>` +
-    `<p>Jadwal pengiriman pesan berkala otomatis tanpa mengetik perintah manual.</p>` +
-    `<table bordered striped><caption>🔁 Jadwal Loop Aktif (${loops.length} Jadwal)</caption>` +
-    `<tr><th>Target Chat</th><th align="center">Interval</th><th>Cuplikan Pesan</th><th align="center">Aksi</th></tr>` +
+  return `<h1 align="center">⏰ Visual Broadcast Scheduler</h1>` +
+    `<blockquote><b>Penjadwal Pesan Otomatis</b><br/>Kirim pesan berkala ke grup atau kontak secara otomatis tanpa mengetik manual.</blockquote>` +
+    `<table bordered striped><caption>🔁 Jadwal Loop Tersimpan (${loops.length})</caption>` +
+    `<tr><th>Target Chat</th><th align="center">Interval</th><th>Cuplikan</th><th align="center">Aksi</th></tr>` +
     rows +
     `</table>` +
-    `<p align="center">${addBtn}</p>` +
-    `<hr/>` +
-    `<h3>💡 Panduan &amp; Tips Auto-Loop:</h3>` +
-    `<ul>` +
-    `<li>Pesan dikirim otomatis setiap interval menit yang ditentukan.</li>` +
-    `<li>Seluruh jadwal disimpan permanen di database dan akan dipulihkan otomatis saat userbot direstart.</li>` +
-    `<li>Anda juga dapat mengontrol loop langsung dari obrolan manapun menggunakan perintah <code>.loop &lt;menit&gt; &lt;pesan&gt;</code> dan <code>.rmloop</code>.</li>` +
-    `</ul>` +
+    `<details><summary><b>💡 Panduan &amp; Tips Auto-Loop</b></summary>` +
+    `<table bordered striped>` +
+    `<tr><th>Fitur</th><th>Keterangan</th></tr>` +
+    `<tr><td>Interval</td><td>Pesan dikirim berulang sesuai menit yang diatur</td></tr>` +
+    `<tr><td>Persistensi</td><td>Tersimpan di database &amp; otomatis aktif saat restart</td></tr>` +
+    `<tr><td>Perintah Chat</td><td>Dapat diatur via <code>.loop &lt;menit&gt; &lt;pesan&gt;</code> &amp; <code>.rmloop</code></td></tr>` +
+    `</table>` +
+    `</details>` +
     (running
-      ? `<footer>🟢 Userbot online: Jadwal broadcast di atas sedang berjalan otomatis.</footer>`
-      : `<footer>🟡 Userbot offline: Jadwal tersimpan dan akan langsung aktif saat userbot dinyalakan.</footer>`);
+      ? `<footer>🟢 Userbot online: Seluruh jadwal broadcast berjalan otomatis.</footer>`
+      : `<footer>🟡 Userbot offline: Jadwal akan aktif begitu userbot dinyalakan.</footer>`);
 }
 
 export function panelQuickHelp(_ctx: BotContext) {
-  return `<h1 align="center">📚 Pusat Bantuan &amp; Panduan <sup>GUIDE</sup></h1>` +
-    `<p>Selamat datang di Pusat Bantuan <b>DeltaUserJS</b>.<br>` +
-    `Temukan panduan lengkap, cheatsheet perintah, dan solusi kendala di bawah ini.</p>` +
+  return `<h1 align="center">📚 Pusat Bantuan &amp; Panduan</h1>` +
+    `<blockquote>Selamat datang di Pusat Bantuan <b>DeltaUserJS</b>.<br/>` +
+    `Temukan panduan cepat, cheatsheet perintah, dan solusi kendala di bawah ini.</blockquote>` +
     `<table bordered striped>` +
     `<tr><th>Topik Bantuan</th><th>Deskripsi</th></tr>` +
     `<tr><td>🚀 Panduan Mulai</td><td>Langkah pertama konfigurasi userbot baru</td></tr>` +
-    `<tr><td>📜 Cheatsheet Perintah</td><td>Daftar perintah wajib tahu &amp; terpopuler</td></tr>` +
-    `<tr><td>❓ FAQ &amp; Kendala</td><td>Pertanyaan umum dan solusi troubleshooting</td></tr>` +
+    `<tr><td>📜 Cheatsheet</td><td>Daftar 16 perintah wajib tahu &amp; terpopuler</td></tr>` +
+    `<tr><td>❓ FAQ &amp; Kendala</td><td>Pertanyaan umum dan solusi masalah</td></tr>` +
     `<tr><td>💬 Hubungi Owner</td><td>Konsultasi langsung untuk bantuan teknis</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>💡 Perintah Bantuan Cepat:</h3>` +
-    `<p>Kirim perintah <code>.help</code> di chat mana pun untuk membuka pustaka bantuan interaktif ${loadedPlugins.length} modul bawaan.</p>` +
-    `<footer>Pilih topik panduan di bawah untuk membaca lebih detail:</footer>`;
+    `<details><summary><b>💡 Perintah Bantuan Cepat di Obrolan</b></summary>` +
+    `<p>Kirim perintah <code>.help</code> di chat mana pun untuk membuka pustaka interaktif ${loadedPlugins.length} modul bawaan.</p>` +
+    `</details>` +
+    `<footer>Pilih topik panduan pada tombol di bawah:</footer>`;
 }
 
 export function panelHelpQuickstart() {
-  return `<h1 align="center">🚀 Panduan Mulai Cepat <sup>QUICKSTART</sup></h1>` +
-    `<p>4 langkah mudah memaksimalkan userbot Anda setelah berhasil login:</p>` +
+  return `<h1 align="center">🚀 Panduan Mulai Cepat</h1>` +
+    `<blockquote>4 langkah mudah memaksimalkan userbot Anda setelah berhasil login:</blockquote>` +
     `<table bordered striped>` +
     `<tr><th>Langkah</th><th>Tindakan</th><th>Keterangan</th></tr>` +
-    `<tr><td>1. Tes Koneksi</td><td>Kirim <code>.alive</code></td><td>Menampilkan kartu status bot di chat</td></tr>` +
+    `<tr><td>1. Tes Koneksi</td><td>Kirim <code>.alive</code></td><td>Menampilkan kartu status bot</td></tr>` +
     `<tr><td>2. Cek Kecepatan</td><td>Kirim <code>.ping</code></td><td>Mengukur responsivitas koneksi</td></tr>` +
     `<tr><td>3. Amankan Akun</td><td>Aktifkan Anti-PM</td><td>Mencegah spam pesan pribadi</td></tr>` +
-    `<tr><td>4. Buka Modul</td><td>Kirim <code>.help</code></td><td>Membuka pustaka ${loadedPlugins.length} plugin aktif</td></tr>` +
+    `<tr><td>4. Buka Modul</td><td>Kirim <code>.help</code></td><td>Membuka katalog ${loadedPlugins.length} modul aktif</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>💡 Tips Penting:</h3>` +
+    `<details><summary><b>💡 Tips Keamanan &amp; Fleksibilitas</b></summary>` +
     `<ul>` +
-    `<li>Anda dapat mengganti prefix default (<code>.</code>) menjadi simbol lain di menu <b>Pengaturan &gt; Ganti Prefix</b>.</li>` +
-    `<li>Jangan membagikan session string akun Anda kepada siapa pun demi keamanan.</li>` +
+    `<li>Ubah prefix default (<code>.</code>) menjadi simbol lain di menu <b>Pengaturan &gt; Ganti Prefix</b>.</li>` +
+    `<li>Jangan pernah membagikan session string akun Anda kepada siapapun demi keamanan.</li>` +
     `<li>Gunakan tombol <b>Matikan Userbot</b> di Dashboard jika ingin berhenti sementara.</li>` +
     `</ul>` +
+    `</details>` +
     `<footer>Panduan resmi onboarding DeltaUserJS.</footer>`;
 }
 
@@ -100,15 +96,15 @@ export function panelHelpCommands(ctx?: Context) {
   const p = session?.vars?.PREFIX || '.';
   const safeP = escapeHtml(String(p));
 
-  return `<h1 align="center">📜 Cheatsheet 16 Perintah Terpopuler <sup>CHEAT</sup></h1>` +
-    `<p>Perintah yang sering digunakan untuk aktivitas harian (Prefix aktif: <code>${safeP}</code>):</p>` +
+  return `<h1 align="center">📜 Cheatsheet 16 Perintah Terpopuler</h1>` +
+    `<blockquote>Daftar perintah yang paling sering digunakan (Prefix aktif: <code>${safeP}</code>):</blockquote>` +
     `<table bordered striped>` +
     `<tr><th>Perintah</th><th>Kategori</th><th>Fungsi Utama</th></tr>` +
     `<tr><td><code>${safeP}alive</code></td><td>Informasi</td><td>Kartu status userbot &amp; engine</td></tr>` +
     `<tr><td><code>${safeP}ping</code></td><td>Informasi</td><td>Cek latensi koneksi &amp; respon</td></tr>` +
     `<tr><td><code>${safeP}afk [alasan]</code></td><td>Status</td><td>Pasang pesan sibuk otomatis</td></tr>` +
     `<tr><td><code>${safeP}antipm on/off</code></td><td>Keamanan</td><td>Proteksi spam pesan pribadi</td></tr>` +
-    `<tr><td><code>${safeP}tagall [pesan]</code></td><td>Grup &amp; Admin</td><td>Mention seluruh member grup</td></tr>` +
+    `<tr><td><code>${safeP}tagall [pesan]</code></td><td>Grup</td><td>Mention seluruh member grup</td></tr>` +
     `<tr><td><code>${safeP}purge</code></td><td>Moderasi</td><td>Hapus pesan massal sekaligus</td></tr>` +
     `<tr><td><code>${safeP}gcast [pesan]</code></td><td>Broadcast</td><td>Siaran pesan ke semua grup userbot</td></tr>` +
     `<tr><td><code>${safeP}tr [lang] [teks]</code></td><td>Utilitas</td><td>Terjemah bahasa internasional</td></tr>` +
@@ -121,29 +117,30 @@ export function panelHelpCommands(ctx?: Context) {
     `<tr><td><code>${safeP}weather [kota]</code></td><td>Utilitas</td><td>Prakiraan cuaca terkini</td></tr>` +
     `<tr><td><code>${safeP}help</code></td><td>Bantuan</td><td>Buka katalog inline ${loadedPlugins.length} modul</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>💡 Tips Penggunaan Perintah:</h3>` +
+    `<details><summary><b>💡 Tips Penggunaan Perintah</b></summary>` +
     `<ul>` +
     `<li>Seluruh perintah di atas dapat langsung dijalankan di grup atau chat pribadi.</li>` +
     `<li>Balas (reply) pesan target saat memakai perintah moderasi seperti <code>${safeP}purge</code> atau <code>${safeP}kang</code>.</li>` +
     `<li>Eksekusi perintah diproses langsung via protokol MTProto Layer 229 tanpa perantara.</li>` +
     `</ul>` +
-    `<footer>Kirim <code>${safeP}help [nama_modul]</code> di obrolan mana pun untuk melihat panduan lengkap suatu modul.</footer>`;
+    `</details>` +
+    `<footer>Kirim <code>${safeP}help [nama_modul]</code> di obrolan mana pun untuk panduan modul tertentu.</footer>`;
 }
 
 export function panelHelpFaq() {
   return `<h1 align="center">❓ FAQ &amp; Solusi Kendala</h1>` +
-    `<p>Jawaban atas pertanyaan yang paling sering diajukan:</p>` +
+    `<blockquote>Jawaban atas pertanyaan yang paling sering diajukan seputar DeltaUserJS:</blockquote>` +
     `<table bordered striped>` +
     `<tr><th>Pertanyaan</th><th>Solusi / Penjelasan</th></tr>` +
     `<tr><td>Kenapa userbot offline?</td><td>Server melakukan restart atau sesi terputus. Buka <b>Dashboard Userbot</b> lalu klik <b>⚡ Hidupkan Userbot</b>.</td></tr>` +
-    `<tr><td>Apakah sesi saya aman?</td><td>Sangat aman. String sesi dienkripsi dengan standar AES-256 dan hanya digunakan untuk koneksi akun Anda sendiri.</td></tr>` +
+    `<tr><td>Apakah sesi saya aman?</td><td>Sangat aman. String sesi dienkripsi dengan standar AES-256 dan hanya digunakan untuk akun Anda sendiri.</td></tr>` +
     `<tr><td>Bagaimana cara ubah nama bot?</td><td>Buka menu <b>Pengaturan</b> &gt; <b>🏷️ Ganti Nama Bot</b>, lalu kirim nama yang Anda inginkan.</td></tr>` +
+    `<tr><td>Berapa umur akun minimal?</td><td>Disarankan akun Telegram berusia minimal 6 bulan – 1 tahun untuk meminimalkan risiko pembatasan oleh Telegram.</td></tr>` +
     `<tr><td>Bagaimana jika kena limit Telegram?</td><td>Hindari broadcast masal ke terlalu banyak grup dalam waktu berdekatan. Gunakan jeda wajar.</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>🆘 Masih butuh bantuan?</h3>` +
-    `<p>Jika kendala Anda belum terselesaikan, silakan hubungi owner langsung melalui tombol di menu bantuan.</p>` +
+    `<details><summary><b>🆘 Masih Butuh Bantuan Lanjutan?</b></summary>` +
+    `<p>Jika kendala Anda belum terselesaikan, silakan hubungi owner langsung melalui tombol <b>💬 Hubungi Owner</b> di bawah.</p>` +
+    `</details>` +
     `<footer>Pusat Layanan Bantuan DeltaUserJS.</footer>`;
 }
 
@@ -156,16 +153,16 @@ export function panelDonate(_ctx: BotContext) {
   const ewalletCell = ewallet ? `<tg-spoiler><code>${escapeHtml(ewallet)}</code></tg-spoiler>` : '<i>Belum diset</i>';
   const bankCell = bank ? `<tg-spoiler><code>${escapeHtml(bank)}</code></tg-spoiler>` : '<i>Belum diset</i>';
 
-  return `<h1 align="center">💰 Dukungan &amp; Donasi <sup>SUPPORT</sup></h1>` +
-    `<p>Dukungan Anda membantu operasional server dan maintenance berkelanjutan. Nomor tersembunyi — tap untuk melihat.</p>` +
+  return `<h1>💰 Dukungan &amp; Donasi</h1>` +
+    `<blockquote>Dukungan Anda membantu operasional server dan maintenance berkelanjutan. Nomor tersembunyi — tap untuk melihat.</blockquote>` +
     `<table bordered striped>` +
-    `<tr><th>Metode Donasi</th><th>Nomor / Akun</th><th>Keterangan</th></tr>` +
-    `<tr><td>${escapeHtml(ewalletName)}</td><td align="center">${ewalletCell}</td><td>Tap untuk salin</td></tr>` +
-    `<tr><td>${escapeHtml(bankName)}</td><td align="center">${bankCell}</td><td>Tap untuk salin</td></tr>` +
+    `<tr><th>Metode Donasi</th><th align="center">Nomor / Rekening</th></tr>` +
+    `<tr><td>${escapeHtml(ewalletName)}</td><td align="center">${ewalletCell}</td></tr>` +
+    `<tr><td>${escapeHtml(bankName)}</td><td align="center">${bankCell}</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>💖 Konfirmasi &amp; Reward Donasi:</h3>` +
+    `<details><summary><b>💖 Konfirmasi &amp; Reward Donasi</b></summary>` +
     `<p>Setelah melakukan transfer atau donasi, silakan kirimkan bukti transfer ke kontak Owner untuk mendapatkan status VIP atau perpanjangan masa aktif userbot.</p>` +
+    `</details>` +
     `<footer>Terima kasih atas dukungan Anda terhadap pengembangan platform ini.</footer>`;
 }
 
@@ -176,20 +173,19 @@ export function panelHealth(mongoStatus = 'Unknown') {
     return `<tr><td><code>${escapeHtml(user.telegram_id)}</code></td><td align="center">${running}</td><td align="center">${user.is_active === 1 ? '✅ Aktif' : '❌ Nonaktif'}</td></tr>`;
   }).join('') || '<tr><td colspan="3" align="center">Belum ada userbot</td></tr>';
 
-  return `<h1 align="center">🩺 Server Health <sup>STATUS</sup></h1>` +
-    `<p>Status runtime, database cluster, dan kesehatan userbot aktif.</p>` +
+  return `<h1>🩺 Server Health</h1>` +
+    `<blockquote>Status runtime, database cluster, dan kesehatan userbot aktif.</blockquote>` +
     `<table bordered striped>` +
-    `<tr><th>Komponen</th><th>Status</th><th>Keterangan</th></tr>` +
-    `<tr><td>🍃 MongoDB Cluster</td><td align="center">${mongoStatus}</td><td>Primary Replica</td></tr>` +
-    `<tr><td>⚡ Userbot Engine</td><td align="center">${userbotManager.clients.size} Running</td><td>mtcute Layer 229</td></tr>` +
-    `<tr><td>⏱️ Waktu Aktif</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td><td>Server Uptime</td></tr>` +
-    `<tr><td>📦 Runtime Versi</td><td align="center">Node ${process.version}</td><td>${process.platform} ${process.arch}</td></tr>` +
-    `<tr><td>🧩 Modul Plugin</td><td align="center">${loadedPlugins.length} Modul</td><td>Hot-Reload Siap</td></tr>` +
+    `<tr><th>Komponen</th><th align="center">Status / Nilai</th></tr>` +
+    `<tr><td>🍃 MongoDB Cluster</td><td align="center">${mongoStatus} (Primary)</td></tr>` +
+    `<tr><td>⚡ Userbot Engine</td><td align="center">${userbotManager.clients.size} Client Active</td></tr>` +
+    `<tr><td>⏱️ Waktu Aktif</td><td align="center">${Math.round(process.uptime() / 60)} Menit</td></tr>` +
+    `<tr><td>📦 Runtime Versi</td><td align="center">Node ${process.version}</td></tr>` +
+    `<tr><td>🧩 Modul Plugin</td><td align="center">${loadedPlugins.length} Modul Siap</td></tr>` +
     `</table>` +
     `<table bordered striped><caption>👥 Snapshot Sesi Pengguna</caption>` +
-    `<tr><th>ID Pengguna</th><th>Status</th><th>Langganan</th></tr>` +
-    rows +
+    `<tr><th>ID Pengguna</th><th align="center">Engine</th><th align="center">Langganan</th></tr>` +
+    `rows` +
     `</table>` +
-    `<footer>Monitoring kesehatan sistem &amp; kluster basis data.</footer>`;
+    `<footer>Monitoring kesehatan sistem &amp; kluster basis data.</footer>`.replace('`rows`', rows);
 }
-

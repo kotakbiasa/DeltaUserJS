@@ -1,8 +1,8 @@
 /**
  * Panel pengaturan, prefix, inline helper, dan diagnostik.
  *
- * Dipecah dari panelParts/core.ts (721 baris). Isi tiap fungsi dipindahkan
- * apa adanya; yang berubah hanya di file mana ia tinggal.
+ * Dipecah dari panelParts/core.ts (721 baris). Tampilan modern, bersih,
+ * dan optimal untuk layar mobile Telegram.
  */
 import { getDisabledPlugins, getUserbotSession } from '../../../../../../infrastructure/database.js';
 import userbotManager from '../../../../../../userbot/engine/manager.js';
@@ -20,68 +20,64 @@ export function panelSettings(ctx: BotContext) {
   const botName = session?.custom_name || ctx.me?.first_name || 'Userbot';
   const helperUser = session?.inline_bot_username ? `@${escapeHtml(String(session.inline_bot_username))}` : '<i>Belum diset</i>';
 
-  const antiPmBtn = `<tg-button type="callback_data" data="rich:toggle_anti_pm">${isAntiPm ? '🔴 Matikan' : '🟢 Aktifkan'}</tg-button>`;
-  const afkBtn = `<tg-button type="callback_data" data="rich:toggle_afk">${isAfk ? '🔴 Matikan' : '🟢 Aktifkan'}</tg-button>`;
-  const prefixBtn = `<tg-button type="callback_data" data="rich:pick_prefix">✏️ Ubah</tg-button>`;
-  const nameBtn = `<tg-button type="callback_data" data="rich:edit_name">✏️ Ganti</tg-button>`;
-  const afkReasonBtn = `<tg-button type="callback_data" data="rich:edit_afk">✏️ Edit</tg-button>`;
-  const helperBtn = `<tg-button type="callback_data" data="rich:setup_helper">⚙️ Setup</tg-button>`;
-
-  return `<h1 align="center">⚙️ Pengaturan &amp; Keamanan <sup>SYSTEM</sup></h1>` +
-    `<p>Atur preferensi keamanan, identitas bot, dan respons otomatis akun Anda.</p>` +
-    `<table bordered striped><caption>🛠️ Konfigurasi Fitur Akun</caption>` +
-    `<tr><th>Pengaturan</th><th>Nilai / Status</th><th align="center">Aksi Cepat</th></tr>` +
-    `<tr><td>💬 Prefix Perintah</td><td><code>${escapeHtml(currentPrefix)}</code></td><td align="center">${prefixBtn}</td></tr>` +
-    `<tr><td>🛡️ Proteksi Anti-PM</td><td>${badge(isAntiPm, '🟢 ON', '🔴 OFF')}</td><td align="center">${antiPmBtn}</td></tr>` +
-    `<tr><td>💤 Mode AFK Auto</td><td>${badge(isAfk, '🟢 ON', '🔴 OFF')}</td><td align="center">${afkBtn}</td></tr>` +
-    `<tr><td>🏷️ Nama Kustom Bot</td><td><b>${escapeHtml(botName)}</b></td><td align="center">${nameBtn}</td></tr>` +
-    `<tr><td>📝 Pesan Balasan AFK</td><td><tg-spoiler><code>${escapeHtml(afkReason)}</code></tg-spoiler></td><td align="center">${afkReasonBtn}</td></tr>` +
-    `<tr><td>🤖 Inline Helper</td><td>${helperUser}</td><td align="center">${helperBtn}</td></tr>` +
-    `<tr><td>📦 Database Sesi</td><td>${session ? '🟢 Tersimpan' : '🔴 Kosong'}</td><td align="center">MongoDB</td></tr>` +
+  return `<h1>⚙️ Pengaturan &amp; Keamanan</h1>` +
+    `<blockquote><b>Pusat Pengaturan Preferensi</b><br/>Atur preferensi keamanan, identitas bot, dan respons otomatis akun Anda.</blockquote>` +
+    `<table bordered striped>` +
+    `<tr><th>Parameter</th><th align="center">Nilai / Status</th></tr>` +
+    `<tr><td>💬 Prefix Perintah</td><td align="center"><code>${escapeHtml(currentPrefix)}</code></td></tr>` +
+    `<tr><td>🛡️ Proteksi Anti-PM</td><td align="center">${badge(isAntiPm, '🟢 Aktif (ON)', '🔴 Nonaktif (OFF)')}</td></tr>` +
+    `<tr><td>💤 Auto-Reply AFK</td><td align="center">${badge(isAfk, '🟢 Aktif (ON)', '🔴 Nonaktif (OFF)')}</td></tr>` +
+    `<tr><td>🏷️ Nama Bot</td><td align="center"><b>${escapeHtml(botName)}</b></td></tr>` +
+    `<tr><td>🤖 Inline Helper</td><td align="center">${helperUser}</td></tr>` +
+    `<tr><td>📦 Database Sesi</td><td align="center">${session ? '🟢 Tersimpan (MongoDB)' : '🔴 Kosong'}</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>⚠️ Keamanan Sesi Telegram:</h3>` +
-    `<p>String sesi akun Anda disimpan aman di database MongoDB. Jika Anda menduga ada aktivitas mencurigakan, gunakan tombol <b>🗑️ Hapus Sesi Akun</b> untuk logout secara permanen dari server.</p>` +
-    `<footer>Ketuk tombol di tabel atau gunakan tombol di bawah untuk setelan lanjutan.</footer>`;
+    `<details><summary><b>📝 Pesan AFK &amp; Keamanan Sesi</b></summary>` +
+    `<table bordered striped>` +
+    `<tr><th>Parameter</th><th align="center">Keterangan</th></tr>` +
+    `<tr><td>Pesan AFK</td><td align="center"><code>${escapeHtml(afkReason)}</code></td></tr>` +
+    `<tr><td>Keamanan</td><td>String sesi dienkripsi dengan AES-256. Gunakan tombol Hapus Sesi Akun di bawah untuk logout total.</td></tr>` +
+    `</table>` +
+    `</details>` +
+    `<footer>Gunakan tombol keyboard di bawah untuk mengatur atau mengubah nilai:</footer>`;
 }
 
 export function panelPrefixPicker(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const currentPrefix = session?.vars?.PREFIX || '.';
-  return `<h1 align="center">💬 Ganti Prefix Perintah <sup>CONFIG</sup></h1>` +
-    `<p>Prefix saat ini: <code>${escapeHtml(currentPrefix)}</code><br>` +
-    `Pilih salah satu simbol prefix di bawah untuk mengubah prefix perintah userbot Anda:</p>` +
+  return `<h1>💬 Ganti Prefix Perintah</h1>` +
+    `<blockquote>Prefix aktif saat ini: <code>${escapeHtml(currentPrefix)}</code><br/>` +
+    `Pilih salah satu simbol prefix di tombol bawah untuk mengubahnya secara instan:</blockquote>` +
     `<table bordered striped>` +
-    `<tr><th>Simbol</th><th>Contoh Perintah</th><th>Keterangan</th></tr>` +
-    `<tr><td><code>.</code> (Titik)</td><td><code>.ping</code>, <code>.alive</code></td><td>Standar (Default)</td></tr>` +
-    `<tr><td><code>!</code> (Seru)</td><td><code>!ping</code>, <code>!alive</code></td><td>Populer</td></tr>` +
-    `<tr><td><code>,</code> (Koma)</td><td><code>,ping</code>, <code>,alive</code></td><td>Mudah (Mudah)</td></tr>` +
-    `<tr><td><code>#</code> (Pagar)</td><td><code>#ping</code>, <code>#alive</code></td><td>Alternatif</td></tr>` +
-    `<tr><td><code>?</code> (Tanya)</td><td><code>?ping</code>, <code>?alive</code></td><td>Alternatif</td></tr>` +
-    `<tr><td><code>~</code> (Tilde)</td><td><code>~ping</code>, <code>~alive</code></td><td>Alternatif</td></tr>` +
+    `<tr><th>Simbol</th><th align="center">Contoh</th><th align="center">Tipe</th></tr>` +
+    `<tr><td><code>.</code> (Titik)</td><td align="center"><code>.ping</code>, <code>.alive</code></td><td align="center">Standar (Default)</td></tr>` +
+    `<tr><td><code>!</code> (Seru)</td><td align="center"><code>!ping</code>, <code>!alive</code></td><td align="center">Populer</td></tr>` +
+    `<tr><td><code>,</code> (Koma)</td><td align="center"><code>,ping</code>, <code>,alive</code></td><td align="center">Mudah</td></tr>` +
+    `<tr><td><code>#</code> (Pagar)</td><td align="center"><code>#ping</code>, <code>#alive</code></td><td align="center">Alternatif</td></tr>` +
+    `<tr><td><code>?</code> (Tanya)</td><td align="center"><code>?ping</code>, <code>?alive</code></td><td align="center">Alternatif</td></tr>` +
+    `<tr><td><code>~</code> (Tilde)</td><td align="center"><code>~ping</code>, <code>~alive</code></td><td align="center">Alternatif</td></tr>` +
     `</table>` +
-    `<footer>Ketuk tombol prefix di bawah untuk langsung mengganti.</footer>`;
+    `<footer>Ketuk tombol simbol di bawah untuk mengganti prefix.</footer>`;
 }
 
 export function panelInlineHelper(ctx: BotContext) {
   const session = getUserbotSession(ctx.from.id);
   const botUser = session?.inline_bot_username;
-  return `<h1 align="center">🤖 Setup Inline Helper Bot <sup>BOTFATHER</sup></h1>` +
-    `<p>Inline Helper Bot memungkinkan perintah <code>.help</code> di obrolan mana pun memunculkan tombol menu interaktif.</p>` +
+  return `<h1>🤖 Setup Inline Helper Bot</h1>` +
+    `<blockquote>Inline Helper Bot memungkinkan perintah <code>.help</code> di obrolan mana pun memunculkan tombol menu interaktif.</blockquote>` +
     `<table bordered striped>` +
-    `<tr><th>Parameter</th><th>Status</th></tr>` +
+    `<tr><th>Parameter</th><th align="center">Status</th></tr>` +
     `<tr><td>Status Helper</td><td align="center">${botUser ? `🟢 Terpasang (@${escapeHtml(botUser)})` : '🔴 Belum Terpasang'}</td></tr>` +
     `<tr><td>Metode Pemasangan</td><td align="center">Via @BotFather (HTTP API)</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>📝 Cara Mendapatkan Token Bot:</h3>` +
+    `<details><summary><b>📝 Cara Mendapatkan Token Bot Father</b></summary>` +
     `<ol>` +
     `<li>Buka @BotFather di Telegram.</li>` +
-    `<li>Kirim perintah <code>/newbot</code> dan ikuti instruksi (beri nama &amp; username akhiran 'bot').</li>` +
+    `<li>Kirim perintah <code>/newbot</code> dan ikuti instruksi (beri nama &amp; username berakhiran 'bot').</li>` +
     `<li>Kirim perintah <code>/setinline</code> ke @BotFather lalu pilih bot Anda.</li>` +
     `<li>Salin <b>HTTP API Token</b> yang diberikan @BotFather.</li>` +
     `<li>Ketuk tombol <b>🔑 Masukkan Token Bot</b> di bawah untuk menyimpannya.</li>` +
     `</ol>` +
+    `</details>` +
     `<footer>Helper bot hanya digunakan untuk merender menu bantuan inline.</footer>`;
 }
 
@@ -97,8 +93,6 @@ export async function panelUserbotDiag(ctx: BotContext) {
 
   if (isRunning && ubot && ubot.client) {
     connected = Boolean(ubot.isConnected());
-    // DC akun diambil dari mtcute (getPrimaryDcId). help.getNearestDc hanya
-    // dipakai sebagai pengukur latensi dan cadangan bila DC belum ter-prefetch.
     const primaryDc = await ubot.getDcId();
     if (primaryDc) {dcId = String(primaryDc);}
     try {
@@ -119,35 +113,32 @@ export async function panelUserbotDiag(ctx: BotContext) {
   const activeCount = Math.max(0, loadedPlugins.length - disabledCount);
   const flood = userbotManager.getFloodStatus(telegramId);
 
-  const retryBtn = `<tg-button type="callback_data" data="rich:ubot_diag">🔄 Uji Ulang</tg-button>`;
-  const backUbotBtn = `<tg-button type="callback_data" data="rich:ubot">🤖 Dashboard</tg-button>`;
-
   const floodInfo = flood.inCooldown
-    ? `<h3>⚠️ Peringatan FloodWait Telegram:</h3>` +
-      `<p>Akun Anda saat ini sedang dalam masa pendinginan aman sebesar <b>${flood.secondsLeft} detik</b>. DeltaUbotJS otomatis menahan seluruh aktivitas perintah keluar agar akun tidak terkena batasan banned dari Telegram. Sistem akan kembali normal secara otomatis begitu hitungan mundur selesai.</p><hr/>`
+    ? `<blockquote>⚠️ <b>Peringatan FloodWait Telegram</b><br/>Akun Anda sedang dalam masa pendinginan aman sebesar <b>${flood.secondsLeft} detik</b>. DeltaUserJS otomatis menahan seluruh aktivitas perintah keluar agar akun tidak terkena batasan banned.</blockquote>`
     : '';
 
-  return `<h1 align="center">🩺 Diagnostik &amp; Latensi MTProto <sup>v2.4</sup></h1>` +
+  return `<h1>🩺 Diagnostik &amp; Latensi MTProto</h1>` +
     floodInfo +
-    `<p>Hasil pengujian langsung soket MTProto Telegram dan status runtime engine.</p>` +
-    `<table bordered striped><caption>📊 Hasil Pengujian Real-Time</caption>` +
-    `<tr><th>Parameter Uji</th><th>Hasil / Nilai</th><th align="center">Aksi</th></tr>` +
-    `<tr><td>⚡ Status Client</td><td>${isRunning ? (connected ? '🟢 Online &amp; Terhubung' : '🟡 Menghubungkan...') : '🔴 Offline / Mati'}</td><td align="center">${retryBtn}</td></tr>` +
-    `<tr><td>📡 Latensi Telegram DC</td><td>${pingMs > 0 ? `<b>${pingMs} ms</b>` : (isRunning ? '🟡 Mengukur...' : '🔴 N/A')}</td><td align="center">Layer 229</td></tr>` +
-    `<tr><td>🌐 Server Datacenter</td><td>Telegram DC ${dcId}</td><td align="center">mtcute</td></tr>` +
-    `<tr><td>🛡️ FloodWait Guard</td><td>${flood.inCooldown ? `⏳ Hibernasi (${flood.secondsLeft}s)` : '🟢 Normal'}</td><td align="center">Proteksi</td></tr>` +
-    `<tr><td>🧩 Modul Aktif</td><td>🟢 ${activeCount} / ${loadedPlugins.length} Plugin</td><td align="center">${backUbotBtn}</td></tr>` +
-    `<tr><td>🛡️ Filter Anti-PM</td><td>${session?.anti_pm === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Spam Shield</td></tr>` +
-    `<tr><td>🤖 Auto-Reply AFK</td><td>${session?.auto_reply === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td><td align="center">Auto-Reply</td></tr>` +
+    `<blockquote>Hasil pengujian langsung soket MTProto Telegram dan status runtime engine.</blockquote>` +
+    `<table bordered striped>` +
+    `<tr><th>Parameter Uji</th><th align="center">Hasil / Status</th></tr>` +
+    `<tr><td>⚡ Status Client</td><td align="center">${isRunning ? (connected ? '🟢 Online &amp; Terhubung' : '🟡 Menghubungkan...') : '🔴 Offline / Mati'}</td></tr>` +
+    `<tr><td>📡 Latensi Telegram DC</td><td align="center">${pingMs > 0 ? `<b>${pingMs} ms</b>` : (isRunning ? '🟡 Mengukur...' : '🔴 N/A')}</td></tr>` +
+    `<tr><td>🌐 Server Datacenter</td><td align="center">Telegram DC ${dcId} (mtcute)</td></tr>` +
+    `<tr><td>🛡️ FloodWait Guard</td><td align="center">${flood.inCooldown ? `⏳ Hibernasi (${flood.secondsLeft}s)` : '🟢 Normal (Siap)'}</td></tr>` +
+    `<tr><td>🧩 Modul Aktif</td><td align="center">🟢 ${activeCount} / ${loadedPlugins.length} Plugin</td></tr>` +
+    `<tr><td>🛡️ Filter Anti-PM</td><td align="center">${session?.anti_pm === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td></tr>` +
+    `<tr><td>🤖 Auto-Reply AFK</td><td align="center">${session?.auto_reply === 1 ? '🟢 Aktif' : '🔴 Nonaktif'}</td></tr>` +
     `</table>` +
-    `<hr/>` +
-    `<h3>💡 Panduan Indikator Latensi:</h3>` +
-    `<ul>` +
-    `<li><b>&lt; 50 ms</b>: Sangat Cepat (Respon bot instan)</li>` +
-    `<li><b>50 - 150 ms</b>: Normal (Kecepatan standar jaringan MTProto Telegram)</li>` +
-    `<li><b>&gt; 200 ms</b>: Lambat (Beban jaringan atau antrean di Datacenter Telegram)</li>` +
-    `</ul>` +
+    `<details><summary><b>💡 Panduan Indikator Latensi Jaringan</b></summary>` +
+    `<table bordered striped>` +
+    `<tr><th>Rentang Ping</th><th align="center">Kondisi Jaringan</th></tr>` +
+    `<tr><td>&lt; 50 ms</td><td align="center">🟢 Sangat Cepat (Respon bot instan)</td></tr>` +
+    `<tr><td>50 - 150 ms</td><td align="center">🟡 Normal (Kecepatan standar jaringan MTProto)</td></tr>` +
+    `<tr><td>&gt; 200 ms</td><td align="center">🔴 Lambat (Beban jaringan atau antrean DC)</td></tr>` +
+    `</table>` +
+    `</details>` +
     (isRunning
-      ? `<footer>✅ Koneksi userbot berjalan lancar dan siap mengeksekusi perintah secara instan.</footer>`
-      : `<footer>⚠️ Userbot sedang mati. Gunakan tombol Hidupkan Userbot di bawah untuk menyalakan.</footer>`);
+      ? `<footer>✅ Koneksi userbot berjalan lancar dan siap mengeksekusi perintah.</footer>`
+      : `<footer>⚠️ Userbot sedang mati. Gunakan tombol Hidupkan Userbot di bawah.</footer>`);
 }

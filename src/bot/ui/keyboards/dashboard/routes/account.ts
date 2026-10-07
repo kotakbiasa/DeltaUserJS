@@ -9,12 +9,12 @@
  */
 import config from '../../../../../config.js';
 import { Logger } from '../../../../../utils/logger.js';
-import { addPendingApproval, approveUser, hasAcceptedTerms, isApproved, isPendingApproval, setAcceptedTerms } from '../../../../state/approvedUsers.js';
+import { addPendingApproval, approveUser, isApproved, isPendingApproval, setAcceptedTerms } from '../../../../state/approvedUsers.js';
 import { canRegister, isAutoApproveEnabled, isOwner } from '../shared.js';
 import { escapeHtml } from '../../../../../utils/richMessage.js';
 import { getUserbotSession } from '../../../../../infrastructure/database.js';
-import { keyboardBuySubscription, keyboardRegister, keyboardSubscription, keyboardTermsDeclined, keyboardTermsOfService } from '../keyboards.js';
-import { panelBuySubscription, panelRegister, panelSubscription, panelTermsDeclined, panelTermsOfService } from '../panels.js';
+import { keyboardBuySubscription, keyboardRegister, keyboardSubscription, keyboardTermsDeclined, keyboardTermsOfService, keyboardUserbot } from '../keyboards.js';
+import { panelBuySubscription, panelRegister, panelSubscription, panelTermsDeclined, panelTermsOfService, panelUserbot } from '../panels.js';
 import { sendAccessDeniedRich, sendRich } from '../richRuntime.js';
 import { NOT_HANDLED } from './types.js';
 import type { BotContext } from '../../../../context.js';
@@ -33,25 +33,26 @@ export async function handleAccountRoutes(ctx: BotContext) {
     if (isAutoApproveEnabled() && !isApproved(ctx.from.id)) {
       approveUser(ctx.from.id, { name: ctx.from.first_name, username: ctx.from.username });
     }
-    if (!hasAcceptedTerms(ctx.from.id)) {
-      return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
+    const session = getUserbotSession(ctx.from.id);
+    if (session) {
+      return sendRich(ctx, panelUserbot(ctx), keyboardUserbot(ctx), { edit: true });
     }
-    return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { edit: true });
+    return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
   }
 
   if (action === 'tos_agree') {
     setAcceptedTerms(ctx.from.id, true);
-    await ctx.answerCallbackQuery({ text: '✅ Syarat & Ketentuan disetujui!' });
+    await ctx.answerCallbackQuery({ text: '✅ Syarat & Ketentuan disetujui!' }).catch(() => {});
     return sendRich(ctx, panelRegister(ctx), keyboardRegister(), { edit: true });
   }
 
   if (action === 'tos_decline') {
-    await ctx.answerCallbackQuery({ text: 'Pendaftaran dibatalkan.' });
+    await ctx.answerCallbackQuery({ text: 'Pendaftaran dibatalkan.' }).catch(() => {});
     return sendRich(ctx, panelTermsDeclined(ctx), keyboardTermsDeclined(), { edit: true });
   }
 
   if (action === 'tos_view') {
-    await ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery().catch(() => {});
     return sendRich(ctx, panelTermsOfService(ctx), keyboardTermsOfService(), { edit: true });
   }
 

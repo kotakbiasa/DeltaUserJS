@@ -12,7 +12,7 @@ import { getSystemVarValue, isOwner } from '../shared.js';
 import { keyboardTermsOfService, keyboardUserLoops } from '../keyboards.js';
 import { panelTermsOfService, panelUserLoops } from '../panels.js';
 import { sendAccessDeniedRich, sendRich } from '../richRuntime.js';
-import { stopLoop } from '../../../../../userbot/handlers/util/loop.js';
+import { stopLoop } from '../../../../../services/loopService.js';
 import { NOT_HANDLED } from './types.js';
 import type { BotContext } from '../../../../context.js';
 

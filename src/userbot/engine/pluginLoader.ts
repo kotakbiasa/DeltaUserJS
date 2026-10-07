@@ -46,7 +46,7 @@ async function getJsFilesRecursively(dir: string) {
   return results;
 }
 
-async function loadSinglePlugin(filePath: string) {
+export async function loadSinglePlugin(filePath: string) {
   const fileRelPath = path.relative(pluginsDir, filePath);
   try {
     const plugin = await importPlugin(filePath);

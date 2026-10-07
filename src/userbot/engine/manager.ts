@@ -2,9 +2,38 @@ import { UserbotClient } from './client.js';
 import { getAllActiveUserbots, getUserbotSession, updateUserbotStatus } from '../../infrastructure/database.js';
 import { dbCache } from '../../infrastructure/dbCore.js';
 import { Logger } from '../../utils/logger.js';
-import { stopAllLoops } from '../handlers/util/loop.js';
+import { stopAllLoops } from '../../services/loopService.js';
 import { startInlineBotForUser, stopInlineBotForUser } from '../../bot/services/inlineBotService.js';
 import { sleep } from '../../utils/async.js';
+import { notifyUser } from '../../services/notifyService.js';
+
+/** Maks percobaan reconnect beruntun sebelum userbot dinonaktifkan (AGENTS.md). */
+export const WATCHDOG_MAX_RETRIES = 3;
+
+/**
+ * Error RPC yang berarti sesi mati permanen — mencoba ulang tidak akan pernah
+ * berhasil, jadi userbot langsung dinonaktifkan tanpa menunggu batas retry.
+ */
+const DEAD_SESSION_PATTERNS = [
+  'AUTH_KEY_UNREGISTERED',
+  'AUTH_KEY_INVALID',
+  'AUTH_KEY_DUPLICATED',
+  'SESSION_REVOKED',
+  'SESSION_EXPIRED',
+  'USER_DEACTIVATED',
+  'USER_DEACTIVATED_BAN',
+  'Not a valid string',
+  'session string',
+];
+
+export function isDeadSessionError(message: string): boolean {
+  return DEAD_SESSION_PATTERNS.some((p) => message.includes(p));
+}
+
+/** Jeda backoff: base, 2×base, 4×base, ... */
+export function backoffDelayMs(failures: number, baseMs: number): number {
+  return baseMs * 2 ** Math.max(0, failures - 1);
+}
 
 /**
  * Per-ID async lock — simple mutex untuk mencegah race condition di lifecycle userbot.
@@ -35,11 +64,30 @@ class UserbotManager {
   public reconnecting: Set<number>;
   public watchdogInterval: NodeJS.Timeout | null;
   public watchdogRunning: boolean;
+  /** Status kegagalan reconnect beruntun per userbot (direset saat sukses). */
+  public reconnectFailures: Map<number, { count: number; nextAttemptAt: number }>;
+  public watchdogBaseMs: number;
   constructor() {
     this.clients = new Map();
     this.reconnecting = new Set();
     this.watchdogInterval = null;
     this.watchdogRunning = false;
+    this.reconnectFailures = new Map();
+    this.watchdogBaseMs = 120000;
+  }
+
+  /** Nonaktifkan userbot dan beri tahu pemiliknya untuk login ulang. */
+  async #deactivateDeadUserbot(id: number, reason: string) {
+    this.reconnectFailures.delete(id);
+    Logger.logSystem(`Menonaktifkan userbot [${id}]: ${reason}`, 'ERROR');
+    await updateUserbotStatus(id, false);
+    await this.stopUserbot(id).catch(() => { /* client mungkin sudah mati */ });
+    await notifyUser(
+      id,
+      '⚠️ <b>Userbot dinonaktifkan</b>\n\n' +
+      `Userbot Anda gagal tersambung: <code>${reason.replace(/[<>&]/g, '')}</code>\n\n` +
+      'Sesi Telegram kemungkinan sudah kedaluwarsa atau dicabut. Silakan login ulang dengan /daftar.',
+    ).catch(() => { /* user mungkin memblokir bot */ });
   }
 
   async startUserbot(telegramId: number, sessionString: string) {
@@ -162,6 +210,7 @@ class UserbotManager {
 
   startWatchdog(intervalMs = 120000) {
     if (this.watchdogInterval) {return;}
+    this.watchdogBaseMs = intervalMs;
     Logger.logSystem(`🛡️ Userbot Watchdog started (${intervalMs}ms interval).`, 'INFO');
     this.watchdogInterval = setInterval(() => {
       // Cegah siklus tumpang-tindih bila pengecekan sebelumnya belum selesai
@@ -203,19 +252,31 @@ class UserbotManager {
 
       if (this.reconnecting.has(id)) {continue;}
 
+      // Exponential backoff: lewati siklus ini bila jeda belum habis.
+      const failure = this.reconnectFailures.get(id);
+      if (failure && Date.now() < failure.nextAttemptAt) {continue;}
+
       this.reconnecting.add(id);
       try {
         Logger.logUser(id, `🛡️ Watchdog reconnecting userbot [${id}]...`, 'INFO');
         await this.startUserbot(id, bot.session_string);
+        this.reconnectFailures.delete(id);
         Logger.logUser(id, `✓ Watchdog reconnected userbot [${id}].`, 'SUCCESS');
         await sleep(1500);
       } catch (err) {
-        Logger.logSystem(`Watchdog failed for [${id}]: ${err instanceof Error ? err.message : String(err)}`, 'ERROR');
-        const errMsg = err instanceof Error ? err.message : '';
-        if (errMsg && (errMsg.includes('Not a valid string') || errMsg.includes('session string'))) {
-          Logger.logSystem(`Sesi untuk [${id}] tidak valid/rusak. Menonaktifkan userbot secara otomatis agar tidak loop.`, 'ERROR');
-          Logger.logUser(id, 'Sesi Telegram Anda tidak valid atau telah dicabut. Userbot telah dinonaktifkan secara otomatis. Silakan daftar ulang.', 'ERROR');
-          await updateUserbotStatus(id, false);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        Logger.logSystem(`Watchdog failed for [${id}]: ${errMsg}`, 'ERROR');
+        if (isDeadSessionError(errMsg)) {
+          await this.#deactivateDeadUserbot(id, errMsg);
+        } else {
+          const count = (failure?.count ?? 0) + 1;
+          if (count >= WATCHDOG_MAX_RETRIES) {
+            await this.#deactivateDeadUserbot(id, `gagal reconnect ${count}× berturut-turut (${errMsg})`);
+          } else {
+            const delay = backoffDelayMs(count, this.watchdogBaseMs);
+            this.reconnectFailures.set(id, { count, nextAttemptAt: Date.now() + delay });
+            Logger.logUser(id, `⏳ Watchdog retry ${count}/${WATCHDOG_MAX_RETRIES} untuk [${id}] dalam ${Math.round(delay / 1000)}s.`, 'WARN');
+          }
         }
       } finally {
         this.reconnecting.delete(id);

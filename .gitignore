@@ -11,7 +11,9 @@ ytdl_*
 .agents/
 
 scratch*.js
+scratch/
 test_*.js
+.freebuff/
 
 # runtime data
 backups/

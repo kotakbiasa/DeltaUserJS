@@ -1,6 +1,7 @@
 import fsp from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dns from 'dns';
 import mongoose from 'mongoose';
 import config from '../config.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
@@ -258,10 +259,23 @@ export async function initDatabaseAndCache() {
   if (MONGO_URI && MONGO_URI !== 'YOUR_MONGO_URI') {
     try {
       Logger.logSystem('🔌 Connecting to MongoDB Cluster...', 'INFO');
-      await mongoose.connect(MONGO_URI, {
-        dbName: DB_NAME,
-        serverSelectionTimeoutMS: 30000
-      });
+      try {
+        await mongoose.connect(MONGO_URI, {
+          dbName: DB_NAME,
+          serverSelectionTimeoutMS: 30000
+        });
+      } catch (connectErr) {
+        if (MONGO_URI.startsWith('mongodb+srv://') && String(connectErr).includes('ESERVFAIL')) {
+          Logger.logSystem('⚠️ DNS SRV lookup gagal pada resolver bawaan; mencoba ulang dengan DNS publik (8.8.8.8, 1.1.1.1)...', 'WARN');
+          dns.setServers(['8.8.8.8', '1.1.1.1']);
+          await mongoose.connect(MONGO_URI, {
+            dbName: DB_NAME,
+            serverSelectionTimeoutMS: 30000
+          });
+        } else {
+          throw connectErr;
+        }
+      }
       isMongo = true;
       Logger.logSystem(`✅ Connected successfully to MongoDB: "${mongoose.connection.name}"`, 'SUCCESS');
 

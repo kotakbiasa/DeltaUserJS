@@ -110,8 +110,8 @@ test('semua action rich: tetap terdaftar tepat satu kali di routes/', () => {
     }
   }
 
-  // Jumlah persis sebelum pemecahan. Naikkan dengan sadar saat menambah menu.
-  assert.equal(seen.size, 77, 'jumlah action berubah — pastikan tidak ada yang hilang saat refaktor');
+  // Jumlah persis sebelum pemecahan (+1 untuk plugin_uninstall). Naikkan dengan sadar saat menambah menu.
+  assert.equal(seen.size, 78, 'jumlah action berubah — pastikan tidak ada yang hilang saat refaktor');
 
   // Sampel lintas-grup: hilangnya salah satu ini bikin menu mati total.
   for (const action of ['main', 'ubot', 'settings', 'admin', 'otp', 'qr', 'toggle_power']) {

@@ -96,6 +96,48 @@ export async function handlePluginsRoutes(ctx: BotContext) {
     return sendRich(ctx, detail.rich, detail.keyboard, { edit: true });
   }
 
+  if (action.startsWith('p_uninstall:')) {
+    const parts = action.split(':');
+    const pluginName = decodeURIComponent(parts[1] || '');
+    const page = Number(parts[2]) || 1;
+    const category = parts[3] || 'all';
+    const lower = pluginName.toLowerCase();
+
+    const plugin = findPlugin(pluginName);
+    const relPath = String(plugin?.file || '').replace(/\\/g, '/');
+    if (!relPath.startsWith('installed/')) {
+      return ctx.answerCallbackQuery('Modul bawaan tidak bisa dicopot, hanya bisa dinonaktifkan.');
+    }
+
+    // 1. Nonaktifkan dari profil user di database
+    await disablePlugin(ctx.from.id, pluginName);
+
+    // 2. Jika file berada di folder installed/, lepas dari registry dan hapus file
+    try {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const { unregisterPlugin } = await import('../../../../../userbot/engine/pluginRegistry.js');
+
+      const installedDir = path.resolve('src/userbot/handlers/installed');
+      const targetTs = path.join(installedDir, `${lower}.ts`);
+      const targetJs = path.join(installedDir, `${lower}.js`);
+
+      if (fs.existsSync(targetTs)) {
+        try { fs.unlinkSync(targetTs); } catch (_) { /* empty */ }
+        unregisterPlugin(lower);
+      }
+      if (fs.existsSync(targetJs)) {
+        try { fs.unlinkSync(targetJs); } catch (_) { /* empty */ }
+        unregisterPlugin(lower);
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    await ctx.answerCallbackQuery(`🗑️ Modul ${pluginName} berhasil dicopot!`);
+    return openPluginStudio(ctx, page, category, `Modul ${pluginName} telah dicopot dari userbot.`);
+  }
+
   if (action.startsWith('plugin_toggle:')) {
     const [, rawName, rawPage] = action.split(':');
     const page = Number(rawPage || 1);

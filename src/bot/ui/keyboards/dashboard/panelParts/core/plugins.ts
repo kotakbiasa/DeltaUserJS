@@ -129,14 +129,28 @@ export function panelPluginDetail(ctx: BotContext, pluginName: string, page = 1,
     `<p>${escapeHtml(detail)}</p>` +
     `<footer>Kelola status aktif modul ini menggunakan tombol di bawah.</footer>`;
 
+  const relPath = String(plugin.file || '').replace(/\\/g, '/');
+  const isInstalled = relPath.startsWith('installed/');
+
   const actionRows: DashboardButton[][] = [];
   if (!isProtected) {
-    actionRows.push([
+    const toggleRow: DashboardButton[] = [
       {
-        text: isActive ? '🔴 Nonaktifkan Modul Ini' : '🟢 Aktifkan Modul Ini',
+        text: isActive ? '🔴 Nonaktifkan Modul' : '🟢 Aktifkan Modul',
         callback_data: `rich:p_tog_det:${encodeURIComponent(target)}:${page}:${category}`
       }
-    ]);
+    ];
+
+    // Hanya modul hasil unduhan/pemasangan (di folder installed/) yang bisa dicopot
+    if (isInstalled) {
+      toggleRow.push({
+        text: '🗑️ Copot Modul',
+        callback_data: `rich:p_uninstall:${encodeURIComponent(target)}:${page}:${category}`,
+        style: 'danger'
+      });
+    }
+
+    actionRows.push(toggleRow);
   }
   actionRows.push([
     { text: '🔙 Kembali ke Daftar Modul', callback_data: `rich:p_cat:${category}:${page}` },

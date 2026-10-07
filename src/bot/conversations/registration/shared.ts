@@ -115,7 +115,13 @@ export async function waitForInput(conversation: BotConversation, ctx: BotContex
   const cbData = result.callbackQuery?.data;
   const textMsg = result.message?.text?.trim().toLowerCase();
 
-  if (cbData === 'cancel' || cbData === 'cancel_reg' || cbData === 'cancel_qr' || textMsg === '/cancel') {
+  if (
+    cbData === 'cancel' ||
+    cbData === 'cancel_reg' ||
+    cbData === 'cancel_qr' ||
+    cbData?.startsWith('rich:') ||
+    textMsg === '/cancel'
+  ) {
     if (result.callbackQuery) {
       try {
         await result.answerCallbackQuery('Pendaftaran dibatalkan.');
@@ -130,7 +136,16 @@ export async function waitForInput(conversation: BotConversation, ctx: BotContex
     }
     await replyRich(
       ctx,
-      `<p><b>❌ Aksi dibatalkan.</b><br>Pendaftaran dibatalkan. Ketik /menu untuk kembali ke Menu Utama.</p>`
+      `<p><b>❌ Pendaftaran Dibatalkan.</b><br>Proses pendaftaran dihentikan. Silakan pilih opsi di bawah:</p>`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔍 Scan QR Code (Rekomendasi)', callback_data: 'rich:qr', style: 'success' }],
+            [{ text: '📱 Login via OTP Telegram', callback_data: 'rich:otp' }],
+            [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
+          ]
+        }
+      }
     );
     throw new Error('USER_CANCELLED');
   }

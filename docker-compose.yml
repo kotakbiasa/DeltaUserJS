@@ -35,7 +35,6 @@ services:
       - API_ID=${API_ID}
       - API_HASH=${API_HASH}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - MUSLIM_SALAT_API_KEY=${MUSLIM_SALAT_API_KEY}
       - APP_URL=${APP_URL:-http://localhost:3000}
       - DIGITAL_STORE_PATH=/app/data/digital-store.json
       # State approval/pending/terms — wajib di dalam volume /app/data,

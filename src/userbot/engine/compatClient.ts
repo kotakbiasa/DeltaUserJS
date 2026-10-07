@@ -49,6 +49,13 @@ export interface LegacySendFileOptions {
   parseMode?: string | false;
   replyTo?: number | unknown;
   forceDocument?: boolean;
+  voiceNote?: boolean;
+  fileName?: string;
+  filename?: string;
+  name?: string;
+  mimeType?: string;
+  fileMime?: string;
+  fileSize?: number;
   attributes?: Array<{ _?: string; className?: string; [key: string]: unknown }>;
   [key: string]: unknown;
 }
@@ -67,7 +74,7 @@ export type CompatClient = Omit<TelegramClient, LegacyOverridden> & {
   getEntity(peer: LegacyPeer): Promise<LegacyEntity>;
   invoke(call: unknown): Promise<unknown>;
   getMessages(peer: LegacyPeer, params?: unknown): Promise<Array<Message | null>>;
-  sendFile(chat: LegacyPeer, options: LegacySendFileOptions | unknown): Promise<Message>;
+  sendFile(chat: LegacyPeer, fileOrOptions: LegacySendFileOptions | unknown, maybeOptions?: LegacySendFileOptions | unknown): Promise<Message>;
   deleteMessages(chatOrMsgs: unknown, idsOrParams?: unknown, maybeParams?: unknown): Promise<unknown>;
   downloadProfilePhoto(peer: LegacyPeer): Promise<Buffer | undefined>;
 
@@ -76,6 +83,7 @@ export type CompatClient = Omit<TelegramClient, LegacyOverridden> & {
   editMessage(params: unknown, maybeParams?: unknown): Promise<unknown>;
 
   // --- dipakai mock test & tgcalls-js, tidak ada di TelegramClient mtcute ---
+  getInputEntity?(peer: unknown): Promise<unknown>;
   addEventHandler?(handler: (event: unknown) => unknown, builder?: unknown): void;
   removeEventHandler?(handler: (event: unknown) => unknown, builder?: unknown): void;
 };
@@ -87,7 +95,7 @@ export type CompatClient = Omit<TelegramClient, LegacyOverridden> & {
  * ID Telegram selalu muat di `Number` (jauh di bawah 2^53), jadi konversi
  * bigint di sini tidak kehilangan presisi.
  */
-export function toPeer(entity: EntityLike | null | undefined): LegacyPeer {
+export function toPeer(entity: unknown): LegacyPeer {
   if (typeof entity === 'bigint') {return Number(entity);}
   if (typeof entity === 'string' || typeof entity === 'number') {return entity;}
   if (entity && typeof entity === 'object') {

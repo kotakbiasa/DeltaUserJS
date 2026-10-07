@@ -18,22 +18,28 @@ type DashboardButton = {
 type DashboardButtonRows = DashboardButton[][];
 
 export function keyboardTermsOfService() {
-  return { inline_keyboard: [
-    [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
-  ] };
+  return {
+    inline_keyboard: [
+      [{ text: '✅ Saya Setuju & Lanjutkan', callback_data: 'rich:tos_agree', style: 'success' }],
+      [{ text: '❌ Tolak & Batal', callback_data: 'rich:tos_decline', style: 'danger' }, { text: '🔙 Menu Utama', callback_data: 'rich:main' }],
+    ]
+  };
 }
 
 export function keyboardTermsDeclined() {
-  return { inline_keyboard: [
-    [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
-  ] };
+  return {
+    inline_keyboard: [
+      [{ text: '🔄 Baca Ulang Ketentuan', callback_data: 'rich:tos_view', style: 'primary' }],
+      [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
+    ]
+  };
 }
 
 export function keyboardRegister() {
   return { inline_keyboard: [
-    [{ text: '📱 Login via OTP', callback_data: 'rich:otp' }, { text: '🔍 Scan QR Code', callback_data: 'rich:qr' }],
-    [{ text: '📜 Syarat & Ketentuan', callback_data: 'rich:tos_view' }, { text: '🛡️ Status Akses', callback_data: 'rich:subscription' }],
-    [{ text: '🔙 Menu Utama', callback_data: 'rich:main' }],
+    [{ text: '🔍 Scan QR Code (Rekomendasi)', callback_data: 'rich:qr', style: 'success' }],
+    [{ text: '📱 Login via OTP Telegram', callback_data: 'rich:otp' }],
+    [{ text: '🛡️ Status Akses', callback_data: 'rich:subscription' }, { text: '🔙 Menu Utama', callback_data: 'rich:main' }],
   ] };
 }
 
