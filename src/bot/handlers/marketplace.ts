@@ -17,7 +17,7 @@ import {
 import type { BotContext } from '../context.js';
 
 const OWNER_PERMISSIONS: PluginPermission[] = [
-  'fs.read', 'fs.write', 'net.http', 'eval', 'shell',
+  'fs.read', 'fs.write', 'net.http', 'exec',
   'db.read', 'db.write', 'bot.send', 'bot.edit', 'user.info',
 ];
 
@@ -62,7 +62,7 @@ function parseCommandArgs(text: string): string[] {
 
 function formatPermissions(perms: PluginPermission[]): string {
   const emojiMap: Record<PluginPermission, string> = {
-    'fs.read': '📖', 'fs.write': '📝', 'net.http': '🌐', 'eval': '⚡', 'shell': '🐚',
+    'fs.read': '📖', 'fs.write': '📝', 'net.http': '🌐', 'exec': '⚡',
     'db.read': '🗄️', 'db.write': '💾', 'bot.send': '📤', 'bot.edit': '✏️', 'user.info': '👤',
   };
   return perms.map(p => `${emojiMap[p] || '❓'} ${escapeHtml(String(p))}`).join(' ');
@@ -72,7 +72,9 @@ function formatPermissions(perms: PluginPermission[]): string {
  * Plugin Marketplace menu
  */
 export async function showMarketplaceMenu(ctx: Context) {
-  const plugins = getRegistryPlugins();
+  const allPlugins = getRegistryPlugins();
+  const owner = Number(ctx.from?.id) === Number(config.ownerId);
+  const plugins = owner ? allPlugins : allPlugins.filter(p => !p.permissions.includes('exec'));
   const installed = getInstalledPlugins();
   const installedNames = new Set(installed.map(p => p.manifest.name));
 
@@ -80,7 +82,6 @@ export async function showMarketplaceMenu(ctx: Context) {
   text += `📦 Total: ${plugins.length} | 📥 Installed: ${installed.length}\n\n`;
 
   const keyboard = new InlineKeyboard();
-  const owner = Number(ctx.from?.id) === Number(config.ownerId);
 
   for (const plugin of plugins.slice(0, 10)) {
     const isInstalled = installedNames.has(plugin.name);
@@ -169,7 +170,8 @@ export async function showPluginDetail(ctx: Context, name: string) {
   text += `<b>📄 License:</b> ${escapeHtml(manifest.license || '—')}\n\n`;
 
   text += `<b>🔐 Permissions (${manifest.permissions.length}):</b>\n`;
-  text += formatPermissions(manifest.permissions) + '\n\n';
+  const visiblePerms = owner ? manifest.permissions : manifest.permissions.filter(p => p !== 'exec');
+  text += formatPermissions(visiblePerms) + '\n\n';
 
   if (installed) {
     text += `✅ <b>Status:</b> Terinstall v${escapeHtml(String(installedVersion ?? 'unknown'))}\n`;
@@ -198,7 +200,9 @@ export async function showPluginDetail(ctx: Context, name: string) {
  * Search plugins
  */
 export async function searchPlugins(ctx: Context, query: string) {
-  const results = searchRegistry(query);
+  const owner = Number(ctx.from?.id) === Number(config.ownerId);
+  const allResults = searchRegistry(query);
+  const results = owner ? allResults : allResults.filter(p => !p.permissions.includes('exec'));
 
   if (results.length === 0) {
     await ctx.reply(`🔍 Tidak ditemukan plugin untuk: <b>${escapeHtml(query)}</b>`, { parse_mode: 'HTML' });

@@ -36,13 +36,12 @@ export type PluginPermission =
   | 'fs.read'
   | 'fs.write'
   | 'net.http'
-  | 'eval'
-  | 'shell'
   | 'db.read'
   | 'db.write'
   | 'bot.send'
   | 'bot.edit'
-  | 'user.info';
+  | 'user.info'
+  | 'exec'; // Owner-only, hidden from marketplace menu
 
 interface InstalledPlugin {
   manifest: PluginManifest;
@@ -140,8 +139,8 @@ export async function addPluginToRegistry(manifest: PluginManifest): Promise<voi
 
   // Validate permissions
   const validPermissions: PluginPermission[] = [
-    'fs.read', 'fs.write', 'net.http', 'eval', 'shell',
-    'db.read', 'db.write', 'bot.send', 'bot.edit', 'user.info'
+    'fs.read', 'fs.write', 'net.http',
+    'db.read', 'db.write', 'bot.send', 'bot.edit', 'user.info', 'exec'
   ];
   for (const perm of manifest.permissions) {
     if (!validPermissions.includes(perm)) {
