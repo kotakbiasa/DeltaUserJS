@@ -3,6 +3,8 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { Logger } from '../../utils/logger.js';
 import { unregisterPlugin, loadedPlugins, registerPlugin } from './pluginRegistry.js';
+import { loadSinglePlugin } from './pluginLoader.js';
+import { getPluginDownloadUrl } from './pluginSync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -19,7 +21,7 @@ export const marketplaceDir = process.env.PLUGINS_MARKETPLACE_DIR
   || path.resolve(__dirname, '../../../plugins_marketplace');
 const registryFile = path.join(marketplaceDir, 'registry.json');
 
-interface PluginManifest {
+export interface PluginManifest {
   name: string;
   version: string;
   description: string;
@@ -161,6 +163,16 @@ export async function addPluginToRegistry(manifest: PluginManifest): Promise<voi
 export async function removePluginFromRegistry(name: string): Promise<void> {
   delete registry[name];
   await saveRegistry();
+}
+
+/**
+ * Update registry dari hasil sync
+ */
+export function updateRegistry(manifests: PluginManifest[]): void {
+  for (const manifest of manifests) {
+    registry[manifest.name] = manifest;
+  }
+  Logger.logSystem(`📦 Registry updated: ${Object.keys(registry).length} plugins`, 'INFO');
 }
 
 /**
@@ -340,6 +352,57 @@ export async function removePlugin(name: string): Promise<void> {
   await rm(localPath, { recursive: true, force: true });
   delete installedPlugins[name];
   Logger.logSystem(`📦 Removed plugin: ${name}`, 'INFO');
+}
+
+/**
+ * Install plugin from bot menu (download from GitHub)
+ */
+export async function installPluginFromBot(name: string): Promise<void> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(name)) {
+    throw new Error('Invalid plugin name.');
+  }
+  const manifest = registry[name];
+  if (!manifest) {
+    throw new Error(`Plugin ${name} not found in registry`);
+  }
+  if (installedPlugins[name]) {
+    throw new Error(`Plugin ${name} already installed`);
+  }
+
+  const category = manifest.category || 'tools';
+  const downloadUrl = getPluginDownloadUrl(category, name, manifest.entryPoint);
+
+  // Download plugin file
+  const res = await fetch(downloadUrl);
+  if (!res.ok) {
+    throw new Error(`Failed to download plugin: ${res.status}`);
+  }
+  const code = await res.text();
+
+  // Save to installed directory
+  const installDir = path.join(marketplaceDir, 'installed', name);
+  await mkdir(installDir, { recursive: true });
+  const filePath = path.join(installDir, manifest.entryPoint);
+  await writeFile(filePath, code);
+
+  // Load plugin
+  const loaded = await loadSinglePlugin(filePath);
+  if (!loaded) {
+    await rm(installDir, { recursive: true, force: true });
+    throw new Error('Failed to load plugin');
+  }
+
+  // Save manifest
+  const installed: InstalledPlugin = {
+    manifest,
+    installedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    localPath: installDir,
+  };
+  installedPlugins[name] = installed;
+  await writeFile(path.join(installDir, 'manifest.json'), JSON.stringify(installed, null, 2));
+
+  Logger.logSystem(`📦 Installed plugin: ${name}@${manifest.version}`, 'SUCCESS');
 }
 
 /**
