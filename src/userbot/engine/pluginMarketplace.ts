@@ -2,6 +2,7 @@ import { readdir, readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { Logger } from '../../utils/logger.js';
+import { unregisterPlugin, loadedPlugins, registerPlugin } from './pluginRegistry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +31,7 @@ interface PluginManifest {
   tags?: string[];
   homepage?: string;
   license?: string;
+  category?: string; // tools, util, group, system
 }
 
 export type PluginPermission =
@@ -322,6 +324,54 @@ export async function updatePlugin(name: string): Promise<InstalledPlugin> {
  * Remove installed plugin
  */
 export async function removePlugin(name: string): Promise<void> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(name)) {
+    throw new Error('Invalid plugin name.');
+  }
+  const installed = installedPlugins[name];
+  if (!installed) {
+    throw new Error(`Plugin ${name} not installed`);
+  }
+
+  const installedRoot = path.resolve(marketplaceDir, 'installed');
+  const localPath = path.resolve(installed.localPath);
+  if (!localPath.startsWith(`${installedRoot}${path.sep}`)) {
+    throw new Error('Invalid installed plugin path.');
+  }
+  await rm(localPath, { recursive: true, force: true });
+  delete installedPlugins[name];
+  Logger.logSystem(`📦 Removed plugin: ${name}`, 'INFO');
+}
+
+/**
+ * Toggle plugin from bot menu (disable/enable)
+ */
+export function togglePluginFromBot(name: string, enabled: boolean): void {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(name)) {
+    throw new Error('Invalid plugin name.');
+  }
+  const installed = installedPlugins[name];
+  if (!installed) {
+    throw new Error(`Plugin ${name} not installed`);
+  }
+
+  if (enabled) {
+    // Re-register plugin
+    const plugin = loadedPlugins.find(p => p.name === name);
+    if (plugin) {
+      unregisterPlugin(name);
+      registerPlugin(plugin, { file: plugin.file });
+    }
+  } else {
+    // Unregister plugin
+    unregisterPlugin(name);
+  }
+  Logger.logSystem(`📦 Plugin ${name} ${enabled ? 'enabled' : 'disabled'}`, 'INFO');
+}
+
+/**
+ * Remove installed plugin (from bot menu)
+ */
+export async function uninstallPluginFromBot(name: string): Promise<void> {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(name)) {
     throw new Error('Invalid plugin name.');
   }

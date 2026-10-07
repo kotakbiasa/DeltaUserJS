@@ -65,7 +65,8 @@ export default {
           `${coreList.join(', ') || '<i>Tidak ada</i>'}\n\n` +
           `<b>${checkEmoji} Modul Terpasang (Installed):</b>\n` +
           `${installedList.join(', ') || '<i>Belum ada modul tambahan yang terpasang</i>'}\n\n` +
-          `<i>Total: ${coreList.length + installedList.length} modul aktif di userbot.</i>`;
+          `<i>Total: ${coreList.length + installedList.length} modul aktif di userbot.</i>\n\n` +
+          `<i>Ketik .install &lt;nama_modul&gt; untuk memasang plugin baru.</i>`;
 
         await message.edit({ text: out, parseMode: 'html' });
       } catch (err) {

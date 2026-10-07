@@ -20,6 +20,7 @@ import { userAddLoopConversation } from './conversations/scheduler.js';
 import { registerRichHandlers } from './ui/keyboards/dashboard.js';
 import { registerInlineHelpHandlers } from './handlers/inlineHelp.js';
 import { registerMarketplaceHandlers } from './handlers/marketplace.js';
+import { registerPluginMenuHandlers } from './handlers/pluginMenu.js';
 import { registerBackupHandlers } from './handlers/backup.js';
 import { setLoggerBot } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
@@ -118,6 +119,9 @@ registerInlineHelpHandlers(bot);
 
 // Marketplace handlers (plugin marketplace)
 registerMarketplaceHandlers(bot);
+
+// Plugin menu handlers (plugin install via inline keyboard)
+registerPluginMenuHandlers(bot);
 
 // Backup handlers (backup & restore)
 registerBackupHandlers(bot);
