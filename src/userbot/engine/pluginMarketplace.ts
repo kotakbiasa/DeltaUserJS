@@ -379,16 +379,19 @@ export async function installPluginFromBot(name: string): Promise<void> {
   }
   const code = await res.text();
 
-  // Save to installed directory
-  const installDir = path.join(marketplaceDir, 'installed', name);
-  await mkdir(installDir, { recursive: true });
-  const filePath = path.join(installDir, manifest.entryPoint);
+  // Save to handlers/installed/ (loadSinglePlugin expects path relative to handlers/)
+  const { fileURLToPath } = await import('url');
+  const { dirname } = await import('path');
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const installedDir = path.resolve(__dirname, '../../handlers/installed');
+  await mkdir(installedDir, { recursive: true });
+  const filePath = path.join(installedDir, manifest.entryPoint);
   await writeFile(filePath, code);
 
   // Load plugin
   const loaded = await loadSinglePlugin(filePath);
   if (!loaded) {
-    await rm(installDir, { recursive: true, force: true });
+    await rm(filePath, { force: true });
     throw new Error('Failed to load plugin');
   }
 
@@ -397,10 +400,9 @@ export async function installPluginFromBot(name: string): Promise<void> {
     manifest,
     installedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    localPath: installDir,
+    localPath: filePath,
   };
   installedPlugins[name] = installed;
-  await writeFile(path.join(installDir, 'manifest.json'), JSON.stringify(installed, null, 2));
 
   Logger.logSystem(`📦 Installed plugin: ${name}@${manifest.version}`, 'SUCCESS');
 }
@@ -443,12 +445,8 @@ export async function uninstallPluginFromBot(name: string): Promise<void> {
     throw new Error(`Plugin ${name} not installed`);
   }
 
-  const installedRoot = path.resolve(marketplaceDir, 'installed');
   const localPath = path.resolve(installed.localPath);
-  if (!localPath.startsWith(`${installedRoot}${path.sep}`)) {
-    throw new Error('Invalid installed plugin path.');
-  }
-  await rm(localPath, { recursive: true, force: true });
+  await rm(localPath, { force: true });
   delete installedPlugins[name];
   Logger.logSystem(`📦 Removed plugin: ${name}`, 'INFO');
 }
